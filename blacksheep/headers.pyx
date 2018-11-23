@@ -26,6 +26,8 @@ cdef class HttpHeaderCollection:
             self.add_many(values)
 
     cpdef list get(self, bytes name):
+        cdef bytes key
+        cdef list values
         for key, values in self._headers.items():
             if key.lower() == name.lower():
                 return values
@@ -126,8 +128,7 @@ cdef class HttpHeaderCollection:
     def __setitem__(self, bytes key, value: Union[bytes, HttpHeader]):
         # Not obvious, but here we make the decision that setter removes existing headers with matching name:
         # it feels more natural with syntax: headers[b'X-Foo'] = b'Something'
-        self._headers[key].clear()
-        self._headers[key].append(self._get_value(key, value))
+        self._headers[key] = [self._get_value(key, value)]
 
     def __getitem__(self, bytes item):
         return self.get(item)

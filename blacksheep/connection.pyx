@@ -17,6 +17,7 @@ cdef class ConnectionHandler:
     
     def __init__(self, *, object app, object loop):
         self.app = app
+        self.max_body_size = app.options.limits.max_body_size
         app.connections.add(self)
         self.time_of_last_activity = time.time()
         self.loop = loop
@@ -101,7 +102,7 @@ cdef class ConnectionHandler:
 
         body_len = len(self.request.raw_body)
 
-        if body_len > self.app.options.limits.max_body_size:
+        if body_len > self.max_body_size:
             self.handle_invalid_request(b'Exceeds maximum body size')
 
     def on_headers_complete(self):

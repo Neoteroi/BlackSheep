@@ -163,6 +163,14 @@ class Application:
         self._validate_static_folders()
 
     async def handle(self, request: HttpRequest) -> HttpResponse:
+        response = await self.get_response(request)
+        if not response:
+            response = HttpResponse(204)
+        response.headers[b'Date'] = self.current_timestamp
+        response.headers[b'Server'] = b'BlackSheep'
+        return response
+
+    async def get_response(self, request: HttpRequest) -> HttpResponse:
         route = self.router.get_match(request.method, request.url.path)
 
         if not route:
@@ -270,7 +278,7 @@ def monitor_app(app: Application):
 
         for connection in to_remove:
             app.connections.discard(connection)
-        sleep(10)
+        sleep(1)
 
 
 def monitor_processes(app: Application, processes: List[Process]):
@@ -317,20 +325,15 @@ def spawn_server(app: Application):
                                 reuse_port=options.processes_count > 1,
                                 backlog=options.backlog)
 
-    monitor_thread = None
-    #if app.debug:
-    #    print('[*] Connections monitoring is disabled when app.debug is True')
-    #else:
-    #    monitor_thread = Thread(target=monitor_app,
-    #                            args=(app, ),
-    #                            daemon=True)
-    #    monitor_thread.start()
+    monitor_thread = Thread(target=monitor_app,
+                            args=(app, ),
+                            daemon=True)
+    monitor_thread.start()
 
     def on_stop():
         loop.stop()
         app.stop()
-        if monitor_thread:
-            monitor_thread.join(30)
+        monitor_thread.join(30)
 
     if app.on_start:
         loop.run_until_complete(app.on_start.fire())

@@ -11,6 +11,7 @@ from .messages cimport HttpRequest, HttpResponse
 cdef class ConnectionHandler:
     cdef readonly object app
     cdef readonly HttpRequest request
+    cdef int max_body_size
     cdef public object transport
     cdef readonly float time_of_last_activity
     cdef object loop

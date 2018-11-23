@@ -3,7 +3,7 @@ HTTP Server/Client microframework for Python asyncio, using [Cython](https://cyt
 [`uvloop`](https://magic.io/blog/uvloop-blazing-fast-python-networking/), and 
 [`httptools`](https://github.com/MagicStack/httptools). 
 
-This project is a beta version.
+This project is a beta version. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
 
 ```python
 from datetime import datetime
@@ -28,12 +28,12 @@ app.start()
 * High performance
 
 ## Server Features
-* Routing
-* Middlewares
+* [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
+* [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
 * Built-in support for multi processing
-* Integration with built-in `logging` module to log access and errors synchronously - this is completely disabled by default
-* Chunked encoding through generators (yield syntax)
-* Serving static files
+* Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
+* [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
+* [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * __Linux only__: support for Windows is currently out of the scope of this project
 
 ## Documentation

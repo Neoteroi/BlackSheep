@@ -7,8 +7,8 @@ This project is a beta version. The reason behind this framework is described in
 
 ```python
 from datetime import datetime
+from blacksheep import HttpResponse, TextContent
 from blacksheep.server import Application
-from blacksheep.entities import HttpResponse, TextContent
 
 
 app = Application()

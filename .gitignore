@@ -100,5 +100,12 @@ venv.bak/
 # mkdocs documentation
 /site
 
+.idea/
+
+tests/out/
+
 # mypy
 .mypy_cache/
+
+blacksheep/*.c
+blacksheep/*.html

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Internal Server Error.</title>
+    <meta charset="utf-8" />
+    <meta content='text/html; charset=utf-8' http-equiv='Content-Type'>
+    <style>
+        dt {{
+            font-weight: bold;
+        }}
+    </style>
+  </head>
+  <body>
+    <h1>Internal Server Error.</h1>
+    <p>While handling request: {method} {path}</p>
+    <dl>
+        <dt>Exception type:</dt>
+        <dd>{exctype}</dd>
+        <dt>Exception message:</dt>
+        <dd>{excmessage}</dd>
+    </dl>
+    <hr/>
+    <p>Stack trace:</p>
+    <ol>{info}</ol>
+  </body>
+</html>

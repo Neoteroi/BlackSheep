@@ -36,7 +36,6 @@ cdef class HttpContent:
             self.generator = None
             self._is_generator_async = False
 
-    @cython.iterable_coroutine
     async def get_parts(self):
         if self.body:
             yield self.body

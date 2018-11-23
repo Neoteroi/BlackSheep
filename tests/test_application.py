@@ -77,9 +77,7 @@ async def test_application_get_handler():
 
     assert request is not None
 
-    connection = request.headers['connection']
-    assert connection == [HttpHeader(b'Connection', b'keep-alive')]
-    connection = request.headers['Connection']
+    connection = request.headers[b'connection']
     assert connection == [HttpHeader(b'Connection', b'keep-alive')]
 
     text = await request.text()

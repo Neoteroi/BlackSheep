@@ -167,6 +167,10 @@ cdef bytes write_small_response(HttpResponse response):
     return bytes(data)
 
 
+cpdef bytes py_write_small_response(HttpResponse response):
+    return write_small_response(response)
+
+
 cdef list get_all_request_headers(HttpRequest request):
     cdef list result = []
     cdef HttpContent content

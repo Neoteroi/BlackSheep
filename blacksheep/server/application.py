@@ -163,7 +163,7 @@ class Application:
         self._validate_static_folders()
 
     async def handle(self, request: HttpRequest) -> HttpResponse:
-        route = self.router.get_match(request.method, request.raw_url.split(b'?')[0])
+        route = self.router.get_match(request.method, request.url.path)
 
         if not route:
             return await self.handle_not_found(request)

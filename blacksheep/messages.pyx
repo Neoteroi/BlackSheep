@@ -22,11 +22,9 @@ cdef int get_content_length(HttpHeaderCollection headers):
 
 
 cdef bint get_is_chunked_encoding(HttpHeaderCollection headers):
-    if not headers:
-        return False
     cdef HttpHeader header
     header = headers.get_single(b'transfer-encoding')
-    if header and header.value.lower() == b'chunked':
+    if header and b'chunked' in header.value.lower():
         return True
     return False
 
@@ -181,7 +179,7 @@ cdef class HttpRequest(HttpMessage):
 
         cookies = {}
         if b'cookie' in self.headers:
-            for header in self.headers[b'cookie']:
+            for header in self.headers.get(b'cookie'):
                 cookie = parse_cookie(header.value)
                 cookies[cookie.name] = cookie
         self._cookies = cookies
@@ -230,7 +228,7 @@ cdef class HttpResponse(HttpMessage):
         # NB: if cookies are configured headers, here they are read
         cookies = {}
         if b'set-cookie' in self.headers:
-            for header in self.headers[b'set-cookie']:
+            for header in self.headers.get(b'set-cookie'):
                 cookie = parse_cookie(header.value)
                 cookies[cookie.name] = cookie
         self._cookies = cookies

@@ -12,3 +12,10 @@ cdef class HttpHeader:
 
 cdef class HttpHeaderCollection:
     cdef object _headers
+
+    cpdef list get(self, bytes name)
+
+    cpdef HttpHeader get_single(self, bytes name)
+
+    cpdef HttpHeader get_first(self, bytes name)
+

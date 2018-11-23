@@ -109,7 +109,7 @@ cdef class ConnectionHandler:
         request = HttpRequest(
             self.method,
             self.url,
-            HttpHeaderCollection.from_param(self.headers),
+            HttpHeaderCollection(self.headers),
             None
         )
         request.client_ip = self.get_client_ip()

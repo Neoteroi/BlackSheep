@@ -25,9 +25,7 @@ cdef class HttpHeaderCollection:
         if values:
             self.add_many(values)
 
-    def get(self, name: Union[bytes, str]):
-        if isinstance(name, str):
-            name = name.encode('utf8')
+    cpdef list get(self, bytes name):
         for key, values in self._headers.items():
             if key.lower() == name.lower():
                 return values
@@ -131,7 +129,7 @@ cdef class HttpHeaderCollection:
         self._headers[key].clear()
         self._headers[key].append(self._get_value(key, value))
 
-    def __getitem__(self, item):
+    def __getitem__(self, bytes item):
         return self.get(item)
 
     def __delitem__(self, bytes key):
@@ -140,11 +138,11 @@ cdef class HttpHeaderCollection:
     def __contains__(self, bytes item):
         return item in self._headers
 
-    def get_first(self, bytes name):
+    cpdef HttpHeader get_first(self, bytes name):
         values = self.get(name)
         return values[0] if values else None
 
-    def get_single(self, bytes name):
+    cpdef HttpHeader get_single(self, bytes name):
         values = self.get(name)
         if len(values) > 1:
             return values[-1]

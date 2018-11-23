@@ -68,6 +68,7 @@ class Route:
 
     __slots__ = ('handler',
                  'pattern',
+                 'has_params',
                  '_rx')
 
     def __init__(self, pattern: bytes, handler: Callable):
@@ -78,15 +79,19 @@ class Route:
         pattern = pattern.lower()
         self.handler = handler
         self.pattern = pattern
+        self.has_params = b'*' in pattern or b':' in pattern
         self._rx = _get_regex_for_pattern(pattern)
 
     def match(self, value: bytes):
+        if not self.has_params and value.lower() == self.pattern:
+            return RouteMatch(self, None)
+
         match = self._rx.match(value)
 
         if not match:
             return None
 
-        return RouteMatch(self, match.groupdict())
+        return RouteMatch(self, match.groupdict() if self.has_params else None)
 
     def __repr__(self):
         return f'<Route {self.pattern}>'
@@ -219,6 +224,6 @@ class Router:
             match = route.match(value)
             if match:
                 return match
-        return RouteMatch(self._fallback, {}) if self.fallback else None
+        return RouteMatch(self._fallback, None) if self.fallback else None
 
 

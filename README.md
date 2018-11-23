@@ -5,6 +5,21 @@ HTTP Server/Client microframework for Python asyncio, using [Cython](https://cyt
 
 This project is a beta version.
 
+```python
+from datetime import datetime
+from blacksheep.server import Application
+from blacksheep.entities import HttpResponse, TextContent
+
+
+app = Application()
+
+@app.route('/')
+async def home(request):
+    return HttpResponse(200, content=TextContent(f'Hello, World! {datetime.utcnow().isoformat()}'))
+
+app.start()
+```
+
 ## Objectives
 * Clean architecture and clean source code
 * Avoid CPU cycles to handle things that are not strictly necessary
@@ -20,23 +35,6 @@ This project is a beta version.
 * Chunked encoding through generators (yield syntax)
 * Serving static files
 * __Linux only__: support for Windows is currently out of the scope of this project
-
-## Basic example
-
-```python
-from datetime import datetime
-from blacksheep.server import Application
-from blacksheep.entities import HttpResponse, TextContent
-
-
-app = Application()
-
-@app.route('/')
-async def home(request):
-    return HttpResponse(200, content=TextContent(f'Hello, World! {datetime.utcnow().isoformat()}'))
-
-app.start()
-```
 
 ## Documentation
 Please refer to the [project Wiki](https://github.com/RobertoPrevato/BlackSheep/wiki).

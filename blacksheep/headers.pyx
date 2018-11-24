@@ -20,10 +20,15 @@ cdef class HttpHeader:
 
 cdef class HttpHeaderCollection:
 
-    def __init__(self, values: Union[None, Dict[bytes, bytes], List[HttpHeader]]=None):
+    def __init__(self, list values=None):
         self._headers = defaultdict(list)
         if values:
-            self.add_many(values)
+            self.merge(values)
+
+    cpdef void merge(self, list values):
+        cdef HttpHeader header
+        for header in values:
+            self[header.name].append(header)
 
     cpdef list get(self, bytes name):
         cdef bytes key

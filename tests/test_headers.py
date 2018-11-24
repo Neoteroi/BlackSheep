@@ -20,7 +20,7 @@ from blacksheep import scribe
     },
 ])
 def test_http_header_collection_instantiating_with_dict_values(values):
-    headers = HttpHeaderCollection(values)
+    headers = HttpHeaderCollection(list(HttpHeader(key, value) for key, value in values.items()))
 
     for key, value in values.items():
         header = headers[key]

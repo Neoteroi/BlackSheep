@@ -75,7 +75,7 @@ cdef class HttpMessage:
         self._raw_body.extend(chunk)
         body_len = len(self._raw_body)
 
-        if self._content_length is not None:
+        if self._content_length > -1:
             if body_len >= self._content_length:
                 self.complete.set()
         else:

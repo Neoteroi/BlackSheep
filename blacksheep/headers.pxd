@@ -19,3 +19,4 @@ cdef class HttpHeaderCollection:
 
     cpdef HttpHeader get_first(self, bytes name)
 
+    cpdef void merge(self, list values)

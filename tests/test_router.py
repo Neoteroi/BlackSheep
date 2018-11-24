@@ -255,10 +255,7 @@ class TestRouter:
 
         def delete_foo():
             pass
-
-        def not_found_handler():
-            pass
-
+        
         router.add_get(b'/', home)
         router.add_get(b'/foo', get_foo)
         router.add_post(b'/foo', create_foo)
@@ -288,7 +285,12 @@ class TestRouter:
         assert m is not None
         assert m.handler is delete_foo
 
-        # configure fallback route
+    def test_fallback_route(self):
+        router = Router()
+
+        def not_found_handler():
+            pass
+
         router.fallback = not_found_handler
 
         m = router.get_match(HttpMethod.POST, b'/')

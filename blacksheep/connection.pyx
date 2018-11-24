@@ -113,7 +113,8 @@ cdef class ConnectionHandler:
             HttpHeaderCollection(self.headers),
             None
         )
-        request.client_ip = self.get_client_ip()
+        # TODO: think of a lazy way to get client_ip: client ip is not always interesting
+        # request.client_ip = self.get_client_ip()
         self.request = request
         self.loop.create_task(self.handle_request(request))
 

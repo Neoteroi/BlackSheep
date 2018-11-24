@@ -21,7 +21,7 @@ app.start()
 ```
 
 ## Objectives
-* Clean architecture and clean source code
+* Clean architecture and source code
 * Avoid CPU cycles to handle things that are not strictly necessary
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards
@@ -30,7 +30,7 @@ app.start()
 ## Server Features
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
-* Built-in support for multi processing
+* [Built-in support for multi processing](https://github.com/RobertoPrevato/BlackSheep/wiki/Built-in-multiprocessing)
 * Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)

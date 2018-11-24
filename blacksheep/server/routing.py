@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache
 from blacksheep import HttpMethod
 from collections import defaultdict
 from typing import Callable
@@ -99,10 +100,13 @@ class Route:
 
 class Router:
 
-    __slots__ = ('routes', '_fallback')
+    __slots__ = ('routes',
+                 '_map',
+                 '_fallback')
 
     def __init__(self):
         self.routes = defaultdict(list)
+        self._map = {}
         self._fallback = None
 
     @property
@@ -125,11 +129,28 @@ class Router:
         if self._fallback:
             yield self._fallback
 
+    def _is_route_configured(self, method: bytes, pattern: bytes):
+        method_patterns = self._map.get(method)
+        if not method_patterns:
+            return False
+        if method_patterns.get(pattern):
+            return True
+        return False
+
+    def _set_configured_route(self, method: bytes, pattern: bytes):
+        method_patterns = self._map.get(method)
+        if not method_patterns:
+            self._map[method] = {pattern: True}
+        else:
+            method_patterns[pattern] = True
+
     def add(self, method, pattern, handler):
         new_route = Route(pattern, handler)
-        current_match = self.get_match(method, new_route.pattern)
-        if current_match:
+        if self._is_route_configured(method, new_route.pattern):
+            current_match = self.get_match(method, pattern)
             raise RouteDuplicate(method, new_route.pattern, current_match.handler)
+        else:
+            self._set_configured_route(method, pattern)
         self.add_route(method, new_route)
 
     def add_route(self, method, route):
@@ -219,6 +240,7 @@ class Router:
             return f
         return decorator
 
+    @lru_cache(maxsize=1200)
     def get_match(self, method, value):
         for route in self.routes[method]:
             match = route.match(value)

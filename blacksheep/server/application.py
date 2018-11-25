@@ -347,14 +347,23 @@ def spawn_server(app: Application):
         print('[*] Exit')
     finally:
         pending = asyncio.Task.all_tasks()
-        if pending:
-            print('[*] completing pending tasks')
-            # TODO: add a timeout here
-            loop.run_until_complete(asyncio.gather(*pending))
+        try:
+            if pending:
+                print('[*] Completing pending tasks')
+                try:
+                    loop.run_until_complete(asyncio.wait_for(asyncio.gather(*pending), 
+                                            timeout=20, 
+                                            loop=loop))
+                except asyncio.TimeoutError:
+                    pass
 
-        if app.on_stop:
-            loop.run_until_complete(app.on_stop.fire())
-
+            if app.on_stop:
+                loop.run_until_complete(asyncio.wait_for(app.on_stop.fire(),
+                                                         timeout=20,
+                                                         loop=loop))
+        except KeyboardInterrupt:
+            pass
+        
         on_stop()
         s.shutdown(SHUT_RDWR)
         s.close()
@@ -368,7 +377,7 @@ def run_server(app: Application):
     if multi_process:
         print(f'[*] Using multiprocessing ({app.options.processes_count})')
         processes = []
-        for i in range(app.options.processes_count):
+        for _ in range(app.options.processes_count):
             p = Process(target=spawn_server, args=(app,))
             p.start()
             processes.append(p)
@@ -387,7 +396,10 @@ def run_server(app: Application):
                 app.running = False
 
         if monitor_thread:
-            monitor_thread.join(30)
+            try:
+                monitor_thread.join(30)
+            except (KeyboardInterrupt, SystemExit):
+                pass
     else:
         print(f'[*] Using single process. To enable multiprocessing, use `processes_count` in ServerOptions.')
         try:

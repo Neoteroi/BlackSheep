@@ -7,16 +7,17 @@ from threading import Thread
 from typing import Optional, List, Callable
 from multiprocessing import Process
 from socket import IPPROTO_TCP, TCP_NODELAY, SO_REUSEADDR, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
-from .options import ServerOptions
 from datetime import datetime
 from email.utils import formatdate
 from blacksheep import HttpRequest, HttpResponse, TextContent, HtmlContent
+from blacksheep.options import ServerOptions
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.files.static import serve_static_files
 from blacksheep.exceptions import HttpException, HttpNotFound
 from blacksheep.server.resources import get_resource_file_content
+from blacksheep.baseapp import BaseApplication
 
 
 try:
@@ -89,7 +90,7 @@ class ApplicationEvent:
             await handler(self.context, *args, **keywargs)
 
 
-class Application:
+class Application(BaseApplication):
 
     def __init__(self,
                  options: Optional[ServerOptions]=None,
@@ -101,18 +102,20 @@ class Application:
             options = ServerOptions('', 8000)
         if router is None:
             router = Router()
+        super().__init__(options, router)
+
         if middlewares is None:
             middlewares = []
         if resources is None:
             resources = Resources(get_resource_file_content('error.html'))
         self.debug = debug
         self.running = True
-        self.options = options
-        self.connections = set()
+        # self.options = options
+        # self.connections = set()
+        # self.router = router
         self.middlewares = middlewares
         self.current_timestamp = get_current_timestamp()
         self.processes = []
-        self.router = router
         self.access_logger = None
         self.logger = None
         self.services = {}
@@ -161,57 +164,6 @@ class Application:
     def serve_static_files(self, folder_name='static', extensions=None, cache_max_age=10800, frozen=True):
         self._serve_static_files = folder_name, extensions, False, cache_max_age, frozen
         self._validate_static_folders()
-
-    async def handle(self, request: HttpRequest) -> HttpResponse:
-        response = await self.get_response(request)
-        if not response:
-            response = HttpResponse(204)
-        response.headers[b'Date'] = self.current_timestamp
-        response.headers[b'Server'] = b'BlackSheep'
-        return response
-
-    async def get_response(self, request: HttpRequest) -> HttpResponse:
-        route = self.router.get_match(request.method, request.url.path)
-
-        if not route:
-            return await self.handle_not_found(request)
-
-        request.route_values = route.values
-
-        try:
-            return await route.handler(request)
-        except HttpException as http_exception:
-            return await self.handle_http_exception(request, http_exception)
-        except Exception as exc:
-            return await self.handle_exception(request, exc)
-
-    async def handle_not_found(self, request: HttpRequest):
-        return HttpResponse(404, content=TextContent('Resource not found'))
-
-    async def handle_http_exception(self, request, http_exception):
-        if isinstance(http_exception, HttpNotFound):
-            return await self.handle_not_found(request)
-        # TODO: improve the design of this feature
-        return await self.handle_exception(request, http_exception)
-
-    async def handle_exception(self, request, exc):
-        if self.debug or self.options.show_error_details:
-            tb = traceback.format_exception(exc.__class__,
-                                            exc,
-                                            exc.__traceback__)
-            info = ''
-            for item in tb:
-                info += f'<li><pre>{html.escape(item)}</pre></li>'
-
-            content = HtmlContent(self.resources.error_page_html
-                                  .format_map({'info': info,
-                                               'exctype': exc.__class__.__name__,
-                                               'excmessage': str(exc),
-                                               'method': request.method.decode(),
-                                               'path': request.raw_url.decode()}))
-
-            return HttpResponse(500, content=content)
-        return HttpResponse(500, content=TextContent('Internal server error.'))
 
     def _configure_sync_logging(self):
         logging_middleware, access_logger, app_logger = setup_sync_logging()

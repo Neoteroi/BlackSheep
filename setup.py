@@ -6,6 +6,9 @@ def readme():
         return f.read()
 
 
+COMPILE_ARGS = ['-O3']
+
+
 setup(name='blacksheep',
       version='0.0.1',
       description='Fast HTTP Server/Client microframework for Python asyncio',
@@ -31,31 +34,39 @@ setup(name='blacksheep',
       ext_modules=[
           Extension('blacksheep.exceptions',
                     ['blacksheep/exceptions.c'],
-                    extra_compile_args=['-O2']),
-            
+                    extra_compile_args=COMPILE_ARGS),
+          
+          Extension('blacksheep.options',
+                    ['blacksheep/options.c'],
+                    extra_compile_args=COMPILE_ARGS),
+          
           Extension('blacksheep.headers',
                     ['blacksheep/headers.c'],
-                    extra_compile_args=['-O2']),
+                    extra_compile_args=COMPILE_ARGS),
 
           Extension('blacksheep.cookies',
                     ['blacksheep/cookies.c'],
-                    extra_compile_args=['-O2']),
+                    extra_compile_args=COMPILE_ARGS),
 
           Extension('blacksheep.contents',
                     ['blacksheep/contents.c'],
-                    extra_compile_args=['-O2']),
+                    extra_compile_args=COMPILE_ARGS),
 
           Extension('blacksheep.messages',
                     ['blacksheep/messages.c'],
-                    extra_compile_args=['-O2']),
+                    extra_compile_args=COMPILE_ARGS),
 
           Extension('blacksheep.scribe',
                     ['blacksheep/scribe.c'],
-                    extra_compile_args=['-O2']),
+                    extra_compile_args=COMPILE_ARGS),
+
+          Extension('blacksheep.baseapp',
+                    ['blacksheep/baseapp.c'],
+                    extra_compile_args=COMPILE_ARGS),
 
           Extension('blacksheep.connection',
                     ['blacksheep/connection.c'],
-                    extra_compile_args=['-O2'])
+                    extra_compile_args=COMPILE_ARGS)
       ],
       install_requires=[
           'httptools',

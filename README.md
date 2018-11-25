@@ -3,7 +3,11 @@ HTTP Server/Client microframework for Python asyncio, using [Cython](https://cyt
 [`uvloop`](https://magic.io/blog/uvloop-blazing-fast-python-networking/), and 
 [`httptools`](https://github.com/MagicStack/httptools). 
 
-This project is a beta version. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
+<p align="left">
+  <img width="320" height="271" src="black-sheep.svg" alt="Black Sheep">
+</p>
+
+---
 
 ```python
 from datetime import datetime
@@ -35,6 +39,8 @@ app.start()
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * __Linux only__: support for Windows is currently out of the scope of this project
+
+This project is a beta version. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
 
 ## Documentation
 Please refer to the [project Wiki](https://github.com/RobertoPrevato/BlackSheep/wiki).

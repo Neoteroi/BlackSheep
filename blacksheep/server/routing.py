@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Callable
 
 
-__all__ = ['Router', 'Route', 'RouteMatch', 'RouteNotFound']
+__all__ = ['Router', 'Route', 'RouteMatch']
 
 
 _route_all_rx = re.compile(b'\\*')
@@ -38,10 +38,6 @@ def _get_regex_for_pattern(pattern):
 
 
 class RouteException(Exception):
-    pass
-
-
-class RouteNotFound(RouteException):
     pass
 
 

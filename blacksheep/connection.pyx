@@ -105,6 +105,11 @@ cdef class ConnectionHandler:
         if body_len > self.max_body_size:
             self.handle_invalid_request(b'Exceeds maximum body size')
 
+    def on_message_complete(self):
+        if self.request:
+            self.request.complete.set()
+            self.reset()
+
     def on_headers_complete(self):
         cdef HttpRequest request
         request = HttpRequest(
@@ -136,9 +141,6 @@ cdef class ConnectionHandler:
             raise RuntimeError(f'The application handler for path {request.url.path} did not return an HttpResponse!')
         await self._send_response(response)
 
-    async def get_response(self):
-        return await self.app.handle(self.request)
-
     async def _send_response(self, HttpResponse response):
         cdef bytes chunk
 
@@ -153,4 +155,3 @@ cdef class ConnectionHandler:
 
         if not self.parser.should_keep_alive():
             self.close()
-        self.reset()

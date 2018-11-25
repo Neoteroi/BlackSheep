@@ -7,6 +7,22 @@ from blacksheep import HttpRequest, HttpResponse, HttpHeader, JsonContent, HttpH
 from tests.utils import ensure_folder
 
 
+class FakeApplication(Application):
+
+    def __init__(self):
+        super().__init__()
+        self.response_done = asyncio.Event()
+        self.request = None
+        self.response = None
+
+    async def get_response(self, request):
+        response = await super().get_response(request)
+        self.response_done.set()
+        self.request = request
+        self.response = response
+        return response
+
+
 class FakeTransport:
 
     def __init__(self):
@@ -50,7 +66,7 @@ def get_new_connection_handler(app: Application):
 
 @pytest.mark.asyncio
 async def test_application_get_handler():
-    app = Application()
+    app = FakeApplication()
 
     @app.router.get(b'/')
     async def home(request):
@@ -73,7 +89,9 @@ async def test_application_get_handler():
     ])
 
     handler.data_received(message)
-    request = handler.request  # type: HttpRequest
+
+    await app.response_done.wait()
+    request = app.request  # type: HttpRequest
 
     assert request is not None
 
@@ -86,7 +104,7 @@ async def test_application_get_handler():
 
 @pytest.mark.asyncio
 async def test_application_post_handler_crlf():
-    app = Application()
+    app = FakeApplication()
 
     @app.router.post(b'/api/cat')
     async def create_cat(request):
@@ -107,7 +125,8 @@ async def test_application_post_handler_crlf():
     ])
 
     handler.data_received(message)
-    request = handler.request  # type: HttpRequest
+    await app.response_done.wait()
+    request = app.request  # type: HttpRequest
 
     assert request is not None
 
@@ -215,16 +234,11 @@ async def test_application_post_multipart_formdata_handler():
     ])
 
     handler.data_received(message)
-    assert handler.request is not None
-
-    response = await handler.get_response()
-    assert response is not None
-    assert response.status == 200
 
 
 @pytest.mark.asyncio
 async def test_application_post_handler_lf():
-    app = Application()
+    app = FakeApplication()
 
     called_times = 0
 
@@ -258,8 +272,8 @@ async def test_application_post_handler_lf():
 
     handler.data_received(message)
 
-    assert handler.transport.closed is False
-    request = handler.request  # type: HttpRequest
+    await app.response_done.wait()
+    request = app.request  # type: HttpRequest
 
     assert request is not None
 
@@ -269,7 +283,7 @@ async def test_application_post_handler_lf():
     data = await request.json()
     assert {"name": "Celine", "kind": "Persian"} == data
 
-    response = await handler.get_response()
+    response = app.response
     assert called_times == 1
     response_data = await response.json()
     assert {'id': '123'} == response_data
@@ -277,7 +291,7 @@ async def test_application_post_handler_lf():
 
 @pytest.mark.asyncio
 async def test_application_middlewares_two():
-    app = Application()
+    app = FakeApplication()
 
     calls = []
 
@@ -318,10 +332,10 @@ async def test_application_middlewares_two():
     ])
 
     handler.data_received(message)
-    assert handler.request is not None
 
     assert handler.transport.closed is False
-    response = await handler.get_response()
+    await app.response_done.wait()
+    response = app.response  # type: HttpResponse
 
     assert response is not None
     assert response.status == 200
@@ -330,7 +344,7 @@ async def test_application_middlewares_two():
 
 @pytest.mark.asyncio
 async def test_application_middlewares_three():
-    app = Application()
+    app = FakeApplication()
 
     calls = []
 
@@ -379,9 +393,8 @@ async def test_application_middlewares_three():
     ])
 
     handler.data_received(message)
-    assert handler.request is not None
-    assert handler.transport.closed is False
-    response = await handler.get_response()
+    await app.response_done.wait()
+    response = app.response  # type: HttpResponse
 
     assert response is not None
     assert response.status == 200
@@ -390,7 +403,7 @@ async def test_application_middlewares_three():
 
 @pytest.mark.asyncio
 async def test_application_middlewares_skip_handler():
-    app = Application()
+    app = FakeApplication()
 
     calls = []
 
@@ -439,9 +452,9 @@ async def test_application_middlewares_skip_handler():
     ])
 
     handler.data_received(message)
-    assert handler.request is not None
     assert handler.transport.closed is False
-    response = await handler.get_response()
+    await app.response_done.wait()
+    response = app.response  # type: HttpResponse
     assert response is not None
     assert response.status == 403
     assert calls == [1, 3, 6, 4, 2]
@@ -449,7 +462,7 @@ async def test_application_middlewares_skip_handler():
 
 @pytest.mark.asyncio
 async def test_application_post_multipart_formdata_files_handler():
-    app = Application(debug=True)
+    app = FakeApplication()
 
     ensure_folder('out')
 
@@ -500,10 +513,9 @@ async def test_application_post_multipart_formdata_files_handler():
     ])
 
     handler.data_received(message)
-    assert handler.request is not None
 
-    response = await handler.get_response()
-    assert response is not None
+    await app.response_done.wait()
+    response = app.response  # type: HttpResponse
     assert response.status == 200
 
     # now files are in both folders: compare to ensure they are identical

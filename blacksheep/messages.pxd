@@ -17,8 +17,6 @@ cdef class HttpMessage:
     cdef bytearray _raw_body
     cdef public object complete
     cdef object _form_data
-    cdef int _content_length
-    cdef bint _chunked_encoding
 
     cdef void on_body(self, bytes chunk)
 

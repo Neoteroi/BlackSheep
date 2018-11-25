@@ -50,8 +50,6 @@ cdef class HttpMessage:
         self._raw_body = bytearray()
         self.complete = Event()
         self._form_data = None
-        self._content_length = get_content_length(self.headers) if headers else -1
-        self._chunked_encoding = get_is_chunked_encoding(self.headers) if headers else False
         self.content = content
 
     @property
@@ -67,20 +65,16 @@ cdef class HttpMessage:
         self._content = value
         if value and value.body:
             self.complete.set()
-            self._raw_body.extend(value.body)
+            if isinstance(value.body, (bytes, bytearray)):
+                self._raw_body.extend(value.body)
+            else:
+                self._raw_body.clear()
         else:
             self.complete.clear()
+            self._raw_body.clear()
 
     cdef void on_body(self, bytes chunk):
         self._raw_body.extend(chunk)
-        body_len = len(self._raw_body)
-
-        if self._content_length > -1:
-            if body_len >= self._content_length:
-                self.complete.set()
-        else:
-            if self._chunked_encoding and (chunk.endswith(b'0\n\n') or chunk.endswith(b'0\r\n\r\n')):
-                self.complete.set()
 
     async def read(self) -> bytes:
         await self.complete.wait()

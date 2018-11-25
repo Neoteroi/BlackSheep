@@ -109,3 +109,4 @@ tests/out/
 
 blacksheep/*.c
 blacksheep/*.html
+blacksheep/includes/*.html

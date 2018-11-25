@@ -108,7 +108,6 @@ cdef class ConnectionHandler:
     def on_message_complete(self):
         if self.request:
             self.request.complete.set()
-            self.reset()
 
     def on_headers_complete(self):
         cdef HttpRequest request
@@ -143,10 +142,8 @@ cdef class ConnectionHandler:
 
     async def _send_response(self, HttpResponse response):
         cdef bytes chunk
-
         if is_small_response(response):
-            chunk = write_small_response(response)
-            self.transport.write(chunk)
+            self.transport.write(write_small_response(response))
         else:
             async for chunk in write_response(response):
                 if self.writing_paused:
@@ -155,3 +152,4 @@ cdef class ConnectionHandler:
 
         if not self.parser.should_keep_alive():
             self.close()
+        self.reset()

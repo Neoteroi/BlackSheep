@@ -1,5 +1,4 @@
 from setuptools import setup, Extension
-from blacksheep import __version__
 
 
 def readme():
@@ -8,7 +7,7 @@ def readme():
 
 
 setup(name='blacksheep',
-      version=__version__,
+      version='0.0.1',
       description='Fast HTTP Server/Client microframework for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',

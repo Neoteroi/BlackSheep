@@ -33,8 +33,21 @@ annotate:
 	cython blacksheep/scribe.pyx -a
 	cython blacksheep/connection.pyx -a
 
-release: compile test
-	python3 setup.py sdist upload
+
+artifacts: test
+	python setup.py sdist
+
+
+prepforbuild:
+	pip install --upgrade twine setuptools wheel
+
+
+testrelease:
+	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+
+
+release:
+	twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
 
 
 test:

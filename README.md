@@ -4,7 +4,7 @@ HTTP Server/Client microframework for Python asyncio, using [Cython](https://cyt
 [`httptools`](https://github.com/MagicStack/httptools). 
 
 <p align="left">
-  <a href="#"><img width="320" height="271" src="https://raw.githubusercontent.com/RobertoPrevato/BlackSheep/master/black-sheep.svg?sanitize=true" alt="Black Sheep"></a>
+  <a href="#blacksheep"><img width="320" height="271" src="https://raw.githubusercontent.com/RobertoPrevato/BlackSheep/master/black-sheep.svg?sanitize=true" alt="Black Sheep"></a>
 </p>
 
 ---

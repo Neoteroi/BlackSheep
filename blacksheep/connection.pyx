@@ -137,13 +137,11 @@ cdef class ConnectionHandler:
             self.close()
 
     async def handle_request(self, HttpRequest request):
-        response = await self.app.handle(request)
-        if not isinstance(response, HttpResponse):
-            raise RuntimeError(f'The application handler for path {request.url.path} did not return an HttpResponse!')
-        await self._send_response(response)
-
-    async def _send_response(self, HttpResponse response):
         cdef bytes chunk
+        cdef HttpResponse response
+
+        response = await self.app.handle(request)
+
         if is_small_response(response):
             self.transport.write(write_small_response(response))
         else:

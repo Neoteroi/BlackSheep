@@ -16,27 +16,28 @@ cdef class BaseApplication:
         self.connections = set()
 
     async def handle(self, HttpRequest request):
-        response = await self.get_response(request)
+        cdef object route
+        cdef HttpResponse response
+
+        route = self.router.get_match(request.method, request.url.path)
+
+        if not route:
+            response = await self.handle_not_found(request)
+        else:
+            request.route_values = route.values
+
+            try:
+                response = await route.handler(request)
+            except HttpException as http_exception:
+                response = await self.handle_http_exception(request, http_exception)
+            except Exception as exc:
+                response = await self.handle_exception(request, exc)
+
         if not response:
             response = HttpResponse(204)
         response.headers[b'Date'] = self.current_timestamp
         response.headers[b'Server'] = b'BlackSheep'
         return response
-
-    async def get_response(self, HttpRequest request):
-        route = self.router.get_match(request.method, request.url.path)
-
-        if not route:
-            return await self.handle_not_found(request)
-
-        request.route_values = route.values
-
-        try:
-            return await route.handler(request)
-        except HttpException as http_exception:
-            return await self.handle_http_exception(request, http_exception)
-        except Exception as exc:
-            return await self.handle_exception(request, exc)
 
     async def handle_not_found(self, HttpRequest request):
         return HttpResponse(404, content=TextContent('Resource not found'))

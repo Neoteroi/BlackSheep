@@ -15,8 +15,8 @@ class FakeApplication(Application):
         self.request = None
         self.response = None
 
-    async def get_response(self, request):
-        response = await super().get_response(request)
+    async def handle(self, request):
+        response = await super().handle(request)
         self.response_done.set()
         self.request = request
         self.response = response

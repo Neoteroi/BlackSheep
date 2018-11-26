@@ -7,6 +7,10 @@ HTTP Server/Client microframework for Python asyncio, using [Cython](https://cyt
   <a href="#blacksheep"><img width="320" height="271" src="https://raw.githubusercontent.com/RobertoPrevato/BlackSheep/master/black-sheep.svg?sanitize=true" alt="Black Sheep"></a>
 </p>
 
+```bash
+pip install blacksheep
+```
+
 ---
 
 ```python

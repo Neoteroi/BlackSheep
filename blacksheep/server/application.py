@@ -110,9 +110,6 @@ class Application(BaseApplication):
             resources = Resources(get_resource_file_content('error.html'))
         self.debug = debug
         self.running = True
-        # self.options = options
-        # self.connections = set()
-        # self.router = router
         self.middlewares = middlewares
         self.current_timestamp = get_current_timestamp()
         self.processes = []

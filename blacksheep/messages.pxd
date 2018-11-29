@@ -12,13 +12,14 @@ from .contents cimport HttpContent, extract_multipart_form_data_boundary, parse_
 
 cdef class HttpMessage:
     cdef public HttpHeaderCollection headers
-    cdef public HttpContent _content
+    cdef readonly HttpContent content
     cdef dict _cookies
     cdef bytearray _raw_body
     cdef public object complete
     cdef object _form_data
 
     cdef void on_body(self, bytes chunk)
+    cpdef void set_content(self, HttpContent content)
 
 
 cdef class HttpRequest(HttpMessage):

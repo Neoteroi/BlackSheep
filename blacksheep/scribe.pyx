@@ -151,9 +151,10 @@ async def write_chunks(HttpContent http_content):
 
 
 cdef bint is_small_response(HttpResponse response):
-    if response.content is None:
+    cdef HttpContent content = response.content
+    if not content:
         return True
-    if response.content.length > 0 and response.content.length < MAX_RESPONSE_CHUNK_SIZE:
+    if content.length > 0 and content.length < MAX_RESPONSE_CHUNK_SIZE:
         return True
     return False
 
@@ -163,7 +164,8 @@ cdef bytes write_small_response(HttpResponse response):
     data.extend(STATUS_LINES[response.status])
     extend_data_with_headers(get_all_response_headers(response), data)
     data.extend(b'\r\n')
-    data.extend(response.content.body)
+    if response.content:
+        data.extend(response.content.body)
     return bytes(data)
 
 

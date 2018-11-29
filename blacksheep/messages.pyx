@@ -45,30 +45,24 @@ cdef class HttpMessage:
                  HttpHeaderCollection headers, 
                  HttpContent content):
         self.headers = headers
-        self._content = None
+        self.content = content
         self._cookies = None
         self._raw_body = bytearray()
         self.complete = Event()
         self._form_data = None
-        self.content = content
+        if content:
+            self.complete.set()
 
     @property
     def raw_body(self):
         return self._raw_body
 
-    @property
-    def content(self):
-        return self._content
-
-    @content.setter
-    def content(self, value: HttpContent):
-        self._content = value
-        if value and value.body:
+    cpdef void set_content(self, HttpContent content):
+        if content:
+            self._raw_body.clear()
+            if isinstance(content.body, (bytes, bytearray)):
+                self._raw_body.extend(content.body)
             self.complete.set()
-            if isinstance(value.body, (bytes, bytearray)):
-                self._raw_body.extend(value.body)
-            else:
-                self._raw_body.clear()
         else:
             self.complete.clear()
             self._raw_body.clear()
@@ -78,6 +72,12 @@ cdef class HttpMessage:
 
     async def read(self) -> bytes:
         await self.complete.wait()
+        if not self._raw_body and self.content:
+            # NB: this will happen realistically only in tests, not in real use cases
+            # we don't want to always extend raw_body with content bytes, it's not necessary for outgoing
+            # requests and responses: this is useful for incoming messages!
+            if isinstance(self.content.body, (bytes, bytearray)):
+                self._raw_body.extend(self.content.body)
         return bytes(self._raw_body)
 
     async def text(self) -> str:
@@ -219,7 +219,6 @@ cdef class HttpResponse(HttpMessage):
         if self._cookies is not None:
             return self._cookies
 
-        # NB: if cookies are configured headers, here they are read
         cookies = {}
         if b'set-cookie' in self.headers:
             for header in self.headers.get(b'set-cookie'):

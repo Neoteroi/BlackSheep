@@ -205,7 +205,17 @@ async def write_request(HttpRequest request):
     # TODO: complete
 
 
+def get_chunks(bytes data):
+    cdef int i
+    for i in range(0, len(data), MAX_RESPONSE_CHUNK_SIZE):
+        yield data[i:i + MAX_RESPONSE_CHUNK_SIZE]
+
+
 async def write_response(HttpResponse response):
+    cdef bytes data
+    cdef bytes chunk
+    cdef HttpContent content
+
     yield STATUS_LINES[response.status] + \
         write_headers(get_all_response_headers(response)) + b'\r\n'
 
@@ -219,7 +229,7 @@ async def write_response(HttpResponse response):
             data = content.body
 
             if content.length > MAX_RESPONSE_CHUNK_SIZE:
-                for chunk in (data[i:i + MAX_RESPONSE_CHUNK_SIZE] for i in range(0, len(data), MAX_RESPONSE_CHUNK_SIZE)):
+                for chunk in get_chunks(data):
                     yield chunk
             else:
-                yield content.body
+                yield data

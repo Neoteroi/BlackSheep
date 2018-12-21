@@ -1,5 +1,5 @@
 import pytest
-from blacksheep import HttpRequest, HttpHeaderCollection
+from blacksheep import HttpRequest, HttpHeaders
 from blacksheep import scribe
 
 
@@ -17,7 +17,7 @@ from blacksheep import scribe
      b'GET /a/b/c/?foo=1&ufo=0 HTTP/1.1\r\nHost: foo.org\r\n\r\n'),
 ])
 async def test_request_writing(url, method, headers, content, expected_result):
-    request = HttpRequest(method, url, HttpHeaderCollection(headers), content)
+    request = HttpRequest(method, url, HttpHeaders(headers), content)
     data = b''
     async for chunk in scribe.write_request(request):
         data += chunk

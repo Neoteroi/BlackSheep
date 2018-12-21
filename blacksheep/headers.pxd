@@ -10,7 +10,7 @@ cdef class HttpHeader:
     cdef readonly bytes value
 
 
-cdef class HttpHeaderCollection:
+cdef class HttpHeaders:
     cdef object _headers
 
     cpdef list get(self, bytes name)

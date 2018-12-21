@@ -1,4 +1,4 @@
-from .headers cimport HttpHeader, HttpHeaderCollection
+from .headers cimport HttpHeader, HttpHeaders
 from .messages cimport HttpRequest, HttpResponse
 from .options cimport ServerOptions
 from .scribe cimport is_small_response, write_small_response
@@ -116,7 +116,7 @@ cdef class ConnectionHandler:
         request = HttpRequest(
             self.method,
             self.url,
-            HttpHeaderCollection(self.headers),
+            HttpHeaders(self.headers),
             None
         )
         # TODO: think of a lazy way to get client_ip: client ip is not always interesting

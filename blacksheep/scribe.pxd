@@ -4,7 +4,7 @@
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
 
-from .headers cimport HttpHeaderCollection, HttpHeader
+from .headers cimport HttpHeaders, HttpHeader
 from .contents cimport HttpContent
 from .cookies cimport HttpCookie
 from .messages cimport HttpRequest, HttpResponse

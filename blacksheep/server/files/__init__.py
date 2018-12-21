@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from blacksheep import HttpResponse, HttpHeader, HttpHeaderCollection, HttpContent
+from blacksheep import HttpResponse, HttpHeader, HttpHeaders, HttpContent
 from blacksheep.server.pathsutils import get_mime_type
 
 
@@ -75,6 +75,6 @@ def get_response_for_file(request, resource_path, cache_time):
         return HttpResponse(200, headers, None)
 
     return HttpResponse(200, 
-                        HttpHeaderCollection.from_param(headers), 
+                        HttpHeaders.from_param(headers), 
                         HttpContent(get_mime_type(resource_path),
                                                   get_file_data(resource_path, file_size)))

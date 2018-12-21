@@ -18,7 +18,7 @@ cdef class HttpHeader:
         return NotImplemented
 
 
-cdef class HttpHeaderCollection:
+cdef class HttpHeaders:
 
     def __init__(self, list values=None):
         self._headers = defaultdict(list)
@@ -88,7 +88,7 @@ cdef class HttpHeaderCollection:
                 yield key, value
 
     def clone(self):
-        clone = HttpHeaderCollection()
+        clone = HttpHeaders()
         for header in self._headers.values():
             for value in header:
                 clone.add(value)
@@ -96,7 +96,7 @@ cdef class HttpHeaderCollection:
 
     @staticmethod
     def _add_to_instance(instance, other):
-        if isinstance(other, HttpHeaderCollection):
+        if isinstance(other, HttpHeaders):
             for value in other:
                 instance.add(value)
             return instance
@@ -155,7 +155,7 @@ cdef class HttpHeaderCollection:
         return values[0] if values else None
 
     @classmethod
-    def from_param(cls, param: Union[None, 'HttpHeaderCollection', List[HttpHeader], Dict[bytes, bytes]]):
+    def from_param(cls, param: Union[None, 'HttpHeaders', List[HttpHeader], Dict[bytes, bytes]]):
         if param is None:
             return cls()
         return cls(param)

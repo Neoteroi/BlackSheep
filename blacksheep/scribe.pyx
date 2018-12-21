@@ -1,4 +1,4 @@
-from .headers cimport HttpHeaderCollection, HttpHeader
+from .headers cimport HttpHeaders, HttpHeader
 from .contents cimport HttpContent
 from .cookies cimport HttpCookie
 from .messages cimport HttpRequest, HttpResponse

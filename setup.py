@@ -32,6 +32,10 @@ setup(name='blacksheep',
                 'blacksheep.server.files',
                 'blacksheep.server.res'],
       ext_modules=[
+          Extension('blacksheep.url',
+                    ['blacksheep/url.c'],
+                    extra_compile_args=COMPILE_ARGS),
+
           Extension('blacksheep.exceptions',
                     ['blacksheep/exceptions.c'],
                     extra_compile_args=COMPILE_ARGS),

@@ -1,7 +1,7 @@
 __author__ = 'Roberto Prevato <roberto.prevato@gmail.com>'
 
 
-from .headers import HttpHeader, HttpHeaderCollection
+from .headers import HttpHeader, HttpHeaders
 from .contents import (HttpContent,
                        JsonContent,
                        FormContent,

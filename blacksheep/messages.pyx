@@ -1,11 +1,11 @@
+from .url cimport URL
 from .exceptions cimport BadRequestFormat
-from .headers cimport HttpHeaderCollection, HttpHeader
+from .headers cimport HttpHeaders, HttpHeader
 from .cookies cimport HttpCookie, parse_cookie, datetime_to_cookie_format
 from .contents cimport HttpContent, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
 
 
 import re
-import httptools
 from asyncio import Event
 from urllib.parse import parse_qs
 from json import loads as json_loads
@@ -14,14 +14,14 @@ from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
 
 
-cdef int get_content_length(HttpHeaderCollection headers):
+cdef int get_content_length(HttpHeaders headers):
     header = headers.get_single(b'content-length')
     if header:
         return int(header.value)
     return -1
 
 
-cdef bint get_is_chunked_encoding(HttpHeaderCollection headers):
+cdef bint get_is_chunked_encoding(HttpHeaders headers):
     cdef HttpHeader header
     header = headers.get_single(b'transfer-encoding')
     if header and b'chunked' in header.value.lower():
@@ -42,7 +42,7 @@ cpdef str parse_charset(bytes value):
 cdef class HttpMessage:
 
     def __init__(self, 
-                 HttpHeaderCollection headers, 
+                 HttpHeaders headers, 
                  HttpContent content):
         self.headers = headers
         self.content = content
@@ -144,11 +144,11 @@ cdef class HttpRequest(HttpMessage):
     def __init__(self,
                  bytes method,
                  bytes url,
-                 HttpHeaderCollection headers,
+                 HttpHeaders headers,
                  HttpContent content):
         super().__init__(headers, content)
         self.raw_url = url
-        self.url = httptools.parse_url(url)
+        self.url = URL(url)
         self.method = method
         self._query = None
         self.client_ip = None
@@ -205,9 +205,9 @@ cdef class HttpResponse(HttpMessage):
 
     def __init__(self,
                  int status,
-                 HttpHeaderCollection headers=None,
+                 HttpHeaders headers=None,
                  HttpContent content=None):
-        super().__init__(headers or HttpHeaderCollection(), content)
+        super().__init__(headers or HttpHeaders(), content)
         self.status = status
         self.active = True
 

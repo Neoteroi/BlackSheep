@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from urllib.parse import quote
-from blacksheep import HttpResponse, HttpContent, HttpHeader, HttpHeaderCollection
+from blacksheep import HttpResponse, HttpContent, HttpHeader, HttpHeaders
 from blacksheep.server.routing import Route
 from blacksheep.exceptions import InvalidArgument
 from blacksheep.server.pathsutils import get_file_extension_from_name
@@ -85,7 +85,7 @@ def get_frozen_file_getter(file_path, cache_max_age=12000):
         if request.method == b'HEAD':
             return HttpResponse(200, head_headers, None)
 
-        return HttpResponse(200, HttpHeaderCollection.from_param(headers), HttpContent(mime, data))
+        return HttpResponse(200, HttpHeaders.from_param(headers), HttpContent(mime, data))
     return frozen_file_getter
 
 

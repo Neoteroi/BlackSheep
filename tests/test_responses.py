@@ -1,26 +1,26 @@
 import pytest
-from blacksheep import HttpResponse, HttpHeader, HttpHeaderCollection, HttpContent, HttpCookie
+from blacksheep import HttpResponse, HttpHeader, HttpHeaders, HttpContent, HttpCookie
 from blacksheep import scribe
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('response,cookies,expected_result', [
     (
-        HttpResponse(400, HttpHeaderCollection([
+        HttpResponse(400, HttpHeaders([
             HttpHeader(b'Server', b'BlackSheep'),
         ]), HttpContent(b'text/plain', b'Hello, World')),
         [],
         b'HTTP/1.1 400 Bad Request\r\nServer: BlackSheep\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello, World'
     ),
     (
-        HttpResponse(400, HttpHeaderCollection([
+        HttpResponse(400, HttpHeaders([
             HttpHeader(b'Server', b'BlackSheep'),
         ]), HttpContent(b'text/plain', b'Hello, World')),
         [HttpCookie(b'session', b'123')],
         b'HTTP/1.1 400 Bad Request\r\nServer: BlackSheep\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nSet-Cookie: session=123\r\n\r\nHello, World'
     ),
     (
-        HttpResponse(400, HttpHeaderCollection([
+        HttpResponse(400, HttpHeaders([
             HttpHeader(b'Server', b'BlackSheep')
         ]), HttpContent(b'text/plain', b'Hello, World')),
         [HttpCookie(b'session', b'123'), HttpCookie(b'aaa', b'bbb', domain=b'bezkitu.org')],

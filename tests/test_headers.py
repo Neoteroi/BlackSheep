@@ -1,5 +1,5 @@
 import pytest
-from blacksheep import HttpHeader, HttpHeaderCollection
+from blacksheep import HttpHeader, HttpHeaders
 from blacksheep import scribe
 
 
@@ -20,7 +20,7 @@ from blacksheep import scribe
     },
 ])
 def test_http_header_collection_instantiating_with_dict_values(values):
-    headers = HttpHeaderCollection(list(HttpHeader(key, value) for key, value in values.items()))
+    headers = HttpHeaders(list(HttpHeader(key, value) for key, value in values.items()))
 
     for key, value in values.items():
         header = headers[key]
@@ -46,7 +46,7 @@ def test_http_header_collection_instantiating_with_dict_values(values):
     ],
 ])
 def test_http_header_collection_instantiating_with_list_of_headers(values):
-    headers = HttpHeaderCollection(values)
+    headers = HttpHeaders(values)
 
     for input_header in values:
         header = headers[input_header.name]
@@ -68,7 +68,7 @@ def test_http_header_collection_instantiating_with_list_of_headers(values):
     ],
 ])
 def test_http_header_collection_instantiating_with_list_of_headers_repeated_values(values):
-    headers = HttpHeaderCollection(values)
+    headers = HttpHeaders(values)
 
     for input_header in values:
         input_headers_with_same_name = [x for x in values if x.name == input_header.name]
@@ -79,7 +79,7 @@ def test_http_header_collection_instantiating_with_list_of_headers_repeated_valu
 
 
 def test_http_header_collection_item_setter():
-    headers = HttpHeaderCollection()
+    headers = HttpHeaders()
 
     example = headers.get(b'example')
     assert example == []
@@ -95,7 +95,7 @@ def test_http_header_collection_item_setter():
 
 
 def test_http_header_collection_item_get_single_case_insensitive():
-    headers = HttpHeaderCollection()
+    headers = HttpHeaders()
     headers[b'example'] = b'Hello, World'
 
     header = headers.get_single(b'Example')
@@ -105,7 +105,7 @@ def test_http_header_collection_item_get_single_case_insensitive():
 
 
 def test_http_header_collection_item_getter_case_insensitive():
-    headers = HttpHeaderCollection()
+    headers = HttpHeaders()
     headers[b'example'] = b'Hello, World'
 
     example = headers[b'Example']
@@ -131,7 +131,7 @@ def test_http_header_check_equality(name_a, value_a, name_b, value_b, expected_r
 
 
 def test_http_header_collection_add_many_items():
-    headers = HttpHeaderCollection()
+    headers = HttpHeaders()
 
     values = {
         b'A': b'B',
@@ -149,7 +149,7 @@ def test_http_header_collection_add_many_items():
 
 
 def test_http_header_collection_add_multiple_times_items():
-    headers = HttpHeaderCollection()
+    headers = HttpHeaders()
 
     values = [
         HttpHeader(b'Cookie', b'Hello=World;'),
@@ -169,7 +169,7 @@ def test_http_header_collection_add_multiple_times_items():
 
 
 def test_http_header_collection_get_single_raises_if_more_items_are_present():
-    headers = HttpHeaderCollection()
+    headers = HttpHeaders()
 
     values = [
         HttpHeader(b'Cookie', b'Hello=World;'),
@@ -183,7 +183,7 @@ def test_http_header_collection_get_single_raises_if_more_items_are_present():
 
 
 def test_http_header_collection_concatenation_with_list_of_headers():
-    headers = HttpHeaderCollection([
+    headers = HttpHeaders([
         HttpHeader(b'Hello', b'World'),
         HttpHeader(b'Svil', b'Power'),
     ])
@@ -202,12 +202,12 @@ def test_http_header_collection_concatenation_with_list_of_headers():
 
 
 def test_http_header_collection_concatenation_with_other_collection():
-    headers = HttpHeaderCollection([
+    headers = HttpHeaders([
         HttpHeader(b'Hello', b'World'),
         HttpHeader(b'Svil', b'Power'),
     ])
 
-    with_addition = headers + HttpHeaderCollection([HttpHeader(b'Foo', b'foo'), HttpHeader(b'Ufo', b'ufo')])
+    with_addition = headers + HttpHeaders([HttpHeader(b'Foo', b'foo'), HttpHeader(b'Ufo', b'ufo')])
 
     for name in {b'foo', b'ufo'}:
         assert headers[name] == []
@@ -221,7 +221,7 @@ def test_http_header_collection_concatenation_with_other_collection():
 
 
 def test_iadd_http_header_collection_concatenation_with_header():
-    headers = HttpHeaderCollection([
+    headers = HttpHeaders([
         HttpHeader(b'Hello', b'World'),
         HttpHeader(b'Svil', b'Power'),
     ])
@@ -237,7 +237,7 @@ def test_iadd_http_header_collection_concatenation_with_header():
 
 
 def test_iadd_http_header_collection_concatenation_with_list_of_headers():
-    headers = HttpHeaderCollection([
+    headers = HttpHeaders([
         HttpHeader(b'Hello', b'World'),
         HttpHeader(b'Svil', b'Power'),
     ])
@@ -255,12 +255,12 @@ def test_iadd_http_header_collection_concatenation_with_list_of_headers():
 
 
 def test_iadd_http_header_collection_concatenation_with_collection_of_headers():
-    headers = HttpHeaderCollection([
+    headers = HttpHeaders([
         HttpHeader(b'Hello', b'World'),
         HttpHeader(b'Svil', b'Power'),
     ])
 
-    headers += HttpHeaderCollection(
+    headers += HttpHeaders(
                 [HttpHeader(b'foo', b'foo'),
                 HttpHeader(b'ufo', b'ufo')])
 
@@ -274,7 +274,7 @@ def test_iadd_http_header_collection_concatenation_with_collection_of_headers():
 
 
 def test_iadd_http_header_collection_concatenation_with_duplicate_header():
-    headers = HttpHeaderCollection([
+    headers = HttpHeaders([
         HttpHeader(b'Hello', b'World'),
         HttpHeader(b'Svil', b'Power'),
     ])

@@ -2,6 +2,7 @@
 
 
 cyt:
+	cythonize -i blacksheep/url.pyx
 	cythonize -i blacksheep/exceptions.pyx
 	cythonize -i blacksheep/headers.pyx
 	cythonize -i blacksheep/cookies.pyx
@@ -27,6 +28,7 @@ buildext:
 
 
 annotate:
+	cython blacksheep/url.pyx -a
 	cython blacksheep/exceptions.pyx -a
 	cython blacksheep/headers.pyx -a
 	cython blacksheep/cookies.pyx -a

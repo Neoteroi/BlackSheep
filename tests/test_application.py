@@ -3,7 +3,7 @@ import asyncio
 import pkg_resources
 from blacksheep.server import Application
 from blacksheep.connection import ConnectionHandler
-from blacksheep import HttpRequest, HttpResponse, HttpHeader, JsonContent, HttpHeaderCollection
+from blacksheep import HttpRequest, HttpResponse, HttpHeader, JsonContent, HttpHeaders
 from tests.utils import ensure_folder
 
 
@@ -254,7 +254,7 @@ async def test_application_post_handler_lf():
         data = await request.json()
         assert {"name": "Celine", "kind": "Persian"} == data
 
-        return HttpResponse(201, HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return HttpResponse(201, HttpHeaders([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
 
     handler = get_new_connection_handler(app)
 
@@ -313,7 +313,7 @@ async def test_application_middlewares_two():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return HttpResponse(200, HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return HttpResponse(200, HttpHeaders([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -373,7 +373,7 @@ async def test_application_middlewares_three():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return HttpResponse(200, HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return HttpResponse(200, HttpHeaders([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -431,7 +431,7 @@ async def test_application_middlewares_skip_handler():
         nonlocal calls
         calls.append(5)
         return HttpResponse(200,
-                            HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]),
+                            HttpHeaders([HttpHeader(b'Server', b'Python/3.7')]),
                             JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)

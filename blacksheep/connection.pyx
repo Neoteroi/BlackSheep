@@ -15,7 +15,7 @@ from asyncio import Event
 from httptools.parser.errors import HttpParserCallbackError, HttpParserError
 
 
-cdef class ConnectionHandler:
+cdef class ServerConnection:
     
     def __init__(self, *, BaseApplication app, object loop):
         self.app = app
@@ -135,6 +135,9 @@ cdef class ConnectionHandler:
             self.transport.write(write_small_response(HttpResponse(413)))
             self.reset()
             self.close()
+
+    cpdef void eof_received(self):
+        pass
 
     async def handle_request(self, HttpRequest request):
         cdef bytes chunk

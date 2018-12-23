@@ -188,13 +188,13 @@ cpdef void write_multipart_part(FormPart part, bytearray destination):
     if part.file_name:
         destination.extend(b'; filename="')
         destination.extend(part.file_name)
-        destination.extend(b'"\n')
+        destination.extend(b'"\r\n')
     if part.content_type:
         destination.extend(b'Content-Type: ')
         destination.extend(part.content_type)
-    destination.extend(b'\n\n')
+    destination.extend(b'\r\n\r\n')
     destination.extend(part.data)
-    destination.extend(b'\n')
+    destination.extend(b'\r\n')
 
 
 cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
@@ -242,10 +242,8 @@ cdef class FormPart:
 cdef class MultiPartFormData(HttpContent):
 
     def __init__(self, list parts):
-        # TODO: support lazy evaluation and chunked encoding, or create a dedicated class for it
         self.parts = parts
-        self.boundary = b'-----------------------------' + \
-                        str(uuid.uuid4()).replace('-', '').encode()
+        self.boundary = b'------' + str(uuid.uuid4()).replace('-', '').encode()
         super().__init__(b'multipart/form-data; boundary=' + self.boundary, write_multipart_form_data(self))
 
 
@@ -253,9 +251,13 @@ cpdef bytes write_multipart_form_data(MultiPartFormData data):
     cdef bytearray contents = bytearray()
     cdef FormPart part
     for part in data.parts:
-        contents.extend(data.boundary + b'\n')
+        contents.extend(b'--')
+        contents.extend(data.boundary)
+        contents.extend(b'\r\n')
         write_multipart_part(part, contents)
-    contents.extend(data.boundary + b'--')
+    contents.extend(b'--')
+    contents.extend(data.boundary)
+    contents.extend(b'--\r\n')
     return bytes(contents)
 
 

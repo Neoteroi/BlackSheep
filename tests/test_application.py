@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import pkg_resources
 from blacksheep.server import Application
-from blacksheep.connection import ConnectionHandler
+from blacksheep.connection import ServerConnection
 from blacksheep import HttpRequest, HttpResponse, HttpHeader, JsonContent, HttpHeaders
 from tests.utils import ensure_folder
 
@@ -59,7 +59,7 @@ class FakeTransport:
 
 
 def get_new_connection_handler(app: Application):
-    handler = ConnectionHandler(app=app, loop=asyncio.get_event_loop())
+    handler = ServerConnection(app=app, loop=asyncio.get_event_loop())
     handler.connection_made(FakeTransport())
     return handler
 

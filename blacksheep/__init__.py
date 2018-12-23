@@ -6,6 +6,7 @@ from .headers import HttpHeader, HttpHeaders
 from .contents import (HttpContent,
                        JsonContent,
                        FormContent,
+                       FormPart,
                        TextContent,
                        HtmlContent,
                        MultiPartFormData,

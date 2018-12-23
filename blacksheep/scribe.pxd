@@ -12,6 +12,10 @@ from .messages cimport HttpRequest, HttpResponse
 
 cpdef bytes get_status_line(int status)
 
+cpdef bint is_small_request(HttpRequest request)
+
+cpdef bytes write_small_request(HttpRequest request)
+
 cdef bint is_small_response(HttpResponse response)
 
 cdef bytes write_small_response(HttpResponse response)

@@ -159,6 +159,25 @@ cdef bint is_small_response(HttpResponse response):
     return False
 
 
+cpdef bint is_small_request(HttpRequest request):
+    cdef HttpContent content = request.content
+    if not content:
+        return True
+    if content.length > 0 and content.length < MAX_RESPONSE_CHUNK_SIZE:
+        return True
+    return False
+
+
+cpdef bytes write_small_request(HttpRequest request):
+    cdef bytearray data = bytearray()
+    data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    extend_data_with_headers(get_all_request_headers(request), data)
+    data.extend(b'\r\n')
+    if request.content:
+        data.extend(request.content.body)
+    return bytes(data)
+
+
 cdef bytes write_small_response(HttpResponse response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
@@ -171,6 +190,10 @@ cdef bytes write_small_response(HttpResponse response):
 
 cpdef bytes py_write_small_response(HttpResponse response):
     return write_small_response(response)
+
+
+cpdef bytes py_write_small_request(HttpRequest request):
+    return write_small_request(request)
 
 
 cdef list get_all_request_headers(HttpRequest request):
@@ -199,10 +222,23 @@ cdef list get_all_request_headers(HttpRequest request):
 
 
 async def write_request(HttpRequest request):
+    cdef bytes data
+    cdef bytes chunk
+    cdef HttpContent content
+
     yield request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
         write_headers(get_all_request_headers(request)) + b'\r\n'
-    
-    # TODO: complete
+
+    content = request.content
+
+    if content:
+        data = content.body
+
+        if content.length > MAX_RESPONSE_CHUNK_SIZE:
+            for chunk in get_chunks(data):
+                yield chunk
+        else:
+            yield data
 
 
 def get_chunks(bytes data):

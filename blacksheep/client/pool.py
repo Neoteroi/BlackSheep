@@ -1,4 +1,4 @@
-from asyncio import PriorityQueue, QueueEmpty, QueueFull
+from asyncio import Queue, QueueEmpty, QueueFull
 from ssl import SSLContext
 from .connection import HttpConnection, SECURE_SSLCONTEXT, INSECURE_SSLCONTEXT, ConnectionClosedError
 from blacksheep.exceptions import InvalidArgument
@@ -13,7 +13,7 @@ class HttpConnectionPool:
         self.port = port
         self.ssl = self._ssl_option(ssl)
         self.max_size = max_size
-        self._idle_connections = PriorityQueue(maxsize=max_size)
+        self._idle_connections = Queue(maxsize=max_size)
 
     def _ssl_option(self, ssl):
         if self.scheme == b'https':
@@ -34,16 +34,12 @@ class HttpConnectionPool:
         # if all connections are closed, remove all of them and let QueueEmpty exception happen
         while True:
             connection = self._idle_connections.get_nowait()  # type: HttpConnection
-            if connection.in_use:
-                # we should not get here; since a connection should not reside in the queue
-                # when in use
-                continue
 
             if connection.open:
-                connection.in_use = True  # in use for a request-response cycle
+                print(f'Reusing connection {id(connection)}')
                 return connection
 
-    def try_put_connection(self, connection):
+    def try_return_connection(self, connection):
         try:
             self._idle_connections.put_nowait(connection)
         except QueueFull:
@@ -56,27 +52,25 @@ class HttpConnectionPool:
             return await self.create_connection()
 
     async def create_connection(self):
+        print(f'[*] creating connection for: {self.host}:{self.port}')
         transport, connection = await self.loop.create_connection(
             lambda: HttpConnection(self.loop, self),
             self.host,
             self.port,
-            self.ssl,
-            loop=self.loop)
-        await connection.ready()
+            ssl=self.ssl)
+        await connection.ready.wait()
         # NB: a newly created connection is going to be used by a request-response cycle;
         # so we don't put it inside the pool (since it's not immediately reusable for other requests)
         return connection
 
 
-class HttpConnectionPoolsManager:
+class HttpConnectionPools:
 
-    # TODO: put _pools in HttpConnectionPool as class property?
-    #   and then override __new__ to return existing pools by key?
     def __init__(self, loop):
         self.loop = loop
         self._pools = {}
 
-    def get_pool(self, scheme, host, port):
+    def get_pool(self, scheme, host, port, ssl):
         assert scheme in (b'http', b'https'), 'URL schema must be http or https'
         if port is None:
             port = 80 if scheme == b'http' else 443
@@ -85,9 +79,6 @@ class HttpConnectionPoolsManager:
         try:
             return self._pools[key]
         except KeyError:
-            new_pool = HttpConnectionPool(self.loop, scheme, host, port)
+            new_pool = HttpConnectionPool(self.loop, scheme, host, port, ssl)
             self._pools[key] = new_pool
             return new_pool
-
-
-DEFAULT_POOLS = HttpConnectionPoolsManager()

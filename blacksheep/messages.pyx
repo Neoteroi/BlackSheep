@@ -70,6 +70,9 @@ cdef class HttpMessage:
     cdef void on_body(self, bytes chunk):
         self._raw_body.extend(chunk)
 
+    cpdef void extend_body(self, bytes chunk):
+        self._raw_body.extend(chunk)
+
     async def read(self) -> bytes:
         await self.complete.wait()
         if not self._raw_body and self.content:
@@ -84,7 +87,7 @@ cdef class HttpMessage:
         body = await self.read()
         return body.decode(self.charset)
 
-    async def form(self):
+    async def form(self):  # TODO: does this make sense only in requests?
         if self._form_data is not None:
             return self._form_data
         content_type = self.headers.get_single(b'content-type')

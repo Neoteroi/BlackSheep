@@ -9,7 +9,7 @@ from .messages cimport HttpRequest, HttpResponse
 from .baseapp cimport BaseApplication
 
 
-cdef class ConnectionHandler:
+cdef class ServerConnection:
     cdef readonly BaseApplication app
     cdef readonly HttpRequest request
     cdef int max_body_size
@@ -37,5 +37,4 @@ cdef class ConnectionHandler:
     cpdef void on_header(self, bytes name, bytes value)
     cpdef str get_client_ip(self)
     cpdef void reset(self)
-
-
+    cpdef void eof_received(self)

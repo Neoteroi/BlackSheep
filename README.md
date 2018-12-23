@@ -29,7 +29,7 @@ app.start()
 ```
 
 ## Objectives
-* Clean architecture and source code
+* Clean architecture and source code, following SOLID principles
 * Avoid CPU cycles to handle things that are not strictly necessary
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards
@@ -44,7 +44,7 @@ app.start()
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * __Linux only__: support for Windows is currently out of the scope of this project
 
-This project is a beta version. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
+This project is in alpha stage. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
 
 ## Documentation
 Please refer to the [project Wiki](https://github.com/RobertoPrevato/BlackSheep/wiki).

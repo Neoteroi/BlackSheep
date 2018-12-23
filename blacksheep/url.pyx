@@ -10,6 +10,7 @@ cdef class URL:
 
     def __init__(self, bytes value):
         cdef bytes schema
+        cdef object port
 
         if value and value[0] not in {47, 72, 104}:
             # avoid exception for relative paths not starting with b'/'
@@ -21,10 +22,14 @@ cdef class URL:
         schema = parsed.schema
         if schema and schema != b'https' and schema != b'http':
             raise InvalidURL(f'expected http or https schema')
+        port = parsed.port
+        if port is None:
+            port = 80 if schema == b'http' else 443
+
         self.value = value or b''
         self.schema = schema
         self.host = parsed.host
-        self.port = parsed.port
+        self.port = port
         self.path = parsed.path
         self.query = parsed.query
         self.fragment = parsed.fragment

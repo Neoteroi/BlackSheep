@@ -20,3 +20,4 @@ cdef class ServerOptions:
     cdef readonly ServerLimits limits
     cdef readonly bint show_error_details
     cdef readonly int backlog
+    cdef readonly object ssl_context

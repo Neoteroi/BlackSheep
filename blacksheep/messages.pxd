@@ -20,6 +20,7 @@ cdef class HttpMessage:
     cdef object _form_data
 
     cdef void on_body(self, bytes chunk)
+    cpdef void extend_body(self, bytes chunk)
     cpdef void set_content(self, HttpContent content)
 
 

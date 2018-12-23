@@ -10,7 +10,7 @@ cdef class URL:
     cdef readonly bytes value
     cdef readonly bytes schema
     cdef readonly bytes host
-    cdef readonly bytes port
+    cdef readonly int port
     cdef readonly bytes path
     cdef readonly bytes query
     cdef readonly bytes fragment

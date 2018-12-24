@@ -57,6 +57,29 @@ class RedirectsCache:
         return item in self._cache
 
 
+class ClientRequestContext:
+
+    __slots__ = ('path',)
+
+    def __init__(self, request):
+        self.path = [request.url.value.lower()]
+
+
+class CircularRedirectError(InvalidResponseException):
+
+    def __init__(self, path, response):
+        path_string = ', '.join(path)
+        super().__init__(f'Circular redirects detected. Requests path was: ({path_string}).', response)
+
+
+class MaximumRedirectsExceededError(InvalidResponseException):
+
+    def __init__(self, path, response, maximum_redirects):
+        path_string = ', '.join(path)
+        super().__init__(f'Maximum Redirects Exceeded ({maximum_redirects}). Requests path was: ({path_string}).',
+                         response)
+
+
 class ClientSession:
 
     def __init__(self,
@@ -89,6 +112,7 @@ class ClientSession:
         self.follow_redirects = follow_redirects
         self._permanent_redirects_urls = redirects_cache_type() if follow_redirects else None
         self.non_standard_handling_of_301_302_redirect_method = True
+        self.maximum_redirects = 20
 
     def use_standard_redirect(self):
         """Uses specification compliant handling of 301 and 302 redirects"""
@@ -137,7 +161,20 @@ class ClientSession:
             return location
         return request.url.base_url().join(location)
 
-    def update_request_for_redirect(self, request: HttpRequest, response: HttpResponse):
+    def validate_redirect(self, redirect_url: URL, response: HttpResponse, context: ClientRequestContext):
+        redirect_url_lower = redirect_url.value.lower()
+        if redirect_url_lower in context.path:
+            raise CircularRedirectError(context.path, response)
+
+        context.path.append(redirect_url_lower)
+
+        if len(context.path) > self.maximum_redirects:
+            raise MaximumRedirectsExceededError(context.path, response, self.maximum_redirects)
+
+    def update_request_for_redirect(self,
+                                    request: HttpRequest,
+                                    response: HttpResponse,
+                                    context: ClientRequestContext):
         status = response.status
 
         if status == 301 or status == 302:
@@ -153,6 +190,8 @@ class ClientSession:
         location = self.extract_redirect_location(response)
         redirect_url = self.get_redirect_url(request, URL(location))
 
+        self.validate_redirect(redirect_url, response, context)
+
         if status == 301 or status == 308:
             self._permanent_redirects_urls[request.url.value] = redirect_url
 
@@ -162,14 +201,11 @@ class ClientSession:
         if self.follow_redirects and request.url.value in self._permanent_redirects_urls:
             request.url = self._permanent_redirects_urls[request.url.value]
 
-    async def send(self, request: HttpRequest):
-        # TODO: store request context (such as number of redirects, and to which page it redirected)
-        #   validate max number of redirects
+    async def send(self, request: HttpRequest, context: ClientRequestContext = None):
+        if context is None:
+            context = ClientRequestContext(request)
+            request.headers += self.get_headers()
 
-        request.headers += self.get_headers()
-        return await self._send(request)
-
-    async def _send(self, request: HttpRequest):
         self.check_redirected_url(request)
 
         url = request.url
@@ -187,10 +223,9 @@ class ClientSession:
                                           self.request_timeout,
                                           loop=self.loop)
 
-        # TODO: detect circular redirects, and applies a maximum number of redirects
         if self.follow_redirects and response.is_redirect():
-            self.update_request_for_redirect(request, response)
-            return await self._send(request)
+            self.update_request_for_redirect(request, response, context)
+            return await self.send(request, context)
 
         return response
 

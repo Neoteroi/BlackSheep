@@ -35,3 +35,13 @@ async def test_write_http_response(response, cookies, expected_result):
     assert data == expected_result
 
 
+def test_is_redirect():
+    # 301 Moved Permanently
+    # 302 Found
+    # 303 See Other
+    # 307 Temporary Redirect
+    # 308 Permanent Redirect
+    for status in range(200, 500):
+        response = HttpResponse(status, HttpHeaders())
+        is_redirect = status in {301, 302, 303, 307, 308}
+        assert response.is_redirect() == is_redirect

@@ -115,7 +115,6 @@ class HttpConnection(asyncio.Protocol):
         self.headers.append(HttpHeader(name, value))
 
     def on_headers_complete(self):
-        # cdef HttpResponse response
         status = self.parser.get_status_code()
         response = HttpResponse(
             status,

@@ -154,8 +154,3 @@ cdef class HttpHeaders:
             return values[-1]
         return values[0] if values else None
 
-    @classmethod
-    def from_param(cls, param: Union[None, 'HttpHeaders', List[HttpHeader], Dict[bytes, bytes]]):
-        if param is None:
-            return cls()
-        return cls(param)

@@ -11,10 +11,6 @@ from blacksheep.contents import (parse_www_form,
 from blacksheep.scribe import write_chunks
 
 
-def bytes_equals_ignoring_crlf(with_crlf, with_lf):
-    return [i for i in with_crlf if i != 13] == [i for i in with_lf]
-
-
 @pytest.mark.asyncio
 async def test_chunked_encoding_with_generated_content():
 
@@ -90,8 +86,8 @@ async def test_multipart_form_data():
     data = MultiPartFormData([
         FormPart(b'text1', b'text default'),
         FormPart(b'text2', 'aωb'.encode('utf8')),
-        FormPart(b'file1', b'Content of a.txt.\n', b'text/plain', b'a.txt'),
-        FormPart(b'file2', b'<!DOCTYPE html><title>Content of a.html.</title>\n', b'text/html', b'a.html'),
+        FormPart(b'file1', b'Content of a.txt.\r\n', b'text/plain', b'a.txt'),
+        FormPart(b'file2', b'<!DOCTYPE html><title>Content of a.html.</title>\r\n', b'text/html', b'a.html'),
         FormPart(b'file3', 'aωb'.encode('utf8'), b'application/octet-stream', b'binary'),
     ])
 
@@ -100,35 +96,36 @@ async def test_multipart_form_data():
         whole += chunk
 
     expected_result_lines = [
-        data.boundary,
+        b'--' + data.boundary,
         b'Content-Disposition: form-data; name="text1"',
         b'',
         b'text default',
-        data.boundary,
+        b'--' + data.boundary,
         b'Content-Disposition: form-data; name="text2"',
         b'',
         'aωb'.encode('utf8'),
-        data.boundary,
+        b'--' + data.boundary,
         b'Content-Disposition: form-data; name="file1"; filename="a.txt"',
         b'Content-Type: text/plain',
         b'',
         b'Content of a.txt.',
         b'',
-        data.boundary,
+        b'--' + data.boundary,
         b'Content-Disposition: form-data; name="file2"; filename="a.html"',
         b'Content-Type: text/html',
         b'',
         b'<!DOCTYPE html><title>Content of a.html.</title>',
         b'',
-        data.boundary,
+        b'--' + data.boundary,
         b'Content-Disposition: form-data; name="file3"; filename="binary"',
         b'Content-Type: application/octet-stream',
         b'',
         'aωb'.encode('utf8'),
-        data.boundary + b'--'
+        b'--' + data.boundary + b'--',
+        b''
     ]
 
-    assert bytes_equals_ignoring_crlf(whole, b'\n'.join(expected_result_lines))
+    assert whole == b'\r\n'.join(expected_result_lines)
 
 
 def test_parse_multipart_form_data():

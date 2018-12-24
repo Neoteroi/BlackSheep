@@ -90,6 +90,8 @@ cdef class ServerConnection:
             # ignore: this can happen for example if a client posts a big request to a wrong URL;
             # we return 404 immediately; but the client sends more chunks; http-parser.c throws exception
             # in this case
+            # TODO: 1) see below; a possible solution is to reset the connection only when the client is done sending
+            #       a message - this way we don't need to ignore errors in the client HTTP request format
             pass
 
     cpdef str get_client_ip(self):
@@ -123,6 +125,15 @@ cdef class ServerConnection:
         # request.client_ip = self.get_client_ip()
         self.request = request
         self.loop.create_task(self.handle_request(request))
+
+    async def reset_when_request_completed(self):
+        # TODO: to avoid the problem at point 1). use this function
+        #       however, measure if resolving that problem impacts performance in a negative way
+        await self.request_complete.wait()
+
+        if not self.parser.should_keep_alive():
+            self.close()
+        self.reset()
 
     cpdef void on_url(self, bytes url):
         self.url = url

@@ -36,7 +36,7 @@ class HttpConnectionPool:
             connection = self._idle_connections.get_nowait()  # type: HttpConnection
 
             if connection.open:
-                print(f'Reusing connection {id(connection)}')
+                # print(f'Reusing connection {id(connection)}')
                 return connection
 
     def try_return_connection(self, connection):
@@ -52,7 +52,7 @@ class HttpConnectionPool:
             return await self.create_connection()
 
     async def create_connection(self):
-        print(f'[*] creating connection for: {self.host}:{self.port}')
+        # print(f'[*] creating connection for: {self.host}:{self.port}')
         transport, connection = await self.loop.create_connection(
             lambda: HttpConnection(self.loop, self),
             self.host,

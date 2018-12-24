@@ -22,14 +22,11 @@ cdef class URL:
         schema = parsed.schema
         if schema and schema != b'https' and schema != b'http':
             raise InvalidURL(f'expected http or https schema')
-        port = parsed.port
-        if port is None:
-            port = 80 if schema == b'http' else 443
 
         self.value = value or b''
         self.schema = schema
         self.host = parsed.host
-        self.port = port
+        self.port = parsed.port or 0
         self.path = parsed.path
         self.query = parsed.query
         self.fragment = parsed.fragment
@@ -49,6 +46,19 @@ cdef class URL:
         if first_part and other_part and first_part[-1] == 47 and other_part[0] == 47:
             return URL(first_part[:-1] + other_part)
         return URL(first_part + other_part)
+
+    cpdef URL base_url(self):
+        if not self.is_absolute:
+            raise ValueError('This URL is relative. Cannot extract a base URL (without path).')
+        cdef bytes base_url
+
+        base_url = self.schema + b'://' + self.host
+
+        if self.port != 0:
+            if (self.schema == b'http' and self.port != 80) or (self.schema == b'https' and self.port != 443):
+                base_url = base_url + b':' + str(self.port).encode()
+
+        return URL(base_url)
 
     def __add__(self, other):
         if isinstance(other, bytes):

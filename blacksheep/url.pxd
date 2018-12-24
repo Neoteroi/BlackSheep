@@ -18,3 +18,4 @@ cdef class URL:
     cdef readonly bint is_absolute
 
     cpdef URL join(self, URL other)
+    cpdef URL base_url(self)

@@ -1,1 +1,1 @@
-from .session import HttpClient
+from .session import ClientSession

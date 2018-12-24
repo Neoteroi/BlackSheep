@@ -28,7 +28,7 @@ cdef class HttpRequest(HttpMessage):
     cdef public bint active
     cdef public dict route_values
     cdef readonly bytes raw_url
-    cdef readonly URL url
+    cdef public URL url
     cdef public bytes method
     cdef public str client_ip
     cdef dict __dict__
@@ -38,3 +38,5 @@ cdef class HttpResponse(HttpMessage):
     cdef public int status
     cdef public bint active
     cdef dict __dict__
+
+    cpdef bint is_redirect(self)

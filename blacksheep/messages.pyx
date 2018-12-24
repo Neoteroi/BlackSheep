@@ -245,3 +245,6 @@ cdef class HttpResponse(HttpMessage):
 
     def remove_cookie(self, name):
         del self.cookies[name]
+
+    cpdef bint is_redirect(self):
+        return self.status in {301, 302, 303, 307, 308}

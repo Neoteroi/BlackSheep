@@ -8,7 +8,7 @@ def test_empty_url():
     assert url.path is None
     assert url.schema is None
     assert url.host is None
-    assert url.port is None
+    assert url.port == 0
     assert url.query is None
     assert url.fragment is None
     assert url.userinfo is None
@@ -16,12 +16,12 @@ def test_empty_url():
 
 
 def test_absolute_url():
-    url = URL(b'https://hello-world.eu?foo=power&hello=world')
+    url = URL(b'https://robertoprevato.github.io?foo=power&hello=world')
 
     assert url.path is None
     assert url.schema == b'https'
-    assert url.host == b'hello-world.eu'
-    assert url.port is None
+    assert url.host == b'robertoprevato.github.io'
+    assert url.port == 0
     assert url.query == b'foo=power&hello=world'
     assert url.fragment is None
     assert url.userinfo is None
@@ -34,7 +34,7 @@ def test_relative_url():
     assert url.path == b'/api/cat/001'
     assert url.schema is None
     assert url.host is None
-    assert url.port is None
+    assert url.port == 0
     assert url.query == b'foo=power&hello=world'
     assert url.fragment is None
     assert url.userinfo is None
@@ -47,7 +47,7 @@ def test_relative_url_friendly_constructor():
     assert url.path == b'/api/cat/001'
     assert url.schema is None
     assert url.host is None
-    assert url.port is None
+    assert url.port == 0
     assert url.query == b'foo=power&hello=world'
     assert url.fragment is None
     assert url.userinfo is None
@@ -81,3 +81,19 @@ def test_cannot_concatenate_absolute_urls():
 
     with pytest.raises(ValueError):
         URL(b'http://world-cats.eu') + URL(b'http://hello-world')
+
+
+@pytest.mark.parametrize('value,expected_base_url', [
+    [b'https://robertoprevato.github.io/api/v1/cats', b'https://robertoprevato.github.io'],
+    [b'https://robertoprevato.github.io:44555/api/v1/cats', b'https://robertoprevato.github.io:44555'],
+    [b'https://robertoprevato.github.io/api/v1/cats?lorem=ipsum', b'https://robertoprevato.github.io'],
+    [b'https://robertoprevato.github.io?lorem=ipsum', b'https://robertoprevato.github.io'],
+    [b'http://robertoprevato.github.io/api/v1/cats', b'http://robertoprevato.github.io'],
+    [b'http://robertoprevato.github.io:44555/api/v1/cats', b'http://robertoprevato.github.io:44555'],
+    [b'http://robertoprevato.github.io/api/v1/cats?lorem=ipsum', b'http://robertoprevato.github.io'],
+    [b'http://robertoprevato.github.io?lorem=ipsum', b'http://robertoprevato.github.io'],
+])
+def test_base_url(value, expected_base_url):
+    url = URL(value)
+    base_url = url.base_url()
+    assert expected_base_url == base_url.value

@@ -1,6 +1,6 @@
 import asyncio
 from asyncio import TimeoutError
-from typing import List, Optional, Union, Type, Any
+from typing import List, Optional, Union, Type, Any, Callable
 from .pool import HttpConnectionPools
 from blacksheep import (HttpRequest,
                         HttpResponse,
@@ -99,6 +99,40 @@ class UnsupportedRedirect(Exception):
     can handle it."""
 
 
+class InvalidMiddleware(Exception):
+
+    def __init__(self):
+        super().__init__('Invalid middleware definition middlewares must be async functions with this signature: '
+                         '`async def any_name(request, context)`')
+
+
+def middleware_partial(handler, next_handler):
+    async def middleware_wrapper(request, context):
+        return await handler(request, context, next_handler)
+    return middleware_wrapper
+
+
+def get_middlewares_chain(middlewares, handler):
+    fn = handler
+    for middleware in reversed(middlewares):
+        fn = middleware_partial(middleware, fn)
+    return fn
+
+
+def get_default_headers_middleware(headers):
+    async def default_headers_middleware(request, handler):
+        for header in headers:
+            request.headers.add(header)
+        return await handler(request)
+    return default_headers_middleware
+
+
+def validate_middleware(middleware: Callable):
+    if not callable(middleware):
+        raise InvalidMiddleware()
+    # TODO
+
+
 class ClientSession:
 
     def __init__(self,
@@ -111,7 +145,8 @@ class ClientSession:
                  connection_timeout: float = 3.0,
                  request_timeout: float = 60.0,
                  maximum_redirects: int = 20,
-                 redirects_cache_type: Union[Type[RedirectsCache], Any] = None):
+                 redirects_cache_type: Union[Type[RedirectsCache], Any] = None,
+                 middlewares: Optional[List[Callable]] = None):
         if loop is None:
             loop = asyncio.get_event_loop()
 
@@ -135,15 +170,23 @@ class ClientSession:
         self._permanent_redirects_urls = redirects_cache_type() if follow_redirects else None
         self.non_standard_handling_of_301_302_redirect_method = True
         self.maximum_redirects = maximum_redirects
+        self._handler = None
+        self._middlewares = middlewares or []
+        if middlewares:
+            self.build_middlewares_chain()
+
+    def add_middlewares(self, middlewares: List[Callable]):
+        self._middlewares += middlewares
+        self.build_middlewares_chain()
+
+    def build_middlewares_chain(self):
+        async def root_handler(request, context):
+            return await self._send_core(request, context)
+        self._handler = get_middlewares_chain(self._middlewares, root_handler)
 
     def use_standard_redirect(self):
         """Uses specification compliant handling of 301 and 302 redirects"""
         self.non_standard_handling_of_301_302_redirect_method = False
-
-    def get_headers(self):
-        if not self.default_headers:
-            return HttpHeaders()
-        return self.default_headers.clone()
 
     def get_url(self, url):
         if isinstance(url, str):
@@ -230,7 +273,15 @@ class ClientSession:
 
         request.url = redirect_url
 
-    def check_redirected_url(self, request):
+    def merge_default_headers(self, request):
+        if not self.default_headers:
+            return
+
+        for header in self.default_headers:
+            if header.name not in request.headers:
+                request.headers.add(header)
+
+    def check_permanent_redirects(self, request):
         if self.follow_redirects and request.url.value in self._permanent_redirects_urls:
             request.url = self._permanent_redirects_urls[request.url.value]
 
@@ -244,20 +295,39 @@ class ClientSession:
         except TimeoutError:
             raise ConnectionTimeout(url.base_url(), self.connection_timeout)
 
-    async def _send_using_connection(self, connection, request):
-        try:
-            return await asyncio.wait_for(connection.send(request),
-                                          self.request_timeout,
-                                          loop=self.loop)
-        except TimeoutError:
-            raise RequestTimeout(request.url, self.request_timeout)
-
     async def send(self, request: HttpRequest, context: ClientRequestContext = None):
         if context is None:
             context = ClientRequestContext(request)
-            request.headers += self.get_headers()
+            self.merge_default_headers(request)
 
-        self.check_redirected_url(request)
+        if self._handler:
+            return await self._handler(request, context)
+
+        return await self._send_core(request, context)
+
+    def get_redirects_middleware(self):
+
+        async def redirects_middleware(request, context, next_handler):
+            self.check_permanent_redirects(request)
+
+            response = await next_handler(request, context)
+
+            if response.is_redirect():
+                try:
+                    self.update_request_for_redirect(request, response, context)
+                except UnsupportedRedirect:
+                    # redirect not to HTTP / HTTPS; it can be a redirect to a URN
+                    # in this case, we don't try to follow, we just return the response as it is,
+                    # because the caller can handle this response
+                    return response
+                return await self.send(request, context)
+
+            return response
+        return redirects_middleware
+
+    async def _send_core(self, request: HttpRequest, context: ClientRequestContext):
+
+        self.check_permanent_redirects(request)
 
         connection = await self.get_connection(request.url)
         response = await self._send_using_connection(connection, request)
@@ -270,10 +340,17 @@ class ClientSession:
                 # in this case, we don't try to follow, we just return the response as it is,
                 # because the caller can handle this response
                 return response
-
             return await self.send(request, context)
 
         return response
+
+    async def _send_using_connection(self, connection, request):
+        try:
+            return await asyncio.wait_for(connection.send(request),
+                                          self.request_timeout,
+                                          loop=self.loop)
+        except TimeoutError:
+            raise RequestTimeout(request.url, self.request_timeout)
 
     async def get(self,
                   url: URLType,

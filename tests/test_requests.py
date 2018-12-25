@@ -3,6 +3,15 @@ from blacksheep import HttpRequest, HttpHeaders
 from blacksheep import scribe
 
 
+def test_request_supports_for_dynamic_attributes():
+    request = HttpRequest(b'GET', b'/', HttpHeaders(), None)
+    foo = object()
+
+    assert hasattr(request, 'foo') is False, 'This test makes sense if such attribute is not defined'
+    request.foo = foo
+    assert request.foo is foo
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('url,method,headers,content,expected_result', [
     (b'https://robertoprevato.github.io', b'GET', [], None,

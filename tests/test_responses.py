@@ -3,6 +3,15 @@ from blacksheep import HttpResponse, HttpHeader, HttpHeaders, HttpContent, HttpC
 from blacksheep import scribe
 
 
+def test_response_support_for_dynamic_attributes():
+    response = HttpResponse(200)
+    foo = object()
+
+    assert hasattr(response, 'response') is False, 'This test makes sense if such attribute is not defined'
+    response.foo = foo
+    assert response.foo is foo
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize('response,cookies,expected_result', [
     (
@@ -10,21 +19,33 @@ from blacksheep import scribe
             HttpHeader(b'Server', b'BlackSheep'),
         ]), HttpContent(b'text/plain', b'Hello, World')),
         [],
-        b'HTTP/1.1 400 Bad Request\r\nServer: BlackSheep\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello, World'
+        b'HTTP/1.1 400 Bad Request\r\n'
+        b'Server: BlackSheep\r\n'
+        b'Content-Type: text/plain\r\n'
+        b'Content-Length: 12\r\n\r\nHello, World'
     ),
     (
         HttpResponse(400, HttpHeaders([
             HttpHeader(b'Server', b'BlackSheep'),
         ]), HttpContent(b'text/plain', b'Hello, World')),
         [HttpCookie(b'session', b'123')],
-        b'HTTP/1.1 400 Bad Request\r\nServer: BlackSheep\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nSet-Cookie: session=123\r\n\r\nHello, World'
+        b'HTTP/1.1 400 Bad Request\r\n'
+        b'Server: BlackSheep\r\n'
+        b'Content-Type: text/plain\r\n'
+        b'Content-Length: 12\r\n'
+        b'Set-Cookie: session=123\r\n\r\nHello, World'
     ),
     (
         HttpResponse(400, HttpHeaders([
             HttpHeader(b'Server', b'BlackSheep')
         ]), HttpContent(b'text/plain', b'Hello, World')),
         [HttpCookie(b'session', b'123'), HttpCookie(b'aaa', b'bbb', domain=b'bezkitu.org')],
-        b'HTTP/1.1 400 Bad Request\r\nServer: BlackSheep\r\nContent-Type: text/plain\r\nContent-Length: 12\r\nSet-Cookie: session=123\r\nSet-Cookie: aaa=bbb; Domain=bezkitu.org\r\n\r\nHello, World'
+        b'HTTP/1.1 400 Bad Request\r\n'
+        b'Server: BlackSheep\r\n'
+        b'Content-Type: text/plain\r\n'
+        b'Content-Length: 12\r\n'
+        b'Set-Cookie: session=123\r\n'
+        b'Set-Cookie: aaa=bbb; Domain=bezkitu.org\r\n\r\nHello, World'
     )
 ])
 async def test_write_http_response(response, cookies, expected_result):

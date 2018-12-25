@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import TimeoutError
 from typing import List, Optional, Union, Type, Any
 from .pool import HttpConnectionPools
 from blacksheep import (HttpRequest,
@@ -6,7 +7,8 @@ from blacksheep import (HttpRequest,
                         HttpContent,
                         HttpHeaders,
                         HttpHeader,
-                        URL)
+                        URL,
+                        InvalidURL)
 
 
 URLType = Union[str, bytes, URL]
@@ -31,6 +33,16 @@ class HttpRequestException(Exception):
     def __init__(self, message, allow_retry):
         super().__init__(message)
         self.can_retry = allow_retry
+
+
+class ConnectionTimeout(TimeoutError):
+    def __init__(self, url: URL, timeout: float):
+        super().__init__(f'Connection attempt timed out, to {url.value.decode()}. Current timeout setting: {timeout}.')
+
+
+class RequestTimeout(TimeoutError):
+    def __init__(self, url: URL, timeout: float):
+        super().__init__(f'Request timed out, to: {url.value.decode()}. Current timeout setting: {timeout}.')
 
 
 class RedirectsCache:
@@ -68,16 +80,23 @@ class ClientRequestContext:
 class CircularRedirectError(InvalidResponseException):
 
     def __init__(self, path, response):
-        path_string = ', '.join(path)
+        path_string = ' --> '.join(x.decode('utf8') for x in path)
         super().__init__(f'Circular redirects detected. Requests path was: ({path_string}).', response)
 
 
 class MaximumRedirectsExceededError(InvalidResponseException):
 
     def __init__(self, path, response, maximum_redirects):
-        path_string = ', '.join(path)
+        path_string = ', '.join(x.decode('utf8') for x in path)
         super().__init__(f'Maximum Redirects Exceeded ({maximum_redirects}). Requests path was: ({path_string}).',
                          response)
+
+
+class UnsupportedRedirect(Exception):
+    """Exception risen when the client cannot handle a redirect;
+    for example if the redirect is to a URN (not a URL). In such case,
+    we don't follow the redirect and return the response with location: the caller
+    can handle it."""
 
 
 class ClientSession:
@@ -89,6 +108,9 @@ class ClientSession:
                  pools=None,
                  default_headers: Optional[List[HttpHeader]] = None,
                  follow_redirects: bool = True,
+                 connection_timeout: float = 3.0,
+                 request_timeout: float = 60.0,
+                 maximum_redirects: int = 20,
                  redirects_cache_type: Union[Type[RedirectsCache], Any] = None):
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -107,12 +129,12 @@ class ClientSession:
         self.ssl = ssl
         self.default_headers = HttpHeaders(default_headers)
         self.pools = pools
-        self.connection_timeout = 3.0
-        self.request_timeout = 60.0
+        self.connection_timeout = connection_timeout
+        self.request_timeout = request_timeout
         self.follow_redirects = follow_redirects
         self._permanent_redirects_urls = redirects_cache_type() if follow_redirects else None
         self.non_standard_handling_of_301_302_redirect_method = True
-        self.maximum_redirects = 20
+        self.maximum_redirects = maximum_redirects
 
     def use_standard_redirect(self):
         """Uses specification compliant handling of 301 and 302 redirects"""
@@ -141,11 +163,10 @@ class ClientSession:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        # TODO: release all connections that this client is using
         await self.close()
 
     async def close(self):
-        pass
+        self.pools.dispose()
 
     @staticmethod
     def extract_redirect_location(response: HttpResponse):
@@ -153,17 +174,26 @@ class ClientSession:
         if not location:
             raise MissingLocationForRedirect(response)
         # if the server returned more than one value, use the last header in order
-        return location[-1].value
+        # if the location cannot be parsed as URL, let exception happen: this might be a redirect to a URN!!
+        # simply don't follows the redirect, and returns the response to the caller
+        try:
+            return URL(location[-1].value)
+        except InvalidURL:
+            raise UnsupportedRedirect()
 
     @staticmethod
     def get_redirect_url(request: HttpRequest, location: URL):
         if location.is_absolute:
             return location
+        # relative redirect URI
+        # https://tools.ietf.org/html/rfc7231#section-7.1.2
         return request.url.base_url().join(location)
 
     def validate_redirect(self, redirect_url: URL, response: HttpResponse, context: ClientRequestContext):
         redirect_url_lower = redirect_url.value.lower()
         if redirect_url_lower in context.path:
+            context.path.append(redirect_url_lower)
+
             raise CircularRedirectError(context.path, response)
 
         context.path.append(redirect_url_lower)
@@ -188,7 +218,10 @@ class ClientSession:
             request.method = b'GET'
 
         location = self.extract_redirect_location(response)
-        redirect_url = self.get_redirect_url(request, URL(location))
+        redirect_url = self.get_redirect_url(request, location)
+
+        if redirect_url.schema.lower() not in {b'http', b'https'}:
+            raise UnsupportedRedirect()
 
         self.validate_redirect(redirect_url, response, context)
 
@@ -201,6 +234,24 @@ class ClientSession:
         if self.follow_redirects and request.url.value in self._permanent_redirects_urls:
             request.url = self._permanent_redirects_urls[request.url.value]
 
+    async def get_connection(self, url: URL):
+        pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
+
+        try:
+            return await asyncio.wait_for(pool.get_connection(),
+                                          self.connection_timeout,
+                                          loop=self.loop)
+        except TimeoutError:
+            raise ConnectionTimeout(url.base_url(), self.connection_timeout)
+
+    async def _send_using_connection(self, connection, request):
+        try:
+            return await asyncio.wait_for(connection.send(request),
+                                          self.request_timeout,
+                                          loop=self.loop)
+        except TimeoutError:
+            raise RequestTimeout(request.url, self.request_timeout)
+
     async def send(self, request: HttpRequest, context: ClientRequestContext = None):
         if context is None:
             context = ClientRequestContext(request)
@@ -208,23 +259,18 @@ class ClientSession:
 
         self.check_redirected_url(request)
 
-        url = request.url
-        pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
-
-        connection = await asyncio.wait_for(pool.get_connection(),
-                                            self.connection_timeout,
-                                            loop=self.loop)
-
-        # TODO: weak reference to get_connection tasks and connection.send tasks
-        # TODO: store connections in use and pending operations, to dispose them when the client is closed
-        # TODO: test what happens if the connection is closed at this point, while sending the request
-
-        response = await asyncio.wait_for(connection.send(request),
-                                          self.request_timeout,
-                                          loop=self.loop)
+        connection = await self.get_connection(request.url)
+        response = await self._send_using_connection(connection, request)
 
         if self.follow_redirects and response.is_redirect():
-            self.update_request_for_redirect(request, response, context)
+            try:
+                self.update_request_for_redirect(request, response, context)
+            except UnsupportedRedirect:
+                # redirect not to HTTP / HTTPS; it can be a redirect to a URN
+                # in this case, we don't try to follow, we just return the response as it is,
+                # because the caller can handle this response
+                return response
+
             return await self.send(request, context)
 
         return response

@@ -62,7 +62,7 @@ cdef class BaseApplication:
                                                'exctype': exc.__class__.__name__,
                                                'excmessage': str(exc),
                                                'method': request.method.decode(),
-                                               'path': request.raw_url.decode()}))
+                                               'path': request.url.value.decode()}))
 
             return HttpResponse(500, content=content)
         return HttpResponse(500, content=TextContent('Internal server error.'))

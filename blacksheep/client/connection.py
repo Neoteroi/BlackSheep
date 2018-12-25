@@ -133,6 +133,9 @@ class HttpConnection(asyncio.Protocol):
         self.loop.call_soon(self.release)
 
     def release(self):
+        if not self.open:
+            return
+
         if self.parser.should_keep_alive():
             self.reset()
             self.pool.try_return_connection(self)

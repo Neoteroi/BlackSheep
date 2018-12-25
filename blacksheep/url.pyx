@@ -12,16 +12,13 @@ cdef class URL:
         cdef bytes schema
         cdef object port
 
-        if value and value[0] not in {47, 72, 104}:
-            # avoid exception for relative paths not starting with b'/'
-            value = b'/' + value
         try:
             parsed = httptools.parse_url(value)
         except httptools.parser.errors.HttpParserInvalidURLError:
-            raise InvalidURL(value)
+            raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()})')
         schema = parsed.schema
         if schema and schema != b'https' and schema != b'http':
-            raise InvalidURL(f'expected http or https schema')
+            raise InvalidURL(f'Expected http or https schema; got instead {schema.decode()} in ({value.decode()})')
 
         self.value = value or b''
         self.schema = schema

@@ -39,6 +39,6 @@ async def test_request_writing(url, method, headers, content, expected_result):
 ])
 def test_parse_query(url, query, parsed_query):
     request = HttpRequest(b'GET', url, None, None)
-    assert request.raw_url == url
+    assert request.url.value == url
     assert request.url.query == query
     assert request.query == parsed_query

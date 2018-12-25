@@ -1,5 +1,5 @@
 import pytest
-from blacksheep.url import URL
+from blacksheep.url import URL, InvalidURL
 
 
 def test_empty_url():
@@ -41,17 +41,10 @@ def test_relative_url():
     assert url.is_absolute is False
 
 
-def test_relative_url_friendly_constructor():
-    url = URL(b'api/cat/001?foo=power&hello=world')
-
-    assert url.path == b'/api/cat/001'
-    assert url.schema is None
-    assert url.host is None
-    assert url.port == 0
-    assert url.query == b'foo=power&hello=world'
-    assert url.fragment is None
-    assert url.userinfo is None
-    assert url.is_absolute is False
+def test_cannot_instantiate_relative_url_without_trailing_slash():
+    # otherwise, we could not distinguish between a URL and a URN redirect
+    with pytest.raises(InvalidURL):
+        URL(b'api/cat/001?foo=power&hello=world')
 
 
 def test_equality():
@@ -64,7 +57,6 @@ def test_concatenation():
     assert URL(b'') + URL(b'') == URL(b'')
     assert URL(b'https://world-cats.eu') + URL(b'/api/cats') == URL(b'https://world-cats.eu/api/cats')
     assert URL(b'https://world-cats.eu/') + URL(b'/api/cats') == URL(b'https://world-cats.eu/api/cats')
-    assert URL(b'https://world-cats.eu') + URL(b'api/cats') == URL(b'https://world-cats.eu/api/cats')
 
 
 def test_cannot_concatenate_one_url_first_with_query_or_path():

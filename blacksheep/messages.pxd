@@ -27,7 +27,6 @@ cdef class HttpMessage:
 cdef class HttpRequest(HttpMessage):
     cdef public bint active
     cdef public dict route_values
-    cdef readonly bytes raw_url
     cdef public URL url
     cdef public bytes method
     cdef public str client_ip

@@ -14,6 +14,7 @@ class HttpConnectionPool:
         self.ssl = self._ssl_option(ssl)
         self.max_size = max_size
         self._idle_connections = Queue(maxsize=max_size)
+        self.disposed = False
 
     def _ssl_option(self, ssl):
         if self.scheme == b'https':
@@ -40,6 +41,9 @@ class HttpConnectionPool:
                 return connection
 
     def try_return_connection(self, connection):
+        if self.disposed:
+            return
+
         try:
             self._idle_connections.put_nowait(connection)
         except QueueFull:
@@ -63,6 +67,16 @@ class HttpConnectionPool:
         # so we don't put it inside the pool (since it's not immediately reusable for other requests)
         return connection
 
+    def dispose(self):
+        self.disposed = True
+        while True:
+            try:
+                connection = self._idle_connections.get_nowait()
+            except QueueEmpty:
+                break
+            else:
+                connection.close()
+
 
 class HttpConnectionPools:
 
@@ -82,3 +96,7 @@ class HttpConnectionPools:
             new_pool = HttpConnectionPool(self.loop, scheme, host, port, ssl)
             self._pools[key] = new_pool
             return new_pool
+
+    def dispose(self):
+        for key, pool in self._pools.items():
+            pool.dispose()

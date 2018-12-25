@@ -150,7 +150,6 @@ cdef class HttpRequest(HttpMessage):
                  HttpHeaders headers,
                  HttpContent content):
         super().__init__(headers, content)
-        self.raw_url = url
         self.url = URL(url)
         self.method = method
         self._query = None
@@ -161,7 +160,7 @@ cdef class HttpRequest(HttpMessage):
             self.complete.set()  # methods without body
         
     def __repr__(self):
-        return f'<HttpRequest {self.method.decode()} {self.raw_url.decode()}>'
+        return f'<HttpRequest {self.method.decode()} {self.url.value.decode()}>'
 
     @property
     def query(self):

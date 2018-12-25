@@ -36,7 +36,7 @@ def get_loggers():
 
 
 def get_logged_url(request):
-    if b'?' in request.raw_url:
+    if b'?' in request.url.value:
         return (request.url.path.decode() + '?<query is hidden>').ljust(80)
     return request.url.path.decode().ljust(80)
 

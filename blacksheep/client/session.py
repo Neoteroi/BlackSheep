@@ -2,6 +2,7 @@ import asyncio
 from asyncio import TimeoutError
 from typing import List, Optional, Union, Type, Any, Callable
 from .pool import HttpConnectionPools
+from .exceptions import *
 from blacksheep import (HttpRequest,
                         HttpResponse,
                         HttpContent,
@@ -12,37 +13,6 @@ from blacksheep import (HttpRequest,
 
 
 URLType = Union[str, bytes, URL]
-
-
-class InvalidResponseException(Exception):
-
-    def __init__(self, message, response):
-        super().__init__(message)
-        self.response = response
-
-
-class MissingLocationForRedirect(InvalidResponseException):
-
-    def __init__(self, response):
-        super().__init__(f'The server returned a redirect status ({response.status}) '
-                         f'but didn`t send a "Location" header', response)
-
-
-class HttpRequestException(Exception):
-
-    def __init__(self, message, allow_retry):
-        super().__init__(message)
-        self.can_retry = allow_retry
-
-
-class ConnectionTimeout(TimeoutError):
-    def __init__(self, url: URL, timeout: float):
-        super().__init__(f'Connection attempt timed out, to {url.value.decode()}. Current timeout setting: {timeout}.')
-
-
-class RequestTimeout(TimeoutError):
-    def __init__(self, url: URL, timeout: float):
-        super().__init__(f'Request timed out, to: {url.value.decode()}. Current timeout setting: {timeout}.')
 
 
 class RedirectsCache:
@@ -77,38 +47,9 @@ class ClientRequestContext:
         self.path = [request.url.value.lower()]
 
 
-class CircularRedirectError(InvalidResponseException):
-
-    def __init__(self, path, response):
-        path_string = ' --> '.join(x.decode('utf8') for x in path)
-        super().__init__(f'Circular redirects detected. Requests path was: ({path_string}).', response)
-
-
-class MaximumRedirectsExceededError(InvalidResponseException):
-
-    def __init__(self, path, response, maximum_redirects):
-        path_string = ', '.join(x.decode('utf8') for x in path)
-        super().__init__(f'Maximum Redirects Exceeded ({maximum_redirects}). Requests path was: ({path_string}).',
-                         response)
-
-
-class UnsupportedRedirect(Exception):
-    """Exception risen when the client cannot handle a redirect;
-    for example if the redirect is to a URN (not a URL). In such case,
-    we don't follow the redirect and return the response with location: the caller
-    can handle it."""
-
-
-class InvalidMiddleware(Exception):
-
-    def __init__(self):
-        super().__init__('Invalid middleware definition middlewares must be async functions with this signature: '
-                         '`async def any_name(request, context)`')
-
-
 def middleware_partial(handler, next_handler):
-    async def middleware_wrapper(request, context):
-        return await handler(request, context, next_handler)
+    async def middleware_wrapper(request):
+        return await handler(request, next_handler)
     return middleware_wrapper
 
 
@@ -125,12 +66,6 @@ def get_default_headers_middleware(headers):
             request.headers.add(header)
         return await handler(request)
     return default_headers_middleware
-
-
-def validate_middleware(middleware: Callable):
-    if not callable(middleware):
-        raise InvalidMiddleware()
-    # TODO
 
 
 class ClientSession:
@@ -173,15 +108,20 @@ class ClientSession:
         self._handler = None
         self._middlewares = middlewares or []
         if middlewares:
-            self.build_middlewares_chain()
+            self._build_middlewares_chain()
 
     def add_middlewares(self, middlewares: List[Callable]):
         self._middlewares += middlewares
-        self.build_middlewares_chain()
+        self._build_middlewares_chain()
 
-    def build_middlewares_chain(self):
-        async def root_handler(request, context):
-            return await self._send_core(request, context)
+    def set_middlewares(self, middlewares: List[Callable]):
+        self._middlewares = middlewares
+        self._build_middlewares_chain()
+
+    def _build_middlewares_chain(self):
+        async def root_handler(request):
+            return await self._send_core(request)
+
         self._handler = get_middlewares_chain(self._middlewares, root_handler)
 
     def use_standard_redirect(self):
@@ -202,7 +142,19 @@ class ClientSession:
             return self.base_url.join(url).value
         return url.value
 
+    def configure(self):
+        if self._middlewares and not self._handler:
+            self._build_middlewares_chain()
+        pass
+
+    def use_sync_logging(self):
+        from .logs import client_logging_middleware
+        if client_logging_middleware not in self._middlewares:
+            self._middlewares.insert(0, client_logging_middleware)
+        self._build_middlewares_chain()
+
     async def __aenter__(self):
+        self.configure()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -246,8 +198,8 @@ class ClientSession:
 
     def update_request_for_redirect(self,
                                     request: HttpRequest,
-                                    response: HttpResponse,
-                                    context: ClientRequestContext):
+                                    response: HttpResponse):
+        context = request.context  # type: ClientRequestContext
         status = response.status
 
         if status == 301 or status == 302:
@@ -295,38 +247,19 @@ class ClientSession:
         except TimeoutError:
             raise ConnectionTimeout(url.base_url(), self.connection_timeout)
 
-    async def send(self, request: HttpRequest, context: ClientRequestContext = None):
-        if context is None:
-            context = ClientRequestContext(request)
+    async def send(self, request: HttpRequest):
+        if not hasattr(request, 'context'):
+            request.context = ClientRequestContext(request)
             self.merge_default_headers(request)
 
         if self._handler:
-            return await self._handler(request, context)
+            # using middlewares
+            return await self._handler(request)
 
-        return await self._send_core(request, context)
+        # without middlewares
+        return await self._send_core(request)
 
-    def get_redirects_middleware(self):
-
-        async def redirects_middleware(request, context, next_handler):
-            self.check_permanent_redirects(request)
-
-            response = await next_handler(request, context)
-
-            if response.is_redirect():
-                try:
-                    self.update_request_for_redirect(request, response, context)
-                except UnsupportedRedirect:
-                    # redirect not to HTTP / HTTPS; it can be a redirect to a URN
-                    # in this case, we don't try to follow, we just return the response as it is,
-                    # because the caller can handle this response
-                    return response
-                return await self.send(request, context)
-
-            return response
-        return redirects_middleware
-
-    async def _send_core(self, request: HttpRequest, context: ClientRequestContext):
-
+    async def _send_core(self, request: HttpRequest):
         self.check_permanent_redirects(request)
 
         connection = await self.get_connection(request.url)
@@ -334,13 +267,11 @@ class ClientSession:
 
         if self.follow_redirects and response.is_redirect():
             try:
-                self.update_request_for_redirect(request, response, context)
+                self.update_request_for_redirect(request, response)
             except UnsupportedRedirect:
-                # redirect not to HTTP / HTTPS; it can be a redirect to a URN
-                # in this case, we don't try to follow, we just return the response as it is,
-                # because the caller can handle this response
+                # redirect not to HTTP / HTTPS: for example, it can be a redirect to a URN
                 return response
-            return await self.send(request, context)
+            return await self.send(request)
 
         return response
 

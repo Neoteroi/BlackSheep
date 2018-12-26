@@ -1,7 +1,5 @@
-import html
 import asyncio
 import warnings
-import traceback
 import ssl
 from ssl import SSLContext
 from time import time, sleep
@@ -147,7 +145,7 @@ class Application(BaseApplication):
                 raise RuntimeError('The static files folder must be a string (folder name).')
 
             if not isinstance(files_folder, str):
-                raise RuntimeError('The files folder must be a string  (folder name).')
+                raise RuntimeError('The files folder must be a string (folder name).')
 
             if static_files_folder.lower() == files_folder.lower():
                 raise RuntimeError('Cannot configure the same folder for static files and dynamically read files')

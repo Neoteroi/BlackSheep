@@ -1,7 +1,11 @@
+import logging
 from asyncio import Queue, QueueEmpty, QueueFull
 from ssl import SSLContext
 from .connection import HttpConnection, SECURE_SSLCONTEXT, INSECURE_SSLCONTEXT, ConnectionClosedError
 from blacksheep.exceptions import InvalidArgument
+
+
+logger = logging.getLogger('blacksheep.client')
 
 
 class HttpConnectionPool:
@@ -37,7 +41,7 @@ class HttpConnectionPool:
             connection = self._idle_connections.get_nowait()  # type: HttpConnection
 
             if connection.open:
-                # print(f'Reusing connection {id(connection)}')
+                logger.debug(f'Reusing connection {id(connection)}')
                 return connection
 
     def try_return_connection(self, connection):
@@ -56,7 +60,7 @@ class HttpConnectionPool:
             return await self.create_connection()
 
     async def create_connection(self):
-        # print(f'[*] creating connection for: {self.host}:{self.port}')
+        logger.debug(f'[*] creating connection for: {self.host}:{self.port}')
         transport, connection = await self.loop.create_connection(
             lambda: HttpConnection(self.loop, self),
             self.host,

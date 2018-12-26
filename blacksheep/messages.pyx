@@ -6,6 +6,7 @@ from .contents cimport HttpContent, extract_multipart_form_data_boundary, parse_
 
 
 import re
+import cchardet as chardet
 from asyncio import Event
 from urllib.parse import parse_qs
 from json import loads as json_loads
@@ -85,7 +86,20 @@ cdef class HttpMessage:
 
     async def text(self) -> str:
         body = await self.read()
-        return body.decode(self.charset)
+        try:
+            return body.decode(self.charset)
+        except UnicodeDecodeError:
+            # this can happen when the server returned a declared charset,
+            # but its content is not actually using the declared encoding
+            # a common encoding is 'ISO-8859-1', so before using chardet, we try with this
+            if self.charset != 'ISO-8859-1':
+                try:
+                    return body.decode('ISO-8859-1')
+                except UnicodeDecodeError:
+                    # fallback to chardet;
+                    result = chardet.detect(body)
+                    encoding = result['encoding']
+                    return body.decode(encoding)
 
     async def form(self):  # TODO: does this make sense only in requests?
         if self._form_data is not None:

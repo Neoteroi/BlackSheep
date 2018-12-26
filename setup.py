@@ -74,7 +74,9 @@ setup(name='blacksheep',
       ],
       install_requires=[
           'httptools',
-          'uvloop'
+          'uvloop',
+          'certifi',
+          'cchardet'
       ],
       include_package_data=True,
       zip_safe=False)

@@ -1,10 +1,11 @@
 import ssl
 import asyncio
 import httptools
+import certifi
 from blacksheep import HttpRequest, HttpResponse, HttpHeaders, HttpHeader
 from blacksheep.scribe import is_small_request, write_small_request, write_request
 from httptools import HttpParserError, HttpParserCallbackError
-SECURE_SSLCONTEXT = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+SECURE_SSLCONTEXT = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=certifi.where())
 SECURE_SSLCONTEXT.check_hostname = True
 
 INSECURE_SSLCONTEXT = ssl.SSLContext()
@@ -107,6 +108,7 @@ class HttpConnection(asyncio.Protocol):
             raise InvalidResponseFromServer(pex)
 
     def connection_lost(self, exc):
+        raise RuntimeError('Connection lost!', exc)
         self._connection_lost_exc = exc
         self.ready.clear()
         self.open = False

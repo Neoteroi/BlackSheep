@@ -10,6 +10,7 @@ from blacksheep import (HttpRequest,
                         HttpHeader,
                         URL,
                         InvalidURL)
+from blacksheep.middlewares import get_middlewares_chain
 
 
 URLType = Union[str, bytes, URL]
@@ -45,19 +46,6 @@ class ClientRequestContext:
 
     def __init__(self, request):
         self.path = [request.url.value.lower()]
-
-
-def middleware_partial(handler, next_handler):
-    async def middleware_wrapper(request):
-        return await handler(request, next_handler)
-    return middleware_wrapper
-
-
-def get_middlewares_chain(middlewares, handler):
-    fn = handler
-    for middleware in reversed(middlewares):
-        fn = middleware_partial(middleware, fn)
-    return fn
 
 
 def get_default_headers_middleware(headers):

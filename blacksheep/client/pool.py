@@ -41,7 +41,7 @@ class HttpConnectionPool:
             connection = self._idle_connections.get_nowait()  # type: HttpConnection
 
             if connection.open:
-                logger.debug(f'Reusing connection {id(connection)}')
+                logger.debug(f'Reusing connection {id(connection)} to: {self.host}:{self.port}')
                 return connection
 
     def try_return_connection(self, connection):
@@ -60,7 +60,7 @@ class HttpConnectionPool:
             return await self.create_connection()
 
     async def create_connection(self):
-        logger.debug(f'[*] creating connection for: {self.host}:{self.port}')
+        logger.debug(f'Creating connection to: {self.host}:{self.port}')
         transport, connection = await self.loop.create_connection(
             lambda: HttpConnection(self.loop, self),
             self.host,
@@ -90,7 +90,7 @@ class HttpConnectionPools:
 
     def get_pool(self, scheme, host, port, ssl):
         assert scheme in (b'http', b'https'), 'URL schema must be http or https'
-        if port is None:
+        if port is None or port == 0:
             port = 80 if scheme == b'http' else 443
         
         key = (scheme, host, port)

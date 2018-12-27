@@ -2,6 +2,7 @@ astroid==2.0.4
 atomicwrites==1.2.1
 attrs==18.2.0
 bleach==3.0.2
+cchardet==2.1.4
 certifi==2018.10.15
 chardet==3.0.4
 Cython==0.29

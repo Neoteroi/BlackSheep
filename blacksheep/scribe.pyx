@@ -232,13 +232,17 @@ async def write_request(HttpRequest request):
     content = request.content
 
     if content:
-        data = content.body
-
-        if content.length > MAX_RESPONSE_CHUNK_SIZE:
-            for chunk in get_chunks(data):
+        if should_use_chunked_encoding(content):
+            async for chunk in write_chunks(content):
                 yield chunk
         else:
-            yield data
+            data = content.body
+
+            if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                for chunk in get_chunks(data):
+                    yield chunk
+            else:
+                yield data
 
 
 def get_chunks(bytes data):

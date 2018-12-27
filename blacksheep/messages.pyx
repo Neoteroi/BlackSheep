@@ -1,5 +1,5 @@
 from .url cimport URL
-from .exceptions cimport BadRequestFormat
+from .exceptions cimport BadRequestFormat, InvalidOperation
 from .headers cimport HttpHeaders, HttpHeader
 from .cookies cimport HttpCookie, parse_cookie, datetime_to_cookie_format
 from .contents cimport HttpContent, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
@@ -142,11 +142,15 @@ cdef class HttpMessage:
             return loads(text)
         except JSONDecodeError as decode_error:
             content_type = self.headers.get_single(b'content-type')
-            if content_type and b'application/json' in content_type.value:
-                raise BadRequestFormat('Content-Type is application/json but the content cannot be parsed as JSON',
+            if content_type and b'json' in content_type.value:
+                # NB: content type could also be "application/problem+json"; so we don't check for
+                # application/json in this case
+                raise BadRequestFormat(f'Declared Content-Type is {content_type.value.decode()} but the content '
+                                       f'cannot be parsed as JSON.',
                                        decode_error)
-            else:
-                raise
+            raise InvalidOperation(f'Cannot parse content as JSON; declared Content-Type is '
+                                   f'{content_type.value.decode()}.',
+                                   decode_error)
 
     @property
     def charset(self):

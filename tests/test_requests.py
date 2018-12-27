@@ -1,6 +1,7 @@
 import pytest
-from blacksheep import HttpRequest, HttpHeaders
+from blacksheep import HttpRequest, HttpHeaders, HttpHeader
 from blacksheep import scribe
+from blacksheep.exceptions import BadRequestFormat, InvalidOperation
 
 
 def test_request_supports_for_dynamic_attributes():
@@ -51,3 +52,40 @@ def test_parse_query(url, query, parsed_query):
     assert request.url.value == url
     assert request.url.query == query
     assert request.query == parsed_query
+
+
+@pytest.mark.asyncio
+async def test_can_read_json_data_even_without_content_type_header():
+    request = HttpRequest(b'POST', b'/', HttpHeaders(), None)
+
+    request.extend_body(b'{"hello":"world","foo":false}')
+    request.complete.set()
+
+    json = await request.json()
+    assert json == {"hello": "world", "foo": False}
+
+
+@pytest.mark.asyncio
+async def test_if_read_json_fails_content_type_header_is_checked_json_gives_bad_request_format():
+    request = HttpRequest(b'POST', b'/', HttpHeaders([
+        HttpHeader(b'Content-Type', b'application/json')
+    ]), None)
+
+    request.extend_body(b'{"hello":')  # broken json
+    request.complete.set()
+
+    with pytest.raises(BadRequestFormat):
+        await request.json()
+
+
+@pytest.mark.asyncio
+async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_invalid_operation():
+    request = HttpRequest(b'POST', b'/', HttpHeaders([
+        HttpHeader(b'Content-Type', b'text/html')
+    ]), None)
+
+    request.extend_body(b'{"hello":')  # broken json
+    request.complete.set()
+
+    with pytest.raises(InvalidOperation) as io:
+        await request.json()

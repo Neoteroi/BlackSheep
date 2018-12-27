@@ -83,6 +83,9 @@ cdef class HttpHeaders:
         raise ValueError('value must be of bytes or HttpHeader type')
 
     def items(self):
+        cdef bytes key
+        cdef list value
+
         for key, value in self._headers.items():
             if value:
                 yield key, value
@@ -141,8 +144,14 @@ cdef class HttpHeaders:
     def __delitem__(self, bytes key):
         del self._headers[key]
 
-    def __contains__(self, bytes item):
-        return item in self._headers
+    def __contains__(self, bytes key):
+        cdef bytes existing_key
+        cdef bytes lower_key = key.lower()
+
+        for existing_key in self._headers.keys():
+            if existing_key.lower() == lower_key:
+                return True
+        return False
 
     cpdef HttpHeader get_first(self, bytes name):
         values = self.get(name)

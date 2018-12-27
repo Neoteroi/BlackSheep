@@ -287,3 +287,11 @@ def test_iadd_http_header_collection_concatenation_with_duplicate_header():
     assert any(x.value == b'Kitty' for x in example)
 
 
+def test_case_insensitive_contains():
+    headers = HttpHeaders([
+        HttpHeader(b'Hello', b'World')
+    ])
+
+    assert b'hello' in headers
+    assert b'hElLo' in headers
+    assert b'HELLO' in headers

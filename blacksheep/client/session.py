@@ -11,6 +11,7 @@ from blacksheep import (HttpRequest,
                         URL,
                         InvalidURL)
 from blacksheep.middlewares import get_middlewares_chain
+from .connection import ConnectionClosedError
 
 
 URLType = Union[str, bytes, URL]
@@ -65,7 +66,7 @@ class ClientSession:
                  pools=None,
                  default_headers: Optional[List[HttpHeader]] = None,
                  follow_redirects: bool = True,
-                 connection_timeout: float = 3.0,
+                 connection_timeout: float = 5.0,
                  request_timeout: float = 60.0,
                  maximum_redirects: int = 20,
                  redirects_cache_type: Union[Type[RedirectsCache], Any] = None,
@@ -97,6 +98,7 @@ class ClientSession:
         self._middlewares = middlewares or []
         if middlewares:
             self._build_middlewares_chain()
+        self.delay_before_retry = 0.5
 
     def add_middlewares(self, middlewares: List[Callable]):
         self._middlewares += middlewares
@@ -250,8 +252,7 @@ class ClientSession:
     async def _send_core(self, request: HttpRequest):
         self.check_permanent_redirects(request)
 
-        connection = await self.get_connection(request.url)
-        response = await self._send_using_connection(connection, request)
+        response = await self._send_using_connection(request)
 
         if self.follow_redirects and response.is_redirect():
             try:
@@ -263,11 +264,19 @@ class ClientSession:
 
         return response
 
-    async def _send_using_connection(self, connection, request):
+    async def _send_using_connection(self, request):
+        connection = await self.get_connection(request.url)
+
         try:
             return await asyncio.wait_for(connection.send(request),
                                           self.request_timeout,
                                           loop=self.loop)
+        except ConnectionClosedError as connection_closed_error:
+
+            if connection_closed_error.can_retry:
+                await asyncio.sleep(self.delay_before_retry, loop=self.loop)
+                return await self._send_using_connection(request)
+            raise
         except TimeoutError:
             raise RequestTimeout(request.url, self.request_timeout)
 
@@ -276,7 +285,8 @@ class ClientSession:
                   headers: Optional[List[HttpHeader]] = None):
         return await self.send(HttpRequest(b'GET',
                                            self.get_url(url),
-                                           HttpHeaders(headers), None))
+                                           HttpHeaders(headers),
+                                           None))
 
     async def post(self,
                    url: URLType,
@@ -284,7 +294,8 @@ class ClientSession:
                    headers: Optional[List[HttpHeader]] = None):
         return await self.send(HttpRequest(b'POST',
                                            self.get_url(url),
-                                           HttpHeaders(headers), content))
+                                           HttpHeaders(headers),
+                                           content))
 
     async def put(self,
                   url: URLType,
@@ -292,7 +303,8 @@ class ClientSession:
                   headers: Optional[List[HttpHeader]] = None):
         return await self.send(HttpRequest(b'PUT',
                                            self.get_url(url),
-                                           HttpHeaders(headers), content))
+                                           HttpHeaders(headers),
+                                           content))
 
     async def delete(self,
                      url: URLType,

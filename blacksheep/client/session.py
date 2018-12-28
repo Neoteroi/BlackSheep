@@ -1,4 +1,5 @@
 import asyncio
+from urllib.parse import urlencode
 from asyncio import TimeoutError
 from typing import List, Optional, Union, Type, Any, Callable
 from .pool import HttpConnectionPools
@@ -12,6 +13,7 @@ from blacksheep import (HttpRequest,
                         InvalidURL)
 from blacksheep.middlewares import get_middlewares_chain
 from .connection import ConnectionClosedError
+from .cookies import CookieJar, cookies_middleware
 
 
 URLType = Union[str, bytes, URL]
@@ -43,10 +45,11 @@ class RedirectsCache:
 
 class ClientRequestContext:
 
-    __slots__ = ('path',)
+    __slots__ = ('path', 'cookies')
 
-    def __init__(self, request):
+    def __init__(self, request, cookies: CookieJar = None):
         self.path = [request.url.value.lower()]
+        self.cookies = cookies
 
 
 def get_default_headers_middleware(headers):
@@ -70,6 +73,7 @@ class ClientSession:
                  request_timeout: float = 60.0,
                  maximum_redirects: int = 20,
                  redirects_cache_type: Union[Type[RedirectsCache], Any] = None,
+                 cookie_jar: CookieJar = None,
                  middlewares: Optional[List[Callable]] = None):
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -83,6 +87,15 @@ class ClientSession:
         if redirects_cache_type is None and follow_redirects:
             redirects_cache_type = RedirectsCache
 
+        if middlewares is None:
+            middlewares = []
+
+        if cookie_jar is None:
+            cookie_jar = CookieJar()
+
+        if cookie_jar:
+            middlewares.insert(0, cookies_middleware)
+
         self.loop = loop
         self.base_url = url
         self.ssl = ssl
@@ -91,11 +104,12 @@ class ClientSession:
         self.connection_timeout = connection_timeout
         self.request_timeout = request_timeout
         self.follow_redirects = follow_redirects
+        self.cookie_jar = cookie_jar
         self._permanent_redirects_urls = redirects_cache_type() if follow_redirects else None
         self.non_standard_handling_of_301_302_redirect_method = True
         self.maximum_redirects = maximum_redirects
         self._handler = None
-        self._middlewares = middlewares or []
+        self._middlewares = middlewares
         if middlewares:
             self._build_middlewares_chain()
         self.delay_before_retry = 0.5
@@ -118,7 +132,14 @@ class ClientSession:
         """Uses specification compliant handling of 301 and 302 redirects"""
         self.non_standard_handling_of_301_302_redirect_method = False
 
-    def get_url(self, url):
+    def get_url(self, url, params=None) -> bytes:
+        value = self._get_url_without_params(url)
+        if not params:
+            return value
+        query = urlencode(params).encode('ascii')
+        return value + (b'&' if b'?' in value else b'?') + query
+
+    def _get_url_without_params(self, url) -> bytes:
         if isinstance(url, str):
             url = url.encode()
 
@@ -135,7 +156,6 @@ class ClientSession:
     def configure(self):
         if self._middlewares and not self._handler:
             self._build_middlewares_chain()
-        pass
 
     def use_sync_logging(self):
         from .logs import client_logging_middleware
@@ -237,9 +257,19 @@ class ClientSession:
         except TimeoutError:
             raise ConnectionTimeout(url.base_url(), self.connection_timeout)
 
+    def get_new_context(self, request) -> ClientRequestContext:
+        return ClientRequestContext(request, self.cookie_jar)
+
     async def send(self, request: HttpRequest):
+        if not request.url.is_absolute:
+            if self.base_url:
+                request.url = self._get_url_without_params(request.url)
+            else:
+                raise ValueError('request.url must be a complete, absolute URL. Either provide a base_url '
+                                 'for the client, or specify a full URL for the request.')
+
         if not hasattr(request, 'context'):
-            request.context = ClientRequestContext(request)
+            request.context = self.get_new_context(request)
             self.merge_default_headers(request)
 
         if self._handler:
@@ -282,69 +312,77 @@ class ClientSession:
 
     async def get(self,
                   url: URLType,
-                  headers: Optional[List[HttpHeader]] = None):
+                  headers: Optional[List[HttpHeader]] = None,
+                  params=None):
         return await self.send(HttpRequest(b'GET',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            None))
 
     async def post(self,
                    url: URLType,
                    content: HttpContent = None,
-                   headers: Optional[List[HttpHeader]] = None):
+                   headers: Optional[List[HttpHeader]] = None,
+                   params=None):
         return await self.send(HttpRequest(b'POST',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            content))
 
     async def put(self,
                   url: URLType,
                   content: HttpContent = None,
-                  headers: Optional[List[HttpHeader]] = None):
+                  headers: Optional[List[HttpHeader]] = None,
+                  params=None):
         return await self.send(HttpRequest(b'PUT',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            content))
 
     async def delete(self,
                      url: URLType,
                      content: HttpContent = None,
-                     headers: Optional[List[HttpHeader]] = None):
+                     headers: Optional[List[HttpHeader]] = None,
+                     params=None):
         return await self.send(HttpRequest(b'DELETE',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            content))
 
     async def trace(self,
                     url: URLType,
-                    headers: Optional[List[HttpHeader]] = None):
+                    headers: Optional[List[HttpHeader]] = None,
+                    params=None):
         return await self.send(HttpRequest(b'TRACE',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            None))
 
     async def head(self,
                    url: URLType,
-                   headers: Optional[List[HttpHeader]] = None):
+                   headers: Optional[List[HttpHeader]] = None,
+                   params=None):
         return await self.send(HttpRequest(b'HEAD',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            None))
 
     async def patch(self,
                     url: URLType,
                     content: HttpContent = None,
-                    headers: Optional[List[HttpHeader]] = None):
+                    headers: Optional[List[HttpHeader]] = None,
+                    params=None):
         return await self.send(HttpRequest(b'PATCH',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            content))
 
     async def options(self,
                       url: URLType,
                       content: HttpContent = None,
-                      headers: Optional[List[HttpHeader]] = None):
+                      headers: Optional[List[HttpHeader]] = None,
+                      params=None):
         return await self.send(HttpRequest(b'OPTIONS',
-                                           self.get_url(url),
+                                           self.get_url(url, params),
                                            HttpHeaders(headers),
                                            content))

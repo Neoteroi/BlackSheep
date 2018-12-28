@@ -125,3 +125,22 @@ def test_parse_cookie(name,
     assert cookie.secure == secure
     if max_age:
         assert datetime_from_cookie_format(cookie.max_age) == max_age
+
+
+@pytest.mark.parametrize('value,expected_result', [
+    [b'Sun, 27-Jan-2019 20:40:54 GMT', datetime(2019, 1, 27, 20, 40, 54)],
+    [b'Sun, 27 Jan 2019 20:40:54 GMT', datetime(2019, 1, 27, 20, 40, 54)],
+    [b'Wed, 21 Oct 2015 07:28:00 GMT', datetime(2015, 10, 21, 7, 28, 00)]
+])
+def test_datetime_from_cookie_format(value, expected_result):
+    parsed = datetime_from_cookie_format(value)
+    assert parsed == expected_result
+
+
+@pytest.mark.parametrize('expected_result,value', [
+    [b'Sun, 27 Jan 2019 20:40:54 GMT', datetime(2019, 1, 27, 20, 40, 54)],
+    [b'Wed, 21 Oct 2015 07:28:00 GMT', datetime(2015, 10, 21, 7, 28, 00)]
+])
+def test_datetime_from_cookie_format(expected_result, value):
+    bytes_value = datetime_to_cookie_format(value)
+    assert bytes_value == expected_result

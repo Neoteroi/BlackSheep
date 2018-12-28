@@ -7,15 +7,17 @@
 
 cdef class HttpCookie:
     cdef object _expiration
-    cdef readonly bytes name
-    cdef readonly bytes value
-    cdef readonly bytes expires
-    cdef readonly bytes domain
-    cdef readonly bytes path
-    cdef readonly bint http_only
-    cdef readonly bint secure
-    cdef readonly bytes max_age
-    cdef readonly bytes same_site
+    cdef public bytes name
+    cdef public bytes value
+    cdef public bytes expires
+    cdef public bytes domain
+    cdef public bytes path
+    cdef public bint http_only
+    cdef public bint secure
+    cdef public bytes max_age
+    cdef public bytes same_site
+    cpdef HttpCookie clone(self)
+    cpdef void set_max_age(self, int max_age)
 
 
 cpdef HttpCookie parse_cookie(bytes value)

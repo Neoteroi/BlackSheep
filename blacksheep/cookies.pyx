@@ -3,13 +3,15 @@ from typing import Optional
 
 
 cpdef bytes datetime_to_cookie_format(object value):
-    # TODO: can be 1P_JAR=2018-11-17-20; expires=Mon, 17-Dec-2018 20:05:34 GMT; path=/; domain=.google.pl
     return value.strftime('%a, %d %b %Y %H:%M:%S GMT').encode()
 
 
 cpdef object datetime_from_cookie_format(bytes value):
-    # TODO: can be 1P_JAR=2018-11-17-20; expires=Mon, 17-Dec-2018 20:05:34 GMT; path=/; domain=.google.pl
-    return datetime.strptime(value.decode(), '%a, %d %b %Y %H:%M:%S GMT')
+    value_str = value.decode()
+    try:
+        return datetime.strptime(value_str, '%a, %d %b %Y %H:%M:%S GMT')
+    except ValueError:
+        return datetime.strptime(value_str, '%a, %d-%b-%Y %H:%M:%S GMT')
 
 
 cdef class HttpCookie:
@@ -35,6 +37,17 @@ cdef class HttpCookie:
         self.max_age = max_age
         self.same_site = same_site
 
+    cpdef HttpCookie clone(self):
+        return HttpCookie(self.name,
+                          self.value,
+                          self.expires,
+                          self.domain,
+                          self.path,
+                          self.http_only,
+                          self.secure,
+                          self.max_age,
+                          self.same_site)
+
     @property
     def expiration(self):
         if not self.expires:
@@ -51,6 +64,9 @@ cdef class HttpCookie:
             self.expires = datetime_to_cookie_format(value)
         else:
             self.expires = None
+
+    cpdef void set_max_age(self, int max_age):
+        self.max_age = str(max_age).encode()
 
     def __repr__(self):
         return f'<HttpCookie {self.name} {self.value}>'

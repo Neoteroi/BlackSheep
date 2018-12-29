@@ -163,3 +163,8 @@ cdef class Headers:
             return values[-1]
         return values[0] if values else None
 
+    def __repr__(self):
+        try:
+            return f'<Headers at {id(self)} ({b", ".join(self._headers.keys())).decode()})>'
+        except Exception:
+            return f'<Headers at {id(self)} ({len(self._headers)})>'

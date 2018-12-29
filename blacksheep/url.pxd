@@ -1,0 +1,21 @@
+# cython: language_level=3
+# Copyright (C) 2018-present Roberto Prevato
+#
+# This module is part of BlackSheep and is released under
+# the MIT License https://opensource.org/licenses/MIT
+
+
+cdef class URL:
+
+    cdef readonly bytes value
+    cdef readonly bytes schema
+    cdef readonly bytes host
+    cdef readonly int port
+    cdef readonly bytes path
+    cdef readonly bytes query
+    cdef readonly bytes fragment
+    cdef readonly bytes userinfo
+    cdef readonly bint is_absolute
+
+    cpdef URL join(self, URL other)
+    cpdef URL base_url(self)

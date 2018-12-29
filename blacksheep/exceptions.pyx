@@ -1,4 +1,10 @@
 
+cdef class InvalidOperation(Exception):
+
+    def __init__(self, str message, object inner_exception=None):
+        super().__init__(message)
+        self.inner_exception = inner_exception
+
 
 cdef class BadRequestFormat(Exception):
 

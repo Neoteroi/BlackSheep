@@ -1,7 +1,7 @@
-from .headers cimport HttpHeaderCollection, HttpHeader
-from .contents cimport HttpContent
-from .cookies cimport HttpCookie
-from .messages cimport HttpRequest, HttpResponse
+from .headers cimport Headers, Header
+from .contents cimport Content
+from .cookies cimport Cookie
+from .messages cimport Request, Response
 
 
 include "includes/consts.pxi"
@@ -26,12 +26,12 @@ cpdef bytes get_status_line(int status):
     return STATUS_LINES[status]
 
 
-cdef bytes write_header(HttpHeader header):
+cdef bytes write_header(Header header):
     return header.name + b': ' + header.value + b'\r\n'
 
 
 cdef bytes write_headers(list headers):
-    cdef HttpHeader header
+    cdef Header header
     cdef bytearray value
     
     value = bytearray()
@@ -41,13 +41,13 @@ cdef bytes write_headers(list headers):
 
 
 cdef void extend_data_with_headers(list headers, bytearray data):
-    cdef HttpHeader header
+    cdef Header header
 
     for header in headers:
         data.extend(write_header(header))
 
 
-cdef bytes write_request_uri(HttpRequest request):
+cdef bytes write_request_uri(Request request):
     cdef p
     cdef object url = request.url  # TODO: how to use type from httptools?
     p = url.path or b'/'
@@ -56,26 +56,26 @@ cdef bytes write_request_uri(HttpRequest request):
     return p
 
 
-cdef bint should_use_chunked_encoding(HttpContent content):
+cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
 
-cdef list get_headers_for_content(HttpContent content):
+cdef list get_headers_for_content(Content content):
     cdef list headers = []
     
     if not content:
-        headers.append(HttpHeader(b'Content-Length', b'0'))
+        headers.append(Header(b'Content-Length', b'0'))
         return headers
-    headers.append(HttpHeader(b'Content-Type', content.type or b'application/octet-stream'))
+    headers.append(Header(b'Content-Type', content.type or b'application/octet-stream'))
 
     if should_use_chunked_encoding(content):
-        headers.append(HttpHeader(b'Transfer-Encoding', b'chunked'))
+        headers.append(Header(b'Transfer-Encoding', b'chunked'))
     else:
-        headers.append(HttpHeader(b'Content-Length', str(content.length).encode()))
+        headers.append(Header(b'Content-Length', str(content.length).encode()))
     return headers
 
 
-cdef bytes write_cookie_for_response(HttpCookie cookie):
+cdef bytes write_cookie_for_response(Cookie cookie):
     cdef list parts = []
     parts.append(cookie.name + b'=' + cookie.value)
 
@@ -103,25 +103,25 @@ cdef bytes write_cookie_for_response(HttpCookie cookie):
     return b'; '.join(parts)
 
 
-cpdef bytes write_response_cookie(HttpCookie cookie):
+cpdef bytes write_response_cookie(Cookie cookie):
     return write_cookie_for_response(cookie)
 
 
 cdef bytes write_cookies_for_request(list cookies):
     cdef list parts = []
-    cdef HttpCookie cookie
+    cdef Cookie cookie
 
     for cookie in cookies:
-        parts.append(cookie.name + b'=' + cookie.value for cookie in cookies)
+        parts.append(cookie.name + b'=' + cookie.value)
     
     return b'; '.join(parts)
 
 
-cdef list get_all_response_headers(HttpResponse response):
+cdef list get_all_response_headers(Response response):
     cdef list result = []
-    cdef HttpContent content
-    cdef HttpHeader header
-    cdef HttpCookie cookie
+    cdef Content content
+    cdef Header header
+    cdef Cookie cookie
     cdef dict cookies
 
     for header in response.headers:
@@ -134,24 +134,24 @@ cdef list get_all_response_headers(HttpResponse response):
         for header in get_headers_for_content(content):
             result.append(header)
     else:
-        result.append(HttpHeader(b'Content-Length', b'0'))
+        result.append(Header(b'Content-Length', b'0'))
 
     cookies = response.cookies
 
     if cookies:
         for cookie in cookies.values():
-            result.append(HttpHeader(b'Set-Cookie', write_cookie_for_response(cookie)))
+            result.append(Header(b'Set-Cookie', write_cookie_for_response(cookie)))
     return result
 
 
-async def write_chunks(HttpContent http_content):
+async def write_chunks(Content http_content):
     async for chunk in http_content.get_parts():
         yield (hex(len(chunk))).encode()[2:] + b'\r\n' + chunk + b'\r\n'
     yield b'0\r\n\r\n'
 
 
-cdef bint is_small_response(HttpResponse response):
-    cdef HttpContent content = response.content
+cdef bint is_small_response(Response response):
+    cdef Content content = response.content
     if not content:
         return True
     if content.length > 0 and content.length < MAX_RESPONSE_CHUNK_SIZE:
@@ -159,7 +159,26 @@ cdef bint is_small_response(HttpResponse response):
     return False
 
 
-cdef bytes write_small_response(HttpResponse response):
+cpdef bint is_small_request(Request request):
+    cdef Content content = request.content
+    if not content:
+        return True
+    if content.length > 0 and content.length < MAX_RESPONSE_CHUNK_SIZE:
+        return True
+    return False
+
+
+cpdef bytes write_small_request(Request request):
+    cdef bytearray data = bytearray()
+    data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    extend_data_with_headers(get_all_request_headers(request), data)
+    data.extend(b'\r\n')
+    if request.content:
+        data.extend(request.content.body)
+    return bytes(data)
+
+
+cdef bytes write_small_response(Response response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
     extend_data_with_headers(get_all_response_headers(response), data)
@@ -169,15 +188,19 @@ cdef bytes write_small_response(HttpResponse response):
     return bytes(data)
 
 
-cpdef bytes py_write_small_response(HttpResponse response):
+cpdef bytes py_write_small_response(Response response):
     return write_small_response(response)
 
 
-cdef list get_all_request_headers(HttpRequest request):
+cpdef bytes py_write_small_request(Request request):
+    return write_small_request(request)
+
+
+cdef list get_all_request_headers(Request request):
     cdef list result = []
-    cdef HttpContent content
-    cdef HttpHeader header
-    cdef HttpCookie cookie
+    cdef Content content
+    cdef Header header
+    cdef Cookie cookie
     cdef dict cookies
 
     for header in request.headers:
@@ -185,7 +208,7 @@ cdef list get_all_request_headers(HttpRequest request):
     
     content = request.content
 
-    result.append(HttpHeader(b'Host', request.url.host))
+    result.append(Header(b'Host', request.url.host))
 
     if content:
         for header in get_headers_for_content(content):
@@ -194,15 +217,32 @@ cdef list get_all_request_headers(HttpRequest request):
     cookies = request.cookies
 
     if cookies:
-        result.append(HttpHeader(b'Cookie', write_cookies_for_request(cookies.values())))
+        result.append(Header(b'Cookie', write_cookies_for_request(list(cookies.values()))))
     return result
 
 
-async def write_request(HttpRequest request):
+async def write_request(Request request):
+    cdef bytes data
+    cdef bytes chunk
+    cdef Content content
+
     yield request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
         write_headers(get_all_request_headers(request)) + b'\r\n'
-    
-    # TODO: complete
+
+    content = request.content
+
+    if content:
+        if should_use_chunked_encoding(content):
+            async for chunk in write_chunks(content):
+                yield chunk
+        else:
+            data = content.body
+
+            if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                for chunk in get_chunks(data):
+                    yield chunk
+            else:
+                yield data
 
 
 def get_chunks(bytes data):
@@ -211,10 +251,10 @@ def get_chunks(bytes data):
         yield data[i:i + MAX_RESPONSE_CHUNK_SIZE]
 
 
-async def write_response(HttpResponse response):
+async def write_response(Response response):
     cdef bytes data
     cdef bytes chunk
-    cdef HttpContent content
+    cdef Content content
 
     yield STATUS_LINES[response.status] + \
         write_headers(get_all_response_headers(response)) + b'\r\n'

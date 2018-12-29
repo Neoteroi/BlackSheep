@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from urllib.parse import quote
-from blacksheep import HttpResponse, HttpContent, HttpHeader, HttpHeaderCollection
+from blacksheep import Response, Content, Header, Headers
 from blacksheep.server.routing import Route
 from blacksheep.exceptions import InvalidArgument
 from blacksheep.server.pathsutils import get_file_extension_from_name
@@ -64,14 +64,14 @@ def get_frozen_file_getter(file_path, cache_max_age=12000):
     size = os.path.getsize(file_path)
     current_etag = str(os.path.getmtime(file_path)).encode()
     headers = [
-        HttpHeader(b'Last-Modified', unix_timestamp_to_datetime(os.path.getmtime(file_path))),
-        HttpHeader(b'ETag', current_etag),
-        HttpHeader(b'Cache-Control', b'max-age=' + str(cache_max_age).encode())
+        Header(b'Last-Modified', unix_timestamp_to_datetime(os.path.getmtime(file_path))),
+        Header(b'ETag', current_etag),
+        Header(b'Cache-Control', b'max-age=' + str(cache_max_age).encode())
     ]
 
     head_headers = headers + [
-        HttpHeader(b'Content-Type', mime),
-        HttpHeader(b'Content-Length', str(size).encode())
+        Header(b'Content-Type', mime),
+        Header(b'Content-Length', str(size).encode())
     ]
 
     data = get_file_data(file_path, size, size_limit=1.049e+7)
@@ -80,12 +80,12 @@ def get_frozen_file_getter(file_path, cache_max_age=12000):
         previous_etag = request.if_none_match
 
         if previous_etag and previous_etag == current_etag:
-            return HttpResponse(304, headers, None)
+            return Response(304, headers, None)
 
         if request.method == b'HEAD':
-            return HttpResponse(200, head_headers, None)
+            return Response(200, head_headers, None)
 
-        return HttpResponse(200, HttpHeaderCollection.from_param(headers), HttpContent(mime, data))
+        return Response(200, Headers.from_param(headers), Content(mime, data))
     return frozen_file_getter
 
 

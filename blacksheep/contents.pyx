@@ -18,7 +18,7 @@ _content_disposition_header_name_rx = re.compile(b'\\sname="([^\\"]+)"', re.I)
 _content_disposition_header_filename_rx = re.compile(b'\\sfilename="([^\\"]+)"', re.I)
 
 
-cdef class HttpContent:
+cdef class Content:
 
     def __init__(self,
                  bytes content_type,
@@ -48,19 +48,19 @@ cdef class HttpContent:
                     yield chunk
 
 
-cdef class TextContent(HttpContent):
+cdef class TextContent(Content):
 
     def __init__(self, str text):
         super().__init__(b'text/plain', text.encode('utf8'))
 
 
-cdef class HtmlContent(HttpContent):
+cdef class HtmlContent(Content):
 
     def __init__(self, str html):
         super().__init__(b'text/html', html.encode('utf8'))
 
 
-cdef class JsonContent(HttpContent):
+cdef class JsonContent(Content):
 
     def __init__(self, object data, dumps=json.dumps):
         super().__init__(b'application/json', dumps(data).encode('utf8'))
@@ -188,13 +188,13 @@ cpdef void write_multipart_part(FormPart part, bytearray destination):
     if part.file_name:
         destination.extend(b'; filename="')
         destination.extend(part.file_name)
-        destination.extend(b'"\n')
+        destination.extend(b'"\r\n')
     if part.content_type:
         destination.extend(b'Content-Type: ')
         destination.extend(part.content_type)
-    destination.extend(b'\n\n')
+    destination.extend(b'\r\n\r\n')
     destination.extend(part.data)
-    destination.extend(b'\n')
+    destination.extend(b'\r\n')
 
 
 cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
@@ -215,7 +215,7 @@ cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
     return ('&'.join(contents)).encode('utf8')
 
 
-cdef class FormContent(HttpContent):
+cdef class FormContent(Content):
 
     def __init__(self, data: dict):
         super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
@@ -239,13 +239,11 @@ cdef class FormPart:
         return f'<FormPart {self.name} - at {id(self)}>'
 
 
-cdef class MultiPartFormData(HttpContent):
+cdef class MultiPartFormData(Content):
 
     def __init__(self, list parts):
-        # TODO: support lazy evaluation and chunked encoding, or create a dedicated class for it
         self.parts = parts
-        self.boundary = b'-----------------------------' + \
-                        str(uuid.uuid4()).replace('-', '').encode()
+        self.boundary = b'------' + str(uuid.uuid4()).replace('-', '').encode()
         super().__init__(b'multipart/form-data; boundary=' + self.boundary, write_multipart_form_data(self))
 
 
@@ -253,9 +251,13 @@ cpdef bytes write_multipart_form_data(MultiPartFormData data):
     cdef bytearray contents = bytearray()
     cdef FormPart part
     for part in data.parts:
-        contents.extend(data.boundary + b'\n')
+        contents.extend(b'--')
+        contents.extend(data.boundary)
+        contents.extend(b'\r\n')
         write_multipart_part(part, contents)
-    contents.extend(data.boundary + b'--')
+    contents.extend(b'--')
+    contents.extend(data.boundary)
+    contents.extend(b'--\r\n')
     return bytes(contents)
 
 

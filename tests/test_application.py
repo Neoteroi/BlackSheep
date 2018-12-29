@@ -2,8 +2,8 @@ import pytest
 import asyncio
 import pkg_resources
 from blacksheep.server import Application
-from blacksheep.connection import ConnectionHandler
-from blacksheep import HttpRequest, HttpResponse, HttpHeader, JsonContent, HttpHeaderCollection
+from blacksheep.connection import ServerConnection
+from blacksheep import Request, Response, Header, JsonContent, Headers
 from tests.utils import ensure_folder
 
 
@@ -59,7 +59,7 @@ class FakeTransport:
 
 
 def get_new_connection_handler(app: Application):
-    handler = ConnectionHandler(app=app, loop=asyncio.get_event_loop())
+    handler = ServerConnection(app=app, loop=asyncio.get_event_loop())
     handler.connection_made(FakeTransport())
     return handler
 
@@ -91,12 +91,12 @@ async def test_application_get_handler():
     handler.data_received(message)
 
     await app.response_done.wait()
-    request = app.request  # type: HttpRequest
+    request = app.request  # type: Request
 
     assert request is not None
 
     connection = request.headers[b'connection']
-    assert connection == [HttpHeader(b'Connection', b'keep-alive')]
+    assert connection == [Header(b'Connection', b'keep-alive')]
 
     text = await request.text()
     assert text == ''
@@ -126,7 +126,7 @@ async def test_application_post_handler_crlf():
 
     handler.data_received(message)
     await app.response_done.wait()
-    request = app.request  # type: HttpRequest
+    request = app.request  # type: Request
 
     assert request is not None
 
@@ -188,7 +188,7 @@ async def test_application_post_multipart_formdata_handler():
         file_one = await request.files('file1')
         assert file_one[0].name == b'file1'
 
-        return HttpResponse(200)
+        return Response(200)
 
     handler = get_new_connection_handler(app)
 
@@ -254,7 +254,7 @@ async def test_application_post_handler_lf():
         data = await request.json()
         assert {"name": "Celine", "kind": "Persian"} == data
 
-        return HttpResponse(201, HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(201, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
 
     handler = get_new_connection_handler(app)
 
@@ -273,7 +273,7 @@ async def test_application_post_handler_lf():
     handler.data_received(message)
 
     await app.response_done.wait()
-    request = app.request  # type: HttpRequest
+    request = app.request  # type: Request
 
     assert request is not None
 
@@ -313,7 +313,7 @@ async def test_application_middlewares_two():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return HttpResponse(200, HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -335,7 +335,7 @@ async def test_application_middlewares_two():
 
     assert handler.transport.closed is False
     await app.response_done.wait()
-    response = app.response  # type: HttpResponse
+    response = app.response  # type: Response
 
     assert response is not None
     assert response.status == 200
@@ -373,7 +373,7 @@ async def test_application_middlewares_three():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return HttpResponse(200, HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -394,7 +394,7 @@ async def test_application_middlewares_three():
 
     handler.data_received(message)
     await app.response_done.wait()
-    response = app.response  # type: HttpResponse
+    response = app.response  # type: Response
 
     assert response is not None
     assert response.status == 200
@@ -424,14 +424,14 @@ async def test_application_middlewares_skip_handler():
     async def middleware_three(request, handler):
         nonlocal calls
         calls.append(6)
-        return HttpResponse(403)
+        return Response(403)
 
     @app.router.get(b'/')
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return HttpResponse(200,
-                            HttpHeaderCollection([HttpHeader(b'Server', b'Python/3.7')]),
+        return Response(200,
+                            Headers([Header(b'Server', b'Python/3.7')]),
                             JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
@@ -454,7 +454,7 @@ async def test_application_middlewares_skip_handler():
     handler.data_received(message)
     assert handler.transport.closed is False
     await app.response_done.wait()
-    response = app.response  # type: HttpResponse
+    response = app.response  # type: Response
     assert response is not None
     assert response.status == 403
     assert calls == [1, 3, 6, 4, 2]
@@ -478,7 +478,7 @@ async def test_application_post_multipart_formdata_files_handler():
             with open(full_path, mode='wb') as saved_file:
                 saved_file.write(part.data)
 
-        return HttpResponse(200)
+        return Response(200)
 
     handler = get_new_connection_handler(app)
     boundary = b'---------------------0000000000000000000000001'
@@ -515,7 +515,7 @@ async def test_application_post_multipart_formdata_files_handler():
     handler.data_received(message)
 
     await app.response_done.wait()
-    response = app.response  # type: HttpResponse
+    response = app.response  # type: Response
     assert response.status == 200
 
     # now files are in both folders: compare to ensure they are identical

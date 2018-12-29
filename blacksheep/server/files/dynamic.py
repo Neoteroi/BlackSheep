@@ -3,7 +3,7 @@ import html
 from pathlib import Path
 from blacksheep.exceptions import InvalidArgument
 from blacksheep.server.routing import Route
-from blacksheep import HttpResponse, HtmlContent
+from blacksheep import Response, HtmlContent
 from blacksheep.server.pathsutils import get_file_extension_from_name
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.exceptions import HttpNotFound
@@ -84,7 +84,7 @@ def get_files_list_html_response(template, parent_folder_path, contents):
             p.append(f'<a href="/{fragment_path}">{html.escape(fragment)}</a>')
 
     # TODO: use chunked encoding here with HTML response
-    return HttpResponse(200, content=HtmlContent(template.format_map({'path': '/'.join(p), 'info': info})))
+    return Response(200, content=HtmlContent(template.format_map({'path': '/'.join(p), 'info': info})))
 
 
 def get_files_handler(source_folder_name, source_folder_full_path, discovery, cache_time, extensions):

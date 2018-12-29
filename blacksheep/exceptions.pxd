@@ -19,3 +19,7 @@ cdef class HttpNotFound(HttpException):
 
 cdef class InvalidArgument(Exception):
     pass
+
+
+cdef class InvalidOperation(Exception):
+    pass

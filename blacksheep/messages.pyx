@@ -1,11 +1,12 @@
-from .exceptions cimport BadRequestFormat
-from .headers cimport HttpHeaderCollection, HttpHeader
-from .cookies cimport HttpCookie, parse_cookie, datetime_to_cookie_format
-from .contents cimport HttpContent, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
+from .url cimport URL
+from .exceptions cimport BadRequestFormat, InvalidOperation
+from .headers cimport Headers, Header
+from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format
+from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
 
 
 import re
-import httptools
+import cchardet as chardet
 from asyncio import Event
 from urllib.parse import parse_qs
 from json import loads as json_loads
@@ -14,15 +15,15 @@ from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
 
 
-cdef int get_content_length(HttpHeaderCollection headers):
+cdef int get_content_length(Headers headers):
     header = headers.get_single(b'content-length')
     if header:
         return int(header.value)
     return -1
 
 
-cdef bint get_is_chunked_encoding(HttpHeaderCollection headers):
-    cdef HttpHeader header
+cdef bint get_is_chunked_encoding(Headers headers):
+    cdef Header header
     header = headers.get_single(b'transfer-encoding')
     if header and b'chunked' in header.value.lower():
         return True
@@ -39,11 +40,11 @@ cpdef str parse_charset(bytes value):
     return None
 
 
-cdef class HttpMessage:
+cdef class Message:
 
     def __init__(self, 
-                 HttpHeaderCollection headers, 
-                 HttpContent content):
+                 Headers headers, 
+                 Content content):
         self.headers = headers
         self.content = content
         self._cookies = None
@@ -57,7 +58,7 @@ cdef class HttpMessage:
     def raw_body(self):
         return self._raw_body
 
-    cpdef void set_content(self, HttpContent content):
+    cpdef void set_content(self, Content content):
         if content:
             self._raw_body.clear()
             if isinstance(content.body, (bytes, bytearray)):
@@ -68,6 +69,9 @@ cdef class HttpMessage:
             self._raw_body.clear()
 
     cdef void on_body(self, bytes chunk):
+        self._raw_body.extend(chunk)
+
+    cpdef void extend_body(self, bytes chunk):
         self._raw_body.extend(chunk)
 
     async def read(self) -> bytes:
@@ -82,9 +86,22 @@ cdef class HttpMessage:
 
     async def text(self) -> str:
         body = await self.read()
-        return body.decode(self.charset)
+        try:
+            return body.decode(self.charset)
+        except UnicodeDecodeError:
+            # this can happen when the server returned a declared charset,
+            # but its content is not actually using the declared encoding
+            # a common encoding is 'ISO-8859-1', so before using chardet, we try with this
+            if self.charset != 'ISO-8859-1':
+                try:
+                    return body.decode('ISO-8859-1')
+                except UnicodeDecodeError:
+                    # fallback to chardet;
+                    result = chardet.detect(body)
+                    encoding = result['encoding']
+                    return body.decode(encoding)
 
-    async def form(self):
+    async def form(self):  # TODO: does this make sense only in requests?
         if self._form_data is not None:
             return self._form_data
         content_type = self.headers.get_single(b'content-type')
@@ -125,11 +142,15 @@ cdef class HttpMessage:
             return loads(text)
         except JSONDecodeError as decode_error:
             content_type = self.headers.get_single(b'content-type')
-            if content_type and b'application/json' in content_type.value:
-                raise BadRequestFormat('Content-Type is application/json but the content cannot be parsed as JSON',
+            if content_type and b'json' in content_type.value:
+                # NB: content type could also be "application/problem+json"; so we don't check for
+                # application/json in this case
+                raise BadRequestFormat(f'Declared Content-Type is {content_type.value.decode()} but the content '
+                                       f'cannot be parsed as JSON.',
                                        decode_error)
-            else:
-                raise
+            raise InvalidOperation(f'Cannot parse content as JSON; declared Content-Type is '
+                                   f'{content_type.value.decode()}.',
+                                   decode_error)
 
     @property
     def charset(self):
@@ -139,16 +160,15 @@ cdef class HttpMessage:
         return 'utf8'
 
 
-cdef class HttpRequest(HttpMessage):
+cdef class Request(Message):
 
     def __init__(self,
                  bytes method,
                  bytes url,
-                 HttpHeaderCollection headers,
-                 HttpContent content):
+                 Headers headers,
+                 Content content):
         super().__init__(headers, content)
-        self.raw_url = url
-        self.url = httptools.parse_url(url)
+        self.url = URL(url)
         self.method = method
         self._query = None
         self.client_ip = None
@@ -158,7 +178,7 @@ cdef class HttpRequest(HttpMessage):
             self.complete.set()  # methods without body
         
     def __repr__(self):
-        return f'<HttpRequest {self.method.decode()} {self.raw_url.decode()}>'
+        return f'<Request {self.method.decode()} {self.url.value.decode()}>'
 
     @property
     def query(self):
@@ -201,18 +221,18 @@ cdef class HttpRequest(HttpMessage):
         return self.headers.get_first(b'if-none-match')
 
 
-cdef class HttpResponse(HttpMessage):
+cdef class Response(Message):
 
     def __init__(self,
                  int status,
-                 HttpHeaderCollection headers=None,
-                 HttpContent content=None):
-        super().__init__(headers or HttpHeaderCollection(), content)
+                 Headers headers=None,
+                 Content content=None):
+        super().__init__(headers or Headers(), content)
         self.status = status
         self.active = True
 
     def __repr__(self):
-        return f'<HttpResponse {self.status}>'
+        return f'<Response {self.status}>'
 
     @property
     def cookies(self):
@@ -238,7 +258,10 @@ cdef class HttpResponse(HttpMessage):
             self.set_cookie(cookie)
 
     def unset_cookie(self, name):
-        self.cookies[name] = HttpCookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365)))
+        self.cookies[name] = Cookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365)))
 
     def remove_cookie(self, name):
         del self.cookies[name]
+
+    cpdef bint is_redirect(self):
+        return self.status in {301, 302, 303, 307, 308}

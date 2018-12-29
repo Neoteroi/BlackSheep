@@ -1,7 +1,7 @@
-import html
 import asyncio
 import warnings
-import traceback
+import ssl
+from ssl import SSLContext
 from time import time, sleep
 from threading import Thread
 from typing import Optional, List, Callable
@@ -9,7 +9,7 @@ from multiprocessing import Process
 from socket import IPPROTO_TCP, TCP_NODELAY, SO_REUSEADDR, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
 from datetime import datetime
 from email.utils import formatdate
-from blacksheep import HttpRequest, HttpResponse, TextContent, HtmlContent
+from blacksheep import Request, Response, TextContent, HtmlContent
 from blacksheep.options import ServerOptions
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
@@ -18,6 +18,7 @@ from blacksheep.server.files.static import serve_static_files
 from blacksheep.exceptions import HttpException, HttpNotFound
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.baseapp import BaseApplication
+from blacksheep.middlewares import get_middlewares_chain
 
 
 try:
@@ -35,19 +36,6 @@ def get_current_timestamp():
     return formatdate(timeval=datetime.utcnow().timestamp(),
                       localtime=False,
                       usegmt=True).encode()
-
-
-def middleware_partial(handler, next_handler):
-    async def middleware_wrapper(request):
-        return await handler(request, next_handler)
-    return middleware_wrapper
-
-
-def get_middlewares_chain(middlewares, handler):
-    fn = handler
-    for middleware in reversed(middlewares):
-        fn = middleware_partial(middleware, fn)
-    return fn
 
 
 def get_default_headers_middleware(headers):
@@ -93,11 +81,11 @@ class ApplicationEvent:
 class Application(BaseApplication):
 
     def __init__(self,
-                 options: Optional[ServerOptions]=None,
-                 router: Optional[Router]=None,
-                 middlewares: Optional[List[Callable]]=None,
-                 resources: Optional[Resources]=None,
-                 debug: bool=False):
+                 options: Optional[ServerOptions] = None,
+                 router: Optional[Router] = None,
+                 middlewares: Optional[List[Callable]] = None,
+                 resources: Optional[Resources] = None,
+                 debug: bool = False):
         if not options:
             options = ServerOptions('', 8000)
         if router is None:
@@ -109,7 +97,7 @@ class Application(BaseApplication):
         if resources is None:
             resources = Resources(get_resource_file_content('error.html'))
         self.debug = debug
-        self.running = True
+        self.running = False
         self.middlewares = middlewares
         self.current_timestamp = get_current_timestamp()
         self.processes = []
@@ -125,6 +113,17 @@ class Application(BaseApplication):
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
 
+    def use_server_cert(self, cert_file: str, key_file: str):
+        context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+        self.use_ssl(context)
+
+    def use_ssl(self, ssl_context: SSLContext):
+        if self.running:
+            raise RuntimeError('The application is already running, set the SSL Context '
+                               'before starting the application')
+        self.options.set_ssl(ssl_context)
+
     def _validate_static_folders(self):
         if self._serve_static_files and self._serve_files:
             static_files_folder = self._serve_static_files[0]
@@ -134,7 +133,7 @@ class Application(BaseApplication):
                 raise RuntimeError('The static files folder must be a string (folder name).')
 
             if not isinstance(files_folder, str):
-                raise RuntimeError('The files folder must be a string  (folder name).')
+                raise RuntimeError('The files folder must be a string (folder name).')
 
             if static_files_folder.lower() == files_folder.lower():
                 raise RuntimeError('Cannot configure the same folder for static files and dynamically read files')
@@ -194,6 +193,7 @@ class Application(BaseApplication):
             self._apply_middlewares_in_routes()
 
     def start(self):
+        self.running = True
         if self._serve_static_files:
             serve_static_files(self.router, *self._serve_static_files)
 
@@ -256,7 +256,6 @@ def spawn_server(app: Application):
 
     s = socket()
     s.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
-    s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
     if options.no_delay:
         try:
@@ -267,12 +266,13 @@ def spawn_server(app: Application):
 
     s.bind((options.host, options.port))
 
-    from blacksheep.connection import ConnectionHandler
+    from blacksheep.connection import ServerConnection
 
-    server = loop.create_server(lambda: ConnectionHandler(app=app, loop=loop),
+    server = loop.create_server(lambda: ServerConnection(app=app, loop=loop),
                                 sock=s,
                                 reuse_port=options.processes_count > 1,
-                                backlog=options.backlog)
+                                backlog=options.backlog,
+                                ssl=options.ssl_context)
 
     monitor_thread = Thread(target=monitor_app,
                             args=(app, ),

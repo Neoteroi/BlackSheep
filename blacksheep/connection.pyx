@@ -1,5 +1,5 @@
-from .headers cimport HttpHeader, HttpHeaderCollection
-from .messages cimport HttpRequest, HttpResponse
+from .headers cimport Header, Headers
+from .messages cimport Request, Response
 from .options cimport ServerOptions
 from .scribe cimport is_small_response, write_small_response
 from .baseapp cimport BaseApplication
@@ -15,7 +15,7 @@ from asyncio import Event
 from httptools.parser.errors import HttpParserCallbackError, HttpParserError
 
 
-cdef class ConnectionHandler:
+cdef class ServerConnection:
     
     def __init__(self, *, BaseApplication app, object loop):
         self.app = app
@@ -32,7 +32,7 @@ cdef class ConnectionHandler:
         self.parser = httptools.HttpRequestParser(self)
         self.url = None
         self.method = None
-        self.request = None  # type: HttpRequest
+        self.request = None  # type: Request
         self.headers = []
 
     cpdef void reset(self):
@@ -90,6 +90,8 @@ cdef class ConnectionHandler:
             # ignore: this can happen for example if a client posts a big request to a wrong URL;
             # we return 404 immediately; but the client sends more chunks; http-parser.c throws exception
             # in this case
+            # TODO: 1) see below; a possible solution is to reset the connection only when the client is done sending
+            #       a message - this way we don't need to ignore errors in the client HTTP request format
             pass
 
     cpdef str get_client_ip(self):
@@ -112,11 +114,11 @@ cdef class ConnectionHandler:
             self.request.complete.set()
 
     cpdef void on_headers_complete(self):
-        cdef HttpRequest request
-        request = HttpRequest(
+        cdef Request request
+        request = Request(
             self.method,
             self.url,
-            HttpHeaderCollection(self.headers),
+            Headers(self.headers),
             None
         )
         # TODO: think of a lazy way to get client_ip: client ip is not always interesting
@@ -124,21 +126,33 @@ cdef class ConnectionHandler:
         self.request = request
         self.loop.create_task(self.handle_request(request))
 
+    async def reset_when_request_completed(self):
+        # TODO: to avoid the problem at point 1). use this function
+        #       however, measure if resolving that problem impacts performance in a negative way
+        await self.request_complete.wait()
+
+        if not self.parser.should_keep_alive():
+            self.close()
+        self.reset()
+
     cpdef void on_url(self, bytes url):
         self.url = url
         self.method = self.parser.get_method()
 
     cpdef void on_header(self, bytes name, bytes value):
-        self.headers.append(HttpHeader(name, value))
+        self.headers.append(Header(name, value))
 
         if len(self.headers) > MAX_REQUEST_HEADERS_COUNT or len(value) > MAX_REQUEST_HEADER_SIZE:
-            self.transport.write(write_small_response(HttpResponse(413)))
+            self.transport.write(write_small_response(Response(413)))
             self.reset()
             self.close()
 
-    async def handle_request(self, HttpRequest request):
+    cpdef void eof_received(self):
+        pass
+
+    async def handle_request(self, Request request):
         cdef bytes chunk
-        cdef HttpResponse response
+        cdef Response response
 
         response = await self.app.handle(request)
 

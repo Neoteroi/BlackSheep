@@ -1,6 +1,10 @@
 # cython: language_level=3
 
 
+cdef class MessageAborted(Exception):
+    pass
+
+
 cdef class BadRequestFormat(Exception):
     cdef public object inner_exception
 

@@ -35,3 +35,8 @@ cdef class InvalidArgument(Exception):
 
     def __init__(self, str message):
         super().__init__(message)
+
+
+cdef class MessageAborted(Exception):
+    def __init__(self):
+        super().__init__('The message was aborted before the client sent its whole content.')

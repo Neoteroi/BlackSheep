@@ -1,6 +1,6 @@
+import ssl
 import asyncio
 import warnings
-import ssl
 from ssl import SSLContext
 from time import time, sleep
 from threading import Thread
@@ -141,6 +141,7 @@ class Application(BaseApplication):
     def route(self, pattern, methods=None):
         if methods is None:
             methods = [b'GET']
+
         def decorator(f):
             for method in methods:
                 self.router.add(method, pattern, f)
@@ -205,10 +206,13 @@ class Application(BaseApplication):
 
     def stop(self):
         if self.running:
-            for connection in self.connections:
+            for connection in self.connections.copy():
                 connection.close()
             self.connections.clear()
         self.running = False
+
+    def on_connection_lost(self):
+        pass
 
 
 def monitor_app(app: Application):
@@ -216,17 +220,14 @@ def monitor_app(app: Application):
         app.current_timestamp = get_current_timestamp()
 
         current_time = time()
-        to_remove = []
         current_connections = app.connections.copy()
 
         for connection in current_connections:
             if current_time - connection.time_of_last_activity \
                     > app.options.limits.keep_alive_timeout:
                 connection.close()
-                to_remove.append(connection)
+                app.connections.discard(connection)
 
-        for connection in to_remove:
-            app.connections.discard(connection)
         sleep(1)
 
 
@@ -355,4 +356,3 @@ def run_server(app: Application):
             spawn_server(app)
         except (KeyboardInterrupt, SystemExit):
             print('[*] Exit')
-

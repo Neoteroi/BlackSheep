@@ -11,6 +11,7 @@ include "includes/consts.pxi"
 
 
 import time
+import asyncio
 import httptools
 from asyncio import Event
 from httptools.parser.errors import HttpParserCallbackError, HttpParserError
@@ -69,18 +70,41 @@ cdef class ServerConnection:
         self.transport = transport
 
     cpdef void connection_lost(self, exc):
-        if self.request:
-            self.request.active = False
-        self.app.connections.discard(self)
-        self.close()
-        self.reset()
+        self.dispose()
 
-    def close(self):
-        if not self.closed:
-            self.closed = True
-            if self.transport:
-                self.transport.write(b'\r\n\r\n')
+    cpdef void close(self):
+        self.dispose()
+
+    cdef void dispose(self):
+        cdef Request request = self.request
+
+        self.closed = True
+
+        if request:
+            request.active = False
+
+            if not request.complete.is_set():
+                # a connection is lost before a request content was complete
+                request.aborted = True
+                request.complete.set()
+
+        self.app.connections.discard(self)
+
+        if self.transport:
+            try:
                 self.transport.close()
+            except:
+                pass
+
+        self.app = None
+        self.request = None
+        self.parser = None
+        self.reading_paused = False
+        self.writing_paused = False
+        self.url = None
+        self.method = None
+        self.headers.clear()
+        self.ignore_more_body = False
 
     cpdef void data_received(self, bytes data):
         self.time_of_last_activity = time.time()
@@ -88,18 +112,18 @@ cdef class ServerConnection:
         try:
             self.parser.feed_data(data)
         except HttpParserCallbackError:
-            self.close()
+            self.dispose()
             raise
         except HttpParserError:
             # TODO: support logging this event
-            self.close()
+            self.dispose()
 
     cpdef str get_client_ip(self):
         return self.transport.get_extra_info('peername')[0]
 
     def handle_invalid_request(self, message):
         self.transport.write(write_small_response(Response(400, Headers(), TextContent(message))))
-        self.close()
+        self.dispose()
 
     cpdef void on_body(self, bytes value):
         cdef int body_len
@@ -139,7 +163,7 @@ cdef class ServerConnection:
         await self.request.complete.wait()
 
         if not self.parser.should_keep_alive():
-            self.close()
+            self.dispose()
         self.reset()
 
     cpdef void on_url(self, bytes url):
@@ -151,25 +175,37 @@ cdef class ServerConnection:
 
         if len(self.headers) > MAX_REQUEST_HEADERS_COUNT or len(value) > MAX_REQUEST_HEADER_SIZE:
             self.transport.write(write_small_response(Response(413)))
-            self.reset()
-            self.close()
+            self.dispose()
 
     cpdef void eof_received(self):
         pass
 
     async def handle_request(self, Request request):
+        if self.closed:
+            return
+
         cdef bytes chunk
         cdef Response response
 
         response = await self.app.handle(request)
+
         # the request was handled: ignore any more body the client might be sending
-        # for example, if the client tried to upload a file to a non-existing endpoint
+        # for example, if the client tried to upload a file to a non-existing endpoint;
+        # we return immediately 404 even though the client is still writing the content in the socket
         self.ignore_more_body = True
+
+        # connection might get closed while the application is handling a request
+        if self.closed:
+            return
 
         if is_small_response(response):
             self.transport.write(write_small_response(response))
         else:
             async for chunk in write_response(response):
+
+                if self.closed:
+                    return
+
                 if self.writing_paused:
                     await self.writable.wait()
                 self.transport.write(chunk)

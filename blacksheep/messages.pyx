@@ -1,5 +1,5 @@
 from .url cimport URL
-from .exceptions cimport BadRequestFormat, InvalidOperation
+from .exceptions cimport BadRequestFormat, InvalidOperation, MessageAborted
 from .headers cimport Headers, Header
 from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format
 from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
@@ -51,6 +51,7 @@ cdef class Message:
         self._raw_body = bytearray()
         self.complete = Event()
         self._form_data = None
+        self.aborted = False
         if content:
             self.complete.set()
 
@@ -76,6 +77,13 @@ cdef class Message:
 
     async def read(self) -> bytes:
         await self.complete.wait()
+
+        if self.aborted:
+            # this happens when a connection is lost, or closed by the client while
+            # request content is being sent, and the request headers were received and parsed
+            # in other words, the request content is not complete; we can only throw here
+            raise MessageAborted()
+
         if not self._raw_body and self.content:
             # NB: this will happen realistically only in tests, not in real use cases
             # we don't want to always extend raw_body with content bytes, it's not necessary for outgoing
@@ -101,7 +109,7 @@ cdef class Message:
                     encoding = result['encoding']
                     return body.decode(encoding)
 
-    async def form(self):  # TODO: does this make sense only in requests?
+    async def form(self):
         if self._form_data is not None:
             return self._form_data
         content_type = self.headers.get_single(b'content-type')

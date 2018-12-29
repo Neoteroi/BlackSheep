@@ -39,3 +39,6 @@ cdef class ServerConnection:
     cpdef str get_client_ip(self)
     cpdef void reset(self)
     cpdef void eof_received(self)
+
+    cpdef void close(self)
+    cdef void dispose(self)

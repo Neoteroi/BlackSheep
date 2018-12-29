@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from blacksheep import HttpCookie, datetime_from_cookie_format, datetime_to_cookie_format, parse_cookie
+from blacksheep import Cookie, datetime_from_cookie_format, datetime_to_cookie_format, parse_cookie
 from blacksheep import scribe
 
 
@@ -89,15 +89,15 @@ def test_write_cookie(name,
                       max_age,
                       same_site,
                       expected_result):
-    cookie = HttpCookie(name,
-                        value,
-                        datetime_to_cookie_format(expires) if expires else None,
-                        domain,
-                        path,
-                        http_only,
-                        secure,
-                        datetime_to_cookie_format(max_age) if max_age else None,
-                        same_site)
+    cookie = Cookie(name,
+                    value,
+                    datetime_to_cookie_format(expires) if expires else None,
+                    domain,
+                    path,
+                    http_only,
+                    secure,
+                    datetime_to_cookie_format(max_age) if max_age else None,
+                    same_site)
     value = scribe.write_response_cookie(cookie)
     assert value == expected_result
 

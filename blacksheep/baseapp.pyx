@@ -1,5 +1,5 @@
 from .options cimport ServerOptions
-from .messages cimport HttpRequest, HttpResponse
+from .messages cimport Request, Response
 from .contents cimport TextContent, HtmlContent
 from .exceptions cimport HttpException, HttpNotFound
 
@@ -15,9 +15,9 @@ cdef class BaseApplication:
         self.router = router
         self.connections = set()
 
-    async def handle(self, HttpRequest request):
+    async def handle(self, Request request):
         cdef object route
-        cdef HttpResponse response
+        cdef Response response
 
         route = self.router.get_match(request.method, request.url.path)
 
@@ -34,15 +34,15 @@ cdef class BaseApplication:
                 response = await self.handle_exception(request, exc)
 
         if not response:
-            response = HttpResponse(204)
+            response = Response(204)
         response.headers[b'Date'] = self.current_timestamp
         response.headers[b'Server'] = b'BlackSheep'
         return response
 
-    async def handle_not_found(self, HttpRequest request):
-        return HttpResponse(404, content=TextContent('Resource not found'))
+    async def handle_not_found(self, Request request):
+        return Response(404, content=TextContent('Resource not found'))
 
-    async def handle_http_exception(self, HttpRequest request, HttpException http_exception):
+    async def handle_http_exception(self, Request request, HttpException http_exception):
         if isinstance(http_exception, HttpNotFound):
             return await self.handle_not_found(request)
         # TODO: improve the design of this feature
@@ -64,5 +64,5 @@ cdef class BaseApplication:
                                                'method': request.method.decode(),
                                                'path': request.url.value.decode()}))
 
-            return HttpResponse(500, content=content)
-        return HttpResponse(500, content=TextContent('Internal server error.'))
+            return Response(500, content=content)
+        return Response(500, content=TextContent('Internal server error.'))

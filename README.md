@@ -15,7 +15,7 @@ pip install blacksheep
 
 ```python
 from datetime import datetime
-from blacksheep import HttpResponse, TextContent
+from blacksheep import Response, TextContent
 from blacksheep.server import Application
 
 
@@ -23,7 +23,7 @@ app = Application()
 
 @app.route('/')
 async def home(request):
-    return HttpResponse(200, content=TextContent(f'Hello, World! {datetime.utcnow().isoformat()}'))
+    return Response(200, content=TextContent(f'Hello, World! {datetime.utcnow().isoformat()}'))
 
 app.start()
 ```

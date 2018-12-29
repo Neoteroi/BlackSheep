@@ -1,5 +1,5 @@
-from .headers cimport HttpHeader, HttpHeaders
-from .messages cimport HttpRequest, HttpResponse
+from .headers cimport Header, Headers
+from .messages cimport Request, Response
 from .options cimport ServerOptions
 from .scribe cimport is_small_response, write_small_response
 from .baseapp cimport BaseApplication
@@ -32,7 +32,7 @@ cdef class ServerConnection:
         self.parser = httptools.HttpRequestParser(self)
         self.url = None
         self.method = None
-        self.request = None  # type: HttpRequest
+        self.request = None  # type: Request
         self.headers = []
 
     cpdef void reset(self):
@@ -114,11 +114,11 @@ cdef class ServerConnection:
             self.request.complete.set()
 
     cpdef void on_headers_complete(self):
-        cdef HttpRequest request
-        request = HttpRequest(
+        cdef Request request
+        request = Request(
             self.method,
             self.url,
-            HttpHeaders(self.headers),
+            Headers(self.headers),
             None
         )
         # TODO: think of a lazy way to get client_ip: client ip is not always interesting
@@ -140,19 +140,19 @@ cdef class ServerConnection:
         self.method = self.parser.get_method()
 
     cpdef void on_header(self, bytes name, bytes value):
-        self.headers.append(HttpHeader(name, value))
+        self.headers.append(Header(name, value))
 
         if len(self.headers) > MAX_REQUEST_HEADERS_COUNT or len(value) > MAX_REQUEST_HEADER_SIZE:
-            self.transport.write(write_small_response(HttpResponse(413)))
+            self.transport.write(write_small_response(Response(413)))
             self.reset()
             self.close()
 
     cpdef void eof_received(self):
         pass
 
-    async def handle_request(self, HttpRequest request):
+    async def handle_request(self, Request request):
         cdef bytes chunk
-        cdef HttpResponse response
+        cdef Response response
 
         response = await self.app.handle(request)
 

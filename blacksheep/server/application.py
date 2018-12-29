@@ -9,7 +9,7 @@ from multiprocessing import Process
 from socket import IPPROTO_TCP, TCP_NODELAY, SO_REUSEADDR, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
 from datetime import datetime
 from email.utils import formatdate
-from blacksheep import HttpRequest, HttpResponse, TextContent, HtmlContent
+from blacksheep import Request, Response, TextContent, HtmlContent
 from blacksheep.options import ServerOptions
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging

@@ -2,8 +2,8 @@ __author__ = 'Roberto Prevato <roberto.prevato@gmail.com>'
 
 
 from .url import URL, InvalidURL
-from .headers import HttpHeader, HttpHeaders
-from .contents import (HttpContent,
+from .headers import Header, Headers
+from .contents import (Content,
                        JsonContent,
                        FormContent,
                        FormPart,
@@ -11,8 +11,8 @@ from .contents import (HttpContent,
                        HtmlContent,
                        MultiPartFormData,
                        parse_www_form)
-from .cookies import HttpCookie, datetime_from_cookie_format, datetime_to_cookie_format, parse_cookie
-from .messages import HttpRequest, HttpResponse
+from .cookies import Cookie, datetime_from_cookie_format, datetime_to_cookie_format, parse_cookie
+from .messages import Request, Response
 
 
 class HttpMethod:

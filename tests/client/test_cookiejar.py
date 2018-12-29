@@ -1,10 +1,10 @@
 import pytest
 from datetime import datetime, timedelta
-from blacksheep import (HttpRequest,
-                        HttpResponse,
-                        HttpHeaders,
-                        HttpHeader,
-                        HttpCookie,
+from blacksheep import (Request,
+                        Response,
+                        Headers,
+                        Header,
+                        Cookie,
                         URL,
                         TextContent,
                         datetime_to_cookie_format)
@@ -22,7 +22,7 @@ from . import FakePools
 ])
 def test_cookiejar_get_domain(request_url, cookie_domain, expected_domain):
     jar = CookieJar()
-    cookie = HttpCookie(b'Name', b'Value', domain=cookie_domain)
+    cookie = Cookie(b'Name', b'Value', domain=cookie_domain)
     domain = jar.get_domain(request_url, cookie)
     assert domain == expected_domain
 
@@ -34,17 +34,17 @@ def test_cookiejar_get_domain(request_url, cookie_domain, expected_domain):
 ])
 def test_cookiejar_invalid_domain(request_url, cookie_domain):
     jar = CookieJar()
-    cookie = HttpCookie(b'Name', b'Value', domain=cookie_domain)
+    cookie = Cookie(b'Name', b'Value', domain=cookie_domain)
 
     with pytest.raises(InvalidCookieDomain):
         jar.add(request_url, cookie)
 
 
 @pytest.mark.parametrize('cookie,expected_value', [
-    [HttpCookie(b'name',
+    [Cookie(b'name',
                 b'value'),
      False],
-    [HttpCookie(b'name',
+    [Cookie(b'name',
                 b'value',
                 expires=datetime_to_cookie_format(datetime.utcnow() + timedelta(days=-20))),
      True]
@@ -57,12 +57,12 @@ def test_stored_cookie_is_expired(cookie, expected_value):
 
 @pytest.mark.asyncio
 async def test_cookies_jar_single_cookie():
-    fake_pools = FakePools([HttpResponse(200,
-                                         HttpHeaders([HttpHeader(b'Set-Cookie',
-                                                                 write_response_cookie(HttpCookie(b'X-Foo', b'Foo')))]),
+    fake_pools = FakePools([Response(200,
+                                         Headers([Header(b'Set-Cookie',
+                                                                 write_response_cookie(Cookie(b'X-Foo', b'Foo')))]),
                                          TextContent('Hello, World!')),
-                            HttpResponse(200,
-                                         HttpHeaders(),
+                            Response(200,
+                                         Headers(),
                                          TextContent('Hello!'))])
     check_cookie = False
 
@@ -86,7 +86,7 @@ async def test_cookies_jar_single_cookie():
     [
         b'https://foo.bezkitu.org',
         b'https://bezkitu.org',
-        [HttpHeader(b'Set-Cookie', write_response_cookie(HttpCookie(b'X-Foo',
+        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo',
                                                                     b'Foo',
                                                                     domain=b'bezkitu.org')))],
         [b'X-Foo']
@@ -94,7 +94,7 @@ async def test_cookies_jar_single_cookie():
     [
         b'https://foo.bezkitu.org',
         b'https://foo.bezkitu.org',
-        [HttpHeader(b'Set-Cookie', write_response_cookie(HttpCookie(b'X-Foo',
+        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo',
                                                                     b'Foo',
                                                                     domain=b'foo.bezkitu.org')))],
         [b'X-Foo']
@@ -102,7 +102,7 @@ async def test_cookies_jar_single_cookie():
     [
         b'https://foo.bezkitu.org',
         b'https://bezkitu.org',
-        [HttpHeader(b'Set-Cookie', write_response_cookie(HttpCookie(b'X-Foo',
+        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo',
                                                                     b'Foo',
                                                                     domain=b'foo.bezkitu.org')))],
         []
@@ -110,18 +110,18 @@ async def test_cookies_jar_single_cookie():
     [
         b'https://bezkitu.org',
         b'https://foo.org',
-        [HttpHeader(b'Set-Cookie', write_response_cookie(HttpCookie(b'X-Foo',
+        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo',
                                                                     b'Foo',
                                                                     domain=b'bezkitu.org')))],
         []
     ]
 ])
 async def test_cookies_jar(first_request_url, second_request_url, set_cookies, expected_cookies):
-    fake_pools = FakePools([HttpResponse(200,
-                                         HttpHeaders(set_cookies),
+    fake_pools = FakePools([Response(200,
+                                         Headers(set_cookies),
                                          TextContent('Hello, World!')),
-                            HttpResponse(200,
-                                         HttpHeaders(),
+                            Response(200,
+                                         Headers(),
                                          TextContent('Hello!'))])
     check_cookie = False
 
@@ -146,21 +146,21 @@ async def test_cookies_jar(first_request_url, second_request_url, set_cookies, e
 
 @pytest.mark.asyncio
 async def test_remove_cookie_with_expiration():
-    expire_cookie = HttpCookie(b'X-Foo', b'Foo')
+    expire_cookie = Cookie(b'X-Foo', b'Foo')
     expire_cookie.expiration = datetime.utcnow() + timedelta(days=-2)
-    fake_pools = FakePools([HttpResponse(200,
-                                         HttpHeaders([HttpHeader(b'Set-Cookie',
-                                                                 write_response_cookie(HttpCookie(b'X-Foo', b'Foo')))]),
+    fake_pools = FakePools([Response(200,
+                                         Headers([Header(b'Set-Cookie',
+                                                                 write_response_cookie(Cookie(b'X-Foo', b'Foo')))]),
                                          TextContent('Hello, World!')),
-                            HttpResponse(200,
-                                         HttpHeaders(),
+                            Response(200,
+                                         Headers(),
                                          TextContent('Hello!')),
-                            HttpResponse(200,
-                                         HttpHeaders([HttpHeader(b'Set-Cookie',
+                            Response(200,
+                                         Headers([Header(b'Set-Cookie',
                                                                  write_response_cookie(expire_cookie))]),
                                          TextContent('Hello, World!')),
-                            HttpResponse(200,
-                                         HttpHeaders(),
+                            Response(200,
+                                         Headers(),
                                          TextContent('Hello!'))])
     expect_cookie = False
 
@@ -187,21 +187,21 @@ async def test_remove_cookie_with_expiration():
 
 @pytest.mark.asyncio
 async def test_remove_cookie_with_max_age():
-    expire_cookie = HttpCookie(b'X-Foo', b'Foo')
+    expire_cookie = Cookie(b'X-Foo', b'Foo')
     expire_cookie.set_max_age(0)
-    fake_pools = FakePools([HttpResponse(200,
-                                         HttpHeaders([HttpHeader(b'Set-Cookie',
-                                                                 write_response_cookie(HttpCookie(b'X-Foo', b'Foo')))]),
+    fake_pools = FakePools([Response(200,
+                                         Headers([Header(b'Set-Cookie',
+                                                                 write_response_cookie(Cookie(b'X-Foo', b'Foo')))]),
                                          TextContent('Hello, World!')),
-                            HttpResponse(200,
-                                         HttpHeaders(),
+                            Response(200,
+                                         Headers(),
                                          TextContent('Hello!')),
-                            HttpResponse(200,
-                                         HttpHeaders([HttpHeader(b'Set-Cookie',
+                            Response(200,
+                                         Headers([Header(b'Set-Cookie',
                                                                  write_response_cookie(expire_cookie))]),
                                          TextContent('Hello, World!')),
-                            HttpResponse(200,
-                                         HttpHeaders(),
+                            Response(200,
+                                         Headers(),
                                          TextContent('Hello!'))])
     expect_cookie = False
 
@@ -226,9 +226,21 @@ async def test_remove_cookie_with_max_age():
 
 
 def test_stored_cookie_max_age_precedence():
-    cookie = HttpCookie(b'X-Foo', b'Foo')
+    cookie = Cookie(b'X-Foo', b'Foo')
     cookie.set_max_age(0)
     cookie.expiration = datetime.utcnow() + timedelta(days=2)
 
     stored_cookie = StoredCookie(cookie)
     assert stored_cookie.is_expired()
+
+
+def test_get_cookies_for_url():
+    jar = CookieJar()
+
+    jar.add(URL(b'https://foo.org'), Cookie(b'hello', b'world'))
+
+    cookies = list(jar.get_cookies_for_url(URL(b'https://foo.org/hello-world')))
+
+    assert len(cookies) == 1
+    assert cookies[0].name == b'hello'
+    assert cookies[0].value == b'world'

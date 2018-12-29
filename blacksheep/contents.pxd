@@ -5,7 +5,7 @@
 # the MIT License https://opensource.org/licenses/MIT
 
 
-cdef class HttpContent:
+cdef class Content:
     cdef readonly bytes type
     cdef readonly object body
     cdef readonly object generator
@@ -13,19 +13,19 @@ cdef class HttpContent:
     cdef bint _is_generator_async
 
 
-cdef class TextContent(HttpContent):
+cdef class TextContent(Content):
     pass
 
 
-cdef class HtmlContent(HttpContent):
+cdef class HtmlContent(Content):
     pass
 
 
-cdef class JsonContent(HttpContent):
+cdef class JsonContent(Content):
     pass
 
 
-cdef class FormContent(HttpContent):
+cdef class FormContent(Content):
     pass
 
 
@@ -37,7 +37,7 @@ cdef class FormPart:
     cdef readonly bytes charset
 
 
-cdef class MultiPartFormData(HttpContent):
+cdef class MultiPartFormData(Content):
     cdef readonly list parts
     cdef readonly bytes boundary
 

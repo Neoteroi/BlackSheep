@@ -1,12 +1,12 @@
 import pytest
-from blacksheep import HttpRequest, HttpResponse, HttpHeaders, HttpHeader, TextContent, HtmlContent
+from blacksheep import Request, Response, Headers, Header, TextContent, HtmlContent
 from blacksheep.client import ClientSession, CircularRedirectError, MaximumRedirectsExceededError
 from . import FakePools
 
 
 @pytest.mark.asyncio
 async def test_single_middleware():
-    fake_pools = FakePools([HttpResponse(200, HttpHeaders(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
 
     steps = []
 
@@ -30,7 +30,7 @@ async def test_single_middleware():
 
 @pytest.mark.asyncio
 async def test_multiple_middleware():
-    fake_pools = FakePools([HttpResponse(200, HttpHeaders(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
 
     steps = []
 
@@ -66,7 +66,7 @@ async def test_multiple_middleware():
 
 @pytest.mark.asyncio
 async def test_middlewares_can_be_applied_multiple_times_without_changing():
-    fake_pools = FakePools([HttpResponse(200, HttpHeaders(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
 
     steps = []
 

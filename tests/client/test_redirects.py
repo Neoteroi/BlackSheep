@@ -1,5 +1,5 @@
 import pytest
-from blacksheep import HttpRequest, HttpResponse, HttpHeaders, HttpHeader, TextContent, HtmlContent
+from blacksheep import Request, Response, Headers, Header, TextContent, HtmlContent
 from blacksheep.client import ClientSession, CircularRedirectError, MaximumRedirectsExceededError
 from . import FakePools
 
@@ -21,15 +21,13 @@ def get_scenarios(fn):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('responses,expected_status,expected_location', get_scenarios(lambda status: [
     [
-        HttpResponse(status, HttpHeaders([HttpHeader(b'Location',
-                                                     b'urn:oasis:names:specification:docbook:dtd:xml:4.1.2')])),
-        HttpResponse(200, HttpHeaders(), TextContent('Hello, World!'))
+        Response(status, Headers([Header(b'Location', b'urn:oasis:names:specification:docbook:dtd:xml:4.1.2')])),
+        Response(200, Headers(), TextContent('Hello, World!'))
     ], status, b'urn:oasis:names:specification:docbook:dtd:xml:4.1.2'
 ]) + get_scenarios(lambda status: [
     [
-        HttpResponse(status,
-                     HttpHeaders([HttpHeader(b'Location', b'msalf84227e26-9a47-4c00-a92c-1b1bad8225cc://auth')])),
-        HttpResponse(200, HttpHeaders(), TextContent('Hello, World!'))
+        Response(status, Headers([Header(b'Location', b'msalf84227e26-9a47-4c00-a92c-1b1bad8225cc://auth')])),
+        Response(200, Headers(), TextContent('Hello, World!'))
     ], status, b'msalf84227e26-9a47-4c00-a92c-1b1bad8225cc://auth'
 ]))
 async def test_non_url_redirect(responses, expected_status, expected_location, pools_factory):
@@ -47,14 +45,14 @@ async def test_non_url_redirect(responses, expected_status, expected_location, p
 @pytest.mark.asyncio
 @pytest.mark.parametrize('responses,expected_response_body', get_scenarios(lambda status: [
     [
-        HttpResponse(status, HttpHeaders([HttpHeader(b'Location', b'/a')])),
-        HttpResponse(status, HttpHeaders([HttpHeader(b'Location', b'/b')])),
-        HttpResponse(200, HttpHeaders(), TextContent('Hello, World!'))
+        Response(status, Headers([Header(b'Location', b'/a')])),
+        Response(status, Headers([Header(b'Location', b'/b')])),
+        Response(200, Headers(), TextContent('Hello, World!'))
     ], 'Hello, World!'
 ]) + get_scenarios(lambda status: [
     [
-        HttpResponse(status, HttpHeaders([HttpHeader(b'Location', b'/a')])),
-        HttpResponse(200, HttpHeaders(), HtmlContent('<h1>Hello, World!</h1>'))
+        Response(status, Headers([Header(b'Location', b'/a')])),
+        Response(200, Headers(), HtmlContent('<h1>Hello, World!</h1>'))
     ], '<h1>Hello, World!</h1>'
 ]))
 async def test_good_redirect(responses, expected_response_body, pools_factory):
@@ -73,9 +71,9 @@ async def test_good_redirect(responses, expected_response_body, pools_factory):
 @pytest.mark.parametrize('responses,expected_location', [
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/a')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/b')])),
-            HttpResponse(200, HttpHeaders(), TextContent('Hello, World!'))
+            Response(302, Headers([Header(b'Location', b'/a')])),
+            Response(302, Headers([Header(b'Location', b'/b')])),
+            Response(200, Headers(), TextContent('Hello, World!'))
         ], b'/a'
     ]
 ])
@@ -97,24 +95,24 @@ async def test_not_follow_redirect(responses, expected_location, pools_factory):
 @pytest.mark.parametrize('responses,maximum_redirects', [
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/a')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/b')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/c')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/d')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/e')]))
+            Response(302, Headers([Header(b'Location', b'/a')])),
+            Response(302, Headers([Header(b'Location', b'/b')])),
+            Response(302, Headers([Header(b'Location', b'/c')])),
+            Response(302, Headers([Header(b'Location', b'/d')])),
+            Response(302, Headers([Header(b'Location', b'/e')]))
         ], 5
     ],
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/a')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/b')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/c')]))
+            Response(302, Headers([Header(b'Location', b'/a')])),
+            Response(302, Headers([Header(b'Location', b'/b')])),
+            Response(302, Headers([Header(b'Location', b'/c')]))
         ], 2
     ],
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/a')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/b')]))
+            Response(302, Headers([Header(b'Location', b'/a')])),
+            Response(302, Headers([Header(b'Location', b'/b')]))
         ], 1
     ]
 ])
@@ -131,9 +129,9 @@ async def test_maximum_number_of_redirects_detection(responses, maximum_redirect
 @pytest.mark.parametrize('responses,expected_error_message', [
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/hello-world')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/circular-dependency')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/')]))
+            Response(302, Headers([Header(b'Location', b'/hello-world')])),
+            Response(302, Headers([Header(b'Location', b'/circular-dependency')])),
+            Response(302, Headers([Header(b'Location', b'/')]))
         ],
         'Circular redirects detected. Requests path was: '
         '(http://localhost:8080/ '
@@ -143,9 +141,9 @@ async def test_maximum_number_of_redirects_detection(responses, maximum_redirect
     ],
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'https://identity-provider.some/login')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'http://localhost:8080/welcome')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'https://identity-provider.some/login')]))
+            Response(302, Headers([Header(b'Location', b'https://identity-provider.some/login')])),
+            Response(302, Headers([Header(b'Location', b'http://localhost:8080/welcome')])),
+            Response(302, Headers([Header(b'Location', b'https://identity-provider.some/login')]))
         ],
         'Circular redirects detected. Requests path was: '
         '(http://localhost:8080/ '
@@ -155,8 +153,8 @@ async def test_maximum_number_of_redirects_detection(responses, maximum_redirect
     ],
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/a')])),
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/a')]))
+            Response(302, Headers([Header(b'Location', b'/a')])),
+            Response(302, Headers([Header(b'Location', b'/a')]))
         ],
         'Circular redirects detected. Requests path was: '
         '(http://localhost:8080/ '
@@ -165,7 +163,7 @@ async def test_maximum_number_of_redirects_detection(responses, maximum_redirect
     ],
     [
         [
-            HttpResponse(302, HttpHeaders([HttpHeader(b'Location', b'/')]))
+            Response(302, Headers([Header(b'Location', b'/')]))
         ],
         'Circular redirects detected. Requests path was: '
         '(http://localhost:8080/ '

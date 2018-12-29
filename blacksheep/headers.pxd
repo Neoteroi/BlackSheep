@@ -5,18 +5,18 @@
 # the MIT License https://opensource.org/licenses/MIT
 
 
-cdef class HttpHeader:
+cdef class Header:
     cdef readonly bytes name
     cdef readonly bytes value
 
 
-cdef class HttpHeaders:
+cdef class Headers:
     cdef object _headers
 
     cpdef list get(self, bytes name)
 
-    cpdef HttpHeader get_single(self, bytes name)
+    cpdef Header get_single(self, bytes name)
 
-    cpdef HttpHeader get_first(self, bytes name)
+    cpdef Header get_first(self, bytes name)
 
     cpdef void merge(self, list values)

@@ -1,14 +1,14 @@
 import logging
 from asyncio import Queue, QueueEmpty, QueueFull
 from ssl import SSLContext
-from .connection import HttpConnection, SECURE_SSLCONTEXT, INSECURE_SSLCONTEXT, ConnectionClosedError
+from .connection import ClientConnection, SECURE_SSLCONTEXT, INSECURE_SSLCONTEXT, ConnectionClosedError
 from blacksheep.exceptions import InvalidArgument
 
 
 logger = logging.getLogger('blacksheep.client')
 
 
-class HttpConnectionPool:
+class ClientConnectionPool:
 
     def __init__(self, loop, scheme, host, port, ssl=None, max_size=0):
         self.loop = loop
@@ -38,7 +38,7 @@ class HttpConnectionPool:
         # if there are no connections, let QueueEmpty exception happen
         # if all connections are closed, remove all of them and let QueueEmpty exception happen
         while True:
-            connection = self._idle_connections.get_nowait()  # type: HttpConnection
+            connection = self._idle_connections.get_nowait()  # type: ClientConnection
 
             if connection.open:
                 logger.debug(f'Reusing connection {id(connection)} to: {self.host}:{self.port}')
@@ -62,7 +62,7 @@ class HttpConnectionPool:
     async def create_connection(self):
         logger.debug(f'Creating connection to: {self.host}:{self.port}')
         transport, connection = await self.loop.create_connection(
-            lambda: HttpConnection(self.loop, self),
+            lambda: ClientConnection(self.loop, self),
             self.host,
             self.port,
             ssl=self.ssl)
@@ -82,7 +82,7 @@ class HttpConnectionPool:
                 connection.close()
 
 
-class HttpConnectionPools:
+class ClientConnectionPools:
 
     def __init__(self, loop):
         self.loop = loop
@@ -97,7 +97,7 @@ class HttpConnectionPools:
         try:
             return self._pools[key]
         except KeyError:
-            new_pool = HttpConnectionPool(self.loop, scheme, host, port, ssl)
+            new_pool = ClientConnectionPool(self.loop, scheme, host, port, ssl)
             self._pools[key] = new_pool
             return new_pool
 

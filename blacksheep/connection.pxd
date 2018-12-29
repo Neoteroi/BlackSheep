@@ -4,14 +4,14 @@
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
 
-from .headers cimport HttpHeader
-from .messages cimport HttpRequest, HttpResponse
+from .headers cimport Header
+from .messages cimport Request, Response
 from .baseapp cimport BaseApplication
 
 
 cdef class ServerConnection:
     cdef readonly BaseApplication app
-    cdef readonly HttpRequest request
+    cdef readonly Request request
     cdef int max_body_size
     cdef public object transport
     cdef readonly float time_of_last_activity

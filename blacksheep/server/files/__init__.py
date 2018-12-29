@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from blacksheep import HttpResponse, HttpHeader, HttpHeaders, HttpContent
+from blacksheep import Response, Header, Headers, Content
 from blacksheep.server.pathsutils import get_mime_type
 
 
@@ -59,22 +59,22 @@ def get_response_for_file(request, resource_path, cache_time):
     previous_etag = request.if_none_match
 
     headers = [
-        HttpHeader(b'Last-Modified', unix_timestamp_to_datetime(modified_time)),
-        HttpHeader(b'ETag', current_etag)
+        Header(b'Last-Modified', unix_timestamp_to_datetime(modified_time)),
+        Header(b'ETag', current_etag)
     ]
 
     if cache_time > 0:
-        headers.append(HttpHeader(b'Cache-Control', b'max-age=' + str(cache_time).encode()))
+        headers.append(Header(b'Cache-Control', b'max-age=' + str(cache_time).encode()))
 
     if previous_etag and current_etag == previous_etag:
-        return HttpResponse(304, headers, None)
+        return Response(304, headers, None)
 
     if request.method == b'HEAD':
-        headers.append(HttpHeader(b'Content-Type', get_mime_type(resource_path)))
-        headers.append(HttpHeader(b'Content-Length', str(file_size).encode()))
-        return HttpResponse(200, headers, None)
+        headers.append(Header(b'Content-Type', get_mime_type(resource_path)))
+        headers.append(Header(b'Content-Length', str(file_size).encode()))
+        return Response(200, headers, None)
 
-    return HttpResponse(200, 
-                        HttpHeaders(headers),
-                        HttpContent(get_mime_type(resource_path),
+    return Response(200, 
+                        Headers(headers),
+                        Content(get_mime_type(resource_path),
                                     get_file_data(resource_path, file_size)))

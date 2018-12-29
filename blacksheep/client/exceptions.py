@@ -15,7 +15,7 @@ class MissingLocationForRedirect(InvalidResponseException):
                          f'but didn`t send a "Location" header', response)
 
 
-class HttpRequestException(Exception):
+class RequestException(Exception):
 
     def __init__(self, message, allow_retry):
         super().__init__(message)

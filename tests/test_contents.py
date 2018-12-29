@@ -1,6 +1,6 @@
 import pytest
 from typing import List
-from blacksheep import HttpContent
+from blacksheep import Content
 from blacksheep.contents import (parse_www_form,
                                  write_www_form_urlencoded,
                                  parse_multipart_form_data,
@@ -20,7 +20,7 @@ async def test_chunked_encoding_with_generated_content():
         yield b'"ipsum","dolor":"sit"'
         yield b',"amet":"consectetur"}'
 
-    content = HttpContent(b'application/json', data_generator)
+    content = Content(b'application/json', data_generator)
 
     gen = data_generator()
 

@@ -18,7 +18,7 @@ _content_disposition_header_name_rx = re.compile(b'\\sname="([^\\"]+)"', re.I)
 _content_disposition_header_filename_rx = re.compile(b'\\sfilename="([^\\"]+)"', re.I)
 
 
-cdef class HttpContent:
+cdef class Content:
 
     def __init__(self,
                  bytes content_type,
@@ -48,19 +48,19 @@ cdef class HttpContent:
                     yield chunk
 
 
-cdef class TextContent(HttpContent):
+cdef class TextContent(Content):
 
     def __init__(self, str text):
         super().__init__(b'text/plain', text.encode('utf8'))
 
 
-cdef class HtmlContent(HttpContent):
+cdef class HtmlContent(Content):
 
     def __init__(self, str html):
         super().__init__(b'text/html', html.encode('utf8'))
 
 
-cdef class JsonContent(HttpContent):
+cdef class JsonContent(Content):
 
     def __init__(self, object data, dumps=json.dumps):
         super().__init__(b'application/json', dumps(data).encode('utf8'))
@@ -215,7 +215,7 @@ cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
     return ('&'.join(contents)).encode('utf8')
 
 
-cdef class FormContent(HttpContent):
+cdef class FormContent(Content):
 
     def __init__(self, data: dict):
         super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
@@ -239,7 +239,7 @@ cdef class FormPart:
         return f'<FormPart {self.name} - at {id(self)}>'
 
 
-cdef class MultiPartFormData(HttpContent):
+cdef class MultiPartFormData(Content):
 
     def __init__(self, list parts):
         self.parts = parts

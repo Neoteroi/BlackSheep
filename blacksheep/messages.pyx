@@ -1,8 +1,8 @@
 from .url cimport URL
 from .exceptions cimport BadRequestFormat, InvalidOperation
-from .headers cimport HttpHeaders, HttpHeader
-from .cookies cimport HttpCookie, parse_cookie, datetime_to_cookie_format
-from .contents cimport HttpContent, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
+from .headers cimport Headers, Header
+from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format
+from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
 
 
 import re
@@ -15,15 +15,15 @@ from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
 
 
-cdef int get_content_length(HttpHeaders headers):
+cdef int get_content_length(Headers headers):
     header = headers.get_single(b'content-length')
     if header:
         return int(header.value)
     return -1
 
 
-cdef bint get_is_chunked_encoding(HttpHeaders headers):
-    cdef HttpHeader header
+cdef bint get_is_chunked_encoding(Headers headers):
+    cdef Header header
     header = headers.get_single(b'transfer-encoding')
     if header and b'chunked' in header.value.lower():
         return True
@@ -40,11 +40,11 @@ cpdef str parse_charset(bytes value):
     return None
 
 
-cdef class HttpMessage:
+cdef class Message:
 
     def __init__(self, 
-                 HttpHeaders headers, 
-                 HttpContent content):
+                 Headers headers, 
+                 Content content):
         self.headers = headers
         self.content = content
         self._cookies = None
@@ -58,7 +58,7 @@ cdef class HttpMessage:
     def raw_body(self):
         return self._raw_body
 
-    cpdef void set_content(self, HttpContent content):
+    cpdef void set_content(self, Content content):
         if content:
             self._raw_body.clear()
             if isinstance(content.body, (bytes, bytearray)):
@@ -160,13 +160,13 @@ cdef class HttpMessage:
         return 'utf8'
 
 
-cdef class HttpRequest(HttpMessage):
+cdef class Request(Message):
 
     def __init__(self,
                  bytes method,
                  bytes url,
-                 HttpHeaders headers,
-                 HttpContent content):
+                 Headers headers,
+                 Content content):
         super().__init__(headers, content)
         self.url = URL(url)
         self.method = method
@@ -178,7 +178,7 @@ cdef class HttpRequest(HttpMessage):
             self.complete.set()  # methods without body
         
     def __repr__(self):
-        return f'<HttpRequest {self.method.decode()} {self.url.value.decode()}>'
+        return f'<Request {self.method.decode()} {self.url.value.decode()}>'
 
     @property
     def query(self):
@@ -221,18 +221,18 @@ cdef class HttpRequest(HttpMessage):
         return self.headers.get_first(b'if-none-match')
 
 
-cdef class HttpResponse(HttpMessage):
+cdef class Response(Message):
 
     def __init__(self,
                  int status,
-                 HttpHeaders headers=None,
-                 HttpContent content=None):
-        super().__init__(headers or HttpHeaders(), content)
+                 Headers headers=None,
+                 Content content=None):
+        super().__init__(headers or Headers(), content)
         self.status = status
         self.active = True
 
     def __repr__(self):
-        return f'<HttpResponse {self.status}>'
+        return f'<Response {self.status}>'
 
     @property
     def cookies(self):
@@ -258,7 +258,7 @@ cdef class HttpResponse(HttpMessage):
             self.set_cookie(cookie)
 
     def unset_cookie(self, name):
-        self.cookies[name] = HttpCookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365)))
+        self.cookies[name] = Cookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365)))
 
     def remove_cookie(self, name):
         del self.cookies[name]

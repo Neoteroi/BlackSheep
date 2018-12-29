@@ -6,14 +6,14 @@
 
 from .url cimport URL
 from .exceptions cimport BadRequestFormat
-from .headers cimport HttpHeaders, HttpHeader
-from .cookies cimport HttpCookie, parse_cookie, datetime_to_cookie_format
-from .contents cimport HttpContent, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
+from .headers cimport Headers, Header
+from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format
+from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
 
 
-cdef class HttpMessage:
-    cdef public HttpHeaders headers
-    cdef readonly HttpContent content
+cdef class Message:
+    cdef public Headers headers
+    cdef readonly Content content
     cdef dict _cookies
     cdef bytearray _raw_body
     cdef public object complete
@@ -21,10 +21,10 @@ cdef class HttpMessage:
 
     cdef void on_body(self, bytes chunk)
     cpdef void extend_body(self, bytes chunk)
-    cpdef void set_content(self, HttpContent content)
+    cpdef void set_content(self, Content content)
 
 
-cdef class HttpRequest(HttpMessage):
+cdef class Request(Message):
     cdef public bint active
     cdef public dict route_values
     cdef public URL url
@@ -33,7 +33,7 @@ cdef class HttpRequest(HttpMessage):
     cdef dict __dict__
 
 
-cdef class HttpResponse(HttpMessage):
+cdef class Response(Message):
     cdef public int status
     cdef public bint active
     cdef dict __dict__

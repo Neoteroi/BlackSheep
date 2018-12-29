@@ -5,7 +5,7 @@
 # the MIT License https://opensource.org/licenses/MIT
 
 
-cdef class HttpCookie:
+cdef class Cookie:
     cdef object _expiration
     cdef public bytes name
     cdef public bytes value
@@ -16,11 +16,11 @@ cdef class HttpCookie:
     cdef public bint secure
     cdef public bytes max_age
     cdef public bytes same_site
-    cpdef HttpCookie clone(self)
+    cpdef Cookie clone(self)
     cpdef void set_max_age(self, int max_age)
 
 
-cpdef HttpCookie parse_cookie(bytes value)
+cpdef Cookie parse_cookie(bytes value)
 
 
 cpdef bytes datetime_to_cookie_format(object value)

@@ -3,7 +3,7 @@ import asyncio
 import httptools
 import certifi
 import weakref
-from blacksheep import HttpRequest, HttpResponse, HttpHeaders, HttpHeader
+from blacksheep import Request, Response, Headers, Header
 from blacksheep.scribe import is_small_request, write_small_request, write_request
 from httptools import HttpParserError, HttpParserCallbackError
 SECURE_SSLCONTEXT = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=certifi.where())
@@ -27,7 +27,7 @@ class InvalidResponseFromServer(Exception):
         self.inner_exception = inner_exception
 
 
-class HttpConnection(asyncio.Protocol):
+class ClientConnection(asyncio.Protocol):
 
     __slots__ = (
         'loop',
@@ -149,13 +149,13 @@ class HttpConnection(asyncio.Protocol):
             self.response_ready.set()
 
     def on_header(self, name, value):
-        self.headers.append(HttpHeader(name, value))
+        self.headers.append(Header(name, value))
 
     def on_headers_complete(self):
         status = self.parser.get_status_code()
-        self.response = HttpResponse(
+        self.response = Response(
             status,
-            HttpHeaders(self.headers),
+            Headers(self.headers),
             None
         )
         self.response_ready.set()

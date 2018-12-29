@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 from ipaddress import ip_address
 from datetime import datetime, timedelta
-from blacksheep import HttpRequest, HttpCookie, URL
+from blacksheep import Request, Cookie, URL
 
 
 client_logger = logging.getLogger('blacksheep.client')
@@ -41,7 +41,7 @@ class StoredCookie:
                  'creation_time',
                  'expiry_time')
 
-    def __init__(self, cookie: HttpCookie):
+    def __init__(self, cookie: Cookie):
         # https://tools.ietf.org/html/rfc6265#section-5.3
         self.cookie = cookie
         self.creation_time = datetime.utcnow()
@@ -97,7 +97,7 @@ class CookieJar:
             return request_url.path.lower()
         return b'/'
 
-    def get_domain(self, request_url: URL, cookie: HttpCookie) -> bytes:
+    def get_domain(self, request_url: URL, cookie: Cookie) -> bytes:
         # https://tools.ietf.org/html/rfc6265#section-4.1.2.3
         request_domain = self._get_url_host(request_url)
 
@@ -119,7 +119,7 @@ class CookieJar:
         return cookie_domain
 
     @staticmethod
-    def get_path(request_url: URL, cookie: HttpCookie):
+    def get_path(request_url: URL, cookie: Cookie):
         if cookie.path:
             return cookie.path.lower()
 
@@ -147,7 +147,7 @@ class CookieJar:
             return True
 
         return lower_value.startswith(lower_domain) \
-               and lower_value[len(lower_domain)] == b'.' \
+               and lower_value[len(lower_domain)] == 46 \
                and not_ip_address(lower_value.decode())
 
     @staticmethod
@@ -160,11 +160,11 @@ class CookieJar:
             return True
 
         if lower_request_path.startswith(lower_cookie_path) \
-                and lower_cookie_path[-1] == b'/':
+                and lower_cookie_path[-1] == 47:
             return True
 
         if lower_request_path.startswith(lower_cookie_path) \
-                and lower_request_path[len(lower_cookie_path)] == b'/':
+                and lower_request_path[len(lower_cookie_path)] == 47:
             return True
 
         return False
@@ -245,7 +245,7 @@ class CookieJar:
         return self._remove(self._host_only_cookies, domain, path, cookie_name) \
                or self._remove(self._domain_cookies, domain, path, cookie_name)
 
-    def add(self, request_url: URL, cookie: HttpCookie):
+    def add(self, request_url: URL, cookie: Cookie):
         domain = self.get_domain(request_url, cookie)
         path = self.get_path(request_url, cookie)
         cookie_name = cookie.name.lower()

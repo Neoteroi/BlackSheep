@@ -1,5 +1,6 @@
 from .headers cimport Header, Headers
 from .messages cimport Request, Response
+from .contents cimport TextContent
 from .options cimport ServerOptions
 from .scribe cimport is_small_response, write_small_response
 from .baseapp cimport BaseApplication
@@ -34,6 +35,7 @@ cdef class ServerConnection:
         self.method = None
         self.request = None  # type: Request
         self.headers = []
+        self.ignore_more_body = False
 
     cpdef void reset(self):
         self.request = None
@@ -43,6 +45,7 @@ cdef class ServerConnection:
         self.url = None
         self.method = None
         self.headers = []
+        self.ignore_more_body = False
 
     def pause_reading(self):
         self.reading_paused = True
@@ -86,28 +89,31 @@ cdef class ServerConnection:
             self.parser.feed_data(data)
         except HttpParserCallbackError:
             self.close()
+            raise
         except HttpParserError:
-            # ignore: this can happen for example if a client posts a big request to a wrong URL;
-            # we return 404 immediately; but the client sends more chunks; http-parser.c throws exception
-            # in this case
-            # TODO: 1) see below; a possible solution is to reset the connection only when the client is done sending
-            #       a message - this way we don't need to ignore errors in the client HTTP request format
-            pass
+            # TODO: support logging this event
+            self.close()
 
     cpdef str get_client_ip(self):
         return self.transport.get_extra_info('peername')[0]
 
     def handle_invalid_request(self, message):
-        self.transport.write(message)
+        self.transport.write(write_small_response(Response(400, Headers(), TextContent(message))))
         self.close()
 
     cpdef void on_body(self, bytes value):
+        cdef int body_len
+
+        if self.ignore_more_body:
+            return
+
         self.request.on_body(value)
 
         body_len = len(self.request.raw_body)
 
         if body_len > self.max_body_size:
-            self.handle_invalid_request(b'Exceeds maximum body size')
+            self.ignore_more_body = True
+            self.handle_invalid_request('Exceeds maximum body size')
 
     def on_message_complete(self):
         if self.request:
@@ -126,10 +132,11 @@ cdef class ServerConnection:
         self.request = request
         self.loop.create_task(self.handle_request(request))
 
-    async def reset_when_request_completed(self):
-        # TODO: to avoid the problem at point 1). use this function
-        #       however, measure if resolving that problem impacts performance in a negative way
-        await self.request_complete.wait()
+    async def reset_when_request_complete(self):
+        # we need to wait for the client to send the message is sending,
+        # before resetting this connection; because otherwise we cannot handle cleanly
+        # situations where we send a response before getting the full request
+        await self.request.complete.wait()
 
         if not self.parser.should_keep_alive():
             self.close()
@@ -155,6 +162,9 @@ cdef class ServerConnection:
         cdef Response response
 
         response = await self.app.handle(request)
+        # the request was handled: ignore any more body the client might be sending
+        # for example, if the client tried to upload a file to a non-existing endpoint
+        self.ignore_more_body = True
 
         if is_small_response(response):
             self.transport.write(write_small_response(response))
@@ -164,6 +174,4 @@ cdef class ServerConnection:
                     await self.writable.wait()
                 self.transport.write(chunk)
 
-        if not self.parser.should_keep_alive():
-            self.close()
-        self.reset()
+        await self.reset_when_request_complete()

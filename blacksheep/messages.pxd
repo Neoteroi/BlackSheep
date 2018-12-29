@@ -30,6 +30,7 @@ cdef class Request(Message):
     cdef public URL url
     cdef public bytes method
     cdef public str client_ip
+    cdef dict _query
     cdef dict __dict__
 
 

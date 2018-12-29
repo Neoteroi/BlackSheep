@@ -183,7 +183,10 @@ cdef class Request(Message):
     @property
     def query(self):
         if self._query is None:
-            self._query = parse_qs(self.url.query.decode('utf8'))
+            if self.url.query is None:
+                self._query = {}
+            else:
+                self._query = parse_qs(self.url.query.decode('utf8'))
         return self._query
 
     @property

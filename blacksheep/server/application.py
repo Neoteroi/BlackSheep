@@ -294,7 +294,7 @@ def spawn_server(app: Application):
     try:
         loop.run_forever()
     except (KeyboardInterrupt, SystemExit):
-        print('[*] Exit')
+        pass
     finally:
         pending = asyncio.Task.all_tasks()
         try:

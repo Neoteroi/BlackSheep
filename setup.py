@@ -10,7 +10,7 @@ COMPILE_ARGS = ['-O3']
 
 
 setup(name='blacksheep',
-      version='0.0.3',  # TODO: 004
+      version='0.0.4',
       description='Fast HTTP Server/Client microframework for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',
@@ -30,7 +30,8 @@ setup(name='blacksheep',
       packages=['blacksheep',
                 'blacksheep.server',
                 'blacksheep.server.files',
-                'blacksheep.server.res'],
+                'blacksheep.server.res',
+                'blacksheep.client'],
       ext_modules=[
           Extension('blacksheep.url',
                     ['blacksheep/url.c'],

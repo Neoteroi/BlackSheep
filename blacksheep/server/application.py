@@ -1,6 +1,7 @@
 import ssl
 import asyncio
 import warnings
+import logging
 from ssl import SSLContext
 from time import time, sleep
 from threading import Thread
@@ -19,6 +20,9 @@ from blacksheep.exceptions import HttpException, HttpNotFound
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.baseapp import BaseApplication
 from blacksheep.middlewares import get_middlewares_chain
+
+
+server_logger = logging.getLogger('blacksheep.server')
 
 
 try:
@@ -205,7 +209,7 @@ class Application(BaseApplication):
         run_server(self)
 
     def stop(self):
-        if self.running:
+        if self.connections:
             for connection in self.connections.copy():
                 connection.close()
             self.connections.clear()
@@ -215,25 +219,33 @@ class Application(BaseApplication):
         pass
 
 
-def monitor_app(app: Application):
+async def tick(app: Application, loop):
     while app.running:
         app.current_timestamp = get_current_timestamp()
+        await asyncio.sleep(1, loop=loop)
 
+
+async def monitor_connections(app: Application, loop):
+    while app.running:
         current_time = time()
-        current_connections = app.connections.copy()
 
-        for connection in current_connections:
-            if current_time - connection.time_of_last_activity \
-                    > app.options.limits.keep_alive_timeout:
-                connection.close()
-                app.connections.discard(connection)
+        for connection in app.connections.copy():
+            inactive_for = current_time - connection.time_of_last_activity
+            if inactive_for > app.options.limits.keep_alive_timeout:
+                server_logger.debug(f'[*] Closing idle connection, inactive for: {inactive_for}.')
 
-        sleep(1)
+                try:
+                    connection.close()
+                    app.connections.discard(connection)
+                except Exception:
+                    server_logger.error('[*] Error while closing idle connection.')
+
+        await asyncio.sleep(1, loop=loop)
 
 
 def monitor_processes(app: Application, processes: List[Process]):
     while app.running:
-        sleep(10)
+        sleep(5)
         if not app.running:
             return
 
@@ -274,16 +286,12 @@ def spawn_server(app: Application):
                                 reuse_port=options.processes_count > 1,
                                 backlog=options.backlog,
                                 ssl=options.ssl_context)
-
-    monitor_thread = Thread(target=monitor_app,
-                            args=(app, ),
-                            daemon=True)
-    monitor_thread.start()
+    loop.create_task(tick(app, loop))
+    loop.create_task(monitor_connections(app, loop))
 
     def on_stop():
         loop.stop()
         app.stop()
-        monitor_thread.join(30)
 
     if app.on_start:
         loop.run_until_complete(app.on_start.fire())
@@ -296,6 +304,7 @@ def spawn_server(app: Application):
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:
+        app.running = False
         pending = asyncio.Task.all_tasks()
         try:
             if pending:

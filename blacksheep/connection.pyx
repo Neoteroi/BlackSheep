@@ -75,7 +75,7 @@ cdef class ServerConnection:
     cpdef void close(self):
         self.dispose()
 
-    cdef void dispose(self):
+    cpdef void dispose(self):
         cdef Request request = self.request
 
         self.closed = True

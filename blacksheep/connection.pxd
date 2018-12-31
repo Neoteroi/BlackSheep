@@ -41,4 +41,4 @@ cdef class ServerConnection:
     cpdef void eof_received(self)
 
     cpdef void close(self)
-    cdef void dispose(self)
+    cpdef void dispose(self)

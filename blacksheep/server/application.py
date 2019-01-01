@@ -37,9 +37,7 @@ __all__ = ('Application',)
 
 
 def get_current_timestamp():
-    return formatdate(timeval=datetime.utcnow().timestamp(),
-                      localtime=False,
-                      usegmt=True).encode()
+    return formatdate(usegmt=True).encode()
 
 
 def get_default_headers_middleware(headers):
@@ -234,11 +232,18 @@ async def monitor_connections(app: Application, loop):
             if inactive_for > app.options.limits.keep_alive_timeout:
                 server_logger.debug(f'[*] Closing idle connection, inactive for: {inactive_for}.')
 
-                try:
+                if not connection.closed:
                     connection.close()
-                    app.connections.discard(connection)
-                except Exception:
-                    server_logger.error('[*] Error while closing idle connection.')
+                try:
+                    app.connections.remove(connection)
+                except ValueError:
+                    pass
+
+            if connection.closed:
+                try:
+                    app.connections.remove(connection)
+                except ValueError:
+                    pass
 
         await asyncio.sleep(1, loop=loop)
 

@@ -19,7 +19,7 @@ cdef class ServerConnection:
     cdef bint reading_paused
     cdef bint writing_paused
     cdef object writable
-    cdef bint closed
+    cdef readonly bint closed
     cdef bint ignore_more_body
 
     cdef object parser

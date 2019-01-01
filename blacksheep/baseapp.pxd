@@ -11,4 +11,4 @@ cdef class BaseApplication:
 
     cdef readonly ServerOptions options
     cdef readonly object router
-    cdef readonly set connections
+    cdef readonly list connections

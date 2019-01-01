@@ -22,7 +22,7 @@ cdef class ServerConnection:
     def __init__(self, *, BaseApplication app, object loop):
         self.app = app
         self.max_body_size = app.options.limits.max_body_size
-        app.connections.add(self)
+        app.connections.append(self)
         self.time_of_last_activity = time.time()
         self.loop = loop
         self.transport = None
@@ -80,6 +80,12 @@ cdef class ServerConnection:
 
         self.closed = True
 
+        if self.transport:
+            try:
+                self.transport.close()
+            except:
+                pass
+
         if request:
             request.active = False
 
@@ -87,14 +93,6 @@ cdef class ServerConnection:
                 # a connection is lost before a request content was complete
                 request.aborted = True
                 request.complete.set()
-
-        self.app.connections.discard(self)
-
-        if self.transport:
-            try:
-                self.transport.close()
-            except:
-                pass
 
         self.app = None
         self.request = None
@@ -111,6 +109,11 @@ cdef class ServerConnection:
 
         try:
             self.parser.feed_data(data)
+        except AttributeError:
+            if self.closed:
+                pass
+            else:
+                raise
         except HttpParserCallbackError:
             self.dispose()
             raise

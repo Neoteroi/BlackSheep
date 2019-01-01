@@ -13,7 +13,7 @@ cdef class BaseApplication:
     def __init__(self, ServerOptions options, object router):
         self.options = options
         self.router = router
-        self.connections = set()
+        self.connections = []
 
     async def handle(self, Request request):
         cdef object route

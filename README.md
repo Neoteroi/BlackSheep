@@ -28,11 +28,17 @@ async def home(request):
 app.start()
 ```
 
+## Disclaimer
+This project is currently targeting only __Linux__ and __CPython__: support for Windows and other implementations 
+of Python language are currently out of the scope. However, a Pure-Python version of this framework is planned, with name
+[`BlueSheep`](https://github.com/RobertoPrevato/BlueSheep). 
+
 ## Objectives
 * Clean architecture and source code, following SOLID principles
 * Avoid CPU cycles to handle things that are not strictly necessary
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards
+* Targeting stateless applications to be deployed in the cloud
 * High performance
 
 ## Server Features
@@ -42,7 +48,6 @@ app.start()
 * Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
-* __Linux only__: support for Windows is currently out of the scope of this project
 
 ## Client Features
 * Support for client side middlewares, enabling clean source code and separation of concerns (logging of different kinds, handling of cookies, etc.)

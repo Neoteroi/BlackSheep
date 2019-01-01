@@ -308,7 +308,11 @@ def spawn_server(app: Application):
         loop.run_until_complete(app.on_start.fire())
 
     process_id = os.getpid()
-    print(f'[*] Process {process_id} is listening on {options.host or "localhost"}:{options.port}')
+    listening_on = ''.join(['https://' if options.ssl_context else 'http://',
+                            options.host or 'localhost',
+                            ':',
+                            str(options.port)])
+    print(f'[*] Process {process_id} is listening on {listening_on}')
     loop.run_until_complete(server)
 
     try:

@@ -34,14 +34,14 @@ access_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(messa
 
 
 def get_logged_url(request):
-    if b'?' in request.url.value:
-        return (request.url.path.decode() + '?<query is hidden>').ljust(80)
-    return request.url.path.decode().ljust(80)
+    if request.url.query:
+        return request.url.path.decode() + '?<query is hidden>'
+    return request.url.path.decode()
 
 
 def setup_sync_logging():
     async def logging_middleware(request, handler):
-        access_logger.debug(f'{request.method.decode().ljust(8)} {get_logged_url(request)} ({request.client_ip})')
+        access_logger.debug(f'{request.method.decode().ljust(8)} {get_logged_url(request)}')
         try:
             response = await handler(request)
         except HttpException:

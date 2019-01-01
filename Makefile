@@ -18,9 +18,10 @@ compile: cyt
 
 
 clean:
+	rm -rf dist/
 	rm -rf build/
-	rm blacksheep/*.c
-	rm blacksheep/*.so
+	rm -f blacksheep/*.c
+	rm -f blacksheep/*.so
 
 
 buildext:
@@ -52,7 +53,7 @@ testrelease:
 	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
 
-release:
+release: clean compile artifacts
 	twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
 
 

@@ -1,7 +1,9 @@
+import os
 import ssl
-import asyncio
-import warnings
 import logging
+import asyncio
+import uvloop
+import warnings
 from ssl import SSLContext
 from time import time, sleep
 from threading import Thread
@@ -24,13 +26,7 @@ from blacksheep.middlewares import get_middlewares_chain
 
 server_logger = logging.getLogger('blacksheep.server')
 
-
-try:
-    import uvloop
-except ImportError:
-    pass
-else:
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 __all__ = ('Application',)
@@ -256,15 +252,25 @@ def monitor_processes(app: Application, processes: List[Process]):
 
         dead_processes = [p for p in processes if not p.is_alive()]
         for dead_process in dead_processes:
-            processes.remove(dead_process)
-            p = Process(target=spawn_server, args=(app,))
-            p.start()
-            processes.append(p)
+            server_logger.warning(f'Process {dead_process.pid} died; removing and spawning a new one.')
+
+            try:
+                processes.remove(dead_process)
+            except ValueError:
+                # this means that the process was not anymore inside processes list
+                pass
+            else:
+                p = Process(target=spawn_server, args=(app,))
+                p.start()
+                processes.append(p)
+
+                server_logger.warning(f'Spawned a new process {p.pid}, to replace dead process {dead_process.pid}.')
 
 
 def spawn_server(app: Application):
     loop = asyncio.new_event_loop()
-    loop.set_debug(app.debug)
+    if app.debug:
+        loop.set_debug(True)
     asyncio.set_event_loop(loop)
 
     options = app.options
@@ -301,7 +307,8 @@ def spawn_server(app: Application):
     if app.on_start:
         loop.run_until_complete(app.on_start.fire())
 
-    print(f'[*] Listening on {options.host or "localhost"}:{options.port}')
+    process_id = os.getpid()
+    print(f'[*] Process {process_id} is listening on {options.host or "localhost"}:{options.port}')
     loop.run_until_complete(server)
 
     try:
@@ -313,10 +320,10 @@ def spawn_server(app: Application):
         pending = asyncio.Task.all_tasks()
         try:
             if pending:
-                print('[*] Completing pending tasks')
+                print(f'[*] Process {process_id} is completing pending tasks')
                 try:
-                    loop.run_until_complete(asyncio.wait_for(asyncio.gather(*pending), 
-                                            timeout=20, 
+                    loop.run_until_complete(asyncio.wait_for(asyncio.gather(*pending),
+                                            timeout=20,
                                             loop=loop))
                 except asyncio.TimeoutError:
                     pass
@@ -327,7 +334,7 @@ def spawn_server(app: Application):
                                                          loop=loop))
         except KeyboardInterrupt:
             pass
-        
+
         on_stop()
         s.shutdown(SHUT_RDWR)
         s.close()
@@ -340,6 +347,7 @@ def run_server(app: Application):
 
     if multi_process:
         print(f'[*] Using multiprocessing ({app.options.processes_count})')
+        print(f'[*] Master process id: {os.getpid()}')
         processes = []
         for _ in range(app.options.processes_count):
             p = Process(target=spawn_server, args=(app,))
@@ -365,7 +373,7 @@ def run_server(app: Application):
             except (KeyboardInterrupt, SystemExit):
                 pass
     else:
-        print(f'[*] Using single process. To enable multiprocessing, use `processes_count` in ServerOptions.')
+        print(f'[*] Using single process. To enable multiprocessing, use `processes_count` in ServerOptions')
         try:
             spawn_server(app)
         except (KeyboardInterrupt, SystemExit):

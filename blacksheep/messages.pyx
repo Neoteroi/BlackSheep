@@ -221,7 +221,7 @@ cdef class Request(Message):
                         # than blocking a request just because a cookie is malformed
                         pass
                     else:
-                        cookies[name] = unquote(value.rstrip(b'; ').decode()).encode()
+                        cookies[unquote(name.decode()).encode()] = unquote(value.rstrip(b'; ').decode()).encode()
 
         self._cookies = cookies
         return cookies

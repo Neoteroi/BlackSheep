@@ -8,7 +8,7 @@ from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_
 import re
 import cchardet as chardet
 from asyncio import Event
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, unquote
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
@@ -179,9 +179,9 @@ cdef class Request(Message):
         self.url = URL(url)
         self.method = method
         self._query = None
-        self.client_ip = None
         self.route_values = None
         self.active = True
+        self.transport = None
         if method in {b'GET', b'HEAD', b'TRACE'}:
             self.complete.set()  # methods without body
         
@@ -199,29 +199,49 @@ cdef class Request(Message):
 
     @property
     def cookies(self):
+        cdef list pairs
+        cdef bytes name
+        cdef bytes value
+        cdef bytes fragment
         if self._cookies is not None:
             return self._cookies
 
         cookies = {}
         if b'cookie' in self.headers:
+            # a single cookie header is expected from the client, but anyway here the case of
+            # multiple headers is handled:
             for header in self.headers.get(b'cookie'):
-                cookie = parse_cookie(header.value)
-                cookies[cookie.name] = cookie
+                pairs = header.value.split(b'; ')
+
+                for fragment in pairs:
+                    try:
+                        name, value = fragment.split(b'=')
+                    except ValueError as unpack_error:
+                        # discard cookie: in this case it's better to eat the exception
+                        # than blocking a request just because a cookie is malformed
+                        pass
+                    else:
+                        cookies[name] = unquote(value.rstrip(b'; ').decode()).encode()
+
         self._cookies = cookies
         return cookies
 
-    def get_cookie(self, name):
-        return self.cookies[name]
+    def get_cookie(self, bytes name):
+        return self.cookies.get(name)
 
-    def set_cookie(self, cookie):
-        self.cookies[cookie.name] = cookie
+    def set_cookie(self, bytes name, bytes value):
+        self.cookies[name] = value
 
-    def set_cookies(self, cookies):
-        for cookie in cookies:
-            self.set_cookie(cookie)
+    def set_cookies(self, list cookies):
+        cdef bytes name, value
+        for name, value in cookies:
+            self.set_cookie(name, value)
 
-    def unset_cookie(self, name):
-        del self.cookies[name]
+    def unset_cookie(self, bytes name):
+        try:
+            del self.cookies[name]
+        except KeyError:
+            pass
 
     @property
     def etag(self):
@@ -258,21 +278,25 @@ cdef class Response(Message):
         self._cookies = cookies
         return cookies
 
-    def get_cookie(self, name):
-        return self.cookies[name]
+    def get_cookie(self, bytes name):
+        return self.cookies.get(name)
 
-    def set_cookie(self, cookie):
+    def set_cookie(self, Cookie cookie):
         self.cookies[cookie.name] = cookie
 
-    def set_cookies(self, cookies):
+    def set_cookies(self, list cookies):
+        cdef Cookie cookie
         for cookie in cookies:
             self.set_cookie(cookie)
 
-    def unset_cookie(self, name):
-        self.cookies[name] = Cookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365)))
+    def unset_cookie(self, bytes name):
+        self.set_cookie(Cookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365))))
 
-    def remove_cookie(self, name):
-        del self.cookies[name]
+    def remove_cookie(self, bytes name):
+        try:
+            del self.cookies[name]
+        except KeyError:
+            pass
 
     cpdef bint is_redirect(self):
         return self.status in {301, 302, 303, 307, 308}

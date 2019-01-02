@@ -33,9 +33,11 @@ def ok(message: Union[None, str, dict] = None):
     return status_code(200, message)
 
 
-def created(location: bytes, value: Any = None):
+def created(location: Union[bytes, str], value: Any = None):
     """Returns an HTTP 201 Created response, to the given location and with optional JSON content."""
-    return Response(201, Headers([Header(b'Location', location)]), JsonContent(value) if value else None)
+    return Response(201,
+                    Headers([Header(b'Location', _ensure_bytes(location))]),
+                    JsonContent(value) if value else None)
 
 
 def accepted():
@@ -73,29 +75,29 @@ def not_found():
     return Response(404)
 
 
-def moved_permanently(location: bytes):
+def moved_permanently(location: Union[bytes, str]):
     """Returns an HTTP 301 Moved Permanently response, to the given location"""
-    return Response(301, Headers([Header(b'Location', location)]))
+    return Response(301, Headers([Header(b'Location', _ensure_bytes(location))]))
 
 
-def redirect(location: bytes):
+def redirect(location: Union[bytes, str]):
     """Returns an HTTP 302 Found response (commonly called redirect), to the given location"""
-    return Response(302, Headers([Header(b'Location', location)]))
+    return Response(302, Headers([Header(b'Location', _ensure_bytes(location))]))
 
 
-def see_other(location: bytes):
+def see_other(location: Union[bytes, str]):
     """Returns an HTTP 303 See Other response, to the given location."""
-    return Response(303, Headers([Header(b'Location', location)]))
+    return Response(303, Headers([Header(b'Location', _ensure_bytes(location))]))
 
 
-def temporary_redirect(location: bytes):
+def temporary_redirect(location: Union[bytes, str]):
     """Returns an HTTP 307 Temporary Redirect response, to the given location."""
-    return Response(307, Headers([Header(b'Location', location)]))
+    return Response(307, Headers([Header(b'Location', _ensure_bytes(location))]))
 
 
-def permanent_redirect(location: bytes):
+def permanent_redirect(location: Union[bytes, str]):
     """Returns an HTTP 308 Permanent Redirect response, to the given location."""
-    return Response(308, Headers([Header(b'Location', location)]))
+    return Response(308, Headers([Header(b'Location', _ensure_bytes(location))]))
 
 
 def text(value: str, status: int = 200):
@@ -113,11 +115,6 @@ def json(value: Any, status: int = 200):
     return Response(status, content=JsonContent(value))
 
 
-def binary(value: bytes, content_type: Union[str, bytes]):
-    """Returns a binary response with given content type (default HTTP 200 OK)."""
-    return Response(200, content=Content(_ensure_bytes(content_type), value))
-
-
 def _file(value: Union[Callable, bytes],
           content_type: Union[str, bytes],
           content_disposition_type: ContentDispositionType,
@@ -130,7 +127,7 @@ def _file(value: Union[Callable, bytes],
         content_disposition_value = f'{content_disposition_type.value}; filename="{exact_file_name}"'
     else:
         content_disposition_value = content_disposition_type.value
-    response = binary(value, content_type)
+    response = Response(200, content=Content(_ensure_bytes(content_type), value))
     response.headers.add(Header(b'Content-Disposition', content_disposition_value.encode()))
     return response
 

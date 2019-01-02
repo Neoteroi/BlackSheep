@@ -1,5 +1,6 @@
-from datetime import datetime
 from typing import Optional
+from datetime import datetime
+from urllib.parse import quote, unquote
 
 
 cpdef bytes datetime_to_cookie_format(object value):
@@ -26,6 +27,8 @@ cdef class Cookie:
                  bint secure=0,
                  bytes max_age=None,
                  bytes same_site=None):
+        if not name:
+            raise ValueError('A cookie name is required')
         self.name = name
         self.value = value
         self.expires = expires
@@ -69,7 +72,7 @@ cdef class Cookie:
         self.max_age = str(max_age).encode()
 
     def __repr__(self):
-        return f'<Cookie {self.name} {self.value}>'
+        return f'<Cookie {self.name.decode()}: {self.value.decode()}>'
 
 
 cpdef Cookie parse_cookie(bytes value):
@@ -79,7 +82,17 @@ cpdef Cookie parse_cookie(bytes value):
     cdef list parts
     eq = b'='
     parts = value.split(b'; ')
-    name, value = parts[0].split(eq)
+    if len(parts) == 0:
+        try:
+            name, value = value.split(eq)
+        except ValueError as unpack_error:
+            raise ValueError(f'Invalid name=value fragment: {parts[0]}')
+        else:
+            return Cookie(name, value)
+    try:
+        name, value = parts[0].split(eq)
+    except ValueError as unpack_error:
+        raise ValueError(f'Invalid name=value fragment: {parts[0]}')
 
     expires = None
     domain = None
@@ -110,8 +123,8 @@ cpdef Cookie parse_cookie(bytes value):
             if lower_part == b'secure':
                 secure = True
 
-    return Cookie(name,
-                  value,
+    return Cookie(unquote(name.decode()).encode(),
+                  unquote(value.decode()).encode(),
                   expires,
                   domain,
                   path,

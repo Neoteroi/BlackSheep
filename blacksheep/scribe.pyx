@@ -8,6 +8,7 @@ include "includes/consts.pxi"
 
 
 import http
+from urllib.parse import quote
 
 
 cdef bytes _get_status_line(int status_code):
@@ -77,7 +78,7 @@ cdef list get_headers_for_content(Content content):
 
 cdef bytes write_cookie_for_response(Cookie cookie):
     cdef list parts = []
-    parts.append(cookie.name + b'=' + cookie.value)
+    parts.append(quote(cookie.name).encode() + b'=' + quote(cookie.value).encode())
 
     if cookie.expires:
         parts.append(b'Expires=' + cookie.expires)
@@ -107,12 +108,12 @@ cpdef bytes write_response_cookie(Cookie cookie):
     return write_cookie_for_response(cookie)
 
 
-cdef bytes write_cookies_for_request(list cookies):
+cdef bytes write_cookies_for_request(dict cookies):
     cdef list parts = []
-    cdef Cookie cookie
+    cdef bytes name, value
 
-    for cookie in cookies:
-        parts.append(cookie.name + b'=' + cookie.value)
+    for name, value in cookies.items():
+        parts.append(name + b'=' + value)
     
     return b'; '.join(parts)
 
@@ -208,6 +209,7 @@ cdef list get_all_request_headers(Request request):
     
     content = request.content
 
+    # TODO: if the request port is not default; add b':' + port
     result.append(Header(b'Host', request.url.host))
 
     if content:
@@ -217,7 +219,7 @@ cdef list get_all_request_headers(Request request):
     cookies = request.cookies
 
     if cookies:
-        result.append(Header(b'Cookie', write_cookies_for_request(list(cookies.values()))))
+        result.append(Header(b'Cookie', write_cookies_for_request(cookies)))
     return result
 
 

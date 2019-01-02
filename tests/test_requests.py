@@ -87,5 +87,43 @@ async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_
     request.extend_body(b'{"hello":')  # broken json
     request.complete.set()
 
-    with pytest.raises(InvalidOperation) as io:
+    with pytest.raises(InvalidOperation):
         await request.json()
+
+
+def test_cookie_parsing():
+    request = Request(b'POST', b'/', Headers([
+        Header(b'Cookie', b'ai=something; hello=world; foo=Hello%20World%3B;')
+    ]), None)
+
+    assert request.cookies == {
+        b'ai': b'something',
+        b'hello': b'world',
+        b'foo': b'Hello World;'
+    }
+
+
+def test_cookie_parsing_multiple_cookie_headers():
+    request = Request(b'POST', b'/', Headers([
+        Header(b'Cookie', b'ai=something; hello=world; foo=Hello%20World%3B;'),
+        Header(b'Cookie', b'jib=jab; ai=else;'),
+    ]), None)
+
+    assert request.cookies == {
+        b'ai': b'else',
+        b'hello': b'world',
+        b'foo': b'Hello World;',
+        b'jib': b'jab'
+    }
+
+
+def test_cookie_parsing_duplicated_cookie_header_value():
+    request = Request(b'POST', b'/', Headers([
+        Header(b'Cookie', b'ai=something; hello=world; foo=Hello%20World%3B; hello=kitty;')
+    ]), None)
+
+    assert request.cookies == {
+        b'ai': b'something',
+        b'hello': b'kitty',
+        b'foo': b'Hello World;'
+    }

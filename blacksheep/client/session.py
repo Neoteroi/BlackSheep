@@ -265,7 +265,7 @@ class ClientSession:
     def _validate_request_url(self, request: Request):
         if not request.url.is_absolute:
             if self.base_url:
-                request.url = self._get_url_without_params(request.url)
+                request.url = URL(self._get_url_without_params(request.url))
             else:
                 raise ValueError('request.url must be a complete, absolute URL. Either provide a base_url '
                                  'for the client, or specify a full URL for the request.')

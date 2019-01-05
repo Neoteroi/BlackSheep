@@ -154,6 +154,7 @@ cdef class ServerConnection:
             Headers(self.headers),
             None
         )
+        request.app = self.app
         self.request = request
         self.loop.create_task(self.handle_request(request))
 

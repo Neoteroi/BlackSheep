@@ -26,6 +26,7 @@ cdef class Message:
 
 
 cdef class Request(Message):
+    cdef public object app
     cdef public bint active
     cdef public dict route_values
     cdef public URL url

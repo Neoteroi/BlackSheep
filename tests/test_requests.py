@@ -4,7 +4,7 @@ from blacksheep import scribe
 from blacksheep.exceptions import BadRequestFormat, InvalidOperation
 
 
-def test_request_supports_for_dynamic_attributes():
+def test_request_supports_dynamic_attributes():
     request = Request(b'GET', b'/', Headers(), None)
     foo = object()
 

@@ -3,7 +3,7 @@ from blacksheep import Response, Header, Headers, Content, Cookie
 from blacksheep import scribe
 
 
-def test_response_support_for_dynamic_attributes():
+def test_response_supports_dynamic_attributes():
     response = Response(200)
     foo = object()
 

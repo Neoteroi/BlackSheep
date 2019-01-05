@@ -64,6 +64,15 @@ def get_new_connection_handler(app: Application):
     return handler
 
 
+def test_application_supports_dynamic_attributes():
+    app = Application()
+    foo = object()
+
+    assert hasattr(app, 'foo') is False, 'This test makes sense if such attribute is not defined'
+    app.foo = foo
+    assert app.foo is foo
+
+
 @pytest.mark.asyncio
 async def test_application_get_handler():
     app = FakeApplication()

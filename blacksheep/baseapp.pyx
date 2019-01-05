@@ -99,4 +99,4 @@ cdef class BaseApplication:
         if exception_handler:
             return await self._apply_exception_handler(request, exc, exception_handler)
 
-        return await self.handle_exception(request, exc)
+        return await self.handle_internal_server_error(request, exc)

@@ -29,7 +29,7 @@ cdef class BaseApplication:
         route = self.router.get_match(request.method, request.url.path)
 
         if not route:
-            response = await self.handle_not_found(request)
+            response = await self.handle_not_found(request, None)
         else:
             request.route_values = route.values
 

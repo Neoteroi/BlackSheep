@@ -16,3 +16,4 @@ cdef class BaseApplication:
     cdef public dict exceptions_handlers
 
     cdef object get_http_exception_handler(self, HttpException http_exception)
+    cdef object get_exception_handler(self, Exception exception)

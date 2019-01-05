@@ -606,3 +606,91 @@ async def test_application_http_exception_handlers_called_in_application_context
     response = app.response  # type: Response
 
     assert response is not None
+    text = await response.text()
+    assert text == 'Called', 'The response is the one returned by defined http exception handler'
+
+
+@pytest.mark.asyncio
+async def test_application_user_defined_exception_handlers():
+    app = FakeApplication()
+
+    called = False
+
+    class CustomException(Exception):
+        pass
+
+    async def exception_handler(self, request, exception: CustomException):
+        nonlocal called
+        assert request is not None
+        called = True
+        return Response(200, content=TextContent('Called'))
+
+    app.exceptions_handlers[CustomException] = exception_handler
+
+    @app.router.get(b'/')
+    async def home(request):
+        raise CustomException()
+
+    handler = get_new_connection_handler(app)
+
+    message = b'\r\n'.join([
+        b'GET / HTTP/1.1',
+        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
+        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        b'Accept-Language: en-US,en;q=0.5',
+        b'Connection: keep-alive',
+        b'Upgrade-Insecure-Requests: 1',
+        b'Host: foo\r\n\r\n'
+    ])
+
+    handler.data_received(message)
+
+    await app.response_done.wait()
+    response = app.response  # type: Response
+
+    assert response is not None
+    assert called is True, 'Http exception handler was called'
+
+    text = await response.text()
+    assert text == 'Called', 'The response is the one returned by defined http exception handler'
+
+
+@pytest.mark.asyncio
+async def test_application_user_defined_exception_handlers_called_in_application_context():
+    app = FakeApplication()
+
+    class CustomException(Exception):
+        pass
+
+    async def exception_handler(self, request, exc: CustomException):
+        nonlocal app
+        assert self is app
+        assert isinstance(exc, CustomException)
+        return Response(200, content=TextContent('Called'))
+
+    app.exceptions_handlers[CustomException] = exception_handler
+
+    @app.router.get(b'/')
+    async def home(request):
+        raise CustomException()
+
+    handler = get_new_connection_handler(app)
+
+    message = b'\r\n'.join([
+        b'GET / HTTP/1.1',
+        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
+        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        b'Accept-Language: en-US,en;q=0.5',
+        b'Connection: keep-alive',
+        b'Upgrade-Insecure-Requests: 1',
+        b'Host: foo\r\n\r\n'
+    ])
+
+    handler.data_received(message)
+
+    await app.response_done.wait()
+    response = app.response  # type: Response
+
+    assert response is not None
+    text = await response.text()
+    assert text == 'Called', 'The response is the one returned by defined http exception handler'

@@ -23,7 +23,7 @@ app = Application()
 
 @app.route('/')
 async def home(request):
-    return text(f'Hello, World! {datetime.utcnow().isoformat()}'))
+    return text(f'Hello, World! {datetime.utcnow().isoformat()}')
 
 app.start()
 ```

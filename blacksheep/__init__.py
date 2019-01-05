@@ -3,6 +3,7 @@ __author__ = 'Roberto Prevato <roberto.prevato@gmail.com>'
 
 from .url import URL, InvalidURL
 from .headers import Header, Headers
+from .exceptions import HttpException
 from .contents import (Content,
                        JsonContent,
                        FormContent,

@@ -3,7 +3,7 @@ import asyncio
 import pkg_resources
 from blacksheep.server import Application
 from blacksheep.connection import ServerConnection
-from blacksheep import Request, Response, Header, JsonContent, Headers
+from blacksheep import Request, Response, Header, JsonContent, Headers, HttpException, TextContent
 from tests.utils import ensure_folder
 
 
@@ -529,3 +529,80 @@ async def test_application_post_multipart_formdata_files_handler():
                 clone_binary = file_clone.read()
 
                 assert binary == clone_binary
+
+
+@pytest.mark.asyncio
+async def test_application_http_exception_handlers():
+    app = FakeApplication()
+
+    called = False
+
+    async def exception_handler(self, request, http_exception):
+        nonlocal called
+        assert request is not None
+        called = True
+        return Response(200, content=TextContent('Called'))
+
+    app.exceptions_handlers[519] = exception_handler
+
+    @app.router.get(b'/')
+    async def home(request):
+        raise HttpException(519)
+
+    handler = get_new_connection_handler(app)
+
+    message = b'\r\n'.join([
+        b'GET / HTTP/1.1',
+        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
+        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        b'Accept-Language: en-US,en;q=0.5',
+        b'Connection: keep-alive',
+        b'Upgrade-Insecure-Requests: 1',
+        b'Host: foo\r\n\r\n'
+    ])
+
+    handler.data_received(message)
+
+    await app.response_done.wait()
+    response = app.response  # type: Response
+
+    assert response is not None
+    assert called is True, 'Http exception handler was called'
+
+    text = await response.text()
+    assert text == 'Called', 'The response is the one returned by defined http exception handler'
+
+
+@pytest.mark.asyncio
+async def test_application_http_exception_handlers_called_in_application_context():
+    app = FakeApplication()
+
+    async def exception_handler(self, request, http_exception):
+        nonlocal app
+        assert self is app
+        return Response(200, content=TextContent('Called'))
+
+    app.exceptions_handlers[519] = exception_handler
+
+    @app.router.get(b'/')
+    async def home(request):
+        raise HttpException(519)
+
+    handler = get_new_connection_handler(app)
+
+    message = b'\r\n'.join([
+        b'GET / HTTP/1.1',
+        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
+        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        b'Accept-Language: en-US,en;q=0.5',
+        b'Connection: keep-alive',
+        b'Upgrade-Insecure-Requests: 1',
+        b'Host: foo\r\n\r\n'
+    ])
+
+    handler.data_received(message)
+
+    await app.response_done.wait()
+    response = app.response  # type: Response
+
+    assert response is not None

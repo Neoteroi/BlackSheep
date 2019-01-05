@@ -14,6 +14,13 @@ cdef class BaseApplication:
         self.options = options
         self.router = router
         self.connections = []
+        self.exceptions_handlers = self.init_exceptions_handlers()
+
+    def init_exceptions_handlers(self):
+        return {
+            404: self.handle_not_found,
+            400: self.handle_bad_request
+        }
 
     async def handle(self, Request request):
         cdef object route
@@ -32,20 +39,34 @@ cdef class BaseApplication:
                 response = await self.handle_http_exception(request, http_exception)
             except Exception as exc:
                 response = await self.handle_exception(request, exc)
-
-        if not response:
-            response = Response(204)
+            else:
+                # if the request handler didn't return an object,
+                # and since the request was handled successfully, return success status code No Content
+                # for example, a user might return "None" from an handler
+                # this might be ambiguous, if a programmer thinks to return None for "Not found"
+                if not response:
+                    response = Response(204)
         response.headers[b'Date'] = self.current_timestamp
         response.headers[b'Server'] = b'BlackSheep'
         return response
 
-    async def handle_not_found(self, Request request):
+    cdef object get_http_exception_handler(self, HttpException http_exception):
+        return self.exceptions_handlers.get(http_exception.status)
+
+    async def handle_not_found(self, Request request HttpException http_exception):
         return Response(404, content=TextContent('Resource not found'))
 
+    async def handle_bad_request(self, Request request HttpException http_exception):
+        return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
+
     async def handle_http_exception(self, Request request, HttpException http_exception):
-        if isinstance(http_exception, HttpNotFound):
-            return await self.handle_not_found(request)
-        # TODO: improve the design of this feature
+        exception_handler = self.get_http_exception_handler(http_exception)
+        if exception_handler:
+            try:
+                return await exception_handler(self, request, http_exception)
+            except Exception as server_ex:
+                return await self.handle_exception(request, server_ex)
+
         return await self.handle_exception(request, http_exception)
 
     async def handle_exception(self, request, exc):

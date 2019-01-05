@@ -53,10 +53,10 @@ cdef class BaseApplication:
     cdef object get_http_exception_handler(self, HttpException http_exception):
         return self.exceptions_handlers.get(http_exception.status)
 
-    async def handle_not_found(self, Request request HttpException http_exception):
+    async def handle_not_found(self, Request request, HttpException http_exception):
         return Response(404, content=TextContent('Resource not found'))
 
-    async def handle_bad_request(self, Request request HttpException http_exception):
+    async def handle_bad_request(self, Request request, HttpException http_exception):
         return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
 
     async def handle_http_exception(self, Request request, HttpException http_exception):

@@ -57,7 +57,7 @@ class RouteMatch:
 
     def __init__(self, route, values):
         self.handler = route.handler
-        self.values = {k: unquote(v.decode()) for k, v in values.items()} if values else {}
+        self.values = {k: unquote(v.decode('utf8')) for k, v in values.items()} if values else {}
 
     def __repr__(self):
         return f'<RouteMatch {id(self)}>'

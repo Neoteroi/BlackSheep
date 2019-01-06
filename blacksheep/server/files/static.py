@@ -85,7 +85,7 @@ def get_frozen_file_getter(file_path, cache_max_age=12000):
         if request.method == b'HEAD':
             return Response(200, head_headers, None)
 
-        return Response(200, Headers.from_param(headers), Content(mime, data))
+        return Response(200, Headers(headers), Content(mime, data))
     return frozen_file_getter
 
 

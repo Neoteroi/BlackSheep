@@ -92,7 +92,7 @@ def get_files_handler(source_folder_name, source_folder_full_path, discovery, ca
     source_folder_full_path = source_folder_full_path.lower()
 
     async def file_getter(request):
-        tail = unquote(request.route_values.get('tail').decode('utf8')).lstrip('/')
+        tail = unquote(request.route_values.get('tail')).lstrip('/')
 
         resource_path = os.path.join(source_folder_name, tail)
 

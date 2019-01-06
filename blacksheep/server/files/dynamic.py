@@ -6,7 +6,7 @@ from blacksheep.server.routing import Route
 from blacksheep import Response, HtmlContent
 from blacksheep.server.pathsutils import get_file_extension_from_name
 from blacksheep.server.resources import get_resource_file_content
-from blacksheep.exceptions import HttpNotFound
+from blacksheep.exceptions import NotFound
 from urllib.parse import unquote
 from . import get_default_extensions, get_response_for_file
 
@@ -100,10 +100,10 @@ def get_files_handler(source_folder_name, source_folder_full_path, discovery, ca
             abs_path = os.path.abspath(resource_path)
             if not str(abs_path).lower().startswith(source_folder_full_path):
                 # someone is trying to read out of the static folder
-                raise HttpNotFound()
+                raise NotFound()
 
         if not os.path.exists(resource_path) or os.path.islink(resource_path):
-            raise HttpNotFound()
+            raise NotFound()
 
         if os.path.isdir(resource_path):
             if discovery:
@@ -111,12 +111,12 @@ def get_files_handler(source_folder_name, source_folder_full_path, discovery, ca
                                                     tail.rstrip('/'),
                                                     list(get_files_to_serve(resource_path.rstrip('/'))))
             else:
-                raise HttpNotFound()
+                raise NotFound()
 
         file_extension = get_file_extension_from_name(resource_path)
 
         if file_extension not in extensions:
-            raise HttpNotFound()
+            raise NotFound()
 
         return get_response_for_file(request, resource_path, cache_time)
     return file_getter

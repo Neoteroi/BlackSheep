@@ -15,17 +15,18 @@ cdef class BadRequestFormat(Exception):
 
 cdef class HttpException(Exception):
 
-    def __init__(self, int status):
+    def __init__(self, int status, str message = None):
+        super().__init__(message)
         self.status = status
 
 
 cdef class BadRequest(HttpException):
 
-    def __init__(self):
-        super().__init__(400)
+    def __init__(self, message=None):
+        super().__init__(400, message)
 
 
-cdef class HttpNotFound(HttpException):
+cdef class NotFound(HttpException):
 
     def __init__(self):
         super().__init__(404)

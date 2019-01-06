@@ -14,6 +14,5 @@ cdef class BaseApplication:
     cdef readonly object router
     cdef readonly list connections
     cdef public dict exceptions_handlers
-
     cdef object get_http_exception_handler(self, HttpException http_exception)
     cdef object get_exception_handler(self, Exception exception)

@@ -18,8 +18,9 @@ from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.files.static import serve_static_files
-from blacksheep.exceptions import HttpException, HttpNotFound
+from blacksheep.exceptions import HttpException, NotFound
 from blacksheep.server.resources import get_resource_file_content
+from blacksheep.server.handlers import normalize_handler
 from blacksheep.baseapp import BaseApplication
 from blacksheep.middlewares import get_middlewares_chain
 
@@ -176,6 +177,19 @@ class Application(BaseApplication):
             route.handler = get_middlewares_chain(self.middlewares, route.handler)
 
             configured_handlers.add(route.handler)
+        configured_handlers.clear()
+
+    def normalize_handlers(self):
+        configured_handlers = set()
+
+        for route in self.router:
+            if route.handler in configured_handlers:
+                continue
+
+            route.handler = normalize_handler(route.handler)
+
+            configured_handlers.add(route.handler)
+        configured_handlers.clear()
 
     def configure_middlewares(self):
         if self._middlewares_configured:
@@ -199,6 +213,7 @@ class Application(BaseApplication):
         if self._serve_files:
             serve_files(self.router, *self._serve_files)
 
+        self.normalize_handlers()
         self.configure_middlewares()
         run_server(self)
 

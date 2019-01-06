@@ -1,11 +1,18 @@
 from .options cimport ServerOptions
 from .messages cimport Request, Response
 from .contents cimport TextContent, HtmlContent
-from .exceptions cimport HttpException, HttpNotFound
+from .exceptions cimport HttpException, NotFound
 
 
 import html
 import traceback
+
+
+async def handle_not_found(app, Request request, HttpException http_exception):
+    return Response(404, content=TextContent('Resource not found'))
+
+async def handle_bad_request(app, Request request, HttpException http_exception):
+    return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
 
 
 cdef class BaseApplication:
@@ -18,8 +25,8 @@ cdef class BaseApplication:
 
     def init_exceptions_handlers(self):
         return {
-            404: self.handle_not_found,
-            400: self.handle_bad_request
+            404: handle_not_found,
+            400: handle_bad_request
         }
 
     async def handle(self, Request request):
@@ -29,7 +36,7 @@ cdef class BaseApplication:
         route = self.router.get_match(request.method, request.url.path)
 
         if not route:
-            response = await self.handle_not_found(request, None)
+            response = await handle_not_found(self, request, None)
         else:
             request.route_values = route.values
 
@@ -55,12 +62,6 @@ cdef class BaseApplication:
 
     cdef object get_exception_handler(self, Exception exception):
         return self.exceptions_handlers.get(type(exception))
-
-    async def handle_not_found(self, Request request, HttpException http_exception):
-        return Response(404, content=TextContent('Resource not found'))
-
-    async def handle_bad_request(self, Request request, HttpException http_exception):
-        return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
 
     async def handle_internal_server_error(self, Request request, Exception exc):
         if self.debug or self.options.show_error_details:

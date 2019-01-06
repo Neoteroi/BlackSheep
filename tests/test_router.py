@@ -45,11 +45,11 @@ class MockHandler:
 class TestRoute:
 
     @pytest.mark.parametrize('pattern,url,expected_values', [
-        (b'/foo/:id', b'/foo/123', {'id': b'123'}),
-        (b'/foo/:id/ufo/:b', b'/foo/223/ufo/a13', {'id': b'223', 'b': b'a13'}),
-        (b'/foo/:id/ufo/:b', b'/Foo/223/Ufo/a13', {'id': b'223', 'b': b'a13'}),
-        (b'/:a', b'/Something', {'a': b'Something'}),
-        (b'/alive', b'/alive', None)
+        (b'/foo/:id', b'/foo/123', {'id': '123'}),
+        (b'/foo/:id/ufo/:b', b'/foo/223/ufo/a13', {'id': '223', 'b': 'a13'}),
+        (b'/foo/:id/ufo/:b', b'/Foo/223/Ufo/a13', {'id': '223', 'b': 'a13'}),
+        (b'/:a', b'/Something', {'a': 'Something'}),
+        (b'/alive', b'/alive', {})
     ])
     def test_route_good_matches(self, pattern, url, expected_values):
         route = Route(pattern, mock_handler)
@@ -179,12 +179,12 @@ class TestRouter:
         m = router.get_match(HttpMethod.GET, b'/a/anything/really.js')
         assert m is not None
         assert m.handler is a
-        assert m.values.get('tail') == b'anything/really'
+        assert m.values.get('tail') == 'anything/really'
 
         m = router.get_match(HttpMethod.GET, b'/b/anything/really.css')
         assert m is not None
         assert m.handler is b
-        assert m.values.get('tail') == b'anything/really'
+        assert m.values.get('tail') == 'anything/really'
 
     def test_router_match_any_below(self):
         router = Router()
@@ -212,22 +212,22 @@ class TestRouter:
         m = router.get_match(HttpMethod.GET, b'/a/anything/really')
         assert m is not None
         assert m.handler is a
-        assert m.values.get('tail') == b'anything/really'
+        assert m.values.get('tail') == 'anything/really'
 
         m = router.get_match(HttpMethod.GET, b'/b/anything/really')
         assert m is not None
         assert m.handler is b
-        assert m.values.get('tail') == b'anything/really'
+        assert m.values.get('tail') == 'anything/really'
 
         m = router.get_match(HttpMethod.GET, b'/c/anything/really')
         assert m is not None
         assert m.handler is c
-        assert m.values.get('tail') == b'anything/really'
+        assert m.values.get('tail') == 'anything/really'
 
         m = router.get_match(HttpMethod.GET, b'/d/anything/really')
         assert m is not None
         assert m.handler is d
-        assert m.values.get('tail') == b'anything/really'
+        assert m.values.get('tail') == 'anything/really'
 
         m = router.get_match(HttpMethod.POST, b'/a/anything/really')
         assert m is None
@@ -255,7 +255,7 @@ class TestRouter:
 
         def delete_foo():
             pass
-        
+
         router.add_get(b'/', home)
         router.add_get(b'/foo', get_foo)
         router.add_post(b'/foo', create_foo)

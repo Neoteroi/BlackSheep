@@ -2,6 +2,7 @@ import re
 from functools import lru_cache
 from blacksheep import HttpMethod
 from collections import defaultdict
+from urllib.parse import unquote
 from typing import Callable
 
 
@@ -24,17 +25,18 @@ def _get_regex_for_pattern(pattern):
     if b'/:' in pattern:
         pattern = _route_param_rx.sub(br'/(?P<\1>[^\/]+)', pattern)
 
-    # NB: following code is just to throw user friendly errors
+    # NB: following code is just to throw user friendly errors;
     # regex would fail anyway, but with a more complex message 'sre_constants.error: redefinition of group name'
-    param_names = set()
+    # we only return param names as they are useful for other things
+    param_names = []
     for p in _named_group_rx.finditer(pattern):
         param_name = p.group(1)
         if param_name in param_names:
             raise ValueError(f'cannot have multiple parameters with name: {param_name}')
 
-        param_names.add(param_name)
+        param_names.append(param_name)
 
-    return re.compile(b'^' + pattern + b'$', re.IGNORECASE)
+    return re.compile(b'^' + pattern + b'$', re.IGNORECASE), param_names
 
 
 class RouteException(Exception):
@@ -55,7 +57,7 @@ class RouteMatch:
 
     def __init__(self, route, values):
         self.handler = route.handler
-        self.values = values
+        self.values = {k: unquote(v.decode()) for k, v in values.items()} if values else {}
 
     def __repr__(self):
         return f'<RouteMatch {id(self)}>'
@@ -66,6 +68,7 @@ class Route:
     __slots__ = ('handler',
                  'pattern',
                  'has_params',
+                 'param_names',
                  '_rx')
 
     def __init__(self, pattern: bytes, handler: Callable):
@@ -77,7 +80,9 @@ class Route:
         self.handler = handler
         self.pattern = pattern
         self.has_params = b'*' in pattern or b':' in pattern
-        self._rx = _get_regex_for_pattern(pattern)
+        rx, param_names = _get_regex_for_pattern(pattern)
+        self._rx = rx
+        self.param_names = param_names
 
     def match(self, value: bytes):
         if not self.has_params and value.lower() == self.pattern:
@@ -243,5 +248,4 @@ class Router:
             if match:
                 return match
         return RouteMatch(self._fallback, None) if self.fallback else None
-
 

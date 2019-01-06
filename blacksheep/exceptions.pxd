@@ -17,7 +17,7 @@ cdef class BadRequest(HttpException):
     pass
 
 
-cdef class HttpNotFound(HttpException):
+cdef class NotFound(HttpException):
     pass
 
 

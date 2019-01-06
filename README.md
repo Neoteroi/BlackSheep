@@ -48,13 +48,20 @@ of Python language are currently out of the scope. However, a Pure-Python versio
 * Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
+* [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
+* [Strategy to handle exceptions](https://github.com/RobertoPrevato/BlackSheep/wiki/Exceptions-handling)
+* [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
+
+See also: [missing server features, planned for development](https://github.com/RobertoPrevato/BlackSheep/wiki/Missing-server-features).
 
 ## Client Features
-* Support for client side middlewares, enabling clean source code and separation of concerns (logging of different kinds, handling of cookies, etc.)
 * HTTP connection pooling
 * User friendly handling of SSL contexts (safe by default)
+* Support for client side middlewares, enabling clean source code and separation of concerns (logging of different kinds, handling of cookies, etc.)
 * Automatic handling of redirects (can be disabled, validates circular redirects and maximum number of redirects - redirects to URN are simply returned to code using the client)
 * Automatic handling of cookies (can be disabled, `Set-Cookie` and `Cookie` headers)
+
+See also: [missing client features, planned for development](https://github.com/RobertoPrevato/BlackSheep/wiki/Missing-client-features).
 
 **Example:**
 ```python

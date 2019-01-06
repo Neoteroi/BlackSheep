@@ -3,6 +3,10 @@ from typing import Union, List, TypeVar
 from inspect import Signature, Parameter, _empty
 from blacksheep.exceptions import BadRequest
 
+# TODO: improve the design of following code:
+#   1. it should be cleaner
+#   2. inspections should run only once at startup; generating functions that go straight to the point (like rodi)
+
 
 def extract_param_str(request, name: str) -> Union[List[str], str]:
     if name == 'request':
@@ -107,7 +111,7 @@ def get_sync_wrapper(method, params, params_len):
         return handler
 
     async def handler(request):
-        return method(*[extract_param(request, name) for name in params.values()])
+        return method(*[extract_param(request, param) for param in params.values()])
 
     return handler
 
@@ -125,7 +129,7 @@ def get_async_wrapper(method, params, params_len):
         return method
 
     async def handler(request):
-        return await method(*[extract_param(request, name) for name in params.values()])
+        return await method(*[extract_param(request, param) for param in params.values()])
 
     return handler
 

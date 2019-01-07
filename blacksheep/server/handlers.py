@@ -73,13 +73,13 @@ def handle_param_type(value, param, param_type):
         except ValueError:
             raise BadRequest(f'invalid parameter "{param.name}". '
                              f'The value cannot be parsed as {param_type.__name__}.')
-    return value
+    return unwrap(value)
 
 
 def extract_param(request, param: Parameter):
     value = extract_param_str(request, param.name)
     annotation = param.annotation
-    if annotation is not _empty and annotation is not str:
+    if annotation is not _empty:
         if hasattr(annotation, '__origin__') and annotation.__origin__ is Union:
             possible_types = annotation.__args__
             if type(None) in possible_types and value is None:

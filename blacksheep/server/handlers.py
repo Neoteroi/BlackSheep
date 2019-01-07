@@ -1,17 +1,10 @@
 import inspect
-from typing import Union, List, TypeVar
+from typing import Union, List, TypeVar, Callable
 from inspect import Signature, Parameter, _empty
 from blacksheep.exceptions import BadRequest
 
-# TODO: improve the design of following code:
-#   1. it should be cleaner
-#   2. inspections should run only once at startup; generating functions that go straight to the point (like rodi)
 
-
-def extract_param_str(request, name: str) -> Union[List[str], str]:
-    if name == 'request':
-        return request
-
+def get_param(request, name):
     if name in request.route_values:
         return request.route_values.get(name)
 
@@ -32,12 +25,16 @@ def get_list(value):
     return [value]
 
 
-def parse_value(value, desired_type):
-    if desired_type is bool:
-        return bool(int(value))
-    if desired_type in {int, float}:
-        return desired_type(value)
-    return value
+def parse_value(value, desired_type: type, param_name: str):
+    try:
+        if desired_type is bool:
+            return bool(int(value))
+        if desired_type in {int, float}:
+            return desired_type(value)
+        return value
+    except ValueError:
+        raise BadRequest(f'invalid parameter "{param_name}". '
+                         f'The value cannot be parsed as {desired_type.__name__}.')
 
 
 def handle_param_type(value, param, param_type):
@@ -60,29 +57,121 @@ def handle_param_type(value, param, param_type):
                 return get_list(value)
 
             if item_type in {int, float, bool}:
-                try:
-                    return [parse_value(unwrap(item), item_type) for item in get_list(value)]
-                except ValueError:
-                    raise BadRequest(f'invalid parameter "{param.name}". '
-                                     f'The value contains an item that cannot be parsed as {item_type.__name__}.')
+                return [parse_value(unwrap(item), item_type, param.name) for item in get_list(value)]
             return value
 
     if param_type in {int, float, bool}:
-        try:
-            return parse_value(unwrap(value), param_type)
-        except ValueError:
-            raise BadRequest(f'invalid parameter "{param.name}". '
-                             f'The value cannot be parsed as {param_type.__name__}.')
-    return unwrap(value)
+        return parse_value(unwrap(value), param_type, param.name)
+    return value
 
 
-def extract_param(request, param: Parameter):
+class ParamDelegate:
+    __slots__ = ('name',
+                 'annotation',
+                 'is_optional')
+
+    def __init__(self, name: str, annotation: type, is_optional: bool):
+        self.name = name
+        self.annotation = annotation
+        self.is_optional = is_optional
+
+    def __call__(self, request):
+        value = get_param(request, self.name)
+
+        if value is None or value == '':
+            if self.is_optional:
+                return None
+
+            raise BadRequest(f'missing parameter: {self.name}.')
+
+        return value
+
+
+class ListParamDelegate(ParamDelegate):
+    __slots__ = ('name',
+                 'annotation',
+                 'is_optional',
+                 'item_type')
+
+    def __init__(self,
+                 name: str,
+                 annotation: type,
+                 is_optional: bool,
+                 item_type: type):
+        super().__init__(name, annotation, is_optional)
+        self.item_type = item_type
+
+    def __call__(self, request):
+        value = super().__call__(request)
+
+        if value is None:
+            return value
+
+        if self.item_type in {int, float, bool}:
+            return [parse_value(item, self.item_type, self.name) for item in get_list(value)]
+        return get_list(value)
+
+
+class ParsedParamDelegate(ParamDelegate):
+    __slots__ = ('name',
+                 'annotation',
+                 'is_optional')
+
+    def __call__(self, request):
+        value = super().__call__(request)
+
+        if value is None:
+            return value
+
+        return parse_value(unwrap(value), self.annotation, self.name)
+
+
+def _check_union(method: Callable, param: Parameter):
+    annotation = param.annotation
+    if annotation is not _empty:
+        if hasattr(annotation, '__origin__') and annotation.__origin__ is Union:
+            if type(None) not in annotation.__args__ or len(annotation.__args__) > 2:
+                raise RuntimeError(f'Invalid parameter "{param.name}" for method "{method.__name__}"; '
+                                   f'only Optional types are supported for automatic binding;')
+
+                for possible_type in annotation.__args__:
+                    if type(None) is possible_type:
+                        continue
+                    return True, possible_type
+    return False, annotation
+
+
+def get_param_delegate(method: Callable, param: Parameter):
+    if param.name == 'request':
+        return lambda request: request
+
+    is_optional, param_type = _check_union(method, param)
+
+    if param_type in {int, float, bool}:
+        return ParsedParamDelegate(param.name, param_type, is_optional)
+
+    if hasattr(param_type, '__origin__') and param_type.__origin__ is list:  # List type
+        item_type = param_type.__args__[0]
+
+        if isinstance(item_type, TypeVar):
+            # List annotation without child type
+            item_type = str
+
+        return ListParamDelegate(param.name, param_type, is_optional, item_type)
+
+    return ParamDelegate(param.name, param_type, is_optional)
+
+
+def extract_param(request, param: Parameter):  # TODO: deprecate, it should only inspect params once
+    if param.name == 'request':
+        return request
+
     value = extract_param_str(request, param.name)
     annotation = param.annotation
     if annotation is not _empty:
         if hasattr(annotation, '__origin__') and annotation.__origin__ is Union:
             possible_types = annotation.__args__
-            if type(None) in possible_types and value is None:
+            if type(None) in possible_types and (value is None or value == ''):
                 # handling of Optional type hint (or anyway Union containing None)
                 return None
 
@@ -103,15 +192,20 @@ def get_sync_wrapper(method, params, params_len):
         # the user defined a synchronous request handler with no input
         async def handler(_):
             return method()
+
         return handler
 
     if params_len == 1 and 'request' in params:
         async def handler(request):
             return method(request)
+
         return handler
 
+    params_extractors = [get_param_delegate(method, param) for param in params.values()]
+
     async def handler(request):
-        return method(*[extract_param(request, param) for param in params.values()])
+        # return method(*[extract_param(request, param) for param in params.values()])
+        return await method(*[delegate(request) for delegate in params_extractors])
 
     return handler
 
@@ -128,8 +222,11 @@ def get_async_wrapper(method, params, params_len):
         # no need to wrap the request handler
         return method
 
+    params_extractors = [get_param_delegate(method, param) for param in params.values()]
+
     async def handler(request):
-        return await method(*[extract_param(request, param) for param in params.values()])
+        # return await method(*[extract_param(request, param) for param in params.values()])
+        return await method(*[delegate(request) for delegate in params_extractors])
 
     return handler
 

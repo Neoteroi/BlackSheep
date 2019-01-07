@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 import pkg_resources
-from typing import List
+from typing import List, Optional
 from blacksheep.server import Application
 from blacksheep.connection import ServerConnection
 from blacksheep import Request, Response, Header, JsonContent, Headers, HttpException, TextContent
@@ -707,12 +707,12 @@ async def test_application_user_defined_exception_handlers_called_in_application
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('parameter,expected_route_value', [
+@pytest.mark.parametrize('parameter,expected_value', [
     (b'a', 'a'),
     (b'foo', 'foo'),
     (b'Hello%20World!!%3B%3B', 'Hello World!!;;'),
 ])
-async def test_handler_route_value_binding_single(parameter, expected_route_value):
+async def test_handler_route_value_binding_single(parameter, expected_value):
     app = FakeApplication()
 
     called = False
@@ -721,7 +721,7 @@ async def test_handler_route_value_binding_single(parameter, expected_route_valu
     async def home(request, value):
         nonlocal called
         called = True
-        assert value == expected_route_value
+        assert value == expected_value
 
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
@@ -760,12 +760,12 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('parameter,expected_route_value', [
+@pytest.mark.parametrize('parameter,expected_value', [
     (b'12', 12),
     (b'0', 0),
     (b'16549', 16549),
 ])
-async def test_handler_route_value_binding_single_int(parameter, expected_route_value):
+async def test_handler_route_value_binding_single_int(parameter, expected_value):
     app = FakeApplication()
 
     called = False
@@ -774,7 +774,7 @@ async def test_handler_route_value_binding_single_int(parameter, expected_route_
     async def home(request, value: int):
         nonlocal called
         called = True
-        assert value == expected_route_value
+        assert value == expected_value
 
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
@@ -785,14 +785,35 @@ async def test_handler_route_value_binding_single_int(parameter, expected_route_
     assert called is True
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize('parameter', [
+    b'xx', b'x'
+])
+async def test_handler_route_value_binding_single_int_invalid(parameter):
+    app = FakeApplication()
+
+    called = False
+
+    @app.router.get(b'/:value')
+    async def home(request, value: int):
+        nonlocal called
+        called = True
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+    assert called is False
+    assert app.response.status == 400
+
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('parameter,expected_route_value', [
-    (b'12', 12.0),
-    (b'0', 0.0),
-    (b'16549.55', 16549.55),
+@pytest.mark.parametrize('parameter', [
+    b'xx', b'x'
 ])
-async def test_handler_route_value_binding_single_float(parameter, expected_route_value):
+async def test_handler_route_value_binding_single_float_invalid(parameter):
     app = FakeApplication()
 
     called = False
@@ -801,7 +822,33 @@ async def test_handler_route_value_binding_single_float(parameter, expected_rout
     async def home(request, value: float):
         nonlocal called
         called = True
-        assert value == expected_route_value
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+    assert called is False
+    assert app.response.status == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('parameter,expected_value', [
+    (b'12', 12.0),
+    (b'0', 0.0),
+    (b'16549.55', 16549.55),
+])
+async def test_handler_route_value_binding_single_float(parameter, expected_value):
+    app = FakeApplication()
+
+    called = False
+
+    @app.router.get(b'/:value')
+    async def home(request, value: float):
+        nonlocal called
+        called = True
+        assert value == expected_value
 
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
@@ -868,12 +915,12 @@ async def test_handler_route_value_binding_mixed_types(parameter, expected_a, ex
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('query,expected_route_value', [
+@pytest.mark.parametrize('query,expected_value', [
     (b'?a=a', 'a'),
     (b'?a=foo', 'foo'),
     (b'?a=Hello%20World!!%3B%3B', 'Hello World!!;;'),
 ])
-async def test_handler_query_value_binding_single(query, expected_route_value):
+async def test_handler_query_value_binding_single(query, expected_value):
     app = FakeApplication()
 
     called = False
@@ -882,7 +929,90 @@ async def test_handler_query_value_binding_single(query, expected_route_value):
     async def home(request, value):
         nonlocal called
         called = True
-        assert value == expected_route_value
+        assert value == expected_value
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+
+    await app.response_done.wait()
+    assert called is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('query,expected_value', [
+    (b'?a=10', 10),
+    (b'?b=20', None),
+    (b'', None),
+])
+async def test_handler_query_value_binding_optional_int(query, expected_value):
+    app = FakeApplication()
+
+    called = False
+
+    @app.router.get(b'/')
+    async def home(request, a: Optional[int]):
+        nonlocal called
+        called = True
+        assert a == expected_value
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+
+    await app.response_done.wait()
+    assert called is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('query,expected_value', [
+    (b'?a=10', 10.0),
+    (b'?a=12.6', 12.6),
+    (b'?a=12.6&c=4', 12.6),
+    (b'?b=20', None),
+    (b'', None),
+])
+async def test_handler_query_value_binding_optional_float(query, expected_value):
+    app = FakeApplication()
+
+    called = False
+
+    @app.router.get(b'/')
+    async def home(request, a: Optional[float]):
+        nonlocal called
+        called = True
+        assert a == expected_value
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+
+    await app.response_done.wait()
+    assert called is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('query,expected_value', [
+    (b'?a=10', [10.0]),
+    (b'?a=12.6', [12.6]),
+    (b'?a=12.6&c=4', [12.6]),
+    (b'?a=12.6&a=4&a=6.6', [12.6, 4.0, 6.6]),
+    (b'?b=20', None),
+    (b'', None),
+])
+async def test_handler_query_value_binding_optional_list(query, expected_value):
+    app = FakeApplication()
+
+    called = False
+
+    @app.router.get(b'/')
+    async def home(request, a: Optional[List[float]]):
+        nonlocal called
+        called = True
+        assert a == expected_value
 
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
@@ -922,10 +1052,10 @@ async def test_handler_query_value_binding_mixed_types(query, expected_a, expect
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('query,expected_route_value', [
+@pytest.mark.parametrize('query,expected_value', [
     (b'?a=Hello%20World!!%3B%3B&a=Hello&a=World', ['Hello World!!;;', 'Hello', 'World']),
 ])
-async def test_handler_query_value_binding_list(query, expected_route_value):
+async def test_handler_query_value_binding_list(query, expected_value):
     app = FakeApplication()
 
     called = False
@@ -934,7 +1064,7 @@ async def test_handler_query_value_binding_list(query, expected_route_value):
     async def home(request, value):
         nonlocal called
         called = True
-        assert value == expected_route_value
+        assert value == expected_value
 
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
@@ -946,12 +1076,12 @@ async def test_handler_query_value_binding_list(query, expected_route_value):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('query,expected_route_value', [
+@pytest.mark.parametrize('query,expected_value', [
     (b'?a=2', [2]),
     (b'?a=2&a=44', [2, 44]),
     (b'?a=1&a=5&a=18', [1, 5, 18]),
 ])
-async def test_handler_query_value_binding_list_of_ints(query, expected_route_value):
+async def test_handler_query_value_binding_list_of_ints(query, expected_value):
     app = FakeApplication()
 
     called = False
@@ -960,7 +1090,7 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_route_va
     async def home(request, a: List[int]):
         nonlocal called
         called = True
-        assert a == expected_route_value
+        assert a == expected_value
 
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
@@ -972,12 +1102,12 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_route_va
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('query,expected_route_value', [
+@pytest.mark.parametrize('query,expected_value', [
     (b'?a=2', [2.0]),
     (b'?a=2.5&a=44.12', [2.5, 44.12]),
     (b'?a=1&a=5.55556&a=18.656', [1, 5.55556, 18.656]),
 ])
-async def test_handler_query_value_binding_list_of_floats(query, expected_route_value):
+async def test_handler_query_value_binding_list_of_floats(query, expected_value):
     app = FakeApplication()
 
     called = False
@@ -986,7 +1116,7 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_route_
     async def home(request, a: List[float]):
         nonlocal called
         called = True
-        assert a == expected_route_value
+        assert a == expected_value
 
     app.normalize_handlers()
     handler = get_new_connection_handler(app)

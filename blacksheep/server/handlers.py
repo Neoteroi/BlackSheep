@@ -37,34 +37,6 @@ def parse_value(value, desired_type: type, param_name: str):
                          f'The value cannot be parsed as {desired_type.__name__}.')
 
 
-def handle_param_type(value, param, param_type):
-    # if we get here, we don't accept None type, because a parameter was not annotated as optional
-    if value is None:
-        raise BadRequest(f'missing parameter: {param.name}.')
-
-    if param_type is list:
-        return get_list(value)
-
-    if hasattr(param_type, '__origin__') and param_type.__origin__ is list:  # List type
-        item_type = param_type.__args__[0]
-
-        if isinstance(item_type, TypeVar):
-            # List annotation without child type
-            return get_list(value)
-
-        if type(value) is list:
-            if item_type is str:
-                return get_list(value)
-
-            if item_type in {int, float, bool}:
-                return [parse_value(unwrap(item), item_type, param.name) for item in get_list(value)]
-            return value
-
-    if param_type in {int, float, bool}:
-        return parse_value(unwrap(value), param_type, param.name)
-    return value
-
-
 class ParamDelegate:
     __slots__ = ('name',
                  'annotation',
@@ -83,6 +55,9 @@ class ParamDelegate:
                 return None
 
             raise BadRequest(f'missing parameter: {self.name}.')
+
+        if self.annotation is str:
+            return unwrap(value)
 
         return value
 
@@ -134,10 +109,10 @@ def _check_union(method: Callable, param: Parameter):
                 raise RuntimeError(f'Invalid parameter "{param.name}" for method "{method.__name__}"; '
                                    f'only Optional types are supported for automatic binding;')
 
-                for possible_type in annotation.__args__:
-                    if type(None) is possible_type:
-                        continue
-                    return True, possible_type
+            for possible_type in annotation.__args__:
+                if type(None) is possible_type:
+                    continue
+                return True, possible_type
     return False, annotation
 
 
@@ -162,31 +137,6 @@ def get_param_delegate(method: Callable, param: Parameter):
     return ParamDelegate(param.name, param_type, is_optional)
 
 
-def extract_param(request, param: Parameter):  # TODO: deprecate, it should only inspect params once
-    if param.name == 'request':
-        return request
-
-    value = extract_param_str(request, param.name)
-    annotation = param.annotation
-    if annotation is not _empty:
-        if hasattr(annotation, '__origin__') and annotation.__origin__ is Union:
-            possible_types = annotation.__args__
-            if type(None) in possible_types and (value is None or value == ''):
-                # handling of Optional type hint (or anyway Union containing None)
-                return None
-
-            # NB: BlackSheep type annotations handling only supports one type when multiple are defined;
-            # TODO: throw exception in this scenario?
-            for possible_type in possible_types:
-                if type(None) is possible_type:
-                    continue
-                return handle_param_type(value, param, possible_type)
-
-        return handle_param_type(value, param, annotation)
-
-    return value
-
-
 def get_sync_wrapper(method, params, params_len):
     if params_len == 0:
         # the user defined a synchronous request handler with no input
@@ -204,7 +154,6 @@ def get_sync_wrapper(method, params, params_len):
     params_extractors = [get_param_delegate(method, param) for param in params.values()]
 
     async def handler(request):
-        # return method(*[extract_param(request, param) for param in params.values()])
         return await method(*[delegate(request) for delegate in params_extractors])
 
     return handler
@@ -225,7 +174,6 @@ def get_async_wrapper(method, params, params_len):
     params_extractors = [get_param_delegate(method, param) for param in params.values()]
 
     async def handler(request):
-        # return await method(*[extract_param(request, param) for param in params.values()])
         return await method(*[delegate(request) for delegate in params_extractors])
 
     return handler

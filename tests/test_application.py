@@ -726,7 +726,7 @@ async def test_handler_route_value_binding_single(parameter, expected_value):
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -749,7 +749,7 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -872,7 +872,7 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -896,7 +896,7 @@ async def test_handler_route_value_binding_mixed_types(parameter, expected_a, ex
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -918,7 +918,7 @@ async def test_handler_query_value_binding_single(query, expected_value):
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -940,7 +940,7 @@ async def test_handler_query_value_binding_optional_int(query, expected_value):
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -964,7 +964,7 @@ async def test_handler_query_value_binding_optional_float(query, expected_value)
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -989,7 +989,7 @@ async def test_handler_query_value_binding_optional_list(query, expected_value):
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -1013,7 +1013,7 @@ async def test_handler_query_value_binding_mixed_types(query, expected_a, expect
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -1033,7 +1033,7 @@ async def test_handler_query_value_binding_list(query, expected_value):
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -1055,7 +1055,7 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_value):
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -1077,7 +1077,7 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_value)
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -1094,7 +1094,7 @@ async def test_handler_normalize_sync_method():
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET / HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204
@@ -1111,7 +1111,7 @@ async def test_handler_normalize_method_without_input():
     app.normalize_handlers()
     handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET / HTTP/1.1\r\nHost: foo\r\n\r\n')
+    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
 
     await app.response_done.wait()
     assert app.response.status == 204

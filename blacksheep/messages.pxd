@@ -26,12 +26,11 @@ cdef class Message:
 
 
 cdef class Request(Message):
-    cdef public object app
     cdef public bint active
     cdef public dict route_values
     cdef public URL url
     cdef public bytes method
-    cdef readonly object transport
+    cdef public object services
     cdef dict _query
     cdef dict __dict__
 

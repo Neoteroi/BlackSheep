@@ -7,7 +7,7 @@ import warnings
 from ssl import SSLContext
 from time import time, sleep
 from threading import Thread
-from typing import Optional, List, Callable
+from typing import Optional, List, Callable, Any
 from multiprocessing import Process
 from socket import IPPROTO_TCP, TCP_NODELAY, SO_REUSEADDR, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
 from datetime import datetime
@@ -84,12 +84,15 @@ class Application(BaseApplication):
                  router: Optional[Router] = None,
                  middlewares: Optional[List[Callable]] = None,
                  resources: Optional[Resources] = None,
+                 services: Any = None,
                  debug: bool = False):
         if not options:
             options = ServerOptions('', 8000)
         if router is None:
             router = Router()
-        super().__init__(options, router)
+        if services is None:
+            services = {}
+        super().__init__(options, router, services)
 
         if middlewares is None:
             middlewares = []
@@ -102,7 +105,6 @@ class Application(BaseApplication):
         self.processes = []
         self.access_logger = None
         self.logger = None
-        self.services = {}
         self._default_headers = None
         self._use_sync_logging = False
         self._middlewares_configured = False
@@ -186,7 +188,7 @@ class Application(BaseApplication):
             if route.handler in configured_handlers:
                 continue
 
-            route.handler = normalize_handler(route.handler)
+            route.handler = normalize_handler(self.services, route.handler)
 
             configured_handlers.add(route.handler)
         configured_handlers.clear()

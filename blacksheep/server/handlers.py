@@ -116,11 +116,17 @@ def _check_union(method: Callable, param: Parameter):
     return False, annotation
 
 
-def get_param_delegate(method: Callable, param: Parameter):
+def get_param_delegate(services, method: Callable, param: Parameter):
     if param.name == 'request':
         return lambda request: request
 
     is_optional, param_type = _check_union(method, param)
+
+    if services:
+        if param_type in services:
+            return lambda request: services.get(param_type)
+        if param.name in services:
+            return lambda request: services.get(param.name)
 
     if param_type in {int, float, bool}:
         return ParsedParamDelegate(param.name, param_type, is_optional)
@@ -137,7 +143,7 @@ def get_param_delegate(method: Callable, param: Parameter):
     return ParamDelegate(param.name, param_type, is_optional)
 
 
-def get_sync_wrapper(method, params, params_len):
+def get_sync_wrapper(services, method, params, params_len):
     if params_len == 0:
         # the user defined a synchronous request handler with no input
         async def handler(_):
@@ -151,7 +157,7 @@ def get_sync_wrapper(method, params, params_len):
 
         return handler
 
-    params_extractors = [get_param_delegate(method, param) for param in params.values()]
+    params_extractors = [get_param_delegate(services, method, param) for param in params.values()]
 
     async def handler(request):
         return await method(*[delegate(request) for delegate in params_extractors])
@@ -159,7 +165,7 @@ def get_sync_wrapper(method, params, params_len):
     return handler
 
 
-def get_async_wrapper(method, params, params_len):
+def get_async_wrapper(services, method, params, params_len):
     if params_len == 0:
         # the user defined a request handler with no input
         async def handler(_):
@@ -171,7 +177,7 @@ def get_async_wrapper(method, params, params_len):
         # no need to wrap the request handler
         return method
 
-    params_extractors = [get_param_delegate(method, param) for param in params.values()]
+    params_extractors = [get_param_delegate(services, method, param) for param in params.values()]
 
     async def handler(request):
         return await method(*[delegate(request) for delegate in params_extractors])
@@ -179,12 +185,12 @@ def get_async_wrapper(method, params, params_len):
     return handler
 
 
-def normalize_handler(method):
+def normalize_handler(services, method):
     sig = Signature.from_callable(method)
     params = sig.parameters
     params_len = len(params)
 
     if inspect.iscoroutinefunction(method):
-        return get_async_wrapper(method, params, params_len)
+        return get_async_wrapper(services, method, params, params_len)
 
-    return get_sync_wrapper(method, params, params_len)
+    return get_sync_wrapper(services, method, params, params_len)

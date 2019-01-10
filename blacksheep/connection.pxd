@@ -10,6 +10,7 @@ from .baseapp cimport BaseApplication
 
 
 cdef class ServerConnection:
+    cdef readonly object services
     cdef readonly BaseApplication app
     cdef readonly Request request
     cdef int max_body_size

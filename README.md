@@ -51,6 +51,8 @@ of Python language are currently out of the scope. However, a Pure-Python versio
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
 * [Strategy to handle exceptions](https://github.com/RobertoPrevato/BlackSheep/wiki/Exceptions-handling)
 * [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
+* [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
+* [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
 
 See also: [missing server features, planned for development](https://github.com/RobertoPrevato/BlackSheep/wiki/Missing-server-features).
 

@@ -21,6 +21,7 @@ cdef class ServerConnection:
     
     def __init__(self, *, BaseApplication app, object loop):
         self.app = app
+        self.services = app.services
         self.max_body_size = app.options.limits.max_body_size
         app.connections.append(self)
         self.time_of_last_activity = time.time()
@@ -95,6 +96,7 @@ cdef class ServerConnection:
                 request.complete.set()
 
         self.app = None
+        self.services = None
         self.request = None
         self.parser = None
         self.reading_paused = False
@@ -154,7 +156,7 @@ cdef class ServerConnection:
             Headers(self.headers),
             None
         )
-        request.app = self.app
+        request.services = self.services
         self.request = request
         self.loop.create_task(self.handle_request(request))
 

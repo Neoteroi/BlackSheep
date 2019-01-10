@@ -12,6 +12,7 @@ cdef class BaseApplication:
 
     cdef readonly ServerOptions options
     cdef readonly object router
+    cdef readonly object services
     cdef readonly list connections
     cdef public dict exceptions_handlers
     cdef object get_http_exception_handler(self, HttpException http_exception)

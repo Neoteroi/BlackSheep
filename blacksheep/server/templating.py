@@ -25,14 +25,14 @@ def render_template(template: Template, model=None):
 
 def use_templates(app: Application, loader: PackageLoader):
     try:
-        env = app.jinja_environment
-    except AttributeError:
+        env = app.services['jinja_environment']
+    except KeyError:
         env = Environment(
             loader=loader,
             autoescape=select_autoescape(['html', 'xml'])
         )
 
-        app.jinja_environment = env
+        app.services['jinja_environment'] = env
 
         env.globals['app'] = app
 
@@ -43,4 +43,5 @@ def use_templates(app: Application, loader: PackageLoader):
 
 
 def view(request, name: str, model=None):
-    return get_response(render_template(request.app.jinja_environment.get_template(template_name(name)), model))
+    return get_response(render_template(request.services.get('jinja_environment').get_template(template_name(name)),
+                                        model))

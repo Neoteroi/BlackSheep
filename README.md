@@ -30,8 +30,7 @@ app.start()
 
 ## Disclaimer
 This project is currently targeting only __Linux__ and __CPython__: support for Windows and other implementations 
-of Python language are currently out of the scope. However, a Pure-Python version of this framework is planned, with name
-[`BlueSheep`](https://github.com/RobertoPrevato/BlueSheep). 
+of Python language are currently out of the scope. However, support for PyPy and Windows is planned. 
 
 ## Objectives
 * Clean architecture and source code, following SOLID principles

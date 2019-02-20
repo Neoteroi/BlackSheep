@@ -51,13 +51,13 @@ cdef class Content:
 cdef class TextContent(Content):
 
     def __init__(self, str text):
-        super().__init__(b'text/plain', text.encode('utf8'))
+        super().__init__(b'text/plain; charset=utf-8', text.encode('utf8'))
 
 
 cdef class HtmlContent(Content):
 
     def __init__(self, str html):
-        super().__init__(b'text/html', html.encode('utf8'))
+        super().__init__(b'text/html; charset=utf-8', html.encode('utf8'))
 
 
 cdef class JsonContent(Content):

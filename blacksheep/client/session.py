@@ -14,6 +14,7 @@ from blacksheep import (Request,
 from blacksheep.middlewares import get_middlewares_chain
 from .connection import ConnectionClosedError
 from .cookies import CookieJar, cookies_middleware
+from .logs import get_client_logging_middleware
 
 
 URLType = Union[str, bytes, URL]
@@ -160,9 +161,7 @@ class ClientSession:
             self._build_middlewares_chain()
 
     def use_sync_logging(self):
-        from .logs import client_logging_middleware
-        if client_logging_middleware not in self._middlewares:
-            self._middlewares.insert(0, client_logging_middleware)
+        self._middlewares.insert(0, get_client_logging_middleware())
         self._build_middlewares_chain()
 
     async def __aenter__(self):

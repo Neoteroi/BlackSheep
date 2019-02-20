@@ -4,12 +4,14 @@ from .contents cimport TextContent, HtmlContent
 from .exceptions cimport HttpException, NotFound
 
 
+import os
 import html
 import traceback
 
 
 async def handle_not_found(app, Request request, HttpException http_exception):
     return Response(404, content=TextContent('Resource not found'))
+
 
 async def handle_bad_request(app, Request request, HttpException http_exception):
     return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
@@ -74,7 +76,8 @@ cdef class BaseApplication:
                 info += f'<li><pre>{html.escape(item)}</pre></li>'
 
             content = HtmlContent(self.resources.error_page_html
-                                  .format_map({'info': info,
+                                  .format_map({'process_id': os.getpid(),
+                                               'info': info,
                                                'exctype': exc.__class__.__name__,
                                                'excmessage': str(exc),
                                                'method': request.method.decode(),

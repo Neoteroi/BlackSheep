@@ -7,7 +7,9 @@ from blacksheep.contents import (parse_www_form,
                                  parse_content_disposition_header,
                                  extract_multipart_form_data_boundary,
                                  FormPart,
-                                 MultiPartFormData)
+                                 MultiPartFormData,
+                                 TextContent,
+                                 HtmlContent)
 from blacksheep.scribe import write_chunks
 
 
@@ -227,3 +229,30 @@ def test_parsing_content_disposition_header(value, expected_result):
 def test_extract_multipart_form_data_boundary(value, expected_result):
     boundary = extract_multipart_form_data_boundary(value)
     assert boundary == expected_result
+
+
+def test_html_content_type():
+    content = HtmlContent('<html></html>')
+    assert content.type == b'text/html; charset=utf-8'
+
+
+@pytest.mark.parametrize('html', [
+    '<html>ø</html>'
+])
+def test_html_content_data(html):
+    content = HtmlContent(html)
+    assert content.body == html.encode('utf8')
+
+
+def test_text_content_type():
+    content = TextContent('Hello World')
+    assert content.type == b'text/plain; charset=utf-8'
+
+
+@pytest.mark.parametrize('text', [
+    'Zucchero Fornaciari - Papà perché',
+    'Отава Ё - На речке, на речке'
+])
+def test_text_content_data(text):
+    content = TextContent(text)
+    assert content.body == text.encode('utf8')

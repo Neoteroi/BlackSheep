@@ -1115,3 +1115,4 @@ async def test_handler_normalize_method_without_input():
 
     await app.response_done.wait()
     assert app.response.status == 204
+

@@ -215,8 +215,6 @@ class Application(BaseApplication):
         if self._serve_files:
             serve_files(self.router, *self._serve_files)
 
-        self.normalize_handlers()
-        self.configure_middlewares()
         run_server(self)
 
     def stop(self):
@@ -323,6 +321,9 @@ def spawn_server(app: Application):
 
     if app.on_start:
         loop.run_until_complete(app.on_start.fire())
+
+    app.normalize_handlers()
+    app.configure_middlewares()
 
     process_id = os.getpid()
     listening_on = ''.join(['https://' if options.ssl_context else 'http://',

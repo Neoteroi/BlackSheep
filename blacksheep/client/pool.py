@@ -79,6 +79,7 @@ class ClientConnectionPool:
             except QueueEmpty:
                 break
             else:
+                logger.debug(f'Closing connection {id(connection)} to: {self.host}:{self.port}')
                 connection.close()
 
 

@@ -56,9 +56,9 @@ of Python language are currently out of the scope. However, support for PyPy and
 See also: [missing server features, planned for development](https://github.com/RobertoPrevato/BlackSheep/wiki/Missing-server-features).
 
 ## Client Features
-* HTTP connection pooling
-* User friendly handling of SSL contexts (safe by default)
-* Support for client side middlewares, enabling clean source code and separation of concerns (logging of different kinds, handling of cookies, etc.)
+* [HTTP connection pooling](https://github.com/RobertoPrevato/BlackSheep/wiki/Connection-pooling)
+* User friendly [handling of SSL contexts](https://github.com/RobertoPrevato/BlackSheep/wiki/Client-handling-SSL-contexts) (safe by default)
+* Support for [client side middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Client-middlewares), enabling clean source code and separation of concerns (logging of different kinds, handling of cookies, etc.)
 * Automatic handling of redirects (can be disabled, validates circular redirects and maximum number of redirects - redirects to URN are simply returned to code using the client)
 * Automatic handling of cookies (can be disabled, `Set-Cookie` and `Cookie` headers)
 

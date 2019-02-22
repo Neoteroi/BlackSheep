@@ -1,3 +1,5 @@
+[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7)
+
 # BlackSheep
 HTTP Server/Client microframework for Python asyncio, using [Cython](https://cython.org), 
 [`uvloop`](https://magic.io/blog/uvloop-blazing-fast-python-networking/), and 
@@ -89,3 +91,6 @@ This project is in alpha stage. The reason behind this framework is described in
 
 ## Documentation
 Please refer to the [project Wiki](https://github.com/RobertoPrevato/BlackSheep/wiki).
+
+## Public project in Azure DevOps
+[https://dev.azure.com/robertoprevato/BlackSheep](https://dev.azure.com/robertoprevato/BlackSheep) - see here the project in Azure DevOps, with [builds](https://dev.azure.com/robertoprevato/BlackSheep/_build?definitionId=7) and other goodness.

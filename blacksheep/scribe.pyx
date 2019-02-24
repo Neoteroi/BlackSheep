@@ -169,6 +169,23 @@ cpdef bint is_small_request(Request request):
     return False
 
 
+cpdef bint request_has_body(Request request):
+    cdef Content content = request.content
+    if not content or content.length == 0:
+        return False
+    # NB: if we use chunked encoding, we don't know the content.length;
+    # and it is set to -1 (in contents.pyx), therefore it is handled properly
+    return True
+
+
+cpdef bytes write_request_without_body(Request request):
+    cdef bytearray data = bytearray()
+    data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    extend_data_with_headers(get_all_request_headers(request), data)
+    data.extend(b'\r\n')
+    return bytes(data)
+
+
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
     data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
@@ -221,6 +238,31 @@ cdef list get_all_request_headers(Request request):
     if cookies:
         result.append(Header(b'Cookie', write_cookies_for_request(cookies)))
     return result
+
+
+async def write_request_body_only(Request request):
+    # This method is used only for Expect: 100-continue scenario;
+    # in such case the request headers are sent before and then the body
+    cdef bytes data
+    cdef bytes chunk
+    cdef Content content
+
+    content = request.content
+
+    if content:
+        if should_use_chunked_encoding(content):
+            async for chunk in write_chunks(content):
+                yield chunk
+        else:
+            data = content.body
+
+            if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                for chunk in get_chunks(data):
+                    yield chunk
+            else:
+                yield data
+    else:
+        raise ValueError('Missing request content')
 
 
 async def write_request(Request request):

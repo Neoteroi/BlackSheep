@@ -14,7 +14,11 @@ cpdef bytes get_status_line(int status)
 
 cpdef bint is_small_request(Request request)
 
+cpdef bint request_has_body(Request request)
+
 cpdef bytes write_small_request(Request request)
+
+cpdef bytes write_request_without_body(Request request)
 
 cdef bint is_small_response(Response response)
 

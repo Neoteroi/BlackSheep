@@ -160,6 +160,14 @@ cdef class Message:
                                    f'{content_type.value.decode()}.',
                                    decode_error)
 
+    cpdef bint has_body(self):
+        cdef Content content = self.content
+        if not content or content.length == 0:
+            return False
+        # NB: if we use chunked encoding, we don't know the content.length;
+        # and it is set to -1 (in contents.pyx), therefore it is handled properly
+        return True
+
     @property
     def charset(self):
         content_type = self.headers.get_single(b'content-type')
@@ -250,6 +258,12 @@ cdef class Request(Message):
     @property
     def if_none_match(self):
         return self.headers.get_first(b'if-none-match')
+
+    cpdef bint expect_100_continue(self):
+        header = self.headers.get_first(b'expect')
+        if header and header.value.lower() == b'100-continue':
+            return True
+        return False
 
 
 cdef class Response(Message):

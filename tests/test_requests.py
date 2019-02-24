@@ -127,3 +127,14 @@ def test_cookie_parsing_duplicated_cookie_header_value():
         b'hello': b'kitty',
         b'foo': b'Hello World;'
     }
+
+
+@pytest.mark.parametrize('header,expected_result', [
+    [Header(b'Expect', b'100-Continue'), True],
+    [Header(b'expect', b'100-continue'), True],
+    [Header(b'X-Foo', b'foo'), False]
+])
+def test_request_expect_100_continue(header, expected_result):
+    request = Request(b'POST', b'/', Headers([header]), None)
+    assert expected_result == request.expect_100_continue()
+

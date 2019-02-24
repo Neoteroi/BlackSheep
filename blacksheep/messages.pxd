@@ -23,6 +23,7 @@ cdef class Message:
     cdef void on_body(self, bytes chunk)
     cpdef void extend_body(self, bytes chunk)
     cpdef void set_content(self, Content content)
+    cpdef bint has_body(self)
 
 
 cdef class Request(Message):
@@ -33,6 +34,8 @@ cdef class Request(Message):
     cdef public object services
     cdef dict _query
     cdef dict __dict__
+
+    cpdef bint expect_100_continue(self)
 
 
 cdef class Response(Message):

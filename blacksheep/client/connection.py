@@ -4,7 +4,12 @@ import httptools
 import certifi
 import weakref
 from blacksheep import Request, Response, Headers, Header
-from blacksheep.scribe import is_small_request, write_small_request, write_request
+from blacksheep.scribe import (is_small_request,
+                               write_small_request,
+                               write_request_without_body,
+                               write_request,
+                               request_has_body,
+                               write_request_body_only)
 from httptools import HttpParserError, HttpParserCallbackError
 SECURE_SSLCONTEXT = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=certifi.where())
 SECURE_SSLCONTEXT.check_hostname = True
@@ -39,6 +44,8 @@ class ClientConnection(asyncio.Protocol):
         'writable',
         'ready',
         'response_ready',
+        'request',
+        'expect_100_continue',
         '_pending_task'
     )
 
@@ -51,8 +58,9 @@ class ClientConnection(asyncio.Protocol):
         self.writable = asyncio.Event()
         self.ready = asyncio.Event()
         self.response_ready = asyncio.Event()
-
-        # per request state
+        self.expect_100_continue = False
+        self.request = None
+        self.request_timeout = 20
         self.headers = []
         self.response = None
         self.parser = httptools.HttpResponseParser(self)
@@ -62,9 +70,11 @@ class ClientConnection(asyncio.Protocol):
 
     def reset(self):
         self.headers.clear()
+        self.request = None
         self.response = None
         self.writing_paused = False
         self.writable.set()
+        self.expect_100_continue = False
         self.parser = httptools.HttpResponseParser(self)
         self._connection_lost = False
         self._pending_task = None
@@ -94,11 +104,45 @@ class ClientConnection(asyncio.Protocol):
 
         response = self.response
 
+        if 99 < response.status < 200:
+            # Handle 1xx informational
+            #  https://tools.ietf.org/html/rfc7231#section-6.2
+            if response.status == 101:
+                print('Switching protocols...')
+                # TODO
+
+            if response.status == 100 and self.expect_100_continue:
+                await self._send_body(self.request)
+
+            # ignore;
+            self.response_ready.clear()
+            self.headers.clear()
+            # TODO: log this - design how logger is referenced here
+
+            # await the final response
+            return await self._wait_response()
+
         if self._connection_lost:  # TODO: should also check if the response is not complete?
             raise ConnectionClosedError(False)
 
         self.response_ready.clear()
         return response
+
+    async def _write_chunks(self, request, method):
+        async for chunk in method(request):
+            if self._can_release:
+                # the server returned a response before we ended sending the request
+                return await self._wait_response()
+
+            if not self.open:
+                raise ConnectionClosedError(False)
+
+            if self.writing_paused:
+                await self.writable.wait()
+            self.transport.write(chunk)
+
+    async def _send_body(self, request):
+        await self._write_chunks(request, write_request_body_only)
 
     async def send(self, request):
         if not self.open:
@@ -106,22 +150,20 @@ class ClientConnection(asyncio.Protocol):
             # instead, if it happens later; we cannot retry because we started sending a request
             raise ConnectionClosedError(True)
 
+        self.request = request
         self._pending_task = True
+
+        if request_has_body(request) and request.expect_100_continue():
+            # don't send the body immediately; instead, wait for HTTP 100 Continue interim response from server
+            self.expect_100_continue = True
+            self.transport.write(write_request_without_body(request))
+
+            return await self._wait_response()
 
         if is_small_request(request):
             self.transport.write(write_small_request(request))
         else:
-            async for chunk in write_request(request):
-                if self._can_release:
-                    # the server returned a response before we ended sending the request
-                    return await self._wait_response()
-
-                if not self.open:
-                    raise ConnectionClosedError(False)
-
-                if self.writing_paused:
-                    await self.writable.wait()
-                self.transport.write(chunk)
+            await self._write_chunks(request, write_request)
 
         return await self._wait_response()
 

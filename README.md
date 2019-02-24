@@ -32,10 +32,10 @@ app.start()
 
 ## Disclaimer
 This project is currently targeting only __Linux__ and __CPython__: support for Windows and other implementations 
-of Python language are currently out of the scope. However, support for PyPy and Windows is planned. 
+of Python language are currently out of the scope. However, support for PyPy and Windows is planned for the future. 
 
 ## Objectives
-* Clean architecture and source code, following SOLID principles
+* Clean architecture and source code, following [SOLID principles](https://en.wikipedia.org/wiki/SOLID)
 * Avoid CPU cycles to handle things that are not strictly necessary
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards

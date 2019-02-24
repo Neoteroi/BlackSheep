@@ -14,6 +14,7 @@ import time
 import asyncio
 import httptools
 from asyncio import Event
+from httptools import HttpParserUpgrade
 from httptools.parser.errors import HttpParserCallbackError, HttpParserError
 
 
@@ -21,6 +22,7 @@ cdef class ServerConnection:
     
     def __init__(self, *, BaseApplication app, object loop):
         self.app = app
+        self.websockets_handler = None
         self.services = app.services
         self.max_body_size = app.options.limits.max_body_size
         app.connections.append(self)
@@ -122,6 +124,30 @@ cdef class ServerConnection:
         except HttpParserError:
             # TODO: support logging this event
             self.dispose()
+        except HttpParserUpgrade:
+            self.handle_upgrade()
+
+    cpdef bytes get_upgrade_value(self):
+        cdef Header header
+        for header in self.headers:
+            if header.name.lower() == b'upgrade':
+                return header.value.lower()
+        return None
+
+    cpdef void handle_upgrade(self):
+        upgrade = self.get_upgrade_value()
+
+        if upgrade != b'websocket':
+            self.handle_invalid_request('Unsupported upgrade request.')
+            return
+
+        if not self.websockets_handler:
+            self.handle_unsupported_request('WebSockets are not supported.')
+            return
+
+        self.transport.write(write_small_response(Response(101)))
+        protocol = self.websockets_handler(self)
+        self.transport.set_protocol(protocol)
 
     cpdef str get_client_ip(self):
         return self.transport.get_extra_info('peername')[0]
@@ -129,6 +155,9 @@ cdef class ServerConnection:
     def handle_invalid_request(self, message):
         self.transport.write(write_small_response(Response(400, Headers(), TextContent(message))))
         self.dispose()
+
+    def handle_unsupported_request(self, message):
+        self.transport.write(write_small_response(Response(501, Headers(), TextContent(message))))
 
     cpdef void on_body(self, bytes value):
         cdef int body_len

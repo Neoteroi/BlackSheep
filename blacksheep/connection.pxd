@@ -13,6 +13,7 @@ cdef class ServerConnection:
     cdef readonly object services
     cdef readonly BaseApplication app
     cdef readonly Request request
+    cdef public object websockets_handler
     cdef int max_body_size
     cdef public object transport
     cdef readonly float time_of_last_activity
@@ -43,3 +44,7 @@ cdef class ServerConnection:
 
     cpdef void close(self)
     cpdef void dispose(self)
+
+    cpdef bytes get_upgrade_value(self)
+    cpdef void handle_upgrade(self)
+

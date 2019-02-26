@@ -222,6 +222,8 @@ class Application(BaseApplication):
             for connection in self.connections.copy():
                 connection.close()
             self.connections.clear()
+        if self.running:
+            self.loop.stop()
         self.running = False
 
     def on_connection_lost(self):
@@ -284,6 +286,8 @@ def monitor_processes(app: Application, processes: List[Process]):
 
 def spawn_server(app: Application):
     loop = asyncio.new_event_loop()
+    app.loop = loop
+
     if app.debug:
         loop.set_debug(True)
     asyncio.set_event_loop(loop)

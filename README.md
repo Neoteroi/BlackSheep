@@ -54,6 +54,7 @@ of Python language are currently out of the scope. However, support for PyPy and
 * [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
 * [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
 * [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
+* [Automatic reload of the application during development, adopted from Werkzeug framework and Flask](https://github.com/RobertoPrevato/BlackSheep/wiki/Automatic-reload)
 
 See also: [missing server features, planned for development](https://github.com/RobertoPrevato/BlackSheep/wiki/Missing-server-features).
 

@@ -9,20 +9,18 @@ from time import time, sleep
 from threading import Thread
 from typing import Optional, List, Callable, Any
 from multiprocessing import Process
-from socket import IPPROTO_TCP, TCP_NODELAY, SO_REUSEADDR, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
-from datetime import datetime
+from socket import IPPROTO_TCP, TCP_NODELAY, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
 from email.utils import formatdate
-from blacksheep import Request, Response, TextContent, HtmlContent
 from blacksheep.options import ServerOptions
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.files.static import serve_static_files
-from blacksheep.exceptions import HttpException, NotFound
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.handlers import normalize_handler
 from blacksheep.baseapp import BaseApplication
 from blacksheep.middlewares import get_middlewares_chain
+from blacksheep.utils.reloader import run_with_reloader
 
 
 server_logger = logging.getLogger('blacksheep.server')
@@ -85,7 +83,8 @@ class Application(BaseApplication):
                  middlewares: Optional[List[Callable]] = None,
                  resources: Optional[Resources] = None,
                  services: Any = None,
-                 debug: bool = False):
+                 debug: bool = False,
+                 auto_reload: bool = True):
         if not options:
             options = ServerOptions('', 8000)
         if router is None:
@@ -99,6 +98,7 @@ class Application(BaseApplication):
         if resources is None:
             resources = Resources(get_resource_file_content('error.html'))
         self.debug = debug
+        self.auto_reload = auto_reload
         self.running = False
         self.middlewares = middlewares
         self.current_timestamp = get_current_timestamp()
@@ -215,7 +215,14 @@ class Application(BaseApplication):
         if self._serve_files:
             serve_files(self.router, *self._serve_files)
 
-        run_server(self)
+        if self.debug and self.auto_reload:
+            if self.options.processes_count > 1:
+                print('[*] The application is in debug mode, but hot reload is disabled when using multiprocessing')
+                run_server(self)
+            else:
+                run_with_reloader(lambda: run_server(self))
+        else:
+            run_server(self)
 
     def stop(self):
         if self.connections:

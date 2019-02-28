@@ -29,7 +29,8 @@ def use_templates(app: Application, loader: PackageLoader):
     except KeyError:
         env = Environment(
             loader=loader,
-            autoescape=select_autoescape(['html', 'xml'])
+            autoescape=select_autoescape(['html', 'xml']),
+            auto_reload=app.debug
         )
 
         app.services['jinja_environment'] = env

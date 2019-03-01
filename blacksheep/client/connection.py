@@ -32,6 +32,13 @@ class InvalidResponseFromServer(Exception):
         self.inner_exception = inner_exception
 
 
+class UpgradeResponse:
+
+    def __init__(self, response, transport):
+        self.response = response
+        self.transport = transport
+
+
 class ClientConnection(asyncio.Protocol):
 
     __slots__ = (
@@ -46,7 +53,9 @@ class ClientConnection(asyncio.Protocol):
         'response_ready',
         'request',
         'expect_100_continue',
-        '_pending_task'
+        '_pending_task',
+        '_can_release',
+        '_upgraded'
     )
 
     def __init__(self, loop, pool):
@@ -67,6 +76,7 @@ class ClientConnection(asyncio.Protocol):
         self._connection_lost = False
         self._pending_task = None
         self._can_release = False
+        self._upgraded = False
 
     def reset(self):
         self.headers.clear()
@@ -79,6 +89,7 @@ class ClientConnection(asyncio.Protocol):
         self._connection_lost = False
         self._pending_task = None
         self._can_release = False
+        self._upgraded = False
 
     def pause_writing(self):
         super().pause_writing()
@@ -107,9 +118,12 @@ class ClientConnection(asyncio.Protocol):
         if 99 < response.status < 200:
             # Handle 1xx informational
             #  https://tools.ietf.org/html/rfc7231#section-6.2
+
             if response.status == 101:
-                print('Switching protocols...')
-                # TODO
+                # 101 Upgrade is a final response as it's used to switch protocols with WebSockets handshake.
+                # returns the response object with status 101 and access to transport
+                self._upgraded = True
+                return UpgradeResponse(response, self.transport)
 
             if response.status == 100 and self.expect_100_continue:
                 await self._send_body(self.request)
@@ -117,7 +131,6 @@ class ClientConnection(asyncio.Protocol):
             # ignore;
             self.response_ready.clear()
             self.headers.clear()
-            # TODO: log this - design how logger is referenced here
 
             # await the final response
             return await self._wait_response()
@@ -217,7 +230,9 @@ class ClientConnection(asyncio.Protocol):
             self.loop.call_soon(self.release)
 
     def release(self):
-        if not self.open:
+        if not self.open or self._upgraded:
+            # if the connection was upgraded, its transport is used for web sockets,
+            # it cannot return to its pool for other cycles
             return
 
         if self.parser.should_keep_alive():

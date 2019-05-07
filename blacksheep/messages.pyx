@@ -260,6 +260,7 @@ cdef class Request(Message):
         return self.headers.get_first(b'if-none-match')
 
     cpdef bint expect_100_continue(self):
+        cdef Header header
         header = self.headers.get_first(b'expect')
         if header and header.value.lower() == b'100-continue':
             return True

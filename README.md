@@ -1,7 +1,7 @@
 [![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7)
 
 # BlackSheep
-HTTP Server/Client microframework for Python asyncio, using [Cython](https://cython.org), 
+Fast HTTP Server/Client microframework for Python asyncio, using [Cython](https://cython.org), 
 [`uvloop`](https://magic.io/blog/uvloop-blazing-fast-python-networking/), and 
 [`httptools`](https://github.com/MagicStack/httptools). 
 
@@ -36,11 +36,10 @@ of Python language are currently out of the scope. However, support for PyPy and
 
 ## Objectives
 * Clean architecture and source code, following [SOLID principles](https://en.wikipedia.org/wiki/SOLID)
-* Avoid CPU cycles to handle things that are not strictly necessary
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards
 * Targeting stateless applications to be deployed in the cloud
-* High performance
+* [High performance, see results from TechEmpower benchmarks (links in Wiki page)](https://github.com/RobertoPrevato/BlackSheep/wiki/Server-performance)
 
 ## Server Features
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
@@ -56,16 +55,12 @@ of Python language are currently out of the scope. However, support for PyPy and
 * [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
 * [Automatic reload of the application during development, adopted from Werkzeug framework and Flask](https://github.com/RobertoPrevato/BlackSheep/wiki/Automatic-reload)
 
-See also: [missing server features, planned for development](https://github.com/RobertoPrevato/BlackSheep/wiki/Missing-server-features).
-
 ## Client Features
 * [HTTP connection pooling](https://github.com/RobertoPrevato/BlackSheep/wiki/Connection-pooling)
 * User friendly [handling of SSL contexts](https://github.com/RobertoPrevato/BlackSheep/wiki/Client-handling-SSL-contexts) (safe by default)
 * Support for [client side middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Client-middlewares), enabling clean source code and separation of concerns (logging of different kinds, handling of cookies, etc.)
 * Automatic handling of redirects (can be disabled, validates circular redirects and maximum number of redirects - redirects to URN are simply returned to code using the client)
 * Automatic handling of cookies (can be disabled, `Set-Cookie` and `Cookie` headers)
-
-See also: [missing client features, planned for development](https://github.com/RobertoPrevato/BlackSheep/wiki/Missing-client-features).
 
 **Example:**
 ```python
@@ -88,7 +83,7 @@ loop.run_until_complete(client_example(loop))
 ```
 
 ## Note
-This project is in alpha stage. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
+This project is in beta stage. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
 
 ## Documentation
 Please refer to the [project Wiki](https://github.com/RobertoPrevato/BlackSheep/wiki).

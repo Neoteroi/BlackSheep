@@ -10,12 +10,12 @@ COMPILE_ARGS = ['-O3']
 
 
 setup(name='blacksheep',
-      version='0.0.8',
+      version='0.0.9',
       description='Fast HTTP Server/Client microframework for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',
       classifiers=[
-          'Development Status :: 3 - Alpha',
+          'Development Status :: 4 - Beta',
           'License :: OSI Approved :: MIT License',
           'Programming Language :: Python :: 3.7',
           'Operating System :: OS Independent',

@@ -45,7 +45,7 @@ cdef class Message:
     def __init__(self, 
                  Headers headers, 
                  Content content):
-        self.headers = headers
+        self.headers = headers or Headers()
         self.content = content
         self._cookies = None
         self._raw_body = bytearray()
@@ -130,6 +130,22 @@ cdef class Message:
             self._form_data = list(parse_multipart_form_data(body, boundary))
             return self._form_data
         self._form_data = {}
+
+    cpdef bint declares_content_type(self, bytes type):
+        cdef Header header
+        header = self.headers.get_first(b'content-type')
+        if not header:
+            return False
+
+        if type.lower() in header.value.lower():
+            return True
+        return False
+
+    cpdef bint declares_json(self):
+        return self.declares_content_type(b'json')
+
+    cpdef bint declares_xml(self):
+        return self.declares_content_type(b'xml')
 
     async def files(self, name=None):
         if isinstance(name, str):

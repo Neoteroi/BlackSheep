@@ -24,6 +24,9 @@ cdef class Message:
     cpdef void extend_body(self, bytes chunk)
     cpdef void set_content(self, Content content)
     cpdef bint has_body(self)
+    cpdef bint declares_content_type(self, bytes type)
+    cpdef bint declares_json(self)
+    cpdef bint declares_xml(self)
 
 
 cdef class Request(Message):

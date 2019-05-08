@@ -138,3 +138,14 @@ def test_request_expect_100_continue(header, expected_result):
     request = Request(b'POST', b'/', Headers([header]), None)
     assert expected_result == request.expect_100_continue()
 
+
+@pytest.mark.parametrize('headers,expected_result', [
+    [[Header(b'Content-Type', b'application/json')], True],
+    [[Header(b'Content-Type', b'application/problem+json')], True],
+    [[Header(b'Content-Type', b'application/json; charset=utf-8')], True],
+    [[], False],
+    [[Header(b'Content-Type', b'application/xml')], False]
+])
+def test_request_declares_json(headers, expected_result):
+    request = Request(b'GET', b'/', Headers(headers), None)
+    assert request.declares_json() is expected_result

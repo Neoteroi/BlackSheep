@@ -1,8 +1,12 @@
 import pytest
-from typing import List
 from pytest import raises
 from blacksheep import Request, Headers, Header, JsonContent
-from blacksheep.server.bindings import FromJson, FromHeader, InvalidRequestBody, MissingConverterError
+from blacksheep.server.bindings import (FromJson,
+                                        FromHeader,
+                                        FromQuery,
+                                        FromRoute,
+                                        InvalidRequestBody,
+                                        MissingConverterError)
 
 
 JsonContentType = Header(b'Content-Type', b'application/json')
@@ -119,11 +123,15 @@ async def test_from_body_json_binding_invalid_input():
 @pytest.mark.asyncio
 @pytest.mark.parametrize('expected_type,header_value,expected_value', [
     [str, b'Foo', 'Foo'],
+    [str, b'foo', 'foo'],
+    [str, b'\xc5\x81ukasz', 'Łukasz'],
     [str, b'Hello%20World%21%3F', 'Hello World!?'],
     [int, b'1', 1],
     [int, b'10', 10],
     [float, b'1.5', 1.5],
     [float, b'1241.5', 1241.5],
+    [bool, b'1', True],
+    [bool, b'0', False]
 ])
 async def test_from_header_binding(expected_type, header_value, expected_value):
 
@@ -140,9 +148,65 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
 
 
 @pytest.mark.asyncio
-async def test_from_header_raises_for_missing_default_converter():
+@pytest.mark.parametrize('expected_type,query_value,expected_value', [
+    [str, b'Foo', 'Foo'],
+    [str, b'foo', 'foo'],
+    [str, b'Hello%20World%21%3F', 'Hello World!?'],
+    [int, b'1', 1],
+    [int, b'10', 10],
+    [float, b'1.5', 1.5],
+    [float, b'1241.5', 1241.5],
+    [bool, b'1', True],
+    [bool, b'0', False]
+])
+async def test_from_query_binding(expected_type, query_value, expected_value):
+
+    request = Request(b'GET', b'/?foo=' + query_value, Headers(), None)
+
+    parameter = FromQuery('foo', expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value == expected_value
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('expected_type,route_value,expected_value', [
+    [str, 'Foo', 'Foo'],
+    [str, 'foo', 'foo'],
+    [str, 'Hello%20World%21%3F', 'Hello World!?'],
+    [int, '1', 1],
+    [int, '10', 10],
+    [float, '1.5', 1.5],
+    [float, '1241.5', 1241.5],
+    [bool, '1', True],
+    [bool, '0', False]
+])
+async def test_from_route_binding(expected_type, route_value, expected_value):
+
+    request = Request(b'GET', b'/', Headers(), None)
+    request.route_values = {
+        'name': route_value
+    }
+
+    parameter = FromRoute('name', expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value == expected_value
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('binder_type', [
+    FromHeader,
+    FromQuery,
+    FromRoute
+])
+async def test_from_raises_for_missing_default_converter(binder_type):
 
     with raises(MissingConverterError, message="Cannot determine a default converter for type "
                                                "`<class 'tests.test_bindings.ExampleOne'>`. "
-                                               "Please define a converter method for this binder (FromHeader)."):
-        FromHeader('X-Foo', ExampleOne)
+                                               f"Please define a converter method for this binder ({binder_type})."):
+        binder_type('example', ExampleOne)

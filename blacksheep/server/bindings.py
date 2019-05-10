@@ -1,11 +1,31 @@
+"""
+This module implements a feature inspired by "Model Binding" in ASP.NET web framework.
+It provides a strategy to have request parameters read an injected into request handlers calls.
+This feature is also useful to generate OpenAPI Documentation (Swagger) automatically (not implemented, yet).
+
+See:
+    https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
+"""
 from abc import ABC, abstractmethod
-from typing import TypeVar, Optional, Callable, List
+from typing import TypeVar, Optional, Callable, List, Union
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
 
 
 T = TypeVar('T')
+
+StrOrBytes = Union[str, bytes]
+
+_simple_types = {int, float}
+
+
+def _inspect_is_list_typing(expected_type):
+    return hasattr(expected_type, '__origin__') and expected_type.__origin__ is list
+
+
+def _get_list_type(expected_type):
+    return
 
 
 def _generalize_init_type_error_message(ex: TypeError) -> str:
@@ -50,6 +70,13 @@ class InvalidRequestBody(BadRequest):
         super().__init__(description)
 
 
+class MissingConverterError(RuntimeError):
+
+    def __init__(self, expected_type, binder_type):
+        super().__init__(f'Cannot determine a default converter for type `{str(expected_type)}`. '
+                         f'Please define a converter method for this binder ({binder_type.__name__}).')
+
+
 class FromJson(Binder):
 
     def __init__(self,
@@ -57,14 +84,16 @@ class FromJson(Binder):
                  required: bool = False,
                  converter: Optional[Callable] = None
                  ):
+        if not converter:
+            def default_converter(data):
+                return expected_type(**data)
+            converter = default_converter
+
         super().__init__(expected_type, required, converter)
 
     def parse_value(self, data: dict) -> T:
         try:
-            if self.converter:
-                return self.converter(data)
-
-            return self.expected_type(**data)
+            return self.converter(data)
         except TypeError as te:
             raise InvalidRequestBody(_generalize_init_type_error_message(te))
         except ValueError as ve:
@@ -91,35 +120,31 @@ class FromJson(Binder):
 class FromHeader(Binder):
 
     def __init__(self,
-                 name: bytes,
+                 name: StrOrBytes,
                  expected_type: T,
                  required: bool = False,
                  converter: Optional[Callable] = None):
-        super().__init__(expected_type, required, converter)
+        super().__init__(expected_type, required, converter or self._get_default_converter(expected_type))
+        if isinstance(name, str):
+            name = name.encode()
         self.name = name
 
-    def parse_value(self, value: List[bytes]) -> T:
-        if not value:
-            return None
+    def _get_default_converter(self, expected_type):
+        if expected_type is str:
+            return lambda value: unquote(value[0].decode())
 
-        if self.converter:
-            return self.converter(value)
+        if expected_type is bytes:
+            return lambda value: value[0]
 
-        # TODO: unquote the value because it's more user-friendly
-        # TODO: support list of strings and unquote them
-        if self.expected_type is str:
-            return value[0].decode()
+        if expected_type in _simple_types:
+            return lambda value: expected_type(value[0])
 
-        if self.expected_type is bytes:
-            return value[0]
-
-        if isinstance(value, type(self.expected_type)):
-            return value
+        raise MissingConverterError(expected_type, self.__class__)
 
     async def get_value(self, request: Request) -> T:
         headers = request.headers[self.name]
 
-        value = self.parse_value([header.value for header in headers])
+        value = self.converter([header.value for header in headers])
 
         if not value:
             if self.required:

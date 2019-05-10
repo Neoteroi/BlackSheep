@@ -1,7 +1,8 @@
 import pytest
+from typing import List
 from pytest import raises
 from blacksheep import Request, Headers, Header, JsonContent
-from blacksheep.server.bindings import FromJson, FromHeader, InvalidRequestBody
+from blacksheep.server.bindings import FromJson, FromHeader, InvalidRequestBody, MissingConverterError
 
 
 JsonContentType = Header(b'Content-Type', b'application/json')
@@ -116,14 +117,32 @@ async def test_from_body_json_binding_invalid_input():
 
 
 @pytest.mark.asyncio
-async def test_from_header_binding():
+@pytest.mark.parametrize('expected_type,header_value,expected_value', [
+    [str, b'Foo', 'Foo'],
+    [str, b'Hello%20World%21%3F', 'Hello World!?'],
+    [int, b'1', 1],
+    [int, b'10', 10],
+    [float, b'1.5', 1.5],
+    [float, b'1241.5', 1241.5],
+])
+async def test_from_header_binding(expected_type, header_value, expected_value):
+
     request = Request(b'GET', b'/', Headers([
-        Header(b'X-Foo', b'Foo')
+        Header(b'X-Foo', header_value)
     ]), None)
 
-    parameter = FromHeader(b'X-Foo', str)
+    parameter = FromHeader('X-Foo', expected_type)
 
     value = await parameter.get_value(request)
 
-    assert isinstance(value, str)
-    assert value == 'Foo'
+    assert isinstance(value, expected_type)
+    assert value == expected_value
+
+
+@pytest.mark.asyncio
+async def test_from_header_raises_for_missing_default_converter():
+
+    with raises(MissingConverterError, message="Cannot determine a default converter for type "
+                                               "`<class 'tests.test_bindings.ExampleOne'>`. "
+                                               "Please define a converter method for this binder (FromHeader)."):
+        FromHeader('X-Foo', ExampleOne)

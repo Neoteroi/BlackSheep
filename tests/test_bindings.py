@@ -1,16 +1,18 @@
 import pytest
 from pytest import raises
+from typing import List, Sequence, Set, Tuple
 from blacksheep import Request, Headers, Header, JsonContent
 from blacksheep.server.bindings import (FromJson,
                                         FromHeader,
                                         FromQuery,
                                         FromRoute,
+                                        FromServices,
                                         InvalidRequestBody,
-                                        MissingConverterError)
+                                        MissingConverterError,
+                                        BadRequest)
 
 
 JsonContentType = Header(b'Content-Type', b'application/json')
-XmlContentType = Header(b'Content-Type', b'application/xml')
 
 
 class ExampleOne:
@@ -204,9 +206,127 @@ async def test_from_route_binding(expected_type, route_value, expected_value):
     FromQuery,
     FromRoute
 ])
-async def test_from_raises_for_missing_default_converter(binder_type):
+async def test_raises_for_missing_default_converter(binder_type):
 
-    with raises(MissingConverterError, message="Cannot determine a default converter for type "
-                                               "`<class 'tests.test_bindings.ExampleOne'>`. "
+    with raises(MissingConverterError, message="A default converter for type "
+                                               "`<class 'tests.test_bindings.ExampleOne'>` is not configured. "
                                                f"Please define a converter method for this binder ({binder_type})."):
         binder_type('example', ExampleOne)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('expected_type,invalid_value', [
+    [int, 'x'],
+    [int, ''],
+    [float, 'x'],
+    [float, ''],
+    [bool, 'x'],
+    [bool, 'yes']
+])
+async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_value):
+
+    request = Request(b'GET', b'/', Headers(), None)
+    request.route_values = {
+        'name': invalid_value
+    }
+
+    parameter = FromRoute('name', expected_type)
+
+    with raises(BadRequest):
+        await parameter.get_value(request)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('expected_type,invalid_value', [
+    [int, b'x'],
+    [int, b''],
+    [float, b'x'],
+    [float, b''],
+    [bool, b'x'],
+    [bool, b'yes']
+])
+async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_value: bytes):
+    request = Request(b'GET', b'/?foo=' + invalid_value, Headers(), None)
+
+    parameter = FromQuery('foo', expected_type, required=True)
+
+    with raises(BadRequest):
+        await parameter.get_value(request)
+
+
+@pytest.mark.asyncio
+async def test_from_services():
+    request = Request(b'GET', b'/', Headers(), None)
+
+    service_instance = ExampleOne(1, 2)
+    request.services = {
+        ExampleOne: service_instance
+    }
+
+    parameter = FromServices(ExampleOne)
+    value = await parameter.get_value(request)
+
+    assert value is service_instance
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('declared_type,expected_type,header_values,expected_values', [
+    [List[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
+    [Tuple[str], tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
+    [Set[str], set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
+    [Sequence[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
+])
+async def test_from_header_binding_iterables(declared_type, expected_type, header_values, expected_values):
+
+    request = Request(b'GET', b'/', Headers([
+        Header(b'X-Foo', value) for value in header_values
+    ]), None)
+
+    parameter = FromHeader('X-Foo', declared_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value == expected_values
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('declared_type,expected_type,query_values,expected_values', [
+    [List[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
+    [Tuple[str], tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
+    [Set[str], set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
+    [Sequence[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
+])
+async def test_from_query_binding_iterables(declared_type, expected_type, query_values, expected_values):
+    qs = b'&foo='.join([value for value in query_values])
+
+    request = Request(b'GET', b'/?foo=' + qs, Headers(), None)
+
+    parameter = FromQuery('foo', declared_type)
+
+    values = await parameter.get_value(request)
+
+    assert isinstance(values, expected_type)
+    assert values == expected_values
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('declared_type', [
+    List[List[str]],
+    Tuple[Tuple[str]],
+    List[list],
+])
+async def test_nested_iterables_raise_missing_converter_from_header(declared_type):
+    with raises(MissingConverterError):
+        FromHeader('example', declared_type)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('declared_type', [
+    List[List[str]],
+    Tuple[Tuple[str]],
+    List[list],
+])
+async def test_nested_iterables_raise_missing_converter_from_query(declared_type):
+    with raises(MissingConverterError):
+        FromQuery('example', declared_type)

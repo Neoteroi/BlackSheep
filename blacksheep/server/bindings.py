@@ -7,13 +7,16 @@ See:
     https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
 """
 from abc import ABC, abstractmethod
-from typing import TypeVar, Optional, Callable, Sequence
+from collections.abc import Iterable as IterableAbc
+from typing import Type, TypeVar, Optional, Callable, Sequence, Union
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
+from collections.abc import Iterable
 
 
 T = TypeVar('T')
+TypeOrName = Union[Type, str]
 
 
 def _inspect_is_list_typing(expected_type):
@@ -62,14 +65,18 @@ class InvalidRequestBody(BadRequest):
         super().__init__(description)
 
 
-class MissingConverterError(RuntimeError):
+class MissingConverterError(Exception):
 
     def __init__(self, expected_type, binder_type):
-        super().__init__(f'Cannot determine a default converter for type `{str(expected_type)}`. '
+        super().__init__(f'A default converter for type `{str(expected_type)}` is not configured. '
                          f'Please define a converter method for this binder ({binder_type.__name__}).')
 
 
-class FromJson(Binder):
+class FromBody(Binder):
+    pass
+
+
+class FromJson(FromBody):
 
     def __init__(self,
                  expected_type: T,
@@ -109,12 +116,7 @@ class FromJson(Binder):
         return None
 
 
-def _default_bool_binder(values: Sequence[str]):
-    if not values:
-        return None
-
-    value = values[0].lower()
-
+def _default_bool_converter(value: str):
     if value in {'1', 'true'}:
         return True
 
@@ -124,6 +126,20 @@ def _default_bool_binder(values: Sequence[str]):
     # bad request: expected a bool value, but
     # got something different that is not handled
     raise BadRequest()
+
+
+def _default_bool_list_converter(values: Sequence[str]):
+    return _default_bool_converter(values[0].lower()) if values else None
+
+
+def _default_str_binder(values: Sequence[str]):
+    if not values:
+        return None
+    return unquote(values[0])
+
+
+def _default_simple_types_binder(expected_type: Type, values: Sequence[str]):
+    return expected_type(values[0]) if values else None
 
 
 class SyncBinder(Binder):
@@ -141,20 +157,64 @@ class SyncBinder(Binder):
         super().__init__(expected_type, required, converter or self._get_default_converter(expected_type))
         self.name = name
 
-    def _get_default_converter(self, expected_type):
+    def _get_default_converter_single(self, expected_type):
         if expected_type is str:
-            return lambda value: unquote(value[0])
+            return lambda value: unquote(value) if value else None
 
         if expected_type is bool:
-            return _default_bool_binder
+            return _default_bool_converter
 
         if expected_type is bytes:
-            return lambda value: value[0]
+            return lambda value: value if value else None
 
         if expected_type in self._simple_types:
-            return lambda value: expected_type(value[0])
+            return lambda value: expected_type(value) if value else None
 
         raise MissingConverterError(expected_type, self.__class__)
+
+    def _get_default_converter_for_iterable(self, expected_type):
+        generic_type = self._get_type_for_generic_iterable(expected_type)
+        item_type = self._generic_iterable_annotation_item_type(expected_type)
+        item_converter = self._get_default_converter_single(item_type)
+        return lambda values: generic_type(item_converter(value) for value in values)
+
+    def _get_default_converter(self, expected_type):
+        if expected_type is str:
+            return lambda value: unquote(value[0]) if value else None
+
+        if expected_type is bool:
+            return _default_bool_list_converter
+
+        if expected_type is bytes:
+            return lambda value: value[0] if value else None
+
+        if expected_type in self._simple_types:
+            return lambda value: expected_type(value[0]) if value else None
+
+        if self._is_generic_iterable_annotation(expected_type):
+            return self._get_default_converter_for_iterable(expected_type)
+
+        raise MissingConverterError(expected_type, self.__class__)
+
+    def _get_type_for_generic_iterable(self, expected_type):
+        origin = expected_type.__origin__
+        if origin in {list, tuple, set}:
+            return origin
+        # here we cannot make something perfect: if the user of the library wants something better,
+        # a converter should be specified when configuring binders; here the code defaults to list
+        # for all abstract types (typing.Sequence, Set, etc.) even though not perfect
+        return list
+
+    def _is_generic_iterable_annotation(self, param_type):
+        return hasattr(param_type, '__origin__') and (param_type.__origin__ in {list, tuple, set}
+                                                      or issubclass(param_type.__origin__, IterableAbc))
+
+    def _generic_iterable_annotation_item_type(self, param_type):
+        item_type = param_type.__args__[0]
+
+        if isinstance(item_type, TypeVar):
+            return str
+        return item_type
 
     @abstractmethod
     def get_raw_value(self, request: Request) -> Sequence[str]:
@@ -169,13 +229,11 @@ class SyncBinder(Binder):
         raw_value = self.get_raw_value(request)
         try:
             value = self.converter(raw_value)
-        except BadRequest:
-            raise BadRequest(f'Invalid value for parameter `{self.name}`')
+        except (ValueError, BadRequest):
+            raise BadRequest(f'Invalid value for parameter `{self.name}`; expected {self.expected_type}')
 
-        if value is None:
-            if self.required:
-                raise MissingParameterError(self.name, self.source_name)
-            return None
+        if value is None and self.required:
+            raise MissingParameterError(self.name, self.source_name)
 
         return value
 
@@ -208,3 +266,12 @@ class FromRoute(SyncBinder):
     @property
     def source_name(self) -> str:
         return 'route'
+
+
+class FromServices(Binder):
+
+    def __init__(self, service: TypeOrName):
+        super().__init__(service, False, None)
+
+    async def get_value(self, request: Request) -> T:
+        return request.services.get(self.expected_type)

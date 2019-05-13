@@ -1,8 +1,17 @@
+import asyncio
 import inspect
 from typing import Union, List, TypeVar, Callable, Sequence, Set, Tuple
 from inspect import Signature, Parameter, _empty
 from blacksheep.server.routing import Route
-from .bindings import FromHeader, FromJson, FromQuery, FromRoute, FromServices, Binder, SyncBinder, FromBody
+from .bindings import (FromHeader,
+                       FromJson,
+                       FromQuery,
+                       FromRoute,
+                       FromServices,
+                       Binder,
+                       SyncBinder,
+                       FromBody,
+                       RequestBinder)
 
 
 class NormalizationError(Exception):
@@ -74,12 +83,36 @@ _simple_types_handled_with_query = {
 }
 
 
-# TODO: add type hints; services is Union[dict, rodi.Services]
+def _check_union(parameter, annotation, method):
+    """Checks if the given annotation is Optional[] - in such case unwraps it and returns its value
+
+    An exception is thrown if other kinds of Union[] are used, since they are not supported by method normalization.
+    In such case, the user of the library should read the desired value from the request object.
+    """
+
+    if hasattr(annotation, '__origin__') and annotation.__origin__ is Union:
+        # support only Union[None, Type] - that is equivalent of Optional[Type]
+        if type(None) not in annotation.__args__ or len(annotation.__args__) > 2:
+            raise NormalizationError(f'Unsupported parameter type "{parameter.name}" for method "{method.__name__}"; '
+                                     f'only Optional types are supported for automatic binding. '
+                                     f'Read the desired value from the request itself.')
+
+        for possible_type in annotation.__args__:
+            if type(None) is possible_type:
+                continue
+            return True, possible_type
+    return False, annotation
+
+
 def get_parameter_binder(parameter, services, route):
     name = parameter.name
-    annotation = parameter.annotation
 
-    if annotation is _empty:
+    if name == 'request':
+        return RequestBinder()
+
+    original_annotation = parameter.annotation
+
+    if original_annotation is _empty:
         # 1. does route contain a parameter with matching name?
         if name in route.param_names:
             return FromRoute(str, name)
@@ -91,13 +124,19 @@ def get_parameter_binder(parameter, services, route):
         # 3. default to query parameter
         return FromQuery(List[str], name)
 
+    # unwrap the Optional[] annotation, if present:
+    is_optional, annotation = _check_union(parameter, original_annotation, route.handler)
+
     # 1. is the type annotation already a binder?
     if isinstance(annotation, Binder):
-        if isinstance(annotation, FromRoute) and name not in route.param_names:
-            raise RouteBinderMismatch(name, route)
 
-        # force name == parameter name
-        annotation.name = name
+        if not annotation.name:
+            # force name == parameter name
+            annotation.name = name
+
+        if isinstance(annotation, FromRoute) and annotation.name not in route.param_names:
+            raise RouteBinderMismatch(annotation.name, route)
+
         return annotation
 
     # 2A. do services contain a service with matching name?
@@ -108,16 +147,20 @@ def get_parameter_binder(parameter, services, route):
     if annotation in services:
         return FromServices(annotation)
 
-    # 3. is simple type?
-    if annotation in _simple_types_handled_with_query:
-        return FromQuery(annotation, name)
+    # 3. does route contain a parameter with matching name?
+    if name in route.param_names:
+        return FromRoute(annotation, name)
 
-    # 3. from body
-    return FromJson(annotation, True)
+    # 4. is simple type?
+    if annotation in _simple_types_handled_with_query:
+        return FromQuery(annotation, name, required=not is_optional)
+
+    # 5. from body
+    return FromJson(annotation, required=not is_optional)
 
 
 def get_binders(route, services):
-    """Returns a list of binders to extract parameters for a request handler"""
+    """Returns a list of binders to extract parameters for a request handler."""
     method = route.handler
     signature = Signature.from_callable(method)
     parameters = signature.parameters
@@ -135,22 +178,71 @@ def get_binders(route, services):
     return binders
 
 
+def _copy_name_and_docstring(source_method, wrapper):
+    wrapper.__name__ = source_method.__name__
+    wrapper.__doc__ = source_method.__doc__
+
+
+def get_sync_wrapper(services, route, method, params, params_len):
+    if params_len == 0:
+        # the user defined a synchronous request handler with no input
+        async def handler(_):
+            return method()
+
+        _copy_name_and_docstring(method, handler)
+
+        return handler
+
+    if params_len == 1 and 'request' in params:
+        async def handler(request):
+            return method(request)
+
+        return handler
+
+    binders = get_binders(route, services)
+
+    async def handler(request):
+        values = await asyncio.gather(*[binder.get_value(request) for binder in binders])
+        return method(*values)
+
+    _copy_name_and_docstring(method, handler)
+
+    return handler
+
+
+def get_async_wrapper(services, route, method, params, params_len):
+    if params_len == 0:
+        # the user defined a request handler with no input
+        async def handler(_):
+            return await method()
+
+        _copy_name_and_docstring(method, handler)
+
+        return handler
+
+    if params_len == 1 and 'request' in params:
+        # no need to wrap the request handler
+        return method
+
+    binders = get_binders(route, services)
+
+    async def handler(request):
+        values = await asyncio.gather(*[binder.get_value(request) for binder in binders])
+        return await method(*values)
+
+    _copy_name_and_docstring(method, handler)
+
+    return handler
+
+
 def normalize_handler(route, services):
     method = route.handler
-    signature = Signature.from_callable(method)
-    parameters = signature.parameters
-    parameters_len = len(parameters)
 
-    binders = []
-    normalized_parameters = {}
+    sig = Signature.from_callable(method)
+    params = sig.parameters
+    params_len = len(params)
 
-    for parameter_name, parameter in parameters.items():
-        binder = get_parameter_binder(parameter, services, route)
-        if parameter.annotation is _empty:
-            print('No type annotation, get default')
-        print(parameter)
+    if inspect.iscoroutinefunction(method):
+        return get_async_wrapper(services, route, method, params, params_len)
 
-    #if inspect.iscoroutinefunction(method):
-    #    return get_async_wrapper(services, method, params, params_len)
-
-    #return get_sync_wrapper(services, method, params, params_len)
+    return get_sync_wrapper(services, route, method, params, params_len)

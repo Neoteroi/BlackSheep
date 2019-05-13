@@ -17,7 +17,7 @@ from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.files.static import serve_static_files
 from blacksheep.server.resources import get_resource_file_content
-from blacksheep.server.handlers import normalize_handler
+from blacksheep.server.normalization import normalize_handler
 from blacksheep.baseapp import BaseApplication
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.utils.reloader import run_with_reloader
@@ -188,7 +188,7 @@ class Application(BaseApplication):
             if route.handler in configured_handlers:
                 continue
 
-            route.handler = normalize_handler(self.services, route.handler)
+            route.handler = normalize_handler(route, self.services)
 
             configured_handlers.add(route.handler)
         configured_handlers.clear()

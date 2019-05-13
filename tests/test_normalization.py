@@ -1,12 +1,14 @@
 import pytest
 from pytest import raises
-from typing import List, Sequence
+from typing import List, Sequence, Optional
 from blacksheep.server.routing import Route
-from blacksheep.server.normalization import (get_from_body_parameter, AmbiguousMethodSignatureError,
+from blacksheep.server.normalization import (get_from_body_parameter,
+                                             AmbiguousMethodSignatureError,
+                                             RouteBinderMismatch,
                                              get_binders,
                                              normalize_handler,
                                              MultipleFromBodyBinders,
-                                             FromJson, FromQuery, FromRoute, FromServices)
+                                             FromJson, FromQuery, FromRoute, FromHeader, FromServices, RequestBinder)
 
 
 class Pet:
@@ -139,9 +141,26 @@ def test_parameters_get_binders_from_body():
         pass
 
     binders = get_binders(Route(b'/', handler), {})
+    assert len(binders) == 1
+    binder = binders[0]
 
-    assert isinstance(binders[0], FromJson)
-    assert binders[0].expected_type is Cat
+    assert isinstance(binder, FromJson)
+    assert binder.expected_type is Cat
+    assert binder.required is True
+
+
+def test_parameters_get_binders_from_body_optional():
+
+    def handler(a: Optional[Cat]):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+    assert len(binders) == 1
+    binder = binders[0]
+
+    assert isinstance(binder, FromJson)
+    assert binder.expected_type is Cat
+    assert binder.required is False
 
 
 def test_parameters_get_binders_simple_types_default_from_query():
@@ -176,6 +195,30 @@ def test_parameters_get_binders_list_types_default_from_query():
     assert binders[2].expected_type == List[bool]
 
 
+def test_parameters_get_binders_list_types_default_from_query_optional():
+
+    def handler(a: Optional[List[str]]):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert all(binder.required is False for binder in binders)
+    assert binders[0].name == 'a'
+    assert binders[0].expected_type == List[str]
+
+
+def test_parameters_get_binders_list_types_default_from_query_required():
+
+    def handler(a: List[str]):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert all(binder.required for binder in binders)
+
+
 def test_parameters_get_binders_sequence_types_default_from_query():
 
     def handler(a: Sequence[str], b: Sequence[int], c: Sequence[bool]):
@@ -206,7 +249,8 @@ def test_combination_of_sources():
     def handler(a: FromQuery(List[str]),
                 b: FromServices(Dog),
                 c: FromJson(Cat),
-                d: FromRoute(str)):
+                d: FromRoute(),
+                e: FromHeader()):
         pass
 
     binders = get_binders(Route(b'/:d', handler), {
@@ -217,10 +261,52 @@ def test_combination_of_sources():
     assert isinstance(binders[1], FromServices)
     assert isinstance(binders[2], FromJson)
     assert isinstance(binders[3], FromRoute)
+    assert isinstance(binders[4], FromHeader)
     assert binders[0].name == 'a'
     assert binders[1].name == 'b'
     assert binders[2].name == 'c'
     assert binders[3].name == 'd'
+    assert binders[4].name == 'e'
 
 
-# TODO: test raises RouteBinderMismatch
+def test_from_query_specific_name():
+
+    def handler(a: FromQuery(str, 'example')):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], FromQuery)
+    assert binders[0].expected_type is str
+    assert binders[0].name == 'example'
+
+
+def test_from_header_specific_name():
+
+    def handler(a: FromHeader(str, 'example')):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], FromHeader)
+    assert binders[0].expected_type is str
+    assert binders[0].name == 'example'
+
+
+def test_raises_for_route_mismatch():
+
+    def handler(a: FromRoute(str, 'missing_name')):
+        pass
+
+    with raises(RouteBinderMismatch):
+        get_binders(Route(b'/', handler), {})
+
+
+def test_request_binding():
+
+    def handler(request):
+        assert request
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], RequestBinder)

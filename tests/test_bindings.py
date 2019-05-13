@@ -7,6 +7,7 @@ from blacksheep.server.bindings import (FromJson,
                                         FromQuery,
                                         FromRoute,
                                         FromServices,
+                                        RequestBinder,
                                         InvalidRequestBody,
                                         MissingConverterError,
                                         BadRequest)
@@ -339,7 +340,7 @@ async def test_from_query_binding_iterables(declared_type, expected_type, query_
 ])
 async def test_nested_iterables_raise_missing_converter_from_header(declared_type):
     with raises(MissingConverterError):
-        FromHeader('example', declared_type)
+        FromHeader(declared_type)
 
 
 @pytest.mark.asyncio
@@ -351,3 +352,14 @@ async def test_nested_iterables_raise_missing_converter_from_header(declared_typ
 async def test_nested_iterables_raise_missing_converter_from_query(declared_type):
     with raises(MissingConverterError):
         FromQuery('example', declared_type)
+
+
+@pytest.mark.asyncio
+async def test_request_binder():
+    request = Request(b'GET', b'/', Headers(), None)
+
+    parameter = RequestBinder()
+
+    value = await parameter.get_value(request)
+
+    assert value is request

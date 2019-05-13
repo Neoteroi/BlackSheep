@@ -8,7 +8,7 @@ See:
 """
 from abc import ABC, abstractmethod
 from collections.abc import Iterable as IterableAbc
-from typing import Type, TypeVar, Optional, Callable, Sequence, Union
+from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
@@ -41,6 +41,7 @@ class Binder(ABC):
         self.expected_type = expected_type
         self.required = required
         self.converter = converter
+        self.name = None
 
     @abstractmethod
     async def get_value(self, request: Request) -> T:
@@ -153,7 +154,7 @@ class SyncBinder(Binder):
     _simple_types = {int, float, bool}
 
     def __init__(self,
-                 expected_type: T,
+                 expected_type: T = List[str],
                  name: str = None,
                  required: bool = False,
                  converter: Optional[Callable] = None):
@@ -237,6 +238,11 @@ class SyncBinder(Binder):
     def source_name(self) -> str:
         pass
 
+    _empty_iterables = [list(), set(), tuple()]
+
+    def _empty_iterable(self, value):
+        return value in self._empty_iterables
+
     async def get_value(self, request: Request) -> T:
         raw_value = self.get_raw_value(request)
         try:
@@ -246,6 +252,9 @@ class SyncBinder(Binder):
 
         if value is None and self.required:
             raise MissingParameterError(self.name, self.source_name)
+
+        if not self.required and self._empty_iterable(value):
+            return None
 
         return value
 
@@ -272,6 +281,13 @@ class FromQuery(SyncBinder):
 
 class FromRoute(SyncBinder):
 
+    def __init__(self,
+                 expected_type: T = str,
+                 name: str = None,
+                 required: bool = False,
+                 converter: Optional[Callable] = None):
+        super().__init__(expected_type, name, required, converter)
+
     def get_raw_value(self, request: Request) -> Sequence[str]:
         return [request.route_values.get(self.name, '')]
 
@@ -287,3 +303,12 @@ class FromServices(Binder):
 
     async def get_value(self, request: Request) -> T:
         return request.services.get(self.expected_type)
+
+
+class RequestBinder(Binder):
+
+    def __init__(self):
+        super().__init__(Request)
+
+    async def get_value(self, request: Request) -> T:
+        return request

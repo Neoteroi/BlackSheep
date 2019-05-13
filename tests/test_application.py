@@ -5,6 +5,7 @@ from typing import List, Optional
 from blacksheep.server import Application
 from blacksheep.connection import ServerConnection
 from blacksheep import Request, Response, Header, JsonContent, Headers, HttpException, TextContent
+from blacksheep.server.bindings import FromHeader, FromQuery, FromRoute
 from tests.utils import ensure_folder
 
 
@@ -1102,6 +1103,62 @@ async def test_handler_normalize_sync_method():
 
 
 @pytest.mark.asyncio
+async def test_handler_normalize_sync_method_from_header():
+    app = FakeApplication()
+
+    @app.router.get(b'/')
+    def home(request, xx: FromHeader(str)):
+        assert xx == 'Hello World'
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET / HTTP/1.1\r\nXX: Hello World\r\n\r\n')
+
+    await app.response_done.wait()
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_sync_method_from_query():
+    app = FakeApplication()
+
+    @app.router.get(b'/')
+    def home(request, xx: FromQuery(int)):
+        assert xx == 20
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /?xx=20 HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('qs,expected_values', [
+    [b'?xx=hello&xx=world&xx=lorem&xx=ipsum', ['hello', 'world', 'lorem', 'ipsum']],
+    [b'?xx=1&xx=2', ['1', '2']],
+    [b'?xx=1&yy=2', ['1']]
+])
+async def test_handler_normalize_sync_method_from_query_default_type(qs, expected_values):
+    app = FakeApplication()
+
+    @app.router.get(b'/')
+    def home(request, xx: FromQuery()):
+        assert xx == expected_values
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + qs + b' HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
 async def test_handler_normalize_method_without_input():
     app = FakeApplication()
 
@@ -1117,3 +1174,45 @@ async def test_handler_normalize_method_without_input():
     await app.response_done.wait()
     assert app.response.status == 204
 
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('value,expected_value', [
+    [b'dashboard', 'dashboard'],
+    [b'hello_world', 'hello_world'],
+])
+async def test_handler_from_route(value, expected_value):
+    app = FakeApplication()
+
+    @app.router.get(b'/:area')
+    async def home(request, area: FromRoute(str)):
+        assert area == expected_value
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + value + b' HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('value_one,value_two,expected_value_one,expected_value_two', [
+    [b'en', b'dashboard', 'en', 'dashboard'],
+    [b'it', b'hello_world', 'it', 'hello_world'],
+])
+async def test_handler_two_routes_parameters(value_one, value_two, expected_value_one, expected_value_two):
+    app = FakeApplication()
+
+    @app.router.get(b'/:culture_code/:area')
+    async def home(request, culture_code: FromRoute(), area: FromRoute()):
+        assert culture_code == expected_value_one
+        assert area == expected_value_two
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET /' + value_one + b'/' + value_two + b' HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+    assert app.response.status == 204

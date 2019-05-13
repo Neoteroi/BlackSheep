@@ -82,7 +82,7 @@ class Route:
         self.has_params = b'*' in pattern or b':' in pattern
         rx, param_names = _get_regex_for_pattern(pattern)
         self._rx = rx
-        self.param_names = param_names
+        self.param_names = [name.decode('utf8') for name in param_names]
 
     def match(self, value: bytes):
         if not self.has_params and value.lower() == self.pattern:

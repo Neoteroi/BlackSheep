@@ -1,8 +1,12 @@
 import pytest
 from pytest import raises
-from blacksheep.server.normalization import (get_from_body_parameter,
+from typing import List, Sequence
+from blacksheep.server.routing import Route
+from blacksheep.server.normalization import (get_from_body_parameter, AmbiguousMethodSignatureError,
+                                             get_binders,
+                                             normalize_handler,
                                              MultipleFromBodyBinders,
-                                             FromJson)
+                                             FromJson, FromQuery, FromRoute, FromServices)
 
 
 class Pet:
@@ -67,3 +71,156 @@ def test_get_body_parameter_invalid_method(invalid_method):
 
     with raises(MultipleFromBodyBinders):
         get_from_body_parameter(invalid_method)
+
+
+def test_parameters_get_binders_default_query():
+
+    def handler(a, b, c):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert binders[0].name == 'a'
+    assert binders[1].name == 'b'
+    assert binders[2].name == 'c'
+
+
+def test_parameters_get_binders_from_route():
+
+    def handler(a, b, c):
+        pass
+
+    binders = get_binders(Route(b'/:a/:b/:c', handler), {})
+
+    assert all(isinstance(binder, FromRoute) for binder in binders)
+    assert binders[0].name == 'a'
+    assert binders[1].name == 'b'
+    assert binders[2].name == 'c'
+
+
+def test_parameters_get_binders_from_services_by_name():
+
+    def handler(a, b, c):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {
+        'a': object(),
+        'b': object(),
+        'c': object()
+    })
+
+    assert all(isinstance(binder, FromServices) for binder in binders)
+    assert binders[0].expected_type == 'a'
+    assert binders[1].expected_type == 'b'
+    assert binders[2].expected_type == 'c'
+
+
+def test_parameters_get_binders_from_services_by_type():
+
+    def handler(a: str, b: int, c: Cat):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {
+        str: object(),
+        int: object(),
+        Cat: object()
+    })
+
+    assert all(isinstance(binder, FromServices) for binder in binders)
+    assert binders[0].expected_type is str
+    assert binders[1].expected_type is int
+    assert binders[2].expected_type is Cat
+
+
+def test_parameters_get_binders_from_body():
+
+    def handler(a: Cat):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], FromJson)
+    assert binders[0].expected_type is Cat
+
+
+def test_parameters_get_binders_simple_types_default_from_query():
+
+    def handler(a: str, b: int, c: bool):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert binders[0].name == 'a'
+    assert binders[0].expected_type == str
+    assert binders[1].name == 'b'
+    assert binders[1].expected_type == int
+    assert binders[2].name == 'c'
+    assert binders[2].expected_type == bool
+
+
+def test_parameters_get_binders_list_types_default_from_query():
+
+    def handler(a: List[str], b: List[int], c: List[bool]):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert binders[0].name == 'a'
+    assert binders[0].expected_type == List[str]
+    assert binders[1].name == 'b'
+    assert binders[1].expected_type == List[int]
+    assert binders[2].name == 'c'
+    assert binders[2].expected_type == List[bool]
+
+
+def test_parameters_get_binders_sequence_types_default_from_query():
+
+    def handler(a: Sequence[str], b: Sequence[int], c: Sequence[bool]):
+        pass
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert binders[0].name == 'a'
+    assert binders[0].expected_type == Sequence[str]
+    assert binders[1].name == 'b'
+    assert binders[1].expected_type == Sequence[int]
+    assert binders[2].name == 'c'
+    assert binders[2].expected_type == Sequence[bool]
+
+
+def test_throw_for_ambiguous_binder_multiple_from_body():
+
+    def handler(a: Cat, b: Dog):
+        pass
+
+    with pytest.raises(AmbiguousMethodSignatureError):
+        get_binders(Route(b'/', handler), {})
+
+
+def test_combination_of_sources():
+
+    def handler(a: FromQuery(List[str]),
+                b: FromServices(Dog),
+                c: FromJson(Cat),
+                d: FromRoute(str)):
+        pass
+
+    binders = get_binders(Route(b'/:d', handler), {
+        Dog: Dog('Snoopy')
+    })
+
+    assert isinstance(binders[0], FromQuery)
+    assert isinstance(binders[1], FromServices)
+    assert isinstance(binders[2], FromJson)
+    assert isinstance(binders[3], FromRoute)
+    assert binders[0].name == 'a'
+    assert binders[1].name == 'b'
+    assert binders[2].name == 'c'
+    assert binders[3].name == 'd'
+
+
+# TODO: test raises RouteBinderMismatch

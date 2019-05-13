@@ -141,7 +141,7 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
         Header(b'X-Foo', header_value)
     ]), None)
 
-    parameter = FromHeader('X-Foo', expected_type)
+    parameter = FromHeader(expected_type, 'X-Foo')
 
     value = await parameter.get_value(request)
 
@@ -165,7 +165,7 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
 
     request = Request(b'GET', b'/?foo=' + query_value, Headers(), None)
 
-    parameter = FromQuery('foo', expected_type)
+    parameter = FromQuery(expected_type, 'foo')
 
     value = await parameter.get_value(request)
 
@@ -192,7 +192,7 @@ async def test_from_route_binding(expected_type, route_value, expected_value):
         'name': route_value
     }
 
-    parameter = FromRoute('name', expected_type)
+    parameter = FromRoute(expected_type, 'name')
 
     value = await parameter.get_value(request)
 
@@ -230,7 +230,7 @@ async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_va
         'name': invalid_value
     }
 
-    parameter = FromRoute('name', expected_type)
+    parameter = FromRoute(expected_type, 'name')
 
     with raises(BadRequest):
         await parameter.get_value(request)
@@ -248,7 +248,7 @@ async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_va
 async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_value: bytes):
     request = Request(b'GET', b'/?foo=' + invalid_value, Headers(), None)
 
-    parameter = FromQuery('foo', expected_type, required=True)
+    parameter = FromQuery(expected_type, 'foo', required=True)
 
     with raises(BadRequest):
         await parameter.get_value(request)
@@ -282,7 +282,7 @@ async def test_from_header_binding_iterables(declared_type, expected_type, heade
         Header(b'X-Foo', value) for value in header_values
     ]), None)
 
-    parameter = FromHeader('X-Foo', declared_type)
+    parameter = FromHeader(declared_type, 'X-Foo')
 
     value = await parameter.get_value(request)
 
@@ -292,17 +292,38 @@ async def test_from_header_binding_iterables(declared_type, expected_type, heade
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('declared_type,expected_type,query_values,expected_values', [
+    [list, list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
+    [tuple, tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
+    [set, set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
+    [List, list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
+    [Tuple, tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
+    [Set, set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
     [List[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
     [Tuple[str], tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
     [Set[str], set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
     [Sequence[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
+    [List[int], list, [b'10'], [10]],
+    [List[int], list, [b'0', b'1', b'0'], [0, 1, 0]],
+    [List[int], list, [b'0', b'1', b'0', b'2'], [0, 1, 0, 2]],
+    [List[bool], list, [b'1'], [True]],
+    [List[bool], list, [b'0', b'1', b'0'], [False, True, False]],
+    [List[bool], list, [b'0', b'1', b'0', b'true'], [False, True, False, True]],
+    [List[float], list, [b'10.2'], [10.2]],
+    [List[float], list, [b'0.3', b'1', b'0'], [0.3, 1.0, 0]],
+    [List[float], list, [b'0.5', b'1', b'0', b'2'], [0.5, 1.0, 0, 2.0]],
+    [Tuple[float], tuple, [b'10.2'], (10.2,)],
+    [Tuple[float], tuple, [b'0.3', b'1', b'0'], (0.3, 1.0, 0)],
+    [Tuple[float], tuple, [b'0.5', b'1', b'0', b'2'], (0.5, 1.0, 0, 2.0)],
+    [Set[int], set, [b'10'], {10}],
+    [Set[int], set, [b'0', b'1', b'0'], {0, 1, 0}],
+    [Set[int], set, [b'0', b'1', b'0', b'2'], {0, 1, 0, 2}],
 ])
 async def test_from_query_binding_iterables(declared_type, expected_type, query_values, expected_values):
     qs = b'&foo='.join([value for value in query_values])
 
     request = Request(b'GET', b'/?foo=' + qs, Headers(), None)
 
-    parameter = FromQuery('foo', declared_type)
+    parameter = FromQuery(declared_type, 'foo')
 
     values = await parameter.get_value(request)
 

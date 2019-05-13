@@ -46,6 +46,9 @@ class Binder(ABC):
     async def get_value(self, request: Request) -> T:
         pass
 
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {self.expected_type} at {id(self)}>'
+
 
 class MissingBodyError(BadRequest):
 
@@ -150,12 +153,15 @@ class SyncBinder(Binder):
     _simple_types = {int, float, bool}
 
     def __init__(self,
-                 name: str,
                  expected_type: T,
+                 name: str = None,
                  required: bool = False,
                  converter: Optional[Callable] = None):
         super().__init__(expected_type, required, converter or self._get_default_converter(expected_type))
         self.name = name
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} "{self.name}" at {id(self)}>'
 
     def _get_default_converter_single(self, expected_type):
         if expected_type is str:
@@ -191,12 +197,15 @@ class SyncBinder(Binder):
         if expected_type in self._simple_types:
             return lambda value: expected_type(value[0]) if value else None
 
-        if self._is_generic_iterable_annotation(expected_type):
+        if self._is_generic_iterable_annotation(expected_type) or expected_type in {list, set, tuple}:
             return self._get_default_converter_for_iterable(expected_type)
 
         raise MissingConverterError(expected_type, self.__class__)
 
     def _get_type_for_generic_iterable(self, expected_type):
+        if expected_type in {list, tuple, set}:
+            return expected_type
+
         origin = expected_type.__origin__
         if origin in {list, tuple, set}:
             return origin
@@ -210,7 +219,10 @@ class SyncBinder(Binder):
                                                       or issubclass(param_type.__origin__, IterableAbc))
 
     def _generic_iterable_annotation_item_type(self, param_type):
-        item_type = param_type.__args__[0]
+        try:
+            item_type = param_type.__args__[0]
+        except (IndexError, AttributeError):
+            return str
 
         if isinstance(item_type, TypeVar):
             return str

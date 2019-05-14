@@ -179,6 +179,8 @@ def get_binders(route, services):
 
 
 def _copy_name_and_docstring(source_method, wrapper):
+    if source_method is wrapper:
+        return
     wrapper.__name__ = source_method.__name__
     wrapper.__doc__ = source_method.__doc__
 
@@ -188,8 +190,6 @@ def get_sync_wrapper(services, route, method, params, params_len):
         # the user defined a synchronous request handler with no input
         async def handler(_):
             return method()
-
-        _copy_name_and_docstring(method, handler)
 
         return handler
 
@@ -202,10 +202,10 @@ def get_sync_wrapper(services, route, method, params, params_len):
     binders = get_binders(route, services)
 
     async def handler(request):
-        values = await asyncio.gather(*[binder.get_value(request) for binder in binders])
+        values = []
+        for binder in binders:
+            values.append(await binder.get_value(request))
         return method(*values)
-
-    _copy_name_and_docstring(method, handler)
 
     return handler
 
@@ -216,8 +216,6 @@ def get_async_wrapper(services, route, method, params, params_len):
         async def handler(_):
             return await method()
 
-        _copy_name_and_docstring(method, handler)
-
         return handler
 
     if params_len == 1 and 'request' in params:
@@ -227,10 +225,10 @@ def get_async_wrapper(services, route, method, params, params_len):
     binders = get_binders(route, services)
 
     async def handler(request):
-        values = await asyncio.gather(*[binder.get_value(request) for binder in binders])
+        values = []
+        for binder in binders:
+            values.append(await binder.get_value(request))
         return await method(*values)
-
-    _copy_name_and_docstring(method, handler)
 
     return handler
 
@@ -243,6 +241,11 @@ def normalize_handler(route, services):
     params_len = len(params)
 
     if inspect.iscoroutinefunction(method):
-        return get_async_wrapper(services, route, method, params, params_len)
+        normalized = get_async_wrapper(services, route, method, params, params_len)
+    else:
+        normalized = get_sync_wrapper(services, route, method, params, params_len)
 
-    return get_sync_wrapper(services, route, method, params, params_len)
+    if normalized is not method:
+        _copy_name_and_docstring(method, normalized)
+
+    return normalized

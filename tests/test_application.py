@@ -5,7 +5,7 @@ from typing import List, Optional
 from blacksheep.server import Application
 from blacksheep.connection import ServerConnection
 from blacksheep import Request, Response, Header, JsonContent, Headers, HttpException, TextContent
-from blacksheep.server.bindings import FromHeader, FromQuery, FromRoute
+from blacksheep.server.bindings import FromHeader, FromQuery, FromRoute, FromJson
 from tests.utils import ensure_folder
 
 
@@ -1213,6 +1213,73 @@ async def test_handler_two_routes_parameters(value_one, value_two, expected_valu
     handler = get_new_connection_handler(app)
 
     handler.data_received(b'GET /' + value_one + b'/' + value_two + b' HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+    assert app.response.status == 204
+
+
+class Item:
+    def __init__(self, a, b, c):
+        self.a = a
+        self.b = b
+        self.c = c
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter():
+    app = FakeApplication()
+
+    @app.router.post(b'/')
+    async def home(request, item: FromJson(Item)):
+        assert item is not None
+        assert item.a == 'Hello'
+        assert item.b == 'World'
+        assert item.c == 10
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'POST / HTTP/1.1\r\nContent-Type:application/json\r\nContent-Length:32\r\n\r\n'
+                          b'{"a":"Hello","b":"World","c":10}')
+
+    await app.response_done.wait()
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_implicit():
+    app = FakeApplication()
+
+    @app.router.post(b'/')
+    async def home(request, item: Item):
+        assert item is not None
+        assert item.a == 'Hello'
+        assert item.b == 'World'
+        assert item.c == 10
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'POST / HTTP/1.1\r\nContent-Type:application/json\r\nContent-Length:32\r\n\r\n'
+                          b'{"a":"Hello","b":"World","c":10}')
+
+    await app.response_done.wait()
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_wrong_method_gets_null():
+    app = FakeApplication()
+
+    @app.router.get(b'/')
+    async def home(request, item: FromJson(Item)):
+        assert item is None
+
+    app.normalize_handlers()
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET / HTTP/1.1\r\nContent-Type:application/json\r\nContent-Length:32\r\n\r\n'
+                          b'{"a":"Hello","b":"World","c":10}')
 
     await app.response_done.wait()
     assert app.response.status == 204

@@ -77,7 +77,8 @@ class MissingConverterError(Exception):
 
 
 class FromBody(Binder):
-    pass
+
+    _excluded_methods = {b'GET', b'HEAD', b'TRACE'}
 
 
 class FromJson(FromBody):
@@ -103,7 +104,7 @@ class FromJson(FromBody):
             raise InvalidRequestBody(str(ve))
 
     async def get_value(self, request: Request) -> T:
-        if request.declares_json():
+        if request.declares_json() and request.method not in self._excluded_methods:
             data = await request.json()
 
             if not data:

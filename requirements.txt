@@ -3,3 +3,4 @@ Cython
 uvloop
 pytest
 pytest-asyncio
+Jinja2

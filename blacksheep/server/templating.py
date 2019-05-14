@@ -17,32 +17,49 @@ def get_response(html: str):
     ]), content=HtmlContent(html))
 
 
-def render_template(template: Template, model=None):
-    if model:
-        return template.render(**model)
-    return template.render()
+def render_template(template: Template, *args, **kwargs):
+    return template.render(*args, **kwargs)
 
 
-def use_templates(app: Application, loader: PackageLoader):
+async def render_template_async(template: Template, *args, **kwargs):
+    return await template.render_async(*args, **kwargs)
+
+
+def use_templates(app: Application, loader: PackageLoader, enable_async: bool = False):
     try:
         env = app.services['jinja_environment']
     except KeyError:
         env = Environment(
             loader=loader,
             autoescape=select_autoescape(['html', 'xml']),
-            auto_reload=app.debug
+            auto_reload=app.debug,
+            enable_async=enable_async
         )
 
         app.services['jinja_environment'] = env
-
         env.globals['app'] = app
 
-    def view(name: str, model=None):
-        return get_response(render_template(env.get_template(template_name(name)), model))
+    if enable_async:
+        async def async_view(name: str, *args, **kwargs):
+            return get_response(await render_template_async(env.get_template(template_name(name)), *args, **kwargs))
 
-    return view
+        return async_view
+
+    def sync_view(name: str, *args, **kwargs):
+        return get_response(render_template(env.get_template(template_name(name)), *args, **kwargs))
+
+    return sync_view
 
 
-def view(request, name: str, model=None):
+def view(request, name: str, *args, **kwargs):
+    """Returns a Response object with HTML obtained from synchronous rendering.
+
+    Use this when `enable_async` is set to False when calling `use_templates`."""
     return get_response(render_template(request.services.get('jinja_environment').get_template(template_name(name)),
-                                        model))
+                                        *args, **kwargs))
+
+
+async def view_async(request, name: str, *args, **kwargs):
+    """Returns a Response object with HTML obtained from synchronous rendering."""
+    return get_response(await render_template_async(request.services.get('jinja_environment')
+                                                    .get_template(template_name(name)), *args, **kwargs))

@@ -119,7 +119,7 @@ async def test_from_body_json_binding_invalid_input():
 
     parameter = FromJson(ExampleOne)
 
-    with raises(InvalidRequestBody, message="got an unexpected parameter 'c'"):
+    with raises(InvalidRequestBody):
         await parameter.get_value(request)
 
 
@@ -209,9 +209,7 @@ async def test_from_route_binding(expected_type, route_value, expected_value):
 ])
 async def test_raises_for_missing_default_converter(binder_type):
 
-    with raises(MissingConverterError, message="A default converter for type "
-                                               "`<class 'tests.test_bindings.ExampleOne'>` is not configured. "
-                                               f"Please define a converter method for this binder ({binder_type})."):
+    with raises(MissingConverterError):
         binder_type('example', ExampleOne)
 
 

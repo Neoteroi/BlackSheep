@@ -21,6 +21,8 @@ from blacksheep.server.normalization import normalize_handler
 from blacksheep.baseapp import BaseApplication
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.utils.reloader import run_with_reloader
+from guardpost.asynchronous.authentication import AuthenticationStrategy
+from guardpost.asynchronous.authorization import AuthorizationStrategy
 
 
 server_logger = logging.getLogger('blacksheep.server')
@@ -111,6 +113,8 @@ class Application(BaseApplication):
         self.resources = resources
         self._serve_files = None
         self._serve_static_files = None
+        self._authentication_strategy = None # type: AuthenticationStrategy
+        self._authorization_strategy = None  # type: AuthorizationStrategy
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
 
@@ -118,6 +122,18 @@ class Application(BaseApplication):
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.load_cert_chain(certfile=cert_file, keyfile=key_file)
         self.use_ssl(context)
+
+    def use_authentication(self, strategy: AuthenticationStrategy):
+        if self.running:
+            raise RuntimeError('The application is already running, configure authentication '
+                               'before starting the application')
+        self._authentication_strategy = strategy
+
+    def use_authorization(self, strategy: AuthorizationStrategy):
+        if self.running:
+            raise RuntimeError('The application is already running, configure authorization '
+                               'before starting the application')
+        self._authorization_strategy = strategy
 
     def use_ssl(self, ssl_context: SSLContext):
         if self.running:

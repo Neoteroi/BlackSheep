@@ -37,6 +37,7 @@ def use_templates(app: Application, loader: PackageLoader, enable_async: bool = 
         )
 
         app.services['jinja_environment'] = env
+        app.services['jinja'] = env
         env.globals['app'] = app
 
     if enable_async:
@@ -51,15 +52,15 @@ def use_templates(app: Application, loader: PackageLoader, enable_async: bool = 
     return sync_view
 
 
-def view(request, name: str, *args, **kwargs):
+def view(jinja_environment, name: str, *args, **kwargs):
     """Returns a Response object with HTML obtained from synchronous rendering.
 
     Use this when `enable_async` is set to False when calling `use_templates`."""
-    return get_response(render_template(request.services.get('jinja_environment').get_template(template_name(name)),
+    return get_response(render_template(jinja_environment.get_template(template_name(name)),
                                         *args, **kwargs))
 
 
-async def view_async(request, name: str, *args, **kwargs):
+async def view_async(jinja_environment, name: str, *args, **kwargs):
     """Returns a Response object with HTML obtained from synchronous rendering."""
-    return get_response(await render_template_async(request.services.get('jinja_environment')
+    return get_response(await render_template_async(jinja_environment
                                                     .get_template(template_name(name)), *args, **kwargs))

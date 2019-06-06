@@ -1,17 +1,14 @@
-import asyncio
 import inspect
-from typing import Union, List, TypeVar, Callable, Sequence, Set, Tuple
-from inspect import Signature, Parameter, _empty
-from blacksheep.server.routing import Route
-from .bindings import (FromHeader,
-                       FromJson,
+from typing import Union, List, Sequence, Set, Tuple
+from inspect import Signature, _empty
+from .bindings import (FromJson,
                        FromQuery,
                        FromRoute,
                        FromServices,
                        Binder,
-                       SyncBinder,
                        FromBody,
-                       RequestBinder)
+                       RequestBinder,
+                       ExactBinder)
 
 
 class NormalizationError(Exception):
@@ -110,6 +107,9 @@ def get_parameter_binder(parameter, services, route):
     if name == 'request':
         return RequestBinder()
 
+    if name == 'services':
+        return ExactBinder(services)
+
     original_annotation = parameter.annotation
 
     if original_annotation is _empty:
@@ -119,7 +119,7 @@ def get_parameter_binder(parameter, services, route):
 
         # 2. do services contain a service with matching name?
         if name in services:
-            return FromServices(name)
+            return FromServices(name, services)
 
         # 3. default to query parameter
         return FromQuery(List[str], name)
@@ -137,15 +137,18 @@ def get_parameter_binder(parameter, services, route):
         if isinstance(annotation, FromRoute) and annotation.name not in route.param_names:
             raise RouteBinderMismatch(annotation.name, route)
 
+        if isinstance(annotation, FromServices):
+            annotation.services = services
+
         return annotation
 
     # 2A. do services contain a service with matching name?
     if name in services:
-        return FromServices(name)
+        return FromServices(name, services)
 
     # 2B. do services contain a service with matching type?
     if annotation in services:
-        return FromServices(annotation)
+        return FromServices(annotation, services)
 
     # 3. does route contain a parameter with matching name?
     if name in route.param_names:

@@ -12,7 +12,6 @@ from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
-from collections.abc import Iterable
 
 
 T = TypeVar('T')
@@ -299,11 +298,12 @@ class FromRoute(SyncBinder):
 
 class FromServices(Binder):
 
-    def __init__(self, service: TypeOrName):
+    def __init__(self, service: TypeOrName, services = None):
         super().__init__(service, False, None)
+        self.services = services
 
     async def get_value(self, request: Request) -> T:
-        return request.services.get(self.expected_type)
+        return self.services.get(self.expected_type)
 
 
 class RequestBinder(Binder):
@@ -313,3 +313,13 @@ class RequestBinder(Binder):
 
     async def get_value(self, request: Request) -> T:
         return request
+
+
+class ExactBinder(Binder):
+
+    def __init__(self, exact_object):
+        super().__init__(object)
+        self.exact_object = exact_object
+
+    async def get_value(self, request: Request):
+        return self.exact_object

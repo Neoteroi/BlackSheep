@@ -2,13 +2,19 @@ import pytest
 from pytest import raises
 from typing import List, Sequence, Optional
 from blacksheep.server.routing import Route
+from blacksheep.server.bindings import FromHeader
 from blacksheep.server.normalization import (get_from_body_parameter,
                                              AmbiguousMethodSignatureError,
                                              RouteBinderMismatch,
                                              get_binders,
-                                             normalize_handler,
                                              MultipleFromBodyBinders,
-                                             FromJson, FromQuery, FromRoute, FromHeader, FromServices, RequestBinder)
+                                             FromJson,
+                                             FromQuery,
+                                             FromRoute,
+                                             FromServices,
+                                             RequestBinder,
+                                             ExactBinder,
+                                             normalize_handler)
 
 
 class Pet:
@@ -305,8 +311,33 @@ def test_raises_for_route_mismatch():
 def test_request_binding():
 
     def handler(request):
-        assert request
+        pass
 
     binders = get_binders(Route(b'/', handler), {})
 
     assert isinstance(binders[0], RequestBinder)
+
+
+def test_services_binding():
+    app_services = {}
+
+    def handler(services):
+        assert services is app_services
+
+    binders = get_binders(Route(b'/', handler), app_services)
+
+    assert isinstance(binders[0], ExactBinder)
+
+
+@pytest.mark.asyncio
+async def test_services_from_normalization():
+
+    app_services = {}
+
+    def handler(services):
+        assert services is app_services
+        return services
+
+    method = normalize_handler(Route(b'/', handler), app_services)
+    services = await method(None)
+    assert services is app_services

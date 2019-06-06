@@ -10,7 +10,7 @@ COMPILE_ARGS = ['-O3']
 
 
 setup(name='blacksheep',
-      version='0.0.9',
+      version='1.0.0',
       description='Fast HTTP Server/Client microframework for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',
@@ -77,7 +77,8 @@ setup(name='blacksheep',
           'httptools',
           'uvloop',
           'certifi',
-          'cchardet'
+          'cchardet',
+          'guardpost'
       ],
       include_package_data=True,
       zip_safe=False)

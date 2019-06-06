@@ -205,7 +205,6 @@ cdef class Request(Message):
         self._query = None
         self.route_values = None
         self.active = True
-        self.services = None
         if method in {b'GET', b'HEAD', b'TRACE'}:
             self.complete.set()  # methods without body
         

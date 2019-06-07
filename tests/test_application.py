@@ -1,3 +1,4 @@
+import os
 import pytest
 import asyncio
 import pkg_resources
@@ -473,10 +474,10 @@ async def test_application_middlewares_skip_handler():
 
 @pytest.mark.asyncio
 async def test_application_post_multipart_formdata_files_handler():
-    # TODO: support pytest working directory inside test folder and at the repository root folder
     app = FakeApplication()
 
     ensure_folder('out')
+    ensure_folder('tests/out')
 
     @app.router.post(b'/files/upload')
     async def upload_files(request):
@@ -500,8 +501,11 @@ async def test_application_post_multipart_formdata_files_handler():
                   'pexels-photo-302280.jpeg',
                   'pexels-photo-730896.jpeg'}
 
+    cwd = os.getcwd()
+    rel_path = './files/' if cwd.endswith('tests') else '/files/'
+
     for file_name in file_names:
-        full_path = pkg_resources.resource_filename(__name__, './files/' + file_name)
+        full_path = pkg_resources.resource_filename(__name__, rel_path + file_name)
         with open(full_path, mode='rb') as source_file:
             binary = source_file.read()
             lines += [
@@ -532,7 +536,7 @@ async def test_application_post_multipart_formdata_files_handler():
 
     # now files are in both folders: compare to ensure they are identical
     for file_name in file_names:
-        full_path = pkg_resources.resource_filename(__name__, './files/' + file_name)
+        full_path = pkg_resources.resource_filename(__name__, rel_path + file_name)
         copy_full_path = pkg_resources.resource_filename(__name__, './out/' + file_name)
 
         with open(full_path, mode='rb') as source_file:

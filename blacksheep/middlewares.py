@@ -9,5 +9,7 @@ def middleware_partial(handler, next_handler):
 def get_middlewares_chain(middlewares, handler):
     fn = handler
     for middleware in reversed(middlewares):
+        if not middleware:
+            continue
         fn = middleware_partial(middleware, fn)
     return fn

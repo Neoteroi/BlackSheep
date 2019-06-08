@@ -11,6 +11,9 @@ from .bindings import (FromJson,
                        ExactBinder)
 
 
+_next_handler_binder = object()
+
+
 class NormalizationError(Exception):
     pass
 
@@ -101,7 +104,7 @@ def _check_union(parameter, annotation, method):
     return False, annotation
 
 
-def get_parameter_binder(parameter, services, route):
+def get_parameter_binder(parameter, services, route, method):
     name = parameter.name
 
     if name == 'request':
@@ -113,9 +116,10 @@ def get_parameter_binder(parameter, services, route):
     original_annotation = parameter.annotation
 
     if original_annotation is _empty:
-        # 1. does route contain a parameter with matching name?
-        if name in route.param_names:
-            return FromRoute(str, name)
+        if route:
+            # 1. does route contain a parameter with matching name?
+            if name in route.param_names:
+                return FromRoute(str, name)
 
         # 2. do services contain a service with matching name?
         if name in services:
@@ -125,7 +129,7 @@ def get_parameter_binder(parameter, services, route):
         return FromQuery(List[str], name)
 
     # unwrap the Optional[] annotation, if present:
-    is_optional, annotation = _check_union(parameter, original_annotation, route.handler)
+    is_optional, annotation = _check_union(parameter, original_annotation, method)
 
     # 1. is the type annotation already a binder?
     if isinstance(annotation, Binder):
@@ -134,8 +138,9 @@ def get_parameter_binder(parameter, services, route):
             # force name == parameter name
             annotation.name = name
 
-        if isinstance(annotation, FromRoute) and annotation.name not in route.param_names:
-            raise RouteBinderMismatch(annotation.name, route)
+        if route:
+            if isinstance(annotation, FromRoute) and annotation.name not in route.param_names:
+                raise RouteBinderMismatch(annotation.name, route)
 
         if isinstance(annotation, FromServices):
             annotation.services = services
@@ -151,7 +156,7 @@ def get_parameter_binder(parameter, services, route):
         return FromServices(annotation, services)
 
     # 3. does route contain a parameter with matching name?
-    if name in route.param_names:
+    if route and name in route.param_names:
         return FromRoute(annotation, name)
 
     # 4. is simple type?
@@ -162,16 +167,18 @@ def get_parameter_binder(parameter, services, route):
     return FromJson(annotation, required=not is_optional)
 
 
-def get_binders(route, services):
-    """Returns a list of binders to extract parameters for a request handler."""
-    method = route.handler
+def _get_binders_for_method(method, services, route):
     signature = Signature.from_callable(method)
     parameters = signature.parameters
     from_body_binder = None
 
     binders = []
     for parameter_name, parameter in parameters.items():
-        binder = get_parameter_binder(parameter, services, route)
+        if not route and parameter_name in {'handler', 'next_handler'}:
+            binders.append(_next_handler_binder)
+            continue
+
+        binder = get_parameter_binder(parameter, services, route, method)
         if isinstance(binder, FromBody):
             if from_body_binder is None:
                 from_body_binder = binder
@@ -181,9 +188,22 @@ def get_binders(route, services):
     return binders
 
 
+def get_binders(route, services):
+    """Returns a list of binders to extract parameters for a request handler."""
+    return _get_binders_for_method(route.handler, services, route)
+
+
+def get_binders_for_middleware(method, services):
+    return _get_binders_for_method(method, services, None)
+
+
+def _copy_special_attributes(source_method, wrapper):
+    for name in {'auth', 'auth_policy', 'allow_anonymous'}:
+        if hasattr(source_method, name):
+            setattr(wrapper, name, getattr(source_method, name))
+
+
 def _copy_name_and_docstring(source_method, wrapper):
-    if source_method is wrapper:
-        return
     wrapper.__name__ = source_method.__name__
     wrapper.__doc__ = source_method.__doc__
 
@@ -249,6 +269,58 @@ def normalize_handler(route, services):
         normalized = get_sync_wrapper(services, route, method, params, params_len)
 
     if normalized is not method:
+        _copy_special_attributes(method, normalized)
         _copy_name_and_docstring(method, normalized)
+
+    return normalized
+
+
+def _is_basic_middleware_signature(parameters):
+    values = list(parameters.values())
+
+    if len(values) != 2:
+        return False
+
+    first_one = values[0]
+    second_one = values[1]
+    if first_one.name == 'request' and second_one.name in {'handler', 'next_handler'}:
+        return True
+    return False
+
+
+def _get_middleware_async_binder(method, services):
+    binders = get_binders_for_middleware(method, services)
+
+    async def handler(request, next_handler):
+        values = []
+        for binder in binders:
+            if binder is _next_handler_binder:
+                values.append(next_handler)
+            else:
+                values.append(await binder.get_value(request))
+
+        if _next_handler_binder in binders:
+            # middleware that can continue the chain: control is left to it;
+            # for example an authorization middleware can decide to now call the next handler
+            return await method(*values)
+
+        # middleware that cannot continue the chain, so we continue it here
+        await method(*values)
+        return await next_handler(request)
+
+    return handler
+
+
+def normalize_middleware(middleware, services):
+    sig = Signature.from_callable(middleware)
+    params = sig.parameters
+
+    if _is_basic_middleware_signature(params):
+        return middleware
+
+    if inspect.iscoroutinefunction(middleware):
+        normalized = _get_middleware_async_binder(middleware, services)
+    else:
+        raise ValueError('Middlewares must be asynchronous functions')
 
     return normalized

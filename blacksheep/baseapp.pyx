@@ -44,6 +44,21 @@ cdef class BaseApplication:
             request.route_values = route.values
 
             try:
+                # TODO: support injecting scoped services, such as client connection information,
+                #       operation context
+                # TODO: to support authentication and not pollute the request object with user information,
+                #       add reference to rodi, create a get service context for each request (?)
+                #       what if this is not needed?
+                #       can't dependency injection be a middleware? and use the new exec function from rodi?
+
+                # I want to scope services here
+                # The problem is: with the current implementation, scoped services are not scoped per web request,
+                # they are scoped *per parameter* in the request handler's signature - does this make sense?
+                # Benefit: rodi is not a hard requirement
+                # Malefit: scoped services can be confusing
+
+                # How to handle something like OperationContext in a middleware? They are also not scoped - this sucks
+                #
                 response = await route.handler(request)
             except HttpException as http_exception:
                 response = await self.handle_http_exception(request, http_exception)

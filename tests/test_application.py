@@ -1,4 +1,3 @@
-import os
 import pytest
 import asyncio
 import pkg_resources
@@ -486,7 +485,7 @@ async def test_application_post_multipart_formdata_files_handler():
         # NB: in this example; we save files to output folder and verify
         # that their binaries are identical
         for part in files:
-            full_path = pkg_resources.resource_filename(__name__, './out/'
+            full_path = pkg_resources.resource_filename(__name__, 'out/'
                                                         + part.file_name.decode())
             with open(full_path, mode='wb') as saved_file:
                 saved_file.write(part.data)
@@ -501,8 +500,7 @@ async def test_application_post_multipart_formdata_files_handler():
                   'pexels-photo-302280.jpeg',
                   'pexels-photo-730896.jpeg'}
 
-    cwd = os.getcwd()
-    rel_path = './files/' if cwd.endswith('tests') else '/files/'
+    rel_path = 'files/'
 
     for file_name in file_names:
         full_path = pkg_resources.resource_filename(__name__, rel_path + file_name)
@@ -1287,3 +1285,43 @@ async def test_handler_from_json_parameter_wrong_method_gets_null():
 
     await app.response_done.wait()
     assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_middlewares_normalization():
+    app = FakeApplication()
+
+    async def middleware_one(request, handler):
+        return await handler(request)
+
+    async def middleware_two(request, handler):
+        return await handler(request)
+
+    @app.router.get(b'/')
+    async def example(request):
+        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+
+    app.middlewares.append(middleware_one)
+    app.middlewares.append(middleware_two)
+    app.configure_middlewares()
+
+    handler = get_new_connection_handler(app)
+
+    message = b'\n'.join([
+        b'GET / HTTP/1.1',
+        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
+        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        b'Accept-Language: en-US,en;q=0.5',
+        b'Connection: keep-alive',
+        b'Host: foo\n',
+        b'\n\n'
+    ])
+
+    handler.data_received(message)
+
+    assert handler.transport.closed is False
+    await app.response_done.wait()
+    response = app.response  # type: Response
+
+    assert response is not None
+    assert response.status == 200

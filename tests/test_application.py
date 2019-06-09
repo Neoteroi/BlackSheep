@@ -17,6 +17,10 @@ class FakeApplication(Application):
         self.request = None
         self.response = None
 
+    def prepare(self):
+        self.normalize_handlers()
+        self.configure_middlewares()
+
     async def handle(self, request):
         response = await super().handle(request)
         self.response_done.set()

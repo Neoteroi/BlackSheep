@@ -11,7 +11,7 @@ from typing import Optional, List, Callable
 from multiprocessing import Process
 from socket import IPPROTO_TCP, TCP_NODELAY, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
 from email.utils import formatdate
-from blacksheep import Response
+from blacksheep import Response, TextContent
 from blacksheep.options import ServerOptions
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
@@ -24,7 +24,7 @@ from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.utils.reloader import run_with_reloader
 from blacksheep.server.authentication import get_authentication_middleware
 from blacksheep.server.authorization import get_authorization_middleware
-from guardpost.authorization import UnauthorizedError
+from guardpost.authorization import UnauthorizedError, Policy
 from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
 from rodi import Services
@@ -86,8 +86,7 @@ async def handle_unauthorized(app, request, http_exception):
     # TODO: handle WWW-Authenticate: Basic realm="Access to staging site" !!
     # TODO: put this method in authorization.py
     # TODO: use authentication strategy for https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/WWW-Authenticate
-    # TODO: how to support many authentication and authorization strategies for the application? is this useful?
-    return Response(401)
+    return Response(401, content=TextContent('Unauthorized'))
 
 
 class Application(BaseApplication):
@@ -126,8 +125,8 @@ class Application(BaseApplication):
         self.resources = resources
         self._serve_files = None
         self._serve_static_files = None
-        self._authentication_strategy = None # type: AuthenticationStrategy
-        self._authorization_strategy = None  # type: AuthorizationStrategy
+        self._authentication_strategy = None  # type: Optional[AuthenticationStrategy]
+        self._authorization_strategy = None  # type: Optional[AuthorizationStrategy]
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
 
@@ -136,17 +135,30 @@ class Application(BaseApplication):
         context.load_cert_chain(certfile=cert_file, keyfile=key_file)
         self.use_ssl(context)
 
-    def use_authentication(self, strategy: AuthenticationStrategy):
+    def use_authentication(self, strategy: Optional[AuthenticationStrategy] = None) -> AuthenticationStrategy:
         if self.running:
             raise RuntimeError('The application is already running, configure authentication '
                                'before starting the application')
-        self._authentication_strategy = strategy
+        if not strategy:
+            strategy = AuthenticationStrategy()
 
-    def use_authorization(self, strategy: AuthorizationStrategy):
-        # TODO: if strategy is None, use default one
+        self._authentication_strategy = strategy
+        return strategy
+
+    def use_authorization(self, strategy: Optional[AuthorizationStrategy] = None) -> AuthorizationStrategy:
         if self.running:
             raise RuntimeError('The application is already running, configure authorization '
                                'before starting the application')
+
+        if not strategy:
+            strategy = AuthorizationStrategy()
+
+        if strategy.default_policy is None:
+            # by default, a default policy is configured with no requirements,
+            # meaning that request handlers allow anonymous users, unless specified otherwise
+            # this can be modified, by adding a requirement to the default policy
+            strategy.default_policy = Policy('default')
+
         self._authorization_strategy = strategy
         self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
         return strategy
@@ -213,11 +225,8 @@ class Application(BaseApplication):
             configured_handlers.add(route.handler)
         configured_handlers.clear()
 
-    def normalize_middlewares(self):
-        for middleware in self.middlewares:
-            pass
-            # TODO: convert a function like async def mid(request, next_handler, anything_else)
-            # into a function that get parameters injected
+    def _normalize_middlewares(self):
+        self.middlewares = [normalize_middleware(middleware, self.services) for middleware in self.middlewares]
 
     def normalize_handlers(self):
         configured_handlers = set()
@@ -250,6 +259,8 @@ class Application(BaseApplication):
 
         if self._default_headers:
             self.middlewares.insert(0, get_default_headers_middleware(self._default_headers))
+
+        self._normalize_middlewares()
 
         if self.middlewares:
             self._apply_middlewares_in_routes()

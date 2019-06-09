@@ -78,7 +78,8 @@ setup(name='blacksheep',
           'uvloop',
           'certifi',
           'cchardet',
-          'guardpost'
+          'guardpost',
+          'rodi'
       ],
       include_package_data=True,
       zip_safe=False)

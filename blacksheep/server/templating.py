@@ -26,9 +26,8 @@ async def render_template_async(template: Template, *args, **kwargs):
 
 
 def use_templates(app: Application, loader: PackageLoader, enable_async: bool = False):
-    try:
-        env = app.services['jinja_environment']
-    except KeyError:
+    env = app.services['jinja_environment']
+    if not env:
         env = Environment(
             loader=loader,
             autoescape=select_autoescape(['html', 'xml']),

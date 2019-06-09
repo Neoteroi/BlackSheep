@@ -7,3 +7,4 @@ Jinja2
 cchardet
 certifi
 guardpost
+rodi

@@ -307,8 +307,8 @@ class FromServices(Binder):
         try:
             context = request.services_context
         except AttributeError:
-            context = GetServiceContext(self.services)
-            request.services_context = context
+            # no support for scoped services (across parameters and middlewares)
+            context = None
 
         return self.services.get(self.expected_type, context)
 

@@ -1,4 +1,4 @@
-[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7)
+[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7) [![pypi](https://vsrm.dev.azure.com/robertoprevato/_apis/public/Release/badge/4c3c4d06-612f-4802-9400-7101b0b43a73/1/2)](https://pypi.org/project/BlackSheep/)
 
 # BlackSheep
 Fast HTTP Server/Client microframework for Python asyncio, using [Cython](https://cython.org), 

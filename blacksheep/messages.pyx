@@ -205,7 +205,6 @@ cdef class Request(Message):
         self._query = None
         self.route_values = None
         self.active = True
-        self.services = None
         if method in {b'GET', b'HEAD', b'TRACE'}:
             self.complete.set()  # methods without body
         
@@ -292,6 +291,8 @@ cdef class Response(Message):
         super().__init__(headers or Headers(), content)
         self.status = status
         self.active = True
+        if status == 204:
+            self.complete.set()  # HTTP Status 204 No Content, means no body to wait for
 
     def __repr__(self):
         return f'<Response {self.status}>'

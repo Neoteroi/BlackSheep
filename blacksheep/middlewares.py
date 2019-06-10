@@ -1,3 +1,4 @@
+from blacksheep.server.normalization import _copy_special_attributes
 
 
 def middleware_partial(handler, next_handler):
@@ -9,5 +10,10 @@ def middleware_partial(handler, next_handler):
 def get_middlewares_chain(middlewares, handler):
     fn = handler
     for middleware in reversed(middlewares):
-        fn = middleware_partial(middleware, fn)
+        if not middleware:
+            continue
+        wrapper_fn = middleware_partial(middleware, fn)
+
+        _copy_special_attributes(fn, wrapper_fn)
+        fn = wrapper_fn
     return fn

@@ -86,8 +86,8 @@ async def test_jinja_async_mode_with_verbose_method(home_model):
     app, _ = get_app(True)
 
     @app.router.get(b'/')
-    async def home(request):
-        return await view_async(request, 'home', home_model)
+    async def home(jinja):
+        return await view_async(jinja, 'home', home_model)
     await _home_scenario(app)
 
 
@@ -96,8 +96,8 @@ async def test_jinja_sync_mode_with_verbose_method(home_model):
     app, _ = get_app(False)
 
     @app.router.get(b'/')
-    async def home(request):
-        return view(request, 'home', home_model)
+    async def home(jinja):
+        return view(jinja, 'home', home_model)
     await _home_scenario(app)
 
 
@@ -106,8 +106,8 @@ async def test_jinja_async_mode_with_verbose_method_named_parameters(home_model)
     app, _ = get_app(True)
 
     @app.router.get(b'/')
-    async def home(request):
-        return await view_async(request, 'home', **home_model)
+    async def home(jinja):
+        return await view_async(jinja, 'home', **home_model)
     await _home_scenario(app)
 
 
@@ -116,6 +116,6 @@ async def test_jinja_sync_mode_with_verbose_method_named_parameters(home_model):
     app, _ = get_app(False)
 
     @app.router.get(b'/')
-    async def home(request):
-        return view(request, 'home', **home_model)
+    async def home(jinja):
+        return view(jinja, 'home', **home_model)
     await _home_scenario(app)

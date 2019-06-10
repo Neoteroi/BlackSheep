@@ -12,7 +12,7 @@ from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
-from collections.abc import Iterable
+from rodi import Services, GetServiceContext
 
 
 T = TypeVar('T')
@@ -299,11 +299,18 @@ class FromRoute(SyncBinder):
 
 class FromServices(Binder):
 
-    def __init__(self, service: TypeOrName):
+    def __init__(self, service: TypeOrName, services: Optional[Services] = None):
         super().__init__(service, False, None)
+        self.services = services
 
     async def get_value(self, request: Request) -> T:
-        return request.services.get(self.expected_type)
+        try:
+            context = request.services_context
+        except AttributeError:
+            # no support for scoped services (across parameters and middlewares)
+            context = None
+
+        return self.services.get(self.expected_type, context)
 
 
 class RequestBinder(Binder):
@@ -313,3 +320,13 @@ class RequestBinder(Binder):
 
     async def get_value(self, request: Request) -> T:
         return request
+
+
+class ExactBinder(Binder):
+
+    def __init__(self, exact_object):
+        super().__init__(object)
+        self.exact_object = exact_object
+
+    async def get_value(self, request: Request):
+        return self.exact_object

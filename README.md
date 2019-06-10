@@ -30,6 +30,54 @@ async def home(request):
 app.start()
 ```
 
+## Automatic bindings and dependency injection
+BlackSheep supports automatic binding of values for request handlers, by type annotation or by conventions. See [more here](https://github.com/RobertoPrevato/BlackSheep/wiki/Model-binding).
+```python
+from blacksheep.server.bindings import (FromJson,
+                                        FromHeader,
+                                        FromQuery,
+                                        FromRoute,
+                                        FromServices)
+
+@app.router.put(b'/:d')
+async def example(a: FromQuery(List[str]),
+                  b: FromServices(Dog),
+                  c: FromJson(Cat),
+                  d: FromRoute(),
+                  e: FromHeader(name='X-Example')):
+    pass
+
+
+@app.router.get(b'/:culture_code/:area')
+async def home(request, culture_code, area):
+    return text(f'Request for: {culture_code} {area}')
+```
+It also supports dependency injection, provided by [rodi](https://github.com/RobertoPrevato/rodi), a library from the same author, supporting `singleton`, `scoped`, and `transient` life style for activated services.
+
+## Strategies to handle authentication and authorization
+BlackSheep implements strategies to handle authentication and authorization, using [GuardPost](https://github.com/RobertoPrevato/GuardPost), a library from the same author.
+
+```python
+app.use_authentication()\
+    .add(ExampleAuthenticationHandler())
+
+
+app.use_authorization()\
+    .add(AdminsPolicy())
+
+
+@auth('admin')
+@app.router.get(b'/')
+async def only_for_admins():
+    return None
+
+
+@auth()
+@app.router.get(b'/')
+async def only_for_authenticated_users():
+    return None
+```
+
 ## Disclaimer
 This project is currently targeting only __Linux__ and __CPython__: support for Windows and other implementations 
 of Python language are currently out of the scope. However, support for PyPy and Windows is planned for the future. 
@@ -37,6 +85,7 @@ of Python language are currently out of the scope. However, support for PyPy and
 ## Objectives
 * Clean architecture and source code, following [SOLID principles](https://en.wikipedia.org/wiki/SOLID)
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
+* Rich code API, based on Dependency Injection and inspired by ASP.NET Core
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards
 * Targeting stateless applications to be deployed in the cloud
 * [High performance, see results from TechEmpower benchmarks (links in Wiki page)](https://github.com/RobertoPrevato/BlackSheep/wiki/Server-performance)
@@ -44,15 +93,16 @@ of Python language are currently out of the scope. However, support for PyPy and
 ## Server Features
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
+* [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
 * [Built-in support for multi processing](https://github.com/RobertoPrevato/BlackSheep/wiki/Built-in-multiprocessing)
 * Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
 * [Strategy to handle exceptions](https://github.com/RobertoPrevato/BlackSheep/wiki/Exceptions-handling)
+* [Strategy to handle authentication and authorization](https://github.com/RobertoPrevato/BlackSheep/wiki/Authentication-and-authorization-strategies)
 * [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
 * [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
-* [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
 * [Automatic reload of the application during development, adopted from Werkzeug framework and Flask](https://github.com/RobertoPrevato/BlackSheep/wiki/Automatic-reload)
 
 ## Client Features

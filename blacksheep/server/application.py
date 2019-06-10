@@ -7,7 +7,7 @@ import warnings
 from ssl import SSLContext
 from time import time, sleep
 from threading import Thread
-from typing import Optional, List, Callable, Any
+from typing import Optional, List, Callable
 from multiprocessing import Process
 from socket import IPPROTO_TCP, TCP_NODELAY, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
 from email.utils import formatdate
@@ -17,10 +17,20 @@ from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.files.static import serve_static_files
 from blacksheep.server.resources import get_resource_file_content
-from blacksheep.server.normalization import normalize_handler
+from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.baseapp import BaseApplication
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.utils.reloader import run_with_reloader
+from blacksheep.server.authentication import (get_authentication_middleware,
+                                              AuthenticateChallenge,
+                                              handle_authentication_challenge)
+from blacksheep.server.authorization import (get_authorization_middleware,
+                                             AuthorizationWithoutAuthenticationError,
+                                             handle_unauthorized)
+from guardpost.authorization import UnauthorizedError, Policy
+from guardpost.asynchronous.authentication import AuthenticationStrategy
+from guardpost.asynchronous.authorization import AuthorizationStrategy
+from rodi import Services
 
 
 server_logger = logging.getLogger('blacksheep.server')
@@ -82,7 +92,7 @@ class Application(BaseApplication):
                  router: Optional[Router] = None,
                  middlewares: Optional[List[Callable]] = None,
                  resources: Optional[Resources] = None,
-                 services: Any = None,
+                 services: Optional[Services] = None,
                  debug: bool = False,
                  auto_reload: bool = True):
         if not options:
@@ -90,7 +100,7 @@ class Application(BaseApplication):
         if router is None:
             router = Router()
         if services is None:
-            services = {}
+            services = Services()
         super().__init__(options, router, services)
 
         if middlewares is None:
@@ -111,6 +121,8 @@ class Application(BaseApplication):
         self.resources = resources
         self._serve_files = None
         self._serve_static_files = None
+        self._authentication_strategy = None  # type: Optional[AuthenticationStrategy]
+        self._authorization_strategy = None  # type: Optional[AuthorizationStrategy]
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
 
@@ -118,6 +130,35 @@ class Application(BaseApplication):
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.load_cert_chain(certfile=cert_file, keyfile=key_file)
         self.use_ssl(context)
+
+    def use_authentication(self, strategy: Optional[AuthenticationStrategy] = None) -> AuthenticationStrategy:
+        if self.running:
+            raise RuntimeError('The application is already running, configure authentication '
+                               'before starting the application')
+        if not strategy:
+            strategy = AuthenticationStrategy()
+
+        self._authentication_strategy = strategy
+        return strategy
+
+    def use_authorization(self, strategy: Optional[AuthorizationStrategy] = None) -> AuthorizationStrategy:
+        if self.running:
+            raise RuntimeError('The application is already running, configure authorization '
+                               'before starting the application')
+
+        if not strategy:
+            strategy = AuthorizationStrategy()
+
+        if strategy.default_policy is None:
+            # by default, a default policy is configured with no requirements,
+            # meaning that request handlers allow anonymous users, unless specified otherwise
+            # this can be modified, by adding a requirement to the default policy
+            strategy.default_policy = Policy('default')
+
+        self._authorization_strategy = strategy
+        self.exceptions_handlers[AuthenticateChallenge] = handle_authentication_challenge
+        self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
+        return strategy
 
     def use_ssl(self, ssl_context: SSLContext):
         if self.running:
@@ -181,6 +222,9 @@ class Application(BaseApplication):
             configured_handlers.add(route.handler)
         configured_handlers.clear()
 
+    def _normalize_middlewares(self):
+        self.middlewares = [normalize_middleware(middleware, self.services) for middleware in self.middlewares]
+
     def normalize_handlers(self):
         configured_handlers = set()
 
@@ -198,11 +242,21 @@ class Application(BaseApplication):
             return
         self._middlewares_configured = True
 
-        if self._default_headers:
-            self.middlewares.append(get_default_headers_middleware(self._default_headers))
+        if self._authorization_strategy:
+            if not self._authentication_strategy:
+                raise AuthorizationWithoutAuthenticationError()
+            self.middlewares.insert(0, get_authorization_middleware(self._authorization_strategy))
+
+        if self._authentication_strategy:
+            self.middlewares.insert(0, get_authentication_middleware(self._authentication_strategy))
 
         if self._use_sync_logging:
             self._configure_sync_logging()
+
+        if self._default_headers:
+            self.middlewares.insert(0, get_default_headers_middleware(self._default_headers))
+
+        self._normalize_middlewares()
 
         if self.middlewares:
             self._apply_middlewares_in_routes()

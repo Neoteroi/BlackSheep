@@ -34,7 +34,6 @@ cdef class Request(Message):
     cdef public dict route_values
     cdef public URL url
     cdef public bytes method
-    cdef public object services
     cdef dict _query
     cdef dict __dict__
 

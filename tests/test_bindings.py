@@ -258,11 +258,11 @@ async def test_from_services():
     request = Request(b'GET', b'/', Headers(), None)
 
     service_instance = ExampleOne(1, 2)
-    request.services = {
+    services = {
         ExampleOne: service_instance
     }
 
-    parameter = FromServices(ExampleOne)
+    parameter = FromServices(ExampleOne, services)
     value = await parameter.get_value(request)
 
     assert value is service_instance

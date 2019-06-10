@@ -1,14 +1,22 @@
 import pytest
 from pytest import raises
 from typing import List, Sequence, Optional
+from blacksheep import Request, Headers, Header
 from blacksheep.server.routing import Route
+from blacksheep.server.bindings import FromHeader, FromQuery
 from blacksheep.server.normalization import (get_from_body_parameter,
                                              AmbiguousMethodSignatureError,
                                              RouteBinderMismatch,
                                              get_binders,
-                                             normalize_handler,
                                              MultipleFromBodyBinders,
-                                             FromJson, FromQuery, FromRoute, FromHeader, FromServices, RequestBinder)
+                                             FromJson,
+                                             FromQuery,
+                                             FromRoute,
+                                             FromServices,
+                                             RequestBinder,
+                                             ExactBinder,
+                                             normalize_handler,
+                                             normalize_middleware)
 
 
 class Pet:
@@ -305,8 +313,124 @@ def test_raises_for_route_mismatch():
 def test_request_binding():
 
     def handler(request):
-        assert request
+        pass
 
     binders = get_binders(Route(b'/', handler), {})
 
     assert isinstance(binders[0], RequestBinder)
+
+
+def test_services_binding():
+    app_services = {}
+
+    def handler(services):
+        assert services is app_services
+
+    binders = get_binders(Route(b'/', handler), app_services)
+
+    assert isinstance(binders[0], ExactBinder)
+
+
+@pytest.mark.asyncio
+async def test_services_from_normalization():
+
+    app_services = {}
+
+    def handler(services):
+        assert services is app_services
+        return services
+
+    method = normalize_handler(Route(b'/', handler), app_services)
+    services = await method(None)
+    assert services is app_services
+
+
+async def fake_handler(_):
+    return 'fake-handler-result'
+
+
+@pytest.mark.asyncio
+async def test_middleware_normalization():
+    services = {'context': object()}
+    fake_request = Request(b'GET', b'/', None, None)
+
+    async def middleware(request, handler, context):
+        assert request is fake_request
+        assert handler is fake_handler
+        assert context is services.get('context')
+        return await handler(request)
+
+    normalized = normalize_middleware(middleware, services)
+
+    # NB: middlewares base signature is (request, handler)
+    result = await normalized(fake_request, fake_handler)
+    assert result == 'fake-handler-result'
+
+
+@pytest.mark.asyncio
+async def test_middleware_query_normalization():
+    services = {'context': object()}
+    fake_request = Request(b'GET', b'/?example=Lorem', None, None)
+
+    async def middleware(request, handler, example: FromQuery(str)):
+        assert request is fake_request
+        assert handler is fake_handler
+        assert example == 'Lorem'
+        return await handler(request)
+
+    normalized = normalize_middleware(middleware, services)
+
+    # NB: middlewares base signature is (request, handler)
+    result = await normalized(fake_request, fake_handler)
+    assert result == 'fake-handler-result'
+
+
+@pytest.mark.asyncio
+async def test_middleware_header_normalization():
+    services = {'context': object()}
+    fake_request = Request(b'GET', b'/', Headers([
+        Header(b'example', b'Lorem')
+    ]), None)
+
+    async def middleware(request, handler, example: FromHeader(str)):
+        assert request is fake_request
+        assert handler is fake_handler
+        assert example == 'Lorem'
+        return await handler(request)
+
+    normalized = normalize_middleware(middleware, services)
+
+    # NB: middlewares base signature is (request, handler)
+    result = await normalized(fake_request, fake_handler)
+    assert result == 'fake-handler-result'
+
+
+@pytest.mark.asyncio
+async def test_middleware_normalization_no_parameters():
+    services = {'context': object()}
+    fake_request = Request(b'GET', b'/', Headers([
+        Header(b'example', b'Lorem')
+    ]), None)
+
+    called = False
+
+    async def middleware():
+        nonlocal called
+        called = True
+
+    normalized = normalize_middleware(middleware, services)
+
+    # NB: middlewares base signature is (request, handler)
+    # since our middleware above does not handle the next request handler, it is called by the normalized method
+    result = await normalized(fake_request, fake_handler)
+    assert called
+    assert result == 'fake-handler-result'
+
+
+def test_middleware_not_normalized_if_signature_matches_expected_signature():
+
+    async def middleware(request, handler):
+        return await handler(request)
+
+    normalized = normalize_middleware(middleware, {})
+    assert normalized is middleware

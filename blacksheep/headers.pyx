@@ -28,6 +28,8 @@ cdef class Headers:
     cpdef void merge(self, list values):
         cdef Header header
         for header in values:
+            if header is None:
+                continue
             self[header.name].append(header)
 
     cpdef list get(self, bytes name):

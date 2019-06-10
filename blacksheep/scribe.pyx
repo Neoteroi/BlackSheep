@@ -128,7 +128,6 @@ cdef list get_all_response_headers(Response response):
     for header in response.headers:
         result.append(header)
 
-    headers = response.headers
     content = response.content
 
     if content:

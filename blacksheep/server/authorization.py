@@ -1,5 +1,6 @@
-from typing import Optional
-from guardpost.synchronous.authorization import Requirement
+from typing import Optional, Sequence
+from blacksheep import Response, Headers, Header, TextContent
+from guardpost.synchronous.authorization import Requirement, UnauthorizedError
 from guardpost.asynchronous.authorization import AuthorizationStrategy, AsyncRequirement, Policy
 
 
@@ -12,15 +13,18 @@ __all__ = ('auth',
            'Policy')
 
 
-def auth(policy: Optional[str] = None):
+def auth(policy: Optional[str] = None, *, authentication_schemes: Optional[Sequence[str]] = None):
     """Configures authorization for a decorated request handler, optionally with a policy.
     If no policy is specified, the default policy of the configured AuthorizationStrategy is used.
 
     :param policy: optional, name of the policy to use to achieve authorization.
+    :param authentication_schemes: optional, authentication schemes to use for this handler. If not specified, all
+    configured authentication handlers are used.
     """
     def decorator(f):
         f.auth = True
         f.auth_policy = policy
+        f.auth_schemes = authentication_schemes
         return f
     return decorator
 
@@ -49,3 +53,29 @@ def get_authorization_middleware(strategy: AuthorizationStrategy):
 
         return await handler(request)
     return authorization_middleware
+
+
+class AuthorizationWithoutAuthenticationError(RuntimeError):
+
+    def __init__(self):
+        super().__init__('Cannot use an authorization strategy without an authentication strategy. '
+                         'Use `use_authentication` method to configure it.')
+
+
+def _get_www_authenticated_header_value_from_generic_unauthorized_error(error: UnauthorizedError):
+    parts = [error.scheme]
+    if error.error:
+        parts.append(', error="{}"')
+
+
+def get_www_authenticated_header_from_generic_unauthorized_error(error):
+    if not error.scheme:
+        return None
+
+    return Header(b'WWW-Authenticate', error.scheme.decode())
+
+
+async def handle_unauthorized(app, request, http_exception: UnauthorizedError):
+    return Response(401,
+                    Headers([get_www_authenticated_header_from_generic_unauthorized_error(http_exception)]),
+                    content=TextContent('Unauthorized'))

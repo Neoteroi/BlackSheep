@@ -11,7 +11,6 @@ from typing import Optional, List, Callable
 from multiprocessing import Process
 from socket import IPPROTO_TCP, TCP_NODELAY, SOL_SOCKET, SO_REUSEPORT, socket, SHUT_RDWR
 from email.utils import formatdate
-from blacksheep import Response, TextContent
 from blacksheep.options import ServerOptions
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
@@ -22,8 +21,12 @@ from blacksheep.server.normalization import normalize_handler, normalize_middlew
 from blacksheep.baseapp import BaseApplication
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.utils.reloader import run_with_reloader
-from blacksheep.server.authentication import get_authentication_middleware
-from blacksheep.server.authorization import get_authorization_middleware
+from blacksheep.server.authentication import (get_authentication_middleware,
+                                              AuthenticateChallenge,
+                                              handle_authentication_challenge)
+from blacksheep.server.authorization import (get_authorization_middleware,
+                                             AuthorizationWithoutAuthenticationError,
+                                             handle_unauthorized)
 from guardpost.authorization import UnauthorizedError, Policy
 from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
@@ -80,13 +83,6 @@ class ApplicationEvent:
     async def fire(self, *args, **keywargs):
         for handler in self.__handlers:
             await handler(self.context, *args, **keywargs)
-
-
-async def handle_unauthorized(app, request, http_exception):
-    # TODO: handle WWW-Authenticate: Basic realm="Access to staging site" !!
-    # TODO: put this method in authorization.py
-    # TODO: use authentication strategy for https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/WWW-Authenticate
-    return Response(401, content=TextContent('Unauthorized'))
 
 
 class Application(BaseApplication):
@@ -160,6 +156,7 @@ class Application(BaseApplication):
             strategy.default_policy = Policy('default')
 
         self._authorization_strategy = strategy
+        self.exceptions_handlers[AuthenticateChallenge] = handle_authentication_challenge
         self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
         return strategy
 
@@ -247,8 +244,7 @@ class Application(BaseApplication):
 
         if self._authorization_strategy:
             if not self._authentication_strategy:
-                raise RuntimeError('Cannot use an authorization strategy without an authentication strategy. '
-                                   'Use `use_authentication` method to configure it.')
+                raise AuthorizationWithoutAuthenticationError()
             self.middlewares.insert(0, get_authorization_middleware(self._authorization_strategy))
 
         if self._authentication_strategy:

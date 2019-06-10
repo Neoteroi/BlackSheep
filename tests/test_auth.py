@@ -1,11 +1,13 @@
 import pytest
+from pytest import raises
 from guardpost.authentication import Identity
 from typing import Any, Optional
 from guardpost.authorization import AuthorizationContext, BaseRequirement
 from .test_application import FakeApplication, get_new_connection_handler
-from blacksheep.server.authentication import AuthenticationHandler
-from blacksheep.server.authorization import auth, Policy, Requirement
+from blacksheep.server.authentication import AuthenticationHandler, AuthenticateChallenge
+from blacksheep.server.authorization import auth, Policy, Requirement, AuthorizationWithoutAuthenticationError
 from guardpost.common import AuthenticatedRequirement
+from blacksheep.server.authentication import AuthenticateChallenge
 
 
 class MockAuthHandler(AuthenticationHandler):
@@ -30,6 +32,15 @@ class MockNotAuthHandler(AuthenticationHandler):
             'id': '007',
         })  # NB: an identity without authentication scheme is treated as anonymous identity
         return context.identity
+
+
+class AccessTokenCrashingHandler(AuthenticationHandler):
+
+    async def authenticate(self, context: Any) -> Optional[Identity]:
+        raise AuthenticateChallenge('Bearer', None, {
+            'error': 'Invalid access token',
+            'error_description': 'Access token expired'
+        })
 
 
 class AdminRequirement(Requirement):
@@ -184,3 +195,62 @@ async def test_authorization_supports_default_require_authenticated():
     await app.response_done.wait()
 
     assert app.response.status == 401
+
+
+@pytest.mark.asyncio
+async def test_authentication_challenge_response():
+    app = FakeApplication()
+
+    app.use_authentication()\
+        .add(AccessTokenCrashingHandler())
+
+    app.use_authorization()\
+        .add(AdminsPolicy())\
+        .default_policy += AuthenticatedRequirement()
+
+    @app.router.get(b'/')
+    async def home():
+        return None
+
+    app.prepare()
+
+    handler = get_new_connection_handler(app)
+
+    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
+
+    await app.response_done.wait()
+
+    assert app.response.status == 401
+    header = app.response.headers.get_single(b'WWW-Authenticate')
+
+    assert header is not None
+    assert header.value == b'Bearer, error="Invalid access token", error_description="Access token expired"'
+
+
+def test_authorization_strategy_without_authentication_raises():
+    app = FakeApplication()
+
+    app.use_authorization()
+
+    with raises(AuthorizationWithoutAuthenticationError):
+        app.prepare()
+
+
+@pytest.mark.parametrize('scheme,realm,parameters,expected_value', [
+
+    ['Basic', None, None, b'Basic'],
+    ['Bearer', 'Mushrooms Kingdom', None, b'Bearer realm="Mushrooms Kingdom"'],
+    ['Bearer', 'Mushrooms Kingdom', {'title': 'Something',
+                                     'error': 'Invalid access token',
+                                     'error_description': 'access token expired'},
+     b'Bearer realm="Mushrooms Kingdom", '
+     b'title="Something", '
+     b'error="Invalid access token", '
+     b'error_description="access token expired"']
+])
+def test_authentication_challenge_error(scheme, realm, parameters, expected_value):
+    error = AuthenticateChallenge(scheme, realm, parameters)
+
+    header = error.get_header()
+    assert header.name == b'WWW-Authenticate'
+    assert header.value == expected_value

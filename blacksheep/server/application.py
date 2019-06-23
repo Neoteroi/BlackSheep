@@ -423,7 +423,10 @@ def spawn_server(app: Application):
             pass
 
         on_stop()
-        s.shutdown(SHUT_RDWR)
+        try:
+            s.shutdown(SHUT_RDWR)
+        except OSError:
+            pass
         s.close()
         server.close()
         loop.close()

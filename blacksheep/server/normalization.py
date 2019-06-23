@@ -9,6 +9,7 @@ from .bindings import (FromJson,
                        FromBody,
                        RequestBinder,
                        ExactBinder)
+from blacksheep.normalization import copy_special_attributes
 
 
 _next_handler_binder = object()
@@ -197,12 +198,6 @@ def get_binders_for_middleware(method, services):
     return _get_binders_for_method(method, services, None)
 
 
-def _copy_special_attributes(source_method, wrapper):
-    for name in {'auth', 'auth_policy', 'auth_schemes', 'allow_anonymous'}:
-        if hasattr(source_method, name):
-            setattr(wrapper, name, getattr(source_method, name))
-
-
 def _copy_name_and_docstring(source_method, wrapper):
     wrapper.__name__ = source_method.__name__
     wrapper.__doc__ = source_method.__doc__
@@ -269,7 +264,7 @@ def normalize_handler(route, services):
         normalized = get_sync_wrapper(services, route, method, params, params_len)
 
     if normalized is not method:
-        _copy_special_attributes(method, normalized)
+        copy_special_attributes(method, normalized)
         _copy_name_and_docstring(method, normalized)
 
     return normalized

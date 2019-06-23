@@ -1,4 +1,4 @@
-from blacksheep.server.normalization import _copy_special_attributes
+from blacksheep.normalization import copy_special_attributes
 
 
 def middleware_partial(handler, next_handler):
@@ -14,6 +14,6 @@ def get_middlewares_chain(middlewares, handler):
             continue
         wrapper_fn = middleware_partial(middleware, fn)
 
-        _copy_special_attributes(fn, wrapper_fn)
+        copy_special_attributes(fn, wrapper_fn)
         fn = wrapper_fn
     return fn

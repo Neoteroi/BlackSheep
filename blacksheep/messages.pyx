@@ -51,7 +51,9 @@ cdef class Message:
         self._raw_body = bytearray()
         self.complete = Event()
         self._form_data = None
-        self.aborted = False
+        self.handled = False
+        self.receive = None
+        self.reading = False
         if content:
             self.complete.set()
 
@@ -60,29 +62,41 @@ cdef class Message:
         return self._raw_body
 
     cpdef void set_content(self, Content content):
+        self._raw_body.clear()
         if content:
-            self._raw_body.clear()
             if isinstance(content.body, (bytes, bytearray)):
                 self._raw_body.extend(content.body)
             self.complete.set()
         else:
             self.complete.clear()
-            self._raw_body.clear()
 
-    cdef void on_body(self, bytes chunk):
-        self._raw_body.extend(chunk)
+    async def _read_body(self):
+        while True:
+            message = await self.receive()
 
-    cpdef void extend_body(self, bytes chunk):
-        self._raw_body.extend(chunk)
+            if message.get('type') == 'http.disconnect':
+                raise MessageAborted()
+
+            # NB: a request can be handled before the client sends the whole request body
+            # for example, when a request authorization fails
+            if self.handled:
+                break
+
+            self._raw_body.extend(message.get('body', b''))
+
+            if not message.get('more_body'):
+                break
 
     async def read(self) -> bytes:
-        await self.complete.wait()
+        if self.complete.is_set():
+            return bytes(self._raw_body)
 
-        if self.aborted:
-            # this happens when a connection is lost, or closed by the client while
-            # request content is being sent, and the request headers were received and parsed
-            # in other words, the request content is not complete; we can only throw here
-            raise MessageAborted()
+        if self.reading:
+            await self.complete.wait()
+
+        self.reading = True
+        await self._read_body()
+        self.complete.set()
 
         if not self._raw_body and self.content:
             # NB: this will happen realistically only in tests, not in real use cases

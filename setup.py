@@ -41,10 +41,6 @@ setup(name='blacksheep',
                     ['blacksheep/exceptions.c'],
                     extra_compile_args=COMPILE_ARGS),
           
-          Extension('blacksheep.options',
-                    ['blacksheep/options.c'],
-                    extra_compile_args=COMPILE_ARGS),
-          
           Extension('blacksheep.headers',
                     ['blacksheep/headers.c'],
                     extra_compile_args=COMPILE_ARGS),
@@ -67,16 +63,9 @@ setup(name='blacksheep',
 
           Extension('blacksheep.baseapp',
                     ['blacksheep/baseapp.c'],
-                    extra_compile_args=COMPILE_ARGS),
-
-          Extension('blacksheep.connection',
-                    ['blacksheep/connection.c'],
                     extra_compile_args=COMPILE_ARGS)
       ],
       install_requires=[
-          'httptools',
-          'uvloop',
-          'certifi',
           'cchardet',
           'guardpost',
           'rodi'

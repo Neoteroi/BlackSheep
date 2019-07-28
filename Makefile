@@ -9,9 +9,7 @@ cyt:
 	cythonize -i blacksheep/contents.pyx
 	cythonize -i blacksheep/messages.pyx
 	cythonize -i blacksheep/scribe.pyx
-	cythonize -i blacksheep/options.pyx
 	cythonize -i blacksheep/baseapp.pyx
-	cythonize -i blacksheep/connection.pyx
 
 compile: cyt
 	python3 setup.py build_ext --inplace
@@ -36,9 +34,7 @@ annotate:
 	cython blacksheep/contents.pyx -a
 	cython blacksheep/messages.pyx -a
 	cython blacksheep/scribe.pyx -a
-	cython blacksheep/options.pyx -a
 	cython blacksheep/baseapp.pyx -a
-	cython blacksheep/connection.pyx -a
 
 
 artifacts: test

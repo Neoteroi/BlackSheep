@@ -118,7 +118,7 @@ cdef bytes write_cookies_for_request(dict cookies):
     return b'; '.join(parts)
 
 
-cdef list get_all_response_headers(Response response):
+cpdef list get_all_response_headers(Response response):
     cdef list result = []
     cdef Content content
     cdef Header header
@@ -302,6 +302,23 @@ async def write_response(Response response):
     yield STATUS_LINES[response.status] + \
         write_headers(get_all_response_headers(response)) + b'\r\n'
 
+    content = response.content
+
+    if content:
+        if should_use_chunked_encoding(content):
+            async for chunk in write_chunks(content):
+                yield chunk
+        else:
+            data = content.body
+
+            if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                for chunk in get_chunks(data):
+                    yield chunk
+            else:
+                yield data
+
+
+async def write_response_content(response):
     content = response.content
 
     if content:

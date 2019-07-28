@@ -18,10 +18,10 @@ cdef class Message:
     cdef bytearray _raw_body
     cdef public object complete
     cdef object _form_data
-    cdef readonly bint aborted
+    cdef public object receive
+    cdef readonly bint reading
+    cdef public bint handled
 
-    cdef void on_body(self, bytes chunk)
-    cpdef void extend_body(self, bytes chunk)
     cpdef void set_content(self, Content content)
     cpdef bint has_body(self)
     cpdef bint declares_content_type(self, bytes type)

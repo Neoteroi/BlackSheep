@@ -1,4 +1,3 @@
-from .options cimport ServerOptions
 from .messages cimport Request, Response
 from .contents cimport TextContent, HtmlContent
 from .exceptions cimport HttpException, NotFound
@@ -19,12 +18,12 @@ async def handle_bad_request(app, Request request, HttpException http_exception)
 
 cdef class BaseApplication:
 
-    def __init__(self, ServerOptions options, object router, object services):
-        self.options = options
+    def __init__(self, bint show_error_details, object router, object services):
         self.router = router
         self.services = services
         self.connections = []
         self.exceptions_handlers = self.init_exceptions_handlers()
+        self.show_error_details = show_error_details
 
     def init_exceptions_handlers(self):
         return {
@@ -67,7 +66,7 @@ cdef class BaseApplication:
         return self.exceptions_handlers.get(type(exception))
 
     async def handle_internal_server_error(self, Request request, Exception exc):
-        if self.debug or self.options.show_error_details:
+        if self.debug or self.show_error_details:
             tb = traceback.format_exception(exc.__class__,
                                             exc,
                                             exc.__traceback__)

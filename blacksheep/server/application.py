@@ -71,7 +71,10 @@ class ApplicationEvent:
             await handler(self.context, *args, **keywargs)
 
 
-def get_show_error_details():
+def get_show_error_details(show_error_details):
+    if show_error_details:
+        return True
+
     show_error_details = os.environ.get('BLACKSHEEP_SHOW_ERROR_DETAILS')
 
     if show_error_details and show_error_details not in ('0', 'false'):
@@ -87,12 +90,13 @@ class Application(BaseApplication):
                  resources: Optional[Resources] = None,
                  services: Optional[Services] = None,
                  debug: bool = False,
+                 show_error_details: bool = False,
                  auto_reload: bool = True):
         if router is None:
             router = Router()
         if services is None:
             services = Services()
-        super().__init__(get_show_error_details(), router, services)
+        super().__init__(get_show_error_details(debug or show_error_details), router, services)
 
         if middlewares is None:
             middlewares = []
@@ -243,19 +247,6 @@ class Application(BaseApplication):
         if self.middlewares:
             self._apply_middlewares_in_routes()
 
-    async def _handle_not_found(self, send):
-        await send({
-            'type': 'http.response.start',
-            'status': 404,
-            'headers': [
-                [b'content-type', b'text/plain'],
-            ]
-        })
-        await send({
-            'type': 'http.response.body',
-            'body': b'Resource not found'
-        })
-
     async def start(self):
         if self.started:
             return
@@ -281,6 +272,9 @@ class Application(BaseApplication):
         await self.stop()
         await send({'type': 'lifespan.shutdown.complete'})
 
+    def before_request(self, request: Request):
+        pass
+
     async def __call__(self, scope, receive, send):
         if scope['type'] == 'lifespan':
             return await self._handle_lifespan(receive, send)
@@ -289,15 +283,6 @@ class Application(BaseApplication):
 
         method = scope.get('method')
         url = scope.get('raw_path')
-        route = self.router.get_match(method, url)
-
-        if not route:
-            await self._handle_not_found(send)
-            return
-
-        # TODO: remove dependency on httptools (URL -> parse)
-        # TODO: handle headers without instantiating Header (?)
-        # TODO: maybe change Request class to support separation of query string (without parsing?)
         query = scope.get('query_string')
         if query:
             url = url + b'?' + query
@@ -308,33 +293,15 @@ class Application(BaseApplication):
             None
         )
         request.scope = scope
-        request.route_values = route.values
         request.receive = receive
 
         self.before_request(request)
 
-        try:
-            response = await route.handler(request)
-        except HttpException as http_exception:
-            response = await self.handle_http_exception(request, http_exception)
-        except Exception as exc:
-            response = await self.handle_exception(request, exc)
-        else:
-            # if the request handler didn't return an object,
-            # and since the request was handled successfully, return success status code No Content
-            # for example, a user might return "None" from an handler
-            # this might be ambiguous, if a programmer thinks to return None for "Not found"
-            if not response:
-                response = Response(204)
-
+        response = await self.handle(request)
         request.handled = True
+        await self.send_response(response, send)
 
-        await self._send_response(response, send)
-
-    def before_request(self, request):
-        pass
-
-    async def _send_response(self, response, send):
+    async def send_response(self, response: Response, send):
 
         await send({
             'type': 'http.response.start',

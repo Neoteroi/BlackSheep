@@ -23,9 +23,9 @@ class FakeApplication(Application):
         self.request = request
         super().before_request(request)
 
-    async def _send_response(self, response, send):
+    async def send_response(self, response, send):
         self.response = response
-        return await super()._send_response(response, send)
+        return await super().send_response(response, send)
 
 
 def test_application_supports_dynamic_attributes():

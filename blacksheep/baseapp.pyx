@@ -38,7 +38,7 @@ cdef class BaseApplication:
         route = self.router.get_match(request.method, request.url.path)
 
         if not route:
-            response = await handle_not_found(self, request, None)
+            response = await self.exceptions_handlers.get(404)(self, request, None)
         else:
             request.route_values = route.values
 
@@ -55,8 +55,6 @@ cdef class BaseApplication:
                 # this might be ambiguous, if a programmer thinks to return None for "Not found"
                 if not response:
                     response = Response(204)
-        response.headers[b'Date'] = self.current_timestamp
-        response.headers[b'Server'] = b'BlackSheep'
         return response
 
     cdef object get_http_exception_handler(self, HttpException http_exception):
@@ -66,7 +64,7 @@ cdef class BaseApplication:
         return self.exceptions_handlers.get(type(exception))
 
     async def handle_internal_server_error(self, Request request, Exception exc):
-        if self.debug or self.show_error_details:
+        if self.show_error_details:
             tb = traceback.format_exception(exc.__class__,
                                             exc,
                                             exc.__traceback__)

@@ -33,7 +33,7 @@ class ExampleTwo:
 @pytest.mark.asyncio
 async def test_from_body_json_binding():
 
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         JsonContentType
     ]), JsonContent({
         'a': 'world',
@@ -52,7 +52,7 @@ async def test_from_body_json_binding():
 @pytest.mark.asyncio
 async def test_from_body_json_binding_extra_parameters_strategy():
 
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         JsonContentType
     ]), JsonContent({
         'a': 'world',
@@ -72,7 +72,7 @@ async def test_from_body_json_binding_extra_parameters_strategy():
 @pytest.mark.asyncio
 async def test_from_body_json_with_converter():
 
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         JsonContentType
     ]), JsonContent({
         'a': 'world',
@@ -95,7 +95,7 @@ async def test_from_body_json_with_converter():
 @pytest.mark.asyncio
 async def test_from_body_json_binding_request_missing_content_type():
 
-    request = Request(b'POST', b'/', Headers(), JsonContent({
+    request = Request('POST', b'/', Headers(), JsonContent({
         'a': 'world',
         'b': 9000
     }))
@@ -110,7 +110,7 @@ async def test_from_body_json_binding_request_missing_content_type():
 @pytest.mark.asyncio
 async def test_from_body_json_binding_invalid_input():
 
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         JsonContentType
     ]), JsonContent({
         'c': 1,
@@ -138,7 +138,7 @@ async def test_from_body_json_binding_invalid_input():
 ])
 async def test_from_header_binding(expected_type, header_value, expected_value):
 
-    request = Request(b'GET', b'/', Headers([
+    request = Request('GET', b'/', Headers([
         Header(b'X-Foo', header_value)
     ]), None)
 
@@ -164,7 +164,7 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
 ])
 async def test_from_query_binding(expected_type, query_value, expected_value):
 
-    request = Request(b'GET', b'/?foo=' + query_value, Headers(), None)
+    request = Request('GET', b'/?foo=' + query_value, Headers(), None)
 
     parameter = FromQuery(expected_type, 'foo')
 
@@ -188,7 +188,7 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
 ])
 async def test_from_route_binding(expected_type, route_value, expected_value):
 
-    request = Request(b'GET', b'/', Headers(), None)
+    request = Request('GET', b'/', Headers(), None)
     request.route_values = {
         'name': route_value
     }
@@ -224,7 +224,7 @@ async def test_raises_for_missing_default_converter(binder_type):
 ])
 async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_value):
 
-    request = Request(b'GET', b'/', Headers(), None)
+    request = Request('GET', b'/', Headers(), None)
     request.route_values = {
         'name': invalid_value
     }
@@ -245,7 +245,7 @@ async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_va
     [bool, b'yes']
 ])
 async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_value: bytes):
-    request = Request(b'GET', b'/?foo=' + invalid_value, Headers(), None)
+    request = Request('GET', b'/?foo=' + invalid_value, Headers(), None)
 
     parameter = FromQuery(expected_type, 'foo', required=True)
 
@@ -255,7 +255,7 @@ async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_va
 
 @pytest.mark.asyncio
 async def test_from_services():
-    request = Request(b'GET', b'/', Headers(), None)
+    request = Request('GET', b'/', Headers(), None)
 
     service_instance = ExampleOne(1, 2)
     services = {
@@ -277,7 +277,7 @@ async def test_from_services():
 ])
 async def test_from_header_binding_iterables(declared_type, expected_type, header_values, expected_values):
 
-    request = Request(b'GET', b'/', Headers([
+    request = Request('GET', b'/', Headers([
         Header(b'X-Foo', value) for value in header_values
     ]), None)
 
@@ -320,7 +320,7 @@ async def test_from_header_binding_iterables(declared_type, expected_type, heade
 async def test_from_query_binding_iterables(declared_type, expected_type, query_values, expected_values):
     qs = b'&foo='.join([value for value in query_values])
 
-    request = Request(b'GET', b'/?foo=' + qs, Headers(), None)
+    request = Request('GET', b'/?foo=' + qs, Headers(), None)
 
     parameter = FromQuery(declared_type, 'foo')
 
@@ -354,7 +354,7 @@ async def test_nested_iterables_raise_missing_converter_from_query(declared_type
 
 @pytest.mark.asyncio
 async def test_request_binder():
-    request = Request(b'GET', b'/', Headers(), None)
+    request = Request('GET', b'/', Headers(), None)
 
     parameter = RequestBinder()
 

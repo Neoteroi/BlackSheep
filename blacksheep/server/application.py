@@ -162,7 +162,7 @@ class Application(BaseApplication):
 
     def route(self, pattern, methods=None):
         if methods is None:
-            methods = [b'GET']
+            methods = ['GET']
 
         def decorator(f):
             for method in methods:
@@ -287,7 +287,7 @@ class Application(BaseApplication):
 
         assert scope['type'] == 'http'
 
-        method = scope.get('method').encode('utf8')
+        method = scope.get('method')
         url = scope.get('raw_path')
         route = self.router.get_match(method, url)
 
@@ -295,6 +295,7 @@ class Application(BaseApplication):
             await self._handle_not_found(send)
             return
 
+        # TODO: remove dependency on httptools (URL -> parse)
         # TODO: handle headers without instantiating Header (?)
         # TODO: maybe change Request class to support separation of query string (without parsing?)
         query = scope.get('query_string')

@@ -6,30 +6,29 @@ from blacksheep.server.routing import Router, Route, RouteDuplicate
 FAKE = b'FAKE'
 
 MATCHING_ROUTES = [
-    (b'head', b'', b'/'),
-    (b'get', b'', b'/'),
-    (b'head', b'/', b'/'),
-    (b'get', b'/', b'/'),
-    (b'get', b'/:a', b'/foo'),
-    (b'get', b'/foo', b'/foo'),
-    (b'get', b'/foo', b'/Foo'),
-    (b'get', b'/:a/:b', b'/foo/oof'),
-    (b'post', b'/', b'/'),
-    (b'post', b'/:id', b'/123'),
-    (b'put', b'/', b'/'),
-    (b'delete', b'/', b'/'),
+    ('head', b'', b'/'),
+    ('get', b'', b'/'),
+    ('head', b'/', b'/'),
+    ('get', b'/', b'/'),
+    ('get', b'/:a', b'/foo'),
+    ('get', b'/foo', b'/foo'),
+    ('get', b'/foo', b'/Foo'),
+    ('get', b'/:a/:b', b'/foo/oof'),
+    ('post', b'/', b'/'),
+    ('post', b'/:id', b'/123'),
+    ('put', b'/', b'/'),
+    ('delete', b'/', b'/'),
 ]
 
 NON_MATCHING_ROUTE = [
-    (b'head', b'/', b'/foo'),
-    (b'get', b'/', b'/foo'),
-    (b'post', b'/', b'/foo'),
-    (b'post', b'/foo', b'/123'),
-    (b'put', b'/a/b/c/d', b'/a/b/c/'),
-    (b'put', b'/a/b/c/d', b'/a/b/c/d/e'),
-    (b'delete', b'/', b'/a'),
+    ('head', b'/', b'/foo'),
+    ('get', b'/', b'/foo'),
+    ('post', b'/', b'/foo'),
+    ('post', b'/foo', b'/123'),
+    ('put', b'/a/b/c/d', b'/a/b/c/'),
+    ('put', b'/a/b/c/d', b'/a/b/c/d/e'),
+    ('delete', b'/', b'/a'),
 ]
-
 
 def mock_handler():
     return None
@@ -122,7 +121,7 @@ class TestRouter:
     def test_router_add_shortcuts(self, method, pattern, url):
         router = Router()
 
-        fn = getattr(router, f'add_{method.decode("latin-1")}')
+        fn = getattr(router, f'add_{method}')
 
         def home():
             return 'Hello, World'
@@ -144,7 +143,7 @@ class TestRouter:
     def test_router_decorator(self, decorator, pattern, url):
         router = Router()
 
-        method = getattr(router, decorator.decode("latin-1"))
+        method = getattr(router, decorator)
 
         @method(pattern)
         def home():

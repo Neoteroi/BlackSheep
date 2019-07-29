@@ -69,7 +69,7 @@ def get_response_for_file(request, resource_path, cache_time):
     if previous_etag and current_etag == previous_etag:
         return Response(304, headers, None)
 
-    if request.method == b'HEAD':
+    if request.method == 'HEAD':
         headers.append(Header(b'Content-Type', get_mime_type(resource_path)))
         headers.append(Header(b'Content-Length', str(file_size).encode()))
         return Response(200, headers, None)

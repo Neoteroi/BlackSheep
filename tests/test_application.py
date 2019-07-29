@@ -68,17 +68,20 @@ def get_example_scope(method: str, path: str, extra_headers=None, query: Optiona
 class MockReceive:
     
     def __init__(self, messages=None):
-        self.messages = messages
+        self.messages = messages or []
         self.index = 0
         
     async def __call__(self):
-        message = self.messages[self.index]
+        try:
+            message = self.messages[self.index]
+        except IndexError:
+            message = b''
         self.index += 1
         await asyncio.sleep(0)
         return {
             'body': message,
             'type': 'http.message',
-            'more_body': False if len(self.messages) == self.index else True
+            'more_body': False if (len(self.messages) == self.index or not message) else True
         }
 
 
@@ -95,11 +98,11 @@ class MockSend:
 async def test_application_get_handler():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         pass
 
-    @app.router.get(b'/foo')
+    @app.router.get('/foo')
     async def foo(request):
         pass
 
@@ -318,7 +321,7 @@ async def test_application_middlewares_two():
         calls.append(4)
         return response
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def example(request):
         nonlocal calls
         calls.append(5)
@@ -369,7 +372,7 @@ async def test_application_middlewares_three():
         calls.append(7)
         return response
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def example(request):
         nonlocal calls
         calls.append(5)
@@ -418,7 +421,7 @@ async def test_application_middlewares_skip_handler():
         calls.append(6)
         return Response(403)
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def example(request):
         nonlocal calls
         calls.append(5)
@@ -531,7 +534,7 @@ async def test_application_http_exception_handlers():
 
     app.exceptions_handlers[519] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise HttpException(519)
 
@@ -557,7 +560,7 @@ async def test_application_http_exception_handlers_called_in_application_context
 
     app.exceptions_handlers[519] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise HttpException(519)
 
@@ -586,7 +589,7 @@ async def test_application_user_defined_exception_handlers():
 
     app.exceptions_handlers[CustomException] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise CustomException()
 
@@ -616,7 +619,7 @@ async def test_application_user_defined_exception_handlers_called_in_application
 
     app.exceptions_handlers[CustomException] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise CustomException()
 
@@ -640,7 +643,7 @@ async def test_handler_route_value_binding_single(parameter, expected_value):
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value):
         nonlocal called
         called = True
@@ -662,7 +665,7 @@ async def test_handler_route_value_binding_single(parameter, expected_value):
 async def test_handler_route_value_binding_two(parameter, expected_a, expected_b):
     app = FakeApplication()
 
-    @app.router.get(b'/:a/:b')
+    @app.router.get('/:a/:b')
     async def home(request, a, b):
         assert a == expected_a
         assert b == expected_b
@@ -683,7 +686,7 @@ async def test_handler_route_value_binding_single_int(parameter, expected_value)
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: int):
         nonlocal called
         called = True
@@ -705,7 +708,7 @@ async def test_handler_route_value_binding_single_int_invalid(parameter):
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: int):
         nonlocal called
         called = True
@@ -727,7 +730,7 @@ async def test_handler_route_value_binding_single_float_invalid(parameter):
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: float):
         nonlocal called
         called = True
@@ -751,7 +754,7 @@ async def test_handler_route_value_binding_single_float(parameter, expected_valu
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: float):
         nonlocal called
         called = True
@@ -773,7 +776,7 @@ async def test_handler_route_value_binding_single_float(parameter, expected_valu
 async def test_handler_route_value_binding_two(parameter, expected_a, expected_b):
     app = FakeApplication()
 
-    @app.router.get(b'/:a/:b')
+    @app.router.get('/:a/:b')
     async def home(request, a, b):
         assert a == expected_a
         assert b == expected_b
@@ -792,7 +795,7 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
 async def test_handler_route_value_binding_mixed_types(parameter, expected_a, expected_b, expected_c):
     app = FakeApplication()
 
-    @app.router.get(b'/:a/:b/:c')
+    @app.router.get('/:a/:b/:c')
     async def home(request, a: str, b: int, c: float):
         assert a == expected_a
         assert b == expected_b
@@ -812,7 +815,7 @@ async def test_handler_route_value_binding_mixed_types(parameter, expected_a, ex
 async def test_handler_query_value_binding_single(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a):
         assert a == expected_value
 
@@ -832,7 +835,7 @@ async def test_handler_query_value_binding_single(query, expected_value):
 async def test_handler_query_value_binding_optional_int(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: Optional[int]):
         assert a == expected_value
 
@@ -852,7 +855,7 @@ async def test_handler_query_value_binding_optional_int(query, expected_value):
 async def test_handler_query_value_binding_optional_float(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: Optional[float]):
         assert a == expected_value
 
@@ -873,7 +876,7 @@ async def test_handler_query_value_binding_optional_float(query, expected_value)
 async def test_handler_query_value_binding_optional_list(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: Optional[List[float]]):
         assert a == expected_value
 
@@ -891,7 +894,7 @@ async def test_handler_query_value_binding_optional_list(query, expected_value):
 async def test_handler_query_value_binding_mixed_types(query, expected_a, expected_b, expected_c):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: str, b: int, c: float):
         assert a == expected_a
         assert b == expected_b
@@ -909,7 +912,7 @@ async def test_handler_query_value_binding_mixed_types(query, expected_a, expect
 async def test_handler_query_value_binding_list(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a):
         assert a == expected_value
 
@@ -927,7 +930,7 @@ async def test_handler_query_value_binding_list(query, expected_value):
 async def test_handler_query_value_binding_list_of_ints(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: List[int]):
         assert a == expected_value
 
@@ -945,7 +948,7 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_value):
 async def test_handler_query_value_binding_list_of_floats(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: List[float]):
         assert a == expected_value
 
@@ -958,7 +961,7 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_value)
 async def test_handler_normalize_sync_method():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request):
         pass
 
@@ -971,7 +974,7 @@ async def test_handler_normalize_sync_method():
 async def test_handler_normalize_sync_method_from_header():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request, xx: FromHeader(str)):
         assert xx == 'Hello World'
 
@@ -984,7 +987,7 @@ async def test_handler_normalize_sync_method_from_header():
 async def test_handler_normalize_sync_method_from_query():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request, xx: FromQuery(int)):
         assert xx == 20
 
@@ -1002,7 +1005,7 @@ async def test_handler_normalize_sync_method_from_query():
 async def test_handler_normalize_sync_method_from_query_default_type(query, expected_values):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request, xx: FromQuery()):
         assert xx == expected_values
 
@@ -1015,7 +1018,7 @@ async def test_handler_normalize_sync_method_from_query_default_type(query, expe
 async def test_handler_normalize_method_without_input():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home():
         pass
 
@@ -1032,7 +1035,7 @@ async def test_handler_normalize_method_without_input():
 async def test_handler_from_route(value, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/:area')
+    @app.router.get('/:area')
     async def home(request, area: FromRoute(str)):
         assert area == expected_value
 
@@ -1049,7 +1052,7 @@ async def test_handler_from_route(value, expected_value):
 async def test_handler_two_routes_parameters(value_one, value_two, expected_value_one, expected_value_two):
     app = FakeApplication()
 
-    @app.router.get(b'/:culture_code/:area')
+    @app.router.get('/:culture_code/:area')
     async def home(request, culture_code: FromRoute(), area: FromRoute()):
         assert culture_code == expected_value_one
         assert area == expected_value_two
@@ -1070,7 +1073,7 @@ class Item:
 async def test_handler_from_json_parameter():
     app = FakeApplication()
 
-    @app.router.post(b'/')
+    @app.router.post('/')
     async def home(request, item: FromJson(Item)):
         assert item is not None
         assert item.a == 'Hello'
@@ -1091,7 +1094,7 @@ async def test_handler_from_json_parameter():
 async def test_handler_from_json_parameter_implicit():
     app = FakeApplication()
 
-    @app.router.post(b'/')
+    @app.router.post('/')
     async def home(request, item: Item):
         assert item is not None
         assert item.a == 'Hello'
@@ -1112,7 +1115,7 @@ async def test_handler_from_json_parameter_implicit():
 async def test_handler_from_wrong_method_json_parameter_gets_null():
     app = FakeApplication()
 
-    @app.router.get(b'/')  # <--- NB: wrong http method for posting payloads
+    @app.router.get('/')  # <--- NB: wrong http method for posting payloads
     async def home(request, item: FromJson(Item)):
         assert item is None
 

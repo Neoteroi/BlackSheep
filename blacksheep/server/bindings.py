@@ -78,7 +78,7 @@ class MissingConverterError(Exception):
 
 class FromBody(Binder):
 
-    _excluded_methods = {b'GET', b'HEAD', b'TRACE'}
+    _excluded_methods = {'GET', 'HEAD', 'TRACE'}
 
 
 class FromJson(FromBody):

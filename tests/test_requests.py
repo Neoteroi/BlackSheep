@@ -5,7 +5,7 @@ from blacksheep.exceptions import BadRequestFormat, InvalidOperation
 
 
 def test_request_supports_dynamic_attributes():
-    request = Request(b'GET', b'/', Headers(), None)
+    request = Request('GET', b'/', Headers(), None)
     foo = object()
 
     assert hasattr(request, 'foo') is False, 'This test makes sense if such attribute is not defined'
@@ -15,15 +15,15 @@ def test_request_supports_dynamic_attributes():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('url,method,headers,content,expected_result', [
-    (b'https://robertoprevato.github.io', b'GET', [], None,
+    (b'https://robertoprevato.github.io', 'GET', [], None,
      b'GET / HTTP/1.1\r\nHost: robertoprevato.github.io\r\n\r\n'),
-    (b'https://robertoprevato.github.io', b'HEAD', [], None,
+    (b'https://robertoprevato.github.io', 'HEAD', [], None,
      b'HEAD / HTTP/1.1\r\nHost: robertoprevato.github.io\r\n\r\n'),
-    (b'https://robertoprevato.github.io', b'POST', [], None,
+    (b'https://robertoprevato.github.io', 'POST', [], None,
      b'POST / HTTP/1.1\r\nHost: robertoprevato.github.io\r\n\r\n'),
-    (b'https://robertoprevato.github.io/How-I-created-my-own-media-storage-in-Azure/', b'GET', [], None,
+    (b'https://robertoprevato.github.io/How-I-created-my-own-media-storage-in-Azure/', 'GET', [], None,
      b'GET /How-I-created-my-own-media-storage-in-Azure/ HTTP/1.1\r\nHost: robertoprevato.github.io\r\n\r\n'),
-    (b'https://foo.org/a/b/c/?foo=1&ufo=0', b'GET', [], None,
+    (b'https://foo.org/a/b/c/?foo=1&ufo=0', 'GET', [], None,
      b'GET /a/b/c/?foo=1&ufo=0 HTTP/1.1\r\nHost: foo.org\r\n\r\n'),
 ])
 async def test_request_writing(url, method, headers, content, expected_result):
@@ -48,7 +48,7 @@ async def test_request_writing(url, method, headers, content, expected_result):
     }),
 ])
 def test_parse_query(url, query, parsed_query):
-    request = Request(b'GET', url, None, None)
+    request = Request('GET', url, None, None)
     assert request.url.value == url
     assert request.url.query == query
     assert request.query == parsed_query
@@ -56,7 +56,7 @@ def test_parse_query(url, query, parsed_query):
 
 @pytest.mark.asyncio
 async def test_can_read_json_data_even_without_content_type_header():
-    request = Request(b'POST', b'/', Headers(), None)
+    request = Request('POST', b'/', Headers(), None)
 
     request.extend_body(b'{"hello":"world","foo":false}')
     request.complete.set()
@@ -67,7 +67,7 @@ async def test_can_read_json_data_even_without_content_type_header():
 
 @pytest.mark.asyncio
 async def test_if_read_json_fails_content_type_header_is_checked_json_gives_bad_request_format():
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         Header(b'Content-Type', b'application/json')
     ]), None)
 
@@ -80,7 +80,7 @@ async def test_if_read_json_fails_content_type_header_is_checked_json_gives_bad_
 
 @pytest.mark.asyncio
 async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_invalid_operation():
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         Header(b'Content-Type', b'text/html')
     ]), None)
 
@@ -92,7 +92,7 @@ async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_
 
 
 def test_cookie_parsing():
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         Header(b'Cookie', b'ai=something; hello=world; foo=Hello%20World%3B;')
     ]), None)
 
@@ -104,7 +104,7 @@ def test_cookie_parsing():
 
 
 def test_cookie_parsing_multiple_cookie_headers():
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         Header(b'Cookie', b'ai=something; hello=world; foo=Hello%20World%3B;'),
         Header(b'Cookie', b'jib=jab; ai=else;'),
     ]), None)
@@ -118,7 +118,7 @@ def test_cookie_parsing_multiple_cookie_headers():
 
 
 def test_cookie_parsing_duplicated_cookie_header_value():
-    request = Request(b'POST', b'/', Headers([
+    request = Request('POST', b'/', Headers([
         Header(b'Cookie', b'ai=something; hello=world; foo=Hello%20World%3B; hello=kitty;')
     ]), None)
 
@@ -135,7 +135,7 @@ def test_cookie_parsing_duplicated_cookie_header_value():
     [Header(b'X-Foo', b'foo'), False]
 ])
 def test_request_expect_100_continue(header, expected_result):
-    request = Request(b'POST', b'/', Headers([header]), None)
+    request = Request('POST', b'/', Headers([header]), None)
     assert expected_result == request.expect_100_continue()
 
 
@@ -147,5 +147,5 @@ def test_request_expect_100_continue(header, expected_result):
     [[Header(b'Content-Type', b'application/xml')], False]
 ])
 def test_request_declares_json(headers, expected_result):
-    request = Request(b'GET', b'/', Headers(headers), None)
+    request = Request('GET', b'/', Headers(headers), None)
     assert request.declares_json() is expected_result

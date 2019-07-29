@@ -143,5 +143,5 @@ def serve_files(router,
                                           discovery,
                                           cache_time,
                                           extensions))
-    router.add_route(b'GET', route)
-    router.add_route(b'HEAD', route)
+    router.add_route('GET', route)
+    router.add_route('HEAD', route)

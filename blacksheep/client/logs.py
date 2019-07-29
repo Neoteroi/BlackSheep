@@ -60,20 +60,20 @@ def get_client_logging_middleware():
         logged_url = get_logged_url(request)
 
         request.trace_id = trace_id
-        client_logger.debug(f'({trace_id}) SENDING : {request.method.decode().ljust(8)} {logged_url}')
+        client_logger.debug(f'({trace_id}) SENDING : {request.method.ljust(8)} {logged_url}')
         try:
             response = await handler(request)
             client_logger.debug(get_response_record(response, trace_id, request.method, logged_url))
         except InvalidResponseException as invalid_response_ex:
-            client_logger.warning(f'({trace_id}) SERVER PRODUCED AN INVALID RESPONSE FOR: {request.method.decode()} '
+            client_logger.warning(f'({trace_id}) SERVER PRODUCED AN INVALID RESPONSE FOR: {request.method} '
                                 f'{get_logged_url(request)} - {invalid_response_ex}')
             raise
         except TimeoutError as timeout:
-            client_logger.warning(f'({trace_id}) OPERATION TIMEOUT: {request.method.decode()} '
+            client_logger.warning(f'({trace_id}) OPERATION TIMEOUT: {request.method} '
                                 f'{get_logged_url(request)} - {timeout}')
             raise
         except Exception:
-            client_logger.exception(f'({trace_id}) UNHANDLED EXCEPTION WHILE HANDLING: {request.method.decode()} '
+            client_logger.exception(f'({trace_id}) UNHANDLED EXCEPTION WHILE HANDLING: {request.method} '
                                     f'{get_logged_url(request)}')
             raise
         return response

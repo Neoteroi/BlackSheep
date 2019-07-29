@@ -269,7 +269,7 @@ async def write_request(Request request):
     cdef bytes chunk
     cdef Content content
 
-    yield request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
+    yield request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
         write_headers(get_all_request_headers(request)) + b'\r\n'
 
     content = request.content

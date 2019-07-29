@@ -79,7 +79,7 @@ cdef class BaseApplication:
                                                'info': info,
                                                'exctype': exc.__class__.__name__,
                                                'excmessage': str(exc),
-                                               'method': request.method.decode(),
+                                               'method': request.method,
                                                'path': request.url.value.decode()}))
 
             return Response(500, content=content)

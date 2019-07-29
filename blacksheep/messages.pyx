@@ -208,7 +208,7 @@ cdef class Message:
 cdef class Request(Message):
 
     def __init__(self,
-                 bytes method,
+                 str method,
                  bytes url,
                  Headers headers,
                  Content content):
@@ -218,11 +218,11 @@ cdef class Request(Message):
         self._query = None
         self.route_values = None
         self.active = True
-        if method in {b'GET', b'HEAD', b'TRACE'}:
+        if method in {'GET', 'HEAD', 'TRACE'}:
             self.complete.set()  # methods without body
         
     def __repr__(self):
-        return f'<Request {self.method.decode()} {self.url.value.decode()}>'
+        return f'<Request {self.method} {self.url.value.decode()}>'
 
     @property
     def query(self):

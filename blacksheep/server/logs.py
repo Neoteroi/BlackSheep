@@ -57,17 +57,17 @@ def setup_sync_logging():
     access_logger, app_logger = _get_loggers()
 
     async def logging_middleware(request, handler):
-        access_logger.debug(f'{request.method.decode().ljust(8)} {get_logged_url(request)}')
+        access_logger.debug(f'{request.method.ljust(8)} {get_logged_url(request)}')
         try:
             response = await handler(request)
         except HttpException:
             raise
         except MessageAborted:
             app_logger.warning(f'The connection was lost or aborted while the request was being sent. '
-                               f'{request.method.decode().ljust(8)} {get_logged_url(request)}')
+                               f'{request.method.ljust(8)} {get_logged_url(request)}')
             raise
         except Exception:
-            app_logger.exception(f'{"*" * 30}\nunhandled exception while handling: {request.method.decode()} {get_logged_url(request)}')
+            app_logger.exception(f'{"*" * 30}\nunhandled exception while handling: {request.method} {get_logged_url(request)}')
             raise
         return response
 

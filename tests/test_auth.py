@@ -2,9 +2,9 @@ import pytest
 from pytest import raises
 from guardpost.authentication import Identity
 from typing import Any, Optional
-from guardpost.authorization import AuthorizationContext, BaseRequirement
-from .test_application import FakeApplication, get_new_connection_handler
-from blacksheep.server.authentication import AuthenticationHandler, AuthenticateChallenge
+from guardpost.authorization import AuthorizationContext
+from .test_application import FakeApplication, get_example_scope, MockReceive, MockSend
+from blacksheep.server.authentication import AuthenticationHandler
 from blacksheep.server.authorization import auth, Policy, Requirement, AuthorizationWithoutAuthenticationError
 from guardpost.common import AuthenticatedRequirement
 from blacksheep.server.authentication import AuthenticateChallenge
@@ -12,7 +12,7 @@ from blacksheep.server.authentication import AuthenticateChallenge
 
 class MockAuthHandler(AuthenticationHandler):
 
-    def __init__(self, identity = None):
+    def __init__(self, identity=None):
         if identity is None:
             identity = Identity({
                 'id': '001',
@@ -74,12 +74,7 @@ async def test_authentication_sets_identity_in_request():
         return None
 
     app.prepare()
-
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
@@ -104,12 +99,7 @@ async def test_authorization_unauthorized_error():
         return None
 
     app.prepare()
-
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
@@ -136,12 +126,7 @@ async def test_authorization_policy_success():
         return None
 
     app.prepare()
-
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
@@ -161,12 +146,7 @@ async def test_authorization_default_allows_anonymous():
         return None
 
     app.prepare()
-
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
@@ -187,12 +167,7 @@ async def test_authorization_supports_default_require_authenticated():
         return None
 
     app.prepare()
-
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
@@ -213,12 +188,7 @@ async def test_authentication_challenge_response():
         return None
 
     app.prepare()
-
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
     assert app.response.status == 401
     header = app.response.headers.get_single(b'WWW-Authenticate')

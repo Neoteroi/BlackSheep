@@ -54,8 +54,12 @@ cdef class Message:
         self.handled = False
         self.receive = None
         self.reading = False
+        self.scope = None
         if content:
-            self.complete.set()
+            self.set_content(content)
+
+    cpdef void extend_body(self, bytes chunk):
+        self._raw_body.extend(chunk)
 
     @property
     def raw_body(self):
@@ -77,11 +81,6 @@ cdef class Message:
             if message.get('type') == 'http.disconnect':
                 raise MessageAborted()
 
-            # NB: a request can be handled before the client sends the whole request body
-            # for example, when a request authorization fails
-            if self.handled:
-                break
-
             self._raw_body.extend(message.get('body', b''))
 
             if not message.get('more_body'):
@@ -93,10 +92,10 @@ cdef class Message:
 
         if self.reading:
             await self.complete.wait()
-
-        self.reading = True
-        await self._read_body()
-        self.complete.set()
+        else:
+            self.reading = True
+            await self._read_body()
+            self.complete.set()
 
         if not self._raw_body and self.content:
             # NB: this will happen realistically only in tests, not in real use cases

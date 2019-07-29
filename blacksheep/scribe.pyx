@@ -150,7 +150,7 @@ async def write_chunks(Content http_content):
     yield b'0\r\n\r\n'
 
 
-cdef bint is_small_response(Response response):
+cpdef bint is_small_response(Response response):
     cdef Content content = response.content
     if not content:
         return True
@@ -195,7 +195,7 @@ cpdef bytes write_small_request(Request request):
     return bytes(data)
 
 
-cdef bytes write_small_response(Response response):
+cpdef bytes write_small_response(Response response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
     extend_data_with_headers(get_all_response_headers(response), data)

@@ -1,7 +1,7 @@
 import pytest
 from jinja2 import PackageLoader
 from blacksheep.server.templating import use_templates, view, view_async
-from .test_application import FakeApplication, get_new_connection_handler
+from .test_application import FakeApplication, get_example_scope, MockSend, MockReceive
 
 
 def get_app(enable_async):
@@ -20,11 +20,7 @@ def home_model():
 
 async def _home_scenario(app: FakeApplication):
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
     assert app.response.status == 200
 
     text = await app.response.text()

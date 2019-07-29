@@ -296,14 +296,21 @@ class Application(BaseApplication):
             return
 
         # TODO: handle headers without instantiating Header (?)
+        # TODO: maybe change Request class to support separation of query string (without parsing?)
+        query = scope.get('query_string')
+        if query:
+            url = url + b'?' + query
         request = Request(
             method,
             url,
             Headers([Header(name, value) for name, value in scope.get('headers')]),
             None
         )
+        request.scope = scope
         request.route_values = route.values
         request.receive = receive
+
+        self.before_request(request)
 
         try:
             response = await route.handler(request)
@@ -322,6 +329,9 @@ class Application(BaseApplication):
         request.handled = True
 
         await self._send_response(response, send)
+
+    def before_request(self, request):
+        pass
 
     async def _send_response(self, response, send):
 

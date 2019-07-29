@@ -21,7 +21,9 @@ cdef class Message:
     cdef public object receive
     cdef readonly bint reading
     cdef public bint handled
+    cdef public dict scope
 
+    cpdef void extend_body(self, bytes chunk)
     cpdef void set_content(self, Content content)
     cpdef bint has_body(self)
     cpdef bint declares_content_type(self, bytes type)

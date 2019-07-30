@@ -87,15 +87,20 @@ cdef class Message:
                 break
 
     async def read(self) -> bytes:
-        if self.complete.is_set():
-            return bytes(self._raw_body)
+        if self.receive:
+            # ASGI interface, incoming request
+            if self.complete.is_set():
+                return bytes(self._raw_body)
 
-        if self.reading:
-            await self.complete.wait()
+            if self.reading:
+                await self.complete.wait()
+            else:
+                self.reading = True
+                await self._read_body()
+                self.complete.set()
         else:
-            self.reading = True
-            await self._read_body()
-            self.complete.set()
+            # incoming response
+            await self.complete.wait()
 
         if not self._raw_body and self.content:
             # NB: this will happen realistically only in tests, not in real use cases

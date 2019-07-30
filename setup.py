@@ -10,7 +10,7 @@ COMPILE_ARGS = ['-O3']
 
 
 setup(name='blacksheep',
-      version='0.1.3',
+      version='0.1.4',
       description='Fast HTTP Server/Client microframework for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',
@@ -66,6 +66,7 @@ setup(name='blacksheep',
                     extra_compile_args=COMPILE_ARGS)
       ],
       install_requires=[
+          'certifi',
           'cchardet',
           'guardpost',
           'rodi'

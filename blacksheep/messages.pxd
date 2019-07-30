@@ -18,9 +18,11 @@ cdef class Message:
     cdef bytearray _raw_body
     cdef public object complete
     cdef object _form_data
-    cdef readonly bint aborted
+    cdef public object receive
+    cdef readonly bint reading
+    cdef public bint handled
+    cdef public dict scope
 
-    cdef void on_body(self, bytes chunk)
     cpdef void extend_body(self, bytes chunk)
     cpdef void set_content(self, Content content)
     cpdef bint has_body(self)
@@ -33,7 +35,7 @@ cdef class Request(Message):
     cdef public bint active
     cdef public dict route_values
     cdef public URL url
-    cdef public bytes method
+    cdef public str method
     cdef dict _query
     cdef dict __dict__
 

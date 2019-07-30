@@ -4,13 +4,12 @@
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
 
-from .options cimport ServerOptions
 from .exceptions cimport HttpException
 
 
 cdef class BaseApplication:
 
-    cdef readonly ServerOptions options
+    cdef public bint show_error_details
     cdef readonly object router
     cdef readonly object services
     cdef readonly list connections

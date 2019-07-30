@@ -82,7 +82,7 @@ def get_frozen_file_getter(file_path, cache_max_age=12000):
         if previous_etag and previous_etag == current_etag:
             return Response(304, headers, None)
 
-        if request.method == b'HEAD':
+        if request.method == 'HEAD':
             return Response(200, head_headers, None)
 
         return Response(200, Headers(headers), Content(mime, data))
@@ -109,5 +109,5 @@ def get_routes_for_static_files(source_folder, extensions, discovery, cache_max_
 
 def serve_static_files(router, folder_name='static', extensions=None, discovery=False, cache_max_age=10800, frozen=True):
     for route in get_routes_for_static_files(folder_name, extensions, discovery, cache_max_age, frozen):
-        router.add_route(b'GET', route)
-        router.add_route(b'HEAD', route)
+        router.add_route('GET', route)
+        router.add_route('HEAD', route)

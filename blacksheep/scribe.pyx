@@ -1,3 +1,4 @@
+from .url cimport URL
 from .headers cimport Headers, Header
 from .contents cimport Content
 from .cookies cimport Cookie
@@ -49,8 +50,8 @@ cdef void extend_data_with_headers(list headers, bytearray data):
 
 
 cdef bytes write_request_uri(Request request):
-    cdef p
-    cdef object url = request.url  # TODO: how to use type from httptools?
+    cdef bytes p
+    cdef URL url = request.url
     p = url.path or b'/'
     if url.query:
         return p + b'?' + url.query
@@ -118,7 +119,7 @@ cdef bytes write_cookies_for_request(dict cookies):
     return b'; '.join(parts)
 
 
-cdef list get_all_response_headers(Response response):
+cpdef list get_all_response_headers(Response response):
     cdef list result = []
     cdef Content content
     cdef Header header
@@ -150,7 +151,7 @@ async def write_chunks(Content http_content):
     yield b'0\r\n\r\n'
 
 
-cdef bint is_small_response(Response response):
+cpdef bint is_small_response(Response response):
     cdef Content content = response.content
     if not content:
         return True
@@ -179,7 +180,7 @@ cpdef bint request_has_body(Request request):
 
 cpdef bytes write_request_without_body(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
     extend_data_with_headers(get_all_request_headers(request), data)
     data.extend(b'\r\n')
     return bytes(data)
@@ -187,7 +188,7 @@ cpdef bytes write_request_without_body(Request request):
 
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
     extend_data_with_headers(get_all_request_headers(request), data)
     data.extend(b'\r\n')
     if request.content:
@@ -195,7 +196,7 @@ cpdef bytes write_small_request(Request request):
     return bytes(data)
 
 
-cdef bytes write_small_response(Response response):
+cpdef bytes write_small_response(Response response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
     extend_data_with_headers(get_all_response_headers(response), data)
@@ -269,7 +270,7 @@ async def write_request(Request request):
     cdef bytes chunk
     cdef Content content
 
-    yield request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
+    yield request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
         write_headers(get_all_request_headers(request)) + b'\r\n'
 
     content = request.content
@@ -302,6 +303,23 @@ async def write_response(Response response):
     yield STATUS_LINES[response.status] + \
         write_headers(get_all_response_headers(response)) + b'\r\n'
 
+    content = response.content
+
+    if content:
+        if should_use_chunked_encoding(content):
+            async for chunk in write_chunks(content):
+                yield chunk
+        else:
+            data = content.body
+
+            if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                for chunk in get_chunks(data):
+                    yield chunk
+            else:
+                yield data
+
+
+async def write_response_content(response):
     content = response.content
 
     if content:

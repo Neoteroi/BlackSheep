@@ -146,6 +146,8 @@ class Router:
             method_patterns[pattern] = True
 
     def add(self, method, pattern, handler):
+        if isinstance(method, bytes):
+            method = method.decode()
         new_route = Route(pattern, handler)
         if self._is_route_configured(method, new_route.pattern):
             current_match = self.get_match(method, pattern)
@@ -243,6 +245,8 @@ class Router:
 
     @lru_cache(maxsize=1200)
     def get_match(self, method, value):
+        if isinstance(method, bytes):
+            method = method.decode()
         for route in self.routes[method]:
             match = route.match(value)
             if match:

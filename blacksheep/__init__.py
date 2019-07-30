@@ -17,12 +17,12 @@ from .messages import Request, Response
 
 
 class HttpMethod:
-    GET = b'GET'
-    HEAD = b'HEAD'
-    POST = b'POST'
-    PUT = b'PUT'
-    DELETE = b'DELETE'
-    TRACE = b'TRACE'
-    OPTIONS = b'OPTIONS'
-    CONNECT = b'CONNECT'
-    PATCH = b'PATCH'
+    GET = 'GET'
+    HEAD = 'HEAD'
+    POST = 'POST'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
+    TRACE = 'TRACE'
+    OPTIONS = 'OPTIONS'
+    CONNECT = 'CONNECT'
+    PATCH = 'PATCH'

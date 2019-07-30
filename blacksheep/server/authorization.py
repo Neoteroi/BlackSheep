@@ -6,10 +6,12 @@ from guardpost.asynchronous.authorization import AuthorizationStrategy, AsyncReq
 
 __all__ = ('auth',
            'AuthorizationStrategy',
+           'AuthorizationWithoutAuthenticationError',
            'allow_anonymous',
            'get_authorization_middleware',
            'Requirement',
            'AsyncRequirement',
+           'handle_unauthorized',
            'Policy')
 
 

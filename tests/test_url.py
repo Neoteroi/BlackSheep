@@ -11,7 +11,6 @@ def test_empty_url():
     assert url.port == 0
     assert url.query is None
     assert url.fragment is None
-    assert url.userinfo is None
     assert url.is_absolute is False
 
 
@@ -24,7 +23,6 @@ def test_absolute_url():
     assert url.port == 0
     assert url.query == b'foo=power&hello=world'
     assert url.fragment is None
-    assert url.userinfo is None
     assert url.is_absolute is True
 
 
@@ -37,14 +35,7 @@ def test_relative_url():
     assert url.port == 0
     assert url.query == b'foo=power&hello=world'
     assert url.fragment is None
-    assert url.userinfo is None
     assert url.is_absolute is False
-
-
-def test_cannot_instantiate_relative_url_without_trailing_slash():
-    # otherwise, we could not distinguish between a URL and a URN redirect
-    with pytest.raises(InvalidURL):
-        URL(b'api/cat/001?foo=power&hello=world')
 
 
 def test_equality():
@@ -89,3 +80,9 @@ def test_base_url(value, expected_base_url):
     url = URL(value)
     base_url = url.base_url()
     assert expected_base_url == base_url.value
+
+
+def test_raises_for_invalid_scheme():
+
+    with pytest.raises(InvalidURL):
+        URL(b'file://D:/a/b/c')

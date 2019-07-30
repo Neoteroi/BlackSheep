@@ -216,12 +216,12 @@ class ClientSession:
         if status == 301 or status == 302:
             if self.non_standard_handling_of_301_302_redirect_method:
                 # Change original request method to GET (Browser-like)
-                request.method = b'GET'
+                request.method = 'GET'
 
         if status == 303:
             # 303 See Other
             # Change original request method to GET
-            request.method = b'GET'
+            request.method = 'GET'
 
         location = self.extract_redirect_location(response)
         redirect_url = self.get_redirect_url(request, location)
@@ -318,7 +318,7 @@ class ClientSession:
                   url: URLType,
                   headers: Optional[List[Header]] = None,
                   params=None):
-        return await self.send(Request(b'GET',
+        return await self.send(Request('GET',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        None))
@@ -328,7 +328,7 @@ class ClientSession:
                    content: Content = None,
                    headers: Optional[List[Header]] = None,
                    params=None):
-        return await self.send(Request(b'POST',
+        return await self.send(Request('POST',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        content))
@@ -338,7 +338,7 @@ class ClientSession:
                   content: Content = None,
                   headers: Optional[List[Header]] = None,
                   params=None):
-        return await self.send(Request(b'PUT',
+        return await self.send(Request('PUT',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        content))
@@ -348,7 +348,7 @@ class ClientSession:
                      content: Content = None,
                      headers: Optional[List[Header]] = None,
                      params=None):
-        return await self.send(Request(b'DELETE',
+        return await self.send(Request('DELETE',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        content))
@@ -357,7 +357,7 @@ class ClientSession:
                     url: URLType,
                     headers: Optional[List[Header]] = None,
                     params=None):
-        return await self.send(Request(b'TRACE',
+        return await self.send(Request('TRACE',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        None))
@@ -366,7 +366,7 @@ class ClientSession:
                    url: URLType,
                    headers: Optional[List[Header]] = None,
                    params=None):
-        return await self.send(Request(b'HEAD',
+        return await self.send(Request('HEAD',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        None))
@@ -376,7 +376,7 @@ class ClientSession:
                     content: Content = None,
                     headers: Optional[List[Header]] = None,
                     params=None):
-        return await self.send(Request(b'PATCH',
+        return await self.send(Request('PATCH',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        content))
@@ -386,7 +386,7 @@ class ClientSession:
                       content: Content = None,
                       headers: Optional[List[Header]] = None,
                       params=None):
-        return await self.send(Request(b'OPTIONS',
+        return await self.send(Request('OPTIONS',
                                        self.get_url(url, params),
                                        Headers(headers),
                                        content))

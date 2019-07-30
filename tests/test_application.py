@@ -3,7 +3,6 @@ import asyncio
 import pkg_resources
 from typing import List, Optional
 from blacksheep.server import Application
-from blacksheep.connection import ServerConnection
 from blacksheep import Request, Response, Header, JsonContent, Headers, HttpException, TextContent
 from blacksheep.server.bindings import FromHeader, FromQuery, FromRoute, FromJson
 from tests.utils import ensure_folder
@@ -11,9 +10,8 @@ from tests.utils import ensure_folder
 
 class FakeApplication(Application):
 
-    def __init__(self):
-        super().__init__(debug=True)
-        self.response_done = asyncio.Event()
+    def __init__(self, *args):
+        super().__init__(*args)
         self.request = None
         self.response = None
 
@@ -21,57 +19,17 @@ class FakeApplication(Application):
         self.normalize_handlers()
         self.configure_middlewares()
 
-    async def handle(self, request):
-        response = await super().handle(request)
-        self.response_done.set()
+    def before_request(self, request):
         self.request = request
+        super().before_request(request)
+
+    async def send_response(self, response, send):
         self.response = response
-        return response
-
-
-class FakeTransport:
-
-    def __init__(self):
-        self.extra_info = {
-            'peername': '127.0.0.1'
-        }
-        self.reading = True
-        self.writing = True
-        self.closed = False
-        self.bytes = b''
-
-    def pause_reading(self):
-        self.reading = False
-
-    def resume_reading(self):
-        self.reading = True
-
-    def pause_writing(self):
-        self.writing = False
-
-    def resume_writing(self):
-        self.writing = True
-
-    def get_extra_info(self, name):
-        return self.extra_info.get(name)
-
-    def write(self, data):
-        if self.closed:
-            raise Exception('Transport is closed')
-        self.bytes += data
-
-    def close(self):
-        self.closed = True
-
-
-def get_new_connection_handler(app: Application):
-    handler = ServerConnection(app=app, loop=asyncio.get_event_loop())
-    handler.connection_made(FakeTransport())
-    return handler
+        return await super().send_response(response, send)
 
 
 def test_application_supports_dynamic_attributes():
-    app = Application()
+    app = FakeApplication()
     foo = object()
 
     assert hasattr(app, 'foo') is False, 'This test makes sense if such attribute is not defined'
@@ -79,33 +37,80 @@ def test_application_supports_dynamic_attributes():
     assert app.foo is foo
 
 
+def get_example_scope(method: str, path: str, extra_headers=None, query: Optional[bytes] = b''):
+    if '?' in path:
+        raise ValueError('The path in ASGI messages does not contain query string')
+    if query.startswith(b''):
+        query = query.lstrip(b'')
+    return {
+        'type': 'http',
+        'http_version': '1.1',
+        'server': ['127.0.0.1', 8000],
+        'client': ['127.0.0.1', 51492],
+        'scheme': 'http',
+        'method': method,
+        'root_path': '',
+        'path': path,
+        'raw_path': path.encode(),
+        'query_string': query,
+        'headers': [
+            [b'host', b'127.0.0.1:8000'],
+            [b'user-agent', b'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0'],
+            [b'accept', b'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'],
+            [b'accept-language', b'en-US,en;q=0.5'],
+            [b'accept-encoding', b'gzip, deflate'],
+            [b'connection', b'keep-alive'],
+            [b'upgrade-insecure-requests', b'1']
+        ] + (extra_headers or [])
+    }
+
+
+class MockReceive:
+    
+    def __init__(self, messages=None):
+        self.messages = messages or []
+        self.index = 0
+        
+    async def __call__(self):
+        try:
+            message = self.messages[self.index]
+        except IndexError:
+            message = b''
+        self.index += 1
+        await asyncio.sleep(0)
+        return {
+            'body': message,
+            'type': 'http.message',
+            'more_body': False if (len(self.messages) == self.index or not message) else True
+        }
+
+
+class MockSend:
+
+    def __init__(self):
+        self.messages = []
+
+    async def __call__(self, message):
+        self.messages.append(message)
+
+
 @pytest.mark.asyncio
 async def test_application_get_handler():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         pass
 
-    @app.router.get(b'/foo')
+    @app.router.get('/foo')
     async def foo(request):
         pass
 
-    handler = get_new_connection_handler(app)
+    send = MockSend()
+    receive = MockReceive()
 
-    message = b'\r\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Upgrade-Insecure-Requests: 1',
-        b'Host: foo\r\n\r\n'
-    ])
+    await app(get_example_scope('GET', '/'), receive, send)
 
-    handler.data_received(message)
-
-    await app.response_done.wait()
     request = app.request  # type: Request
 
     assert request is not None
@@ -125,33 +130,27 @@ async def test_application_post_handler_crlf():
     async def create_cat(request):
         pass
 
-    handler = get_new_connection_handler(app)
-
-    message = b'\r\n'.join([
-        b'POST /api/cat HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Upgrade-Insecure-Requests: 1',
-        b'Content-Length: 34',
-        b'Host: foo\r\n',
-        b'{"name":"Celine","kind":"Persian"}\r\n\r\n'
+    send = MockSend()
+    receive = MockReceive([
+        b'{"name":"Celine","kind":"Persian"}'
     ])
 
-    handler.data_received(message)
-    await app.response_done.wait()
+    await app(get_example_scope('POST', '/api/cat', [[b'content-length', b'34']]),
+              receive,
+              send)
+
     request = app.request  # type: Request
 
     assert request is not None
 
     content = await request.read()
+
     assert b'{"name":"Celine","kind":"Persian"}' == content
 
 
 @pytest.mark.asyncio
-async def test_application_post_multipart_formdata_handler():
-    app = Application(debug=True)
+async def test_application_post_multipart_formdata():
+    app = FakeApplication()
 
     @app.router.post(b'/files/upload')
     async def upload_files(request):
@@ -205,8 +204,6 @@ async def test_application_post_multipart_formdata_handler():
 
         return Response(200)
 
-    handler = get_new_connection_handler(app)
-
     boundary = b'---------------------0000000000000000000000001'
 
     content = b'\n'.join([
@@ -238,21 +235,27 @@ async def test_application_post_multipart_formdata_handler():
         boundary + b'--'
     ])
 
-    message = b'\n'.join([
-        b'POST /files/upload HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Content-Type: multipart/form-data; boundary=' + boundary,
-        b'Content-Length: ' + str(len(content)).encode(),
-        b'Host: foo\n',
-        content,
-        b'\r\n\r\n'
+    send = MockSend()
+    receive = MockReceive([
+        content
     ])
 
-    handler.data_received(message)
+    await app(get_example_scope('POST', '/files/upload',
+                                [
+                                    [b'content-length', str(len(content)).encode()],
+                                    [b'content-type', b'multipart/form-data; boundary=' + boundary]
+                                ]),
+              receive,
+              send)
+
+    response = app.response  # type: Response
+
+    assert response is not None
+    assert response.status == 200
 
 
 @pytest.mark.asyncio
-async def test_application_post_handler_lf():
+async def test_application_post_handler():
     app = FakeApplication()
 
     called_times = 0
@@ -271,25 +274,19 @@ async def test_application_post_handler_lf():
 
         return Response(201, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
 
-    handler = get_new_connection_handler(app)
+    content = b'{"name":"Celine","kind":"Persian"}'
 
-    message = b'\n'.join([
-        b'POST /api/cat HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Upgrade-Insecure-Requests: 1',
-        b'Content-Length: 34',
-        b'Host: foo\n',
-        b'{"name":"Celine","kind":"Persian"}\n\n'
-    ])
+    send = MockSend()
+    receive = MockReceive([content])
 
-    handler.data_received(message)
+    await app(get_example_scope('POST', '/api/cat',
+                                [
+                                    [b'content-length', str(len(content)).encode()]
+                                ]),
+              receive,
+              send)
 
-    await app.response_done.wait()
     request = app.request  # type: Request
-
     assert request is not None
 
     content = await request.read()
@@ -324,7 +321,7 @@ async def test_application_middlewares_two():
         calls.append(4)
         return response
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def example(request):
         nonlocal calls
         calls.append(5)
@@ -334,22 +331,13 @@ async def test_application_middlewares_two():
     app.middlewares.append(middleware_two)
     app.configure_middlewares()
 
-    handler = get_new_connection_handler(app)
+    send = MockSend()
+    receive = MockReceive([])
 
-    message = b'\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Host: foo\n',
-        b'\n\n'
-    ])
+    await app(get_example_scope('GET', '/'),
+              receive,
+              send)
 
-    handler.data_received(message)
-
-    assert handler.transport.closed is False
-    await app.response_done.wait()
     response = app.response  # type: Response
 
     assert response is not None
@@ -384,7 +372,7 @@ async def test_application_middlewares_three():
         calls.append(7)
         return response
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def example(request):
         nonlocal calls
         calls.append(5)
@@ -395,20 +383,12 @@ async def test_application_middlewares_three():
     app.middlewares.append(middleware_three)
     app.configure_middlewares()
 
-    handler = get_new_connection_handler(app)
+    send = MockSend()
+    receive = MockReceive([])
 
-    message = b'\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Host: foo\n',
-        b'\n\n'
-    ])
-
-    handler.data_received(message)
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'),
+              receive,
+              send)
     response = app.response  # type: Response
 
     assert response is not None
@@ -441,34 +421,26 @@ async def test_application_middlewares_skip_handler():
         calls.append(6)
         return Response(403)
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def example(request):
         nonlocal calls
         calls.append(5)
         return Response(200,
-                            Headers([Header(b'Server', b'Python/3.7')]),
-                            JsonContent({'id': '123'}))
+                        Headers([Header(b'Server', b'Python/3.7')]),
+                        JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
     app.middlewares.append(middleware_three)
     app.configure_middlewares()
 
-    handler = get_new_connection_handler(app)
+    send = MockSend()
+    receive = MockReceive([])
 
-    message = b'\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Host: foo\n',
-        b'\n\n'
-    ])
+    await app(get_example_scope('GET', '/'),
+              receive,
+              send)
 
-    handler.data_received(message)
-    assert handler.transport.closed is False
-    await app.response_done.wait()
     response = app.response  # type: Response
     assert response is not None
     assert response.status == 403
@@ -496,7 +468,6 @@ async def test_application_post_multipart_formdata_files_handler():
 
         return Response(200)
 
-    handler = get_new_connection_handler(app)
     boundary = b'---------------------0000000000000000000000001'
     lines = []
 
@@ -520,19 +491,19 @@ async def test_application_post_multipart_formdata_files_handler():
     lines += [boundary + b'--']
     content = b'\n'.join(lines)
 
-    message = b'\n'.join([
-        b'POST /files/upload HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Content-Type: multipart/form-data; boundary=' + boundary,
-        b'Content-Length: ' + str(len(content)).encode(),
-        b'Host: foo\n',
-        content,
-        b'\r\n\r\n'
+    send = MockSend()
+    receive = MockReceive([
+        content
     ])
 
-    handler.data_received(message)
+    await app(get_example_scope('POST', '/files/upload',
+                                [
+                                    [b'content-length', str(len(content)).encode()],
+                                    [b'content-type', b'multipart/form-data; boundary=' + boundary]
+                                ]),
+              receive,
+              send)
 
-    await app.response_done.wait()
     response = app.response  # type: Response
     assert response.status == 200
 
@@ -563,25 +534,12 @@ async def test_application_http_exception_handlers():
 
     app.exceptions_handlers[519] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise HttpException(519)
 
-    handler = get_new_connection_handler(app)
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
-    message = b'\r\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Upgrade-Insecure-Requests: 1',
-        b'Host: foo\r\n\r\n'
-    ])
-
-    handler.data_received(message)
-
-    await app.response_done.wait()
     response = app.response  # type: Response
 
     assert response is not None
@@ -602,25 +560,11 @@ async def test_application_http_exception_handlers_called_in_application_context
 
     app.exceptions_handlers[519] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise HttpException(519)
 
-    handler = get_new_connection_handler(app)
-
-    message = b'\r\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Upgrade-Insecure-Requests: 1',
-        b'Host: foo\r\n\r\n'
-    ])
-
-    handler.data_received(message)
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
     response = app.response  # type: Response
 
     assert response is not None
@@ -645,25 +589,12 @@ async def test_application_user_defined_exception_handlers():
 
     app.exceptions_handlers[CustomException] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise CustomException()
 
-    handler = get_new_connection_handler(app)
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
-    message = b'\r\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Upgrade-Insecure-Requests: 1',
-        b'Host: foo\r\n\r\n'
-    ])
-
-    handler.data_received(message)
-
-    await app.response_done.wait()
     response = app.response  # type: Response
 
     assert response is not None
@@ -688,25 +619,12 @@ async def test_application_user_defined_exception_handlers_called_in_application
 
     app.exceptions_handlers[CustomException] = exception_handler
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request):
         raise CustomException()
 
-    handler = get_new_connection_handler(app)
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
-    message = b'\r\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Upgrade-Insecure-Requests: 1',
-        b'Host: foo\r\n\r\n'
-    ])
-
-    handler.data_received(message)
-
-    await app.response_done.wait()
     response = app.response  # type: Response
 
     assert response is not None
@@ -716,378 +634,326 @@ async def test_application_user_defined_exception_handlers_called_in_application
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter,expected_value', [
-    (b'a', 'a'),
-    (b'foo', 'foo'),
-    (b'Hello%20World!!%3B%3B', 'Hello World!!;;'),
+    ('a', 'a'),
+    ('foo', 'foo'),
+    ('Hello%20World!!%3B%3B', 'Hello World!!;;'),
 ])
 async def test_handler_route_value_binding_single(parameter, expected_value):
     app = FakeApplication()
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value):
         nonlocal called
         called = True
         assert value == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
 
-    await app.response_done.wait()
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter,expected_a,expected_b', [
-    (b'a/b', 'a', 'b'),
-    (b'foo/something', 'foo', 'something'),
-    (b'Hello%20World!!%3B%3B/another', 'Hello World!!;;', 'another'),
+    ('a/b', 'a', 'b'),
+    ('foo/something', 'foo', 'something'),
+    ('Hello%20World!!%3B%3B/another', 'Hello World!!;;', 'another'),
 ])
 async def test_handler_route_value_binding_two(parameter, expected_a, expected_b):
     app = FakeApplication()
 
-    @app.router.get(b'/:a/:b')
+    @app.router.get('/:a/:b')
     async def home(request, a, b):
         assert a == expected_a
         assert b == expected_b
 
-    app.normalize_handlers()
-    handler = get_new_connection_handler(app)
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter,expected_value', [
-    (b'12', 12),
-    (b'0', 0),
-    (b'16549', 16549),
+    ('12', 12),
+    ('0', 0),
+    ('16549', 16549),
 ])
 async def test_handler_route_value_binding_single_int(parameter, expected_value):
     app = FakeApplication()
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: int):
         nonlocal called
         called = True
         assert value == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
 
-    await app.response_done.wait()
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter', [
-    b'xx', b'x'
+    'xx', 'x'
 ])
 async def test_handler_route_value_binding_single_int_invalid(parameter):
     app = FakeApplication()
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: int):
         nonlocal called
         called = True
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
 
-    await app.response_done.wait()
     assert called is False
     assert app.response.status == 400
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter', [
-    b'xx', b'x'
+    'xx', 'x'
 ])
 async def test_handler_route_value_binding_single_float_invalid(parameter):
     app = FakeApplication()
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: float):
         nonlocal called
         called = True
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
 
-    await app.response_done.wait()
     assert called is False
     assert app.response.status == 400
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter,expected_value', [
-    (b'12', 12.0),
-    (b'0', 0.0),
-    (b'16549.55', 16549.55),
+    ('12', 12.0),
+    ('0', 0.0),
+    ('16549.55', 16549.55),
 ])
 async def test_handler_route_value_binding_single_float(parameter, expected_value):
     app = FakeApplication()
 
     called = False
 
-    @app.router.get(b'/:value')
+    @app.router.get('/:value')
     async def home(request, value: float):
         nonlocal called
         called = True
         assert value == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
 
-    await app.response_done.wait()
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter,expected_a,expected_b', [
-    (b'a/b', 'a', 'b'),
-    (b'foo/something', 'foo', 'something'),
-    (b'Hello%20World!!%3B%3B/another', 'Hello World!!;;', 'another'),
+    ('a/b', 'a', 'b'),
+    ('foo/something', 'foo', 'something'),
+    ('Hello%20World!!%3B%3B/another', 'Hello World!!;;', 'another'),
 ])
 async def test_handler_route_value_binding_two(parameter, expected_a, expected_b):
     app = FakeApplication()
 
-    @app.router.get(b'/:a/:b')
+    @app.router.get('/:a/:b')
     async def home(request, a, b):
         assert a == expected_a
         assert b == expected_b
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('parameter,expected_a,expected_b,expected_c', [
-    (b'a/1/12.50', 'a', 1, 12.50),
-    (b'foo/446/500', 'foo', 446, 500.0),
-    (b'Hello%20World!!%3B%3B/60/88.05', 'Hello World!!;;', 60, 88.05),
+    ('a/1/12.50', 'a', 1, 12.50),
+    ('foo/446/500', 'foo', 446, 500.0),
+    ('Hello%20World!!%3B%3B/60/88.05', 'Hello World!!;;', 60, 88.05),
 ])
 async def test_handler_route_value_binding_mixed_types(parameter, expected_a, expected_b, expected_c):
     app = FakeApplication()
 
-    @app.router.get(b'/:a/:b/:c')
+    @app.router.get('/:a/:b/:c')
     async def home(request, a: str, b: int, c: float):
         assert a == expected_a
         assert b == expected_b
         assert c == expected_c
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + parameter + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_value', [
-    (b'?a=a', ['a']),
-    (b'?a=foo', ['foo']),
-    (b'?a=Hello%20World!!%3B%3B', ['Hello World!!;;']),
+    (b'a=a', ['a']),
+    (b'a=foo', ['foo']),
+    (b'a=Hello%20World!!%3B%3B', ['Hello World!!;;']),
 ])
 async def test_handler_query_value_binding_single(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a):
         assert a == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
 
-    await app.response_done.wait()
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_value', [
-    (b'?a=10', 10),
-    (b'?b=20', None),
+    (b'a=10', 10),
+    (b'b=20', None),
     (b'', None),
 ])
 async def test_handler_query_value_binding_optional_int(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: Optional[int]):
         assert a == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_value', [
-    (b'?a=10', 10.0),
-    (b'?a=12.6', 12.6),
-    (b'?a=12.6&c=4', 12.6),
-    (b'?b=20', None),
+    (b'a=10', 10.0),
+    (b'a=12.6', 12.6),
+    (b'a=12.6&c=4', 12.6),
+    (b'b=20', None),
     (b'', None),
 ])
 async def test_handler_query_value_binding_optional_float(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: Optional[float]):
         assert a == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_value', [
-    (b'?a=10', [10.0]),
-    (b'?a=12.6', [12.6]),
-    (b'?a=12.6&c=4', [12.6]),
-    (b'?a=12.6&a=4&a=6.6', [12.6, 4.0, 6.6]),
-    (b'?b=20', None),
+    (b'a=10', [10.0]),
+    (b'a=12.6', [12.6]),
+    (b'a=12.6&c=4', [12.6]),
+    (b'a=12.6&a=4&a=6.6', [12.6, 4.0, 6.6]),
+    (b'b=20', None),
     (b'', None),
 ])
 async def test_handler_query_value_binding_optional_list(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: Optional[List[float]]):
         assert a == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_a,expected_b,expected_c', [
-    (b'?a=a&b=1&c=12.50', 'a', 1, 12.50),
-    (b'?a=foo&b=446&c=500', 'foo', 446, 500.0),
-    (b'?a=Hello%20World!!%3B%3B&b=60&c=88.05', 'Hello World!!;;', 60, 88.05),
+    (b'a=a&b=1&c=12.50', 'a', 1, 12.50),
+    (b'a=foo&b=446&c=500', 'foo', 446, 500.0),
+    (b'a=Hello%20World!!%3B%3B&b=60&c=88.05', 'Hello World!!;;', 60, 88.05),
 ])
 async def test_handler_query_value_binding_mixed_types(query, expected_a, expected_b, expected_c):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: str, b: int, c: float):
         assert a == expected_a
         assert b == expected_b
         assert c == expected_c
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_value', [
-    (b'?a=Hello%20World!!%3B%3B&a=Hello&a=World', ['Hello World!!;;', 'Hello', 'World']),
+    (b'a=Hello%20World!!%3B%3B&a=Hello&a=World', ['Hello World!!;;', 'Hello', 'World']),
 ])
 async def test_handler_query_value_binding_list(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a):
         assert a == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_value', [
-    (b'?a=2', [2]),
-    (b'?a=2&a=44', [2, 44]),
-    (b'?a=1&a=5&a=18', [1, 5, 18]),
+    (b'a=2', [2]),
+    (b'a=2&a=44', [2, 44]),
+    (b'a=1&a=5&a=18', [1, 5, 18]),
 ])
 async def test_handler_query_value_binding_list_of_ints(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: List[int]):
         assert a == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('query,expected_value', [
-    (b'?a=2', [2.0]),
-    (b'?a=2.5&a=44.12', [2.5, 44.12]),
-    (b'?a=1&a=5.55556&a=18.656', [1, 5.55556, 18.656]),
+    (b'a=2', [2.0]),
+    (b'a=2.5&a=44.12', [2.5, 44.12]),
+    (b'a=1&a=5.55556&a=18.656', [1, 5.55556, 18.656]),
 ])
 async def test_handler_query_value_binding_list_of_floats(query, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home(request, a: List[float]):
         assert a == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + query + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1095,16 +961,12 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_value)
 async def test_handler_normalize_sync_method():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request):
         pass
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1112,16 +974,12 @@ async def test_handler_normalize_sync_method():
 async def test_handler_normalize_sync_method_from_header():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request, xx: FromHeader(str)):
         assert xx == 'Hello World'
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\nXX: Hello World\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', [[b'XX', b'Hello World']]), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1129,38 +987,30 @@ async def test_handler_normalize_sync_method_from_header():
 async def test_handler_normalize_sync_method_from_query():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request, xx: FromQuery(int)):
         assert xx == 20
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /?xx=20 HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=b'xx=20'), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('qs,expected_values', [
-    [b'?xx=hello&xx=world&xx=lorem&xx=ipsum', ['hello', 'world', 'lorem', 'ipsum']],
-    [b'?xx=1&xx=2', ['1', '2']],
-    [b'?xx=1&yy=2', ['1']]
+@pytest.mark.parametrize('query,expected_values', [
+    [b'xx=hello&xx=world&xx=lorem&xx=ipsum', ['hello', 'world', 'lorem', 'ipsum']],
+    [b'xx=1&xx=2', ['1', '2']],
+    [b'xx=1&yy=2', ['1']]
 ])
-async def test_handler_normalize_sync_method_from_query_default_type(qs, expected_values):
+async def test_handler_normalize_sync_method_from_query_default_type(query, expected_values):
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     def home(request, xx: FromQuery()):
         assert xx == expected_values
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + qs + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/', query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1168,59 +1018,47 @@ async def test_handler_normalize_sync_method_from_query_default_type(qs, expecte
 async def test_handler_normalize_method_without_input():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')
     async def home():
         pass
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET / HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('value,expected_value', [
-    [b'dashboard', 'dashboard'],
-    [b'hello_world', 'hello_world'],
+    ['dashboard', 'dashboard'],
+    ['hello_world', 'hello_world'],
 ])
 async def test_handler_from_route(value, expected_value):
     app = FakeApplication()
 
-    @app.router.get(b'/:area')
+    @app.router.get('/:area')
     async def home(request, area: FromRoute(str)):
         assert area == expected_value
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + value + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/' + value), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('value_one,value_two,expected_value_one,expected_value_two', [
-    [b'en', b'dashboard', 'en', 'dashboard'],
-    [b'it', b'hello_world', 'it', 'hello_world'],
+    ['en', 'dashboard', 'en', 'dashboard'],
+    ['it', 'hello_world', 'it', 'hello_world'],
 ])
 async def test_handler_two_routes_parameters(value_one, value_two, expected_value_one, expected_value_two):
     app = FakeApplication()
 
-    @app.router.get(b'/:culture_code/:area')
+    @app.router.get('/:culture_code/:area')
     async def home(request, culture_code: FromRoute(), area: FromRoute()):
         assert culture_code == expected_value_one
         assert area == expected_value_two
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'GET /' + value_one + b'/' + value_two + b' HTTP/1.1\r\n\r\n')
-
-    await app.response_done.wait()
+    await app(get_example_scope('GET', '/' + value_one + '/' + value_two), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1235,7 +1073,7 @@ class Item:
 async def test_handler_from_json_parameter():
     app = FakeApplication()
 
-    @app.router.post(b'/')
+    @app.router.post('/')
     async def home(request, item: FromJson(Item)):
         assert item is not None
         assert item.a == 'Hello'
@@ -1243,12 +1081,12 @@ async def test_handler_from_json_parameter():
         assert item.c == 10
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'POST / HTTP/1.1\r\nContent-Type:application/json\r\nContent-Length:32\r\n\r\n'
-                          b'{"a":"Hello","b":"World","c":10}')
-
-    await app.response_done.wait()
+    await app(get_example_scope('POST', '/', [
+        [b'content-type', b'application/json'],
+        [b'content-length', b'32']
+    ]), MockReceive([
+        b'{"a":"Hello","b":"World","c":10}'
+    ]), MockSend())
     assert app.response.status == 204
 
 
@@ -1256,7 +1094,7 @@ async def test_handler_from_json_parameter():
 async def test_handler_from_json_parameter_implicit():
     app = FakeApplication()
 
-    @app.router.post(b'/')
+    @app.router.post('/')
     async def home(request, item: Item):
         assert item is not None
         assert item.a == 'Hello'
@@ -1264,68 +1102,30 @@ async def test_handler_from_json_parameter_implicit():
         assert item.c == 10
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
-
-    handler.data_received(b'POST / HTTP/1.1\r\nContent-Type:application/json\r\nContent-Length:32\r\n\r\n'
-                          b'{"a":"Hello","b":"World","c":10}')
-
-    await app.response_done.wait()
+    await app(get_example_scope('POST', '/', [
+        [b'content-type', b'application/json'],
+        [b'content-length', b'32']
+    ]), MockReceive([
+        b'{"a":"Hello","b":"World","c":10}'
+    ]), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_wrong_method_gets_null():
+async def test_handler_from_wrong_method_json_parameter_gets_null():
     app = FakeApplication()
 
-    @app.router.get(b'/')
+    @app.router.get('/')  # <--- NB: wrong http method for posting payloads
     async def home(request, item: FromJson(Item)):
         assert item is None
 
     app.normalize_handlers()
-    handler = get_new_connection_handler(app)
 
-    handler.data_received(b'GET / HTTP/1.1\r\nContent-Type:application/json\r\nContent-Length:32\r\n\r\n'
-                          b'{"a":"Hello","b":"World","c":10}')
+    await app(get_example_scope('GET', '/', [
+        [b'content-type', b'application/json'],
+        [b'content-length', b'32']
+    ]), MockReceive([
+        b'{"a":"Hello","b":"World","c":10}'
+    ]), MockSend())
 
-    await app.response_done.wait()
     assert app.response.status == 204
-
-
-@pytest.mark.asyncio
-async def test_middlewares_normalization():
-    app = FakeApplication()
-
-    async def middleware_one(request, handler):
-        return await handler(request)
-
-    async def middleware_two(request, handler):
-        return await handler(request)
-
-    @app.router.get(b'/')
-    async def example(request):
-        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
-
-    app.middlewares.append(middleware_one)
-    app.middlewares.append(middleware_two)
-    app.configure_middlewares()
-
-    handler = get_new_connection_handler(app)
-
-    message = b'\n'.join([
-        b'GET / HTTP/1.1',
-        b'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0',
-        b'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        b'Accept-Language: en-US,en;q=0.5',
-        b'Connection: keep-alive',
-        b'Host: foo\n',
-        b'\n\n'
-    ])
-
-    handler.data_received(message)
-
-    assert handler.transport.closed is False
-    await app.response_done.wait()
-    response = app.response  # type: Response
-
-    assert response is not None
-    assert response.status == 200

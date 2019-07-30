@@ -1,3 +1,4 @@
+from .url cimport URL
 from .headers cimport Headers, Header
 from .contents cimport Content
 from .cookies cimport Cookie
@@ -49,8 +50,8 @@ cdef void extend_data_with_headers(list headers, bytearray data):
 
 
 cdef bytes write_request_uri(Request request):
-    cdef p
-    cdef object url = request.url  # TODO: how to use type from httptools?
+    cdef bytes p
+    cdef URL url = request.url
     p = url.path or b'/'
     if url.query:
         return p + b'?' + url.query
@@ -179,7 +180,7 @@ cpdef bint request_has_body(Request request):
 
 cpdef bytes write_request_without_body(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
     extend_data_with_headers(get_all_request_headers(request), data)
     data.extend(b'\r\n')
     return bytes(data)
@@ -187,7 +188,7 @@ cpdef bytes write_request_without_body(Request request):
 
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
     extend_data_with_headers(get_all_request_headers(request), data)
     data.extend(b'\r\n')
     if request.content:

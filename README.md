@@ -1,12 +1,10 @@
-[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7) [![pypi](https://vsrm.dev.azure.com/robertoprevato/_apis/public/Release/badge/4c3c4d06-612f-4802-9400-7101b0b43a73/1/2)](https://pypi.org/project/BlackSheep/)
+[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7) [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
 
 # BlackSheep
-Fast HTTP Server/Client microframework for Python asyncio, using [Cython](https://cython.org), 
-[`uvloop`](https://magic.io/blog/uvloop-blazing-fast-python-networking/), and 
-[`httptools`](https://github.com/MagicStack/httptools). 
+Fast web framework and HTTP client for Python asyncio, using [Cython](https://cython.org). BlackSheep web framework is [ASGI](https://asgi.readthedocs.io/en/latest/) compatible, and requires an ASGI HTTP Server.
 
 <p align="left">
-  <a href="#blacksheep"><img width="320" height="271" src="https://raw.githubusercontent.com/RobertoPrevato/BlackSheep/master/black-sheep.svg?sanitize=true" alt="Black Sheep"></a>
+  <a href="#blacksheep"><img width="320" height="271" src="https://labeuwstacc.blob.core.windows.net/github/blacksheep.png" alt="Black Sheep"></a>
 </p>
 
 ```bash
@@ -27,7 +25,29 @@ app = Application()
 async def home(request):
     return text(f'Hello, World! {datetime.utcnow().isoformat()}')
 
-app.start()
+```
+
+## Requirements
+
+The web framework requires an [ASGI](https://asgi.readthedocs.io/en/latest/) server, such as [uvicorn](http://www.uvicorn.org/), [daphne](https://github.com/django/daphne/), or [hypercorn](https://pgjones.gitlab.io/hypercorn/). For example, to use it with uvicorn:
+
+```bash
+$ pip install uvicorn
+```
+
+To run an application like in the example above, use the methods provided by the ASGI HTTP Server:
+
+```bash
+# NB: if the BlackSheep app is defined in a file `server.py`
+
+$ uvicorn server:app
+```
+
+Instead, the HTTP client component requires [`httptools`](https://github.com/MagicStack/httptools).
+
+
+```bash
+$ pip install httptools
 ```
 
 ## Automatic bindings and dependency injection
@@ -78,10 +98,6 @@ async def only_for_authenticated_users():
     return None
 ```
 
-## Disclaimer
-This project is currently targeting only __Linux__ and __CPython__: support for Windows and other implementations 
-of Python language are currently out of the scope. However, support for PyPy and Windows is planned for the future. 
-
 ## Objectives
 * Clean architecture and source code, following [SOLID principles](https://en.wikipedia.org/wiki/SOLID)
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
@@ -90,22 +106,21 @@ of Python language are currently out of the scope. However, support for PyPy and
 * Targeting stateless applications to be deployed in the cloud
 * [High performance, see results from TechEmpower benchmarks (links in Wiki page)](https://github.com/RobertoPrevato/BlackSheep/wiki/Server-performance)
 
-## Server Features
+## Web framework features
+* [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
 * [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
-* [Built-in support for multi processing](https://github.com/RobertoPrevato/BlackSheep/wiki/Built-in-multiprocessing)
+* [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
+* [Strategy to handle exceptions](https://github.com/RobertoPrevato/BlackSheep/wiki/Exceptions-handling)
+* [Strategy to handle authentication and authorization](https://github.com/RobertoPrevato/BlackSheep/wiki/Authentication-and-authorization-strategies)
+* [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
 * Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
-* [Strategy to handle exceptions](https://github.com/RobertoPrevato/BlackSheep/wiki/Exceptions-handling)
-* [Strategy to handle authentication and authorization](https://github.com/RobertoPrevato/BlackSheep/wiki/Authentication-and-authorization-strategies)
-* [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
-* [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
-* [Automatic reload of the application during development, adopted from Werkzeug framework and Flask](https://github.com/RobertoPrevato/BlackSheep/wiki/Automatic-reload)
 
-## Client Features
+## Client features
 * [HTTP connection pooling](https://github.com/RobertoPrevato/BlackSheep/wiki/Connection-pooling)
 * User friendly [handling of SSL contexts](https://github.com/RobertoPrevato/BlackSheep/wiki/Client-handling-SSL-contexts) (safe by default)
 * Support for [client side middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Client-middlewares), enabling clean source code and separation of concerns (logging of different kinds, handling of cookies, etc.)
@@ -132,11 +147,5 @@ loop.run_until_complete(client_example(loop))
 
 ```
 
-## Note
-This project is in beta stage. The reason behind this framework is described in this page of the Wiki: [Story](https://github.com/RobertoPrevato/BlackSheep/wiki/Story).
-
 ## Documentation
 Please refer to the [project Wiki](https://github.com/RobertoPrevato/BlackSheep/wiki).
-
-## Public project in Azure DevOps
-[https://dev.azure.com/robertoprevato/BlackSheep](https://dev.azure.com/robertoprevato/BlackSheep) - see here the project in Azure DevOps, with [builds](https://dev.azure.com/robertoprevato/BlackSheep/_build?definitionId=7) and other goodness.

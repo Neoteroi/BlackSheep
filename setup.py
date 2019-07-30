@@ -66,7 +66,6 @@ setup(name='blacksheep',
                     extra_compile_args=COMPILE_ARGS)
       ],
       install_requires=[
-          'httptools',
           'cchardet',
           'guardpost',
           'rodi'

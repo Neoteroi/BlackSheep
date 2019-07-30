@@ -14,7 +14,6 @@ cdef class URL:
     cdef readonly bytes path
     cdef readonly bytes query
     cdef readonly bytes fragment
-    cdef readonly bytes userinfo
     cdef readonly bint is_absolute
 
     cpdef URL join(self, URL other)

@@ -15,17 +15,15 @@ class FakeApplication(Application):
         self.request = None
         self.response = None
 
+    async def handle(self, request):
+        self.request = request
+        response = await super().handle(request)
+        self.response = response
+        return response
+
     def prepare(self):
         self.normalize_handlers()
         self.configure_middlewares()
-
-    def before_request(self, request):
-        self.request = request
-        super().before_request(request)
-
-    async def send_response(self, response, send):
-        self.response = response
-        return await super().send_response(response, send)
 
 
 def test_application_supports_dynamic_attributes():

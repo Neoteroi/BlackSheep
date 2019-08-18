@@ -1,7 +1,7 @@
 import aiofiles
 from aiofiles import os as aiofilesos
 from datetime import datetime
-from blacksheep import Response, Content
+from blacksheep import Response, StreamedContent
 from blacksheep.server.pathsutils import get_mime_type
 
 
@@ -84,5 +84,5 @@ async def get_response_for_file(request, resource_path, cache_time):
 
     return Response(200, 
                     headers,
-                    Content(get_mime_type(resource_path),
-                            get_file_data(resource_path, file_size)))
+                    StreamedContent(get_mime_type(resource_path),
+                                    get_file_data(resource_path, file_size)))

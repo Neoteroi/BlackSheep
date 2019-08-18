@@ -29,9 +29,6 @@ cdef class Message:
     def __init__(self, list headers):
         self.headers = headers or []
 
-    cpdef void set_content(self, Content content):
-        self.content = content
-
     cpdef Message with_content(self, Content content):
         self.content = content
         return self

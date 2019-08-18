@@ -12,7 +12,7 @@ from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_
 
 cdef class Message:
     cdef readonly list headers
-    cdef readonly Content content
+    cdef public Content content
 
     cpdef list get_headers(self, bytes key)
     cpdef bytes get_first_header(self, bytes key)
@@ -25,7 +25,6 @@ cdef class Message:
     cdef void remove_headers(self, list headers)
     cdef list get_headers_tuples(self, bytes key)
 
-    cpdef void set_content(self, Content content)
     cpdef Message with_content(self, Content content)
     cpdef bint has_body(self)
     cpdef bint declares_content_type(self, bytes type)

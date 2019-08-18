@@ -266,7 +266,7 @@ class Application(BaseApplication):
             scope['headers']
         )
         request.scope = scope
-        request.set_content(ASGIContent(receive))
+        request.content = ASGIContent(receive)
 
         response = await self.handle(request)
         await send_asgi_response(response, send)

@@ -111,3 +111,5 @@ blacksheep/*.c
 blacksheep/*.html
 blacksheep/includes/*.html
 out/*
+
+itests/out/*

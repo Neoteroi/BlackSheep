@@ -3,7 +3,7 @@ import asyncio
 import pkg_resources
 from typing import List, Optional
 from blacksheep.server import Application
-from blacksheep import Request, Response, Header, JsonContent, Headers, HttpException, TextContent
+from blacksheep import Request, Response, JsonContent, HttpException, TextContent
 from blacksheep.server.bindings import FromHeader, FromQuery, FromRoute, FromJson
 from tests.utils import ensure_folder
 
@@ -116,7 +116,7 @@ async def test_application_get_handler():
     assert request is not None
 
     connection = request.headers[b'connection']
-    assert connection == [Header(b'Connection', b'keep-alive')]
+    assert connection == [(b'Connection', b'keep-alive')]
 
     text = await request.text()
     assert text == ''
@@ -272,7 +272,7 @@ async def test_application_post_handler():
         data = await request.json()
         assert {"name": "Celine", "kind": "Persian"} == data
 
-        return Response(201, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(201, [(b'Server', b'Python/3.7')], JsonContent({'id': '123'}))
 
     content = b'{"name":"Celine","kind":"Persian"}'
 
@@ -325,7 +325,7 @@ async def test_application_middlewares_two():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(200, [(b'Server', b'Python/3.7')], JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -376,7 +376,7 @@ async def test_application_middlewares_three():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(200, [(b'Server', b'Python/3.7')], JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -426,7 +426,7 @@ async def test_application_middlewares_skip_handler():
         nonlocal calls
         calls.append(5)
         return Response(200,
-                        Headers([Header(b'Server', b'Python/3.7')]),
+                        [(b'Server', b'Python/3.7')],
                         JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
@@ -975,7 +975,7 @@ async def test_handler_normalize_sync_method_from_header():
     app = FakeApplication()
 
     @app.router.get('/')
-    def home(request, xx: FromHeader(str)):
+    def home(request, xx: From(str)):
         assert xx == 'Hello World'
 
     app.normalize_handlers()

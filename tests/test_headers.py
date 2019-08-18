@@ -1,79 +1,50 @@
 import pytest
 from blacksheep import Header, Headers
-from blacksheep import scribe
-
-
-@pytest.mark.parametrize('values', [
-    {
-        b'AAA': b'BBB'
-    },
-    {
-        b'AAA': b'BBB',
-        b'CCC': b'DDD',
-        b'EEE': b'FFF',
-    },
-    {
-        b'Content-Length': b'61',
-        b'Content-Type': b'application/json; charset=utf-8',
-        b'Server': b'Python/3.7',
-        b'Date': b'Fri, 02 Nov 2018 12:32:07 GMT',
-    },
-])
-def test_http_header_collection_instantiating_with_dict_values(values):
-    headers = Headers(list(Header(key, value) for key, value in values.items()))
-
-    for key, value in values.items():
-        header = headers[key]
-        assert len(header) == 1
-        assert header[0].name == key
-        assert header[0].value == value
 
 
 @pytest.mark.parametrize('values', [
     [
-        Header(b'AAA', b'BBB')
+        (b'AAA', b'BBB')
     ],
     [
-        Header(b'AAA', b'BBB'),
-        Header(b'CCC', b'DDD'),
-        Header(b'EEE', b'FFF')
+        (b'AAA', b'BBB'),
+        (b'CCC', b'DDD'),
+        (b'EEE', b'FFF')
     ],
     [
-        Header(b'Content-Length', b'61'),
-        Header(b'Content-Type', b'application/json; charset=utf-8'),
-        Header(b'Server', b'Python/3.7'),
-        Header(b'Date', b'Fri, 02 Nov 2018 12:32:07 GMT')
+        (b'Content-Length', b'61'),
+        (b'Content-Type', b'application/json; charset=utf-8'),
+        (b'Server', b'Python/3.7'),
+        (b'Date', b'Fri, 02 Nov 2018 12:32:07 GMT')
     ],
 ])
-def test_http_header_collection_instantiating_with_list_of_headers(values):
+def test_http_header_collection_instantiating_with_list_of_tuples(values):
     headers = Headers(values)
 
     for input_header in values:
-        header = headers[input_header.name]
+        header = headers[input_header[0]]
         assert len(header) == 1
-        assert header[0].name == input_header.name
-        assert header[0].value == input_header.value
-        assert header[0] is input_header
+        assert header[0] == input_header[1]
 
 
 @pytest.mark.parametrize('values', [
     [
-        Header(b'Content-Length', b'61'),
-        Header(b'Content-Type', b'application/json; charset=utf-8'),
-        Header(b'Server', b'Python/3.7'),
-        Header(b'Date', b'Fri, 02 Nov 2018 12:32:07 GMT'),
-        Header(b'Set-Cookie', b'foo=foo;'),
-        Header(b'Set-Cookie', b'ufo=ufo;'),
-        Header(b'Set-Cookie', b'uof=uof;')
+        (b'Content-Length', b'61'),
+        (b'Content-Type', b'application/json; charset=utf-8'),
+        (b'Server', b'Python/3.7'),
+        (b'Date', b'Fri, 02 Nov 2018 12:32:07 GMT'),
+        (b'Set-Cookie', b'foo=foo;'),
+        (b'Set-Cookie', b'ufo=ufo;'),
+        (b'Set-Cookie', b'uof=uof;')
     ],
 ])
 def test_http_header_collection_instantiating_with_list_of_headers_repeated_values(values):
     headers = Headers(values)
 
     for input_header in values:
-        input_headers_with_same_name = [x for x in values if x.name == input_header.name]
+        input_headers_with_same_name = [x[1] for x in values if x[0] == input_header[0]]
 
-        header = headers[input_header.name]
+        header = headers[input_header[0]]
         assert len(header) == len(input_headers_with_same_name)
         assert any(x == y for x in header for y in input_headers_with_same_name)
 
@@ -82,16 +53,13 @@ def test_http_header_collection_item_setter():
     headers = Headers()
 
     example = headers.get(b'example')
-    assert example == []
+    assert example == tuple()
 
     headers[b'example'] = b'Hello, World'
 
     example = headers.get(b'example')
-    assert len(example) == 1
 
-    header = example[0]
-    assert header.name == b'example'
-    assert header.value == b'Hello, World'
+    assert example == (b'Hello, World', )
 
 
 def test_http_header_collection_item_get_single_case_insensitive():
@@ -99,21 +67,15 @@ def test_http_header_collection_item_get_single_case_insensitive():
     headers[b'example'] = b'Hello, World'
 
     header = headers.get_single(b'Example')
-    assert header is not None
-    assert header.name == b'example'
-    assert header.value == b'Hello, World'
+    assert header == b'Hello, World'
 
 
 def test_http_header_collection_item_getter_case_insensitive():
     headers = Headers()
     headers[b'example'] = b'Hello, World'
 
-    example = headers[b'Example']
-    assert len(example) == 1
-
-    header = example[0]
-    assert header.name == b'example'
-    assert header.value == b'Hello, World'
+    header = headers[b'Example']
+    assert header == (b'Hello, World',)
 
 
 @pytest.mark.parametrize('name_a,value_a,name_b,value_b,expected_result', [
@@ -144,17 +106,16 @@ def test_http_header_collection_add_many_items():
     for key, value in values.items():
         header = headers.get_single(key)
         assert header is not None
-        assert header.name == key
-        assert header.value == value
+        assert header == value
 
 
 def test_http_header_collection_add_multiple_times_items():
     headers = Headers()
 
     values = [
-        Header(b'Cookie', b'Hello=World;'),
-        Header(b'Cookie', b'Foo=foo;'),
-        Header(b'Cookie', b'Ufo=ufo;'),
+        (b'Cookie', b'Hello=World;'),
+        (b'Cookie', b'Foo=foo;'),
+        (b'Cookie', b'Ufo=ufo;'),
     ]
 
     headers.add_many(values)
@@ -163,134 +124,126 @@ def test_http_header_collection_add_multiple_times_items():
 
     assert cookie_headers
     assert len(cookie_headers) == 3
-    assert any(x.value == b'Hello=World;' for x in cookie_headers)
-    assert any(x.value == b'Foo=foo;' for x in cookie_headers)
-    assert any(x.value == b'Ufo=ufo;' for x in cookie_headers)
+    assert any(x == b'Hello=World;' for x in cookie_headers)
+    assert any(x == b'Foo=foo;' for x in cookie_headers)
+    assert any(x == b'Ufo=ufo;' for x in cookie_headers)
 
 
 def test_http_header_collection_get_single_raises_if_more_items_are_present():
     headers = Headers()
 
     values = [
-        Header(b'Cookie', b'Hello=World;'),
-        Header(b'Cookie', b'Foo=foo;'),
-        Header(b'Cookie', b'Ufo=ufo;'),
+        (b'Cookie', b'Hello=World;'),
+        (b'Cookie', b'Foo=foo;'),
+        (b'Cookie', b'Ufo=ufo;'),
     ]
 
     headers.add_many(values)
-    # keeps only the last one, if a single header is expected
-    headers.get_single(b'cookie').value == b'Ufo=ufo;'
+
+    with pytest.raises(ValueError):
+        headers.get_single(b'cookie')
 
 
 def test_http_header_collection_concatenation_with_list_of_headers():
     headers = Headers([
-        Header(b'Hello', b'World'),
-        Header(b'Svil', b'Power'),
+        (b'Hello', b'World'),
+        (b'Svil', b'Power'),
     ])
 
-    with_addition = headers + [Header(b'Foo', b'foo'), Header(b'Ufo', b'ufo')]
+    with_addition = headers + [(b'Foo', b'foo'), (b'Ufo', b'ufo')]
 
     for name in {b'foo', b'ufo'}:
-        assert headers[name] == []
+        assert headers[name] == tuple()
 
         example = with_addition[name]
         assert len(example) == 1
 
         header = example[0]
-        assert header.name.lower() == name
-        assert header.value == name
+        assert header == name
 
 
 def test_http_header_collection_concatenation_with_other_collection():
     headers = Headers([
-        Header(b'Hello', b'World'),
-        Header(b'Svil', b'Power'),
+        (b'Hello', b'World'),
+        (b'Svil', b'Power'),
     ])
 
-    with_addition = headers + Headers([Header(b'Foo', b'foo'), Header(b'Ufo', b'ufo')])
+    with_addition = headers + Headers([(b'Foo', b'foo'), (b'Ufo', b'ufo')])
 
     for name in {b'foo', b'ufo'}:
-        assert headers[name] == []
+        assert headers[name] == tuple()
 
         example = with_addition[name]
         assert len(example) == 1
 
         header = example[0]
-        assert header.name.lower() == name
-        assert header.value == name
+        assert header == name
 
 
-def test_iadd_http_header_collection_concatenation_with_header():
+def test_iadd_http_header_collection_concatenation_with_():
     headers = Headers([
-        Header(b'Hello', b'World'),
-        Header(b'Svil', b'Power'),
+        (b'Hello', b'World'),
+        (b'Svil', b'Power'),
     ])
 
-    headers += Header(b'Foo', b'foo')
+    headers += (b'Foo', b'foo')
 
     example = headers[b'Foo']
     assert len(example) == 1
 
     header = example[0]
-    assert header.name == b'Foo'
-    assert header.value == b'foo'
+    assert header == b'foo'
 
 
 def test_iadd_http_header_collection_concatenation_with_list_of_headers():
     headers = Headers([
-        Header(b'Hello', b'World'),
-        Header(b'Svil', b'Power'),
+        (b'Hello', b'World'),
+        (b'Svil', b'Power'),
     ])
 
-    headers += [Header(b'foo', b'foo'),
-                Header(b'ufo', b'ufo')]
+    headers += [(b'foo', b'foo'),
+                (b'ufo', b'ufo')]
 
     for name in {b'foo', b'ufo'}:
         example = headers[name]
         assert len(example) == 1
 
         header = example[0]
-        assert header.name.lower() == name
-        assert header.value == name
+        assert header == name
 
 
 def test_iadd_http_header_collection_concatenation_with_collection_of_headers():
     headers = Headers([
-        Header(b'Hello', b'World'),
-        Header(b'Svil', b'Power'),
+        (b'Hello', b'World'),
+        (b'Svil', b'Power'),
     ])
 
-    headers += Headers(
-                [Header(b'foo', b'foo'),
-                Header(b'ufo', b'ufo')])
+    headers += Headers([(b'foo', b'foo'), (b'ufo', b'ufo')])
 
     for name in {b'foo', b'ufo'}:
         example = headers[name]
         assert len(example) == 1
 
         header = example[0]
-        assert header.name.lower() == name
-        assert header.value == name
+        assert header == name
 
 
-def test_iadd_http_header_collection_concatenation_with_duplicate_header():
+def test_iadd_http_header_collection_concatenation_with_duplicate_():
     headers = Headers([
-        Header(b'Hello', b'World'),
-        Header(b'Svil', b'Power'),
+        (b'Hello', b'World'),
+        (b'Svil', b'Power'),
     ])
 
-    headers += Header(b'Svil', b'Kitty')
+    headers += (b'Svil', b'Kitty')
     example = headers[b'Svil']
 
     assert len(example) == 2
-    assert any(x.value == b'Power' for x in example)
-    assert any(x.value == b'Kitty' for x in example)
+    assert any(x == b'Power' for x in example)
+    assert any(x == b'Kitty' for x in example)
 
 
 def test_case_insensitive_contains():
-    headers = Headers([
-        Header(b'Hello', b'World')
-    ])
+    headers = Headers([(b'Hello', b'World')])
 
     assert b'hello' in headers
     assert b'hElLo' in headers

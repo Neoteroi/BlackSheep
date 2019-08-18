@@ -4,7 +4,6 @@
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
 
-from .headers cimport Headers, Header
 from .contents cimport Content
 from .cookies cimport Cookie
 from .messages cimport Request, Response
@@ -23,4 +22,6 @@ cpdef bytes write_request_without_body(Request request)
 cdef bint is_small_response(Response response)
 
 cdef bytes write_small_response(Response response)
+
+cdef void get_headers_for_content(Content content, list headers)
 

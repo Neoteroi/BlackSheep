@@ -1,5 +1,4 @@
 from .url cimport URL
-from .headers cimport Headers, Header
 from .contents cimport Content
 from .cookies cimport Cookie
 from .messages cimport Request, Response
@@ -10,6 +9,27 @@ include "includes/consts.pxi"
 
 import http
 from urllib.parse import quote
+
+
+cdef bytes write_header(tuple header):
+    return tuple[0] + b': ' + tuple[1] + b'\r\n'
+
+
+cdef bytes write_headers(list headers):
+    cdef tuple header
+    cdef bytearray value
+    
+    value = bytearray()
+    for header in headers:
+        value.extend(write_header(header))
+    return bytes(value)
+
+
+cdef void extend_data_with_headers(list headers, bytearray data):
+    cdef tuple header
+
+    for header in headers:
+        data.extend(write_header(header))
 
 
 cdef bytes _get_status_line(int status_code):
@@ -28,27 +48,6 @@ cpdef bytes get_status_line(int status):
     return STATUS_LINES[status]
 
 
-cdef bytes write_header(Header header):
-    return header.name + b': ' + header.value + b'\r\n'
-
-
-cdef bytes write_headers(list headers):
-    cdef Header header
-    cdef bytearray value
-    
-    value = bytearray()
-    for header in headers:
-        value.extend(write_header(header))
-    return bytes(value)
-
-
-cdef void extend_data_with_headers(list headers, bytearray data):
-    cdef Header header
-
-    for header in headers:
-        data.extend(write_header(header))
-
-
 cdef bytes write_request_uri(Request request):
     cdef bytes p
     cdef URL url = request.url
@@ -62,19 +61,17 @@ cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
 
-cdef list get_headers_for_content(Content content):
-    cdef list headers = []
-    
+cdef void get_headers_for_content(Content content, list headers):
     if not content:
-        headers.append(Header(b'Content-Length', b'0'))
-        return headers
-    headers.append(Header(b'Content-Type', content.type or b'application/octet-stream'))
+        headers.append((b'content-length', b'0'))
+        return
+
+    headers.append((b'content-type', content.type or b'application/octet-stream'))
 
     if should_use_chunked_encoding(content):
-        headers.append(Header(b'Transfer-Encoding', b'chunked'))
+        headers.append((b'transfer-encoding', b'chunked'))
     else:
-        headers.append(Header(b'Content-Length', str(content.length).encode()))
-    return headers
+        headers.append((b'content-length', str(content.length).encode()))
 
 
 cdef bytes write_cookie_for_response(Cookie cookie):
@@ -119,30 +116,32 @@ cdef bytes write_cookies_for_request(dict cookies):
     return b'; '.join(parts)
 
 
-cpdef list get_all_response_headers(Response response):
+cdef list get_all_response_headers(Response response):
     cdef list result = []
     cdef Content content
-    cdef Header header
+    cdef tuple header
     cdef Cookie cookie
     cdef dict cookies
 
     for header in response.headers:
         result.append(header)
 
-    content = response.content
-
-    if content:
-        for header in get_headers_for_content(content):
-            result.append(header)
-    else:
-        result.append(Header(b'Content-Length', b'0'))
+    get_headers_for_content(response.content, result)
 
     cookies = response.cookies
 
     if cookies:
         for cookie in cookies.values():
-            result.append(Header(b'Set-Cookie', write_cookie_for_response(cookie)))
+            result.append((b'Set-Cookie', write_cookie_for_response(cookie)))
     return result
+
+
+cdef list get_all_response_headers_asgi(Response response):
+    #if response.headers:
+    #    for header in response.headers:
+    #        result.append(header)
+    get_headers_for_content(response.content, response.headers)
+    return response.headers
 
 
 async def write_chunks(Content http_content):
@@ -151,7 +150,7 @@ async def write_chunks(Content http_content):
     yield b'0\r\n\r\n'
 
 
-cpdef bint is_small_response(Response response):
+cdef bint is_small_response(Response response):
     cdef Content content = response.content
     if not content:
         return True
@@ -196,7 +195,7 @@ cpdef bytes write_small_request(Request request):
     return bytes(data)
 
 
-cpdef bytes write_small_response(Response response):
+cdef bytes write_small_response(Response response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
     extend_data_with_headers(get_all_response_headers(response), data)
@@ -215,28 +214,24 @@ cpdef bytes py_write_small_request(Request request):
 
 
 cdef list get_all_request_headers(Request request):
-    cdef list result = []
+    cdef list result = request.headers
     cdef Content content
-    cdef Header header
+    cdef tuple header
     cdef Cookie cookie
     cdef dict cookies
-
-    for header in request.headers:
-        result.append(header)
     
     content = request.content
 
     # TODO: if the request port is not default; add b':' + port
-    result.append(Header(b'Host', request.url.host))
+    result.append((b'host', request.url.host))
 
     if content:
-        for header in get_headers_for_content(content):
-            result.append(header)
+        get_headers_for_content(content, result)
 
     cookies = request.cookies
 
     if cookies:
-        result.append(Header(b'Cookie', write_cookies_for_request(cookies)))
+        result.append((b'Cookie', write_cookies_for_request(cookies)))
     return result
 
 
@@ -293,6 +288,7 @@ def get_chunks(bytes data):
     cdef int i
     for i in range(0, len(data), MAX_RESPONSE_CHUNK_SIZE):
         yield data[i:i + MAX_RESPONSE_CHUNK_SIZE]
+    yield b''
 
 
 async def write_response(Response response):
@@ -319,7 +315,9 @@ async def write_response(Response response):
                 yield data
 
 
-async def write_response_content(response):
+async def write_response_content(Response response):
+    cdef Content content
+    cdef bytes data, chunk
     content = response.content
 
     if content:
@@ -334,3 +332,46 @@ async def write_response_content(response):
                     yield chunk
             else:
                 yield data
+
+
+async def send_asgi_response(Response response, object send):
+    cdef bytes chunk
+    cdef Content content = response.content
+    
+    get_headers_for_content(response.content, response.headers)
+
+    await send({
+        'type': 'http.response.start',
+        'status': response.status,
+        'headers': response.headers
+    })
+
+    if content:
+        if content.length < 0:
+            # NB:
+            # ASGI HTTP Servers automatically handle chunked encoding
+            async for chunk in content.get_parts():
+                await send({
+                    'type': 'http.response.body',
+                    'body': chunk,
+                    'more_body': bool(chunk)
+                })
+        else:
+            if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                for chunk in get_chunks(content.body):
+                    await send({
+                        'type': 'http.response.body',
+                        'body': chunk,
+                        'more_body': bool(chunk)
+                    })
+            else:
+                await send({
+                    'type': 'http.response.body',
+                    'body': content.body,
+                    'more_body': False
+                })
+    else:
+        await send({
+            'type': 'http.response.body',
+            'body': b''
+        })

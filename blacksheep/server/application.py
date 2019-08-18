@@ -4,13 +4,12 @@ from typing import Optional, List, Callable
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
-from blacksheep.server.files.static import serve_static_files
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.baseapp import BaseApplication
 from blacksheep.messages import Request, Response
-from blacksheep.headers import Headers, Header
-from blacksheep.scribe import get_all_response_headers, write_response_content
+from blacksheep.contents import ASGIContent
+from blacksheep.scribe import send_asgi_response
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.server.authentication import (get_authentication_middleware,
                                               AuthenticateChallenge,
@@ -21,7 +20,6 @@ from blacksheep.server.authorization import (get_authorization_middleware,
 from guardpost.authorization import UnauthorizedError, Policy
 from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
-from blacksheep.exceptions import HttpException
 from rodi import Services
 
 
@@ -114,7 +112,6 @@ class Application(BaseApplication):
         self._middlewares_configured = False
         self.resources = resources
         self._serve_files = None
-        self._serve_static_files = None
         self._authentication_strategy = None  # type: Optional[AuthenticationStrategy]
         self._authorization_strategy = None  # type: Optional[AuthorizationStrategy]
         self.on_start = ApplicationEvent(self)
@@ -150,20 +147,6 @@ class Application(BaseApplication):
         self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
         return strategy
 
-    def _validate_static_folders(self):
-        if self._serve_static_files and self._serve_files:
-            static_files_folder = self._serve_static_files[0]
-            files_folder = self._serve_files[0]
-
-            if not isinstance(static_files_folder, str):
-                raise RuntimeError('The static files folder must be a string (folder name).')
-
-            if not isinstance(files_folder, str):
-                raise RuntimeError('The files folder must be a string (folder name).')
-
-            if static_files_folder.lower() == files_folder.lower():
-                raise RuntimeError('Cannot configure the same folder for static files and dynamically read files')
-
     def route(self, pattern, methods=None):
         if methods is None:
             methods = ['GET']
@@ -182,13 +165,6 @@ class Application(BaseApplication):
 
     def serve_files(self, folder_name: str, extensions=None, discovery=False, cache_max_age=10800):
         self._serve_files = folder_name, extensions, discovery, cache_max_age
-        self._validate_static_folders()
-        serve_files(self.router, *self._serve_files)
-
-    def serve_static_files(self, folder_name='static', extensions=None, cache_max_age=10800, frozen=True):
-        self._serve_static_files = folder_name, extensions, False, cache_max_age, frozen
-        self._validate_static_folders()
-        serve_static_files(self.router, *self._serve_static_files)
 
     def _configure_sync_logging(self):
         logging_middleware, access_logger, app_logger = setup_sync_logging()
@@ -247,6 +223,10 @@ class Application(BaseApplication):
         if self.middlewares:
             self._apply_middlewares_in_routes()
 
+    def apply_routes(self):
+        if self._serve_files:
+            serve_files(self.router, *self._serve_files)
+
     async def start(self):
         if self.started:
             return
@@ -255,6 +235,7 @@ class Application(BaseApplication):
             await self.on_start.fire()
         self.started = True
 
+        self.apply_routes()
         self.normalize_handlers()
         self.configure_middlewares()
 
@@ -279,46 +260,19 @@ class Application(BaseApplication):
         if scope['type'] == 'lifespan':
             return await self._handle_lifespan(receive, send)
 
-        assert scope['type'] == 'http'
+        # assert scope['type'] == 'http'
 
-        method = scope.get('method')
-        url = scope.get('raw_path')
-        query = scope.get('query_string')
-        if query:
-            url = url + b'?' + query
-        request = Request(
-            method,
-            url,
-            Headers([Header(name, value) for name, value in scope.get('headers')]),
-            None
+        request = Request.incoming(
+            scope['method'],
+            scope['raw_path'],
+            scope['query_string'],
+            scope['headers']
         )
         request.scope = scope
-        request.receive = receive
-
-        self.before_request(request)
+        request.set_content(ASGIContent(receive))
 
         response = await self.handle(request)
-        request.handled = True
-        await self.send_response(response, send)
+        await send_asgi_response(response, send)
 
-    async def send_response(self, response: Response, send):
-
-        await send({
-            'type': 'http.response.start',
-            'status': response.status,
-            'headers': [
-                [header.name, header.value] for header in get_all_response_headers(response)
-            ]
-        })
-
-        async for chunk in write_response_content(response):
-            await send({
-                'type': 'http.response.body',
-                'body': chunk,
-                'more_body': bool(chunk)
-            })
-
-        await send({
-            'type': 'http.response.body',
-            'body': b''
-        })
+        request.scope = None
+        request.content.dispose()

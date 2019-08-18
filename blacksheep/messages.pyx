@@ -1,7 +1,6 @@
 from .url cimport URL
 from .exceptions cimport BadRequestFormat, InvalidOperation, MessageAborted
-from .headers cimport Headers, Header
-from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format
+from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
 from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
 
 
@@ -13,21 +12,6 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
-
-
-cdef int get_content_length(Headers headers):
-    header = headers.get_single(b'content-length')
-    if header:
-        return int(header.value)
-    return -1
-
-
-cdef bint get_is_chunked_encoding(Headers headers):
-    cdef Header header
-    header = headers.get_single(b'transfer-encoding')
-    if header and b'chunked' in header.value.lower():
-        return True
-    return False
 
 
 _charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
@@ -42,75 +26,88 @@ cpdef str parse_charset(bytes value):
 
 cdef class Message:
 
-    def __init__(self, 
-                 Headers headers, 
-                 Content content):
-        self.headers = headers or Headers()
-        self.content = content
-        self._cookies = None
-        self._raw_body = bytearray()
-        self.complete = Event()
-        self._form_data = None
-        self.handled = False
-        self.receive = None
-        self.reading = False
-        self.scope = None
-        if content:
-            self.set_content(content)
-
-    cpdef void extend_body(self, bytes chunk):
-        self._raw_body.extend(chunk)
-
-    @property
-    def raw_body(self):
-        return self._raw_body
+    def __init__(self, list headers):
+        self.headers = headers or []
 
     cpdef void set_content(self, Content content):
-        self._raw_body.clear()
-        if content:
-            if isinstance(content.body, (bytes, bytearray)):
-                self._raw_body.extend(content.body)
-            self.complete.set()
+        self.content = content
+
+    cpdef Message with_content(self, Content content):
+        self.content = content
+        return self
+
+    cpdef bytes get_first_header(self, bytes key):
+        cdef tuple header
+        key = key.lower()
+        for header in self.headers:
+            if header[0].lower() == key:
+                return header[1]
+
+    cpdef list get_headers(self, bytes key):
+        cdef list results = []
+        cdef tuple header
+        key = key.lower()
+        for header in self.headers:
+            if header[0].lower() == key:
+                results.append(header[1])
+        return results
+
+    cdef list get_headers_tuples(self, bytes key):
+        cdef list results = []
+        cdef tuple header
+        key = key.lower()
+        for header in self.headers:
+            if header[0].lower() == key:
+                results.append(header)
+        return results
+
+    cpdef bytes get_single_header(self, bytes key):
+        cdef list results = self.get_headers(key)
+        if len(results) > 1:
+            raise ValueError('Headers contains more than one header with the given key')
+        if len(results) < 1:
+            raise ValueError('Headers does not contain one header with the given key')
+        return results[0]
+
+    cpdef void remove_header(self, bytes key):
+        cdef tuple header
+        cdef list to_remove = []
+        key = key.lower()
+        for header in self.headers:
+            if header[0].lower() == key:
+                to_remove.append(header)
+
+        for header in to_remove:
+            self.headers.remove(header)
+
+    cdef void remove_headers(self, list headers):
+        cdef tuple header
+        for header in headers:
+            self.headers.remove(header)
+
+    cpdef void add_header(self, bytes key, bytes value):
+        self.headers.append((key, value))
+
+    cpdef void set_header(self, bytes key, bytes value):
+        self.remove_header(key)
+        self.headers.append((key, value))
+
+    cpdef bytes content_type(self):
+        return self.get_first_header(b'content-type')
+
+    async def read(self):
+        if self.content:
+            return await self.content.read()
+        return b''
+
+    async def stream(self):
+        if self.content:
+            async for chunk in self.content.stream():
+                yield chunk
         else:
-            self.complete.clear()
+            yield b''
 
-    async def _read_body(self):
-        while True:
-            message = await self.receive()
-
-            if message.get('type') == 'http.disconnect':
-                raise MessageAborted()
-
-            self._raw_body.extend(message.get('body', b''))
-
-            if not message.get('more_body'):
-                break
-
-    async def read(self) -> bytes:
-        if self.receive:
-            # ASGI interface, incoming request
-            if self.complete.is_set():
-                return bytes(self._raw_body)
-
-            if self.reading:
-                await self.complete.wait()
-            else:
-                self.reading = True
-                await self._read_body()
-                self.complete.set()
-        else:
-            # incoming response
-            await self.complete.wait()
-
-        if not self._raw_body and self.content:
-            # NB: this will happen realistically only in tests, not in real use cases
-            # we don't want to always extend raw_body with content bytes, it's not necessary for outgoing
-            # requests and responses: this is useful for incoming messages!
-            if isinstance(self.content.body, (bytes, bytearray)):
-                self._raw_body.extend(self.content.body)
-        return bytes(self._raw_body)
-
-    async def text(self) -> str:
+    async def text(self):
         body = await self.read()
         try:
             return body.decode(self.charset)
@@ -128,34 +125,30 @@ cdef class Message:
                     return body.decode(encoding)
 
     async def form(self):
-        if self._form_data is not None:
-            return self._form_data
-        content_type = self.headers.get_single(b'content-type')
+        cdef str text
+        cdef bytes body
+        cdef bytes content_type_value = self.content_type()
 
-        if not content_type:
-            return {}
-
-        content_type_value = content_type.value
+        if not content_type_value:
+            return None
 
         if b'application/x-www-form-urlencoded' in content_type_value:
             text = await self.text()
-            self._form_data = parse_www_form_urlencoded(text)
-            return self._form_data
+            return parse_www_form_urlencoded(text)
 
         if b'multipart/form-data;' in content_type_value:
             body = await self.read()
             boundary = extract_multipart_form_data_boundary(content_type_value)
-            self._form_data = list(parse_multipart_form_data(body, boundary))
-            return self._form_data
-        self._form_data = {}
+            return list(parse_multipart_form_data(body, boundary))
+        return None
 
     cpdef bint declares_content_type(self, bytes type):
-        cdef Header header
-        header = self.headers.get_first(b'content-type')
-        if not header:
+        cdef bytes content_type = self.content_type()
+        if not content_type:
             return False
 
-        if type.lower() in header.value.lower():
+        # NB: we look for substring intentionally here
+        if type.lower() in content_type.lower():
             return True
         return False
 
@@ -169,9 +162,9 @@ cdef class Message:
         if isinstance(name, str):
             name = name.encode('ascii')
 
-        content_type = self.headers.get_single(b'content-type')
+        content_type = self.content_type()
 
-        if not content_type or b'multipart/form-data;' not in content_type.value:
+        if not content_type or b'multipart/form-data;' not in content_type:
             return []
         data = await self.form()
         if name:
@@ -183,15 +176,15 @@ cdef class Message:
         try:
             return loads(text)
         except JSONDecodeError as decode_error:
-            content_type = self.headers.get_single(b'content-type')
-            if content_type and b'json' in content_type.value:
+            content_type = self.content_type()
+            if content_type and b'json' in content_type:
                 # NB: content type could also be "application/problem+json"; so we don't check for
                 # application/json in this case
-                raise BadRequestFormat(f'Declared Content-Type is {content_type.value.decode()} but the content '
+                raise BadRequestFormat(f'Declared Content-Type is {content_type.decode()} but the content '
                                        f'cannot be parsed as JSON.',
                                        decode_error)
             raise InvalidOperation(f'Cannot parse content as JSON; declared Content-Type is '
-                                   f'{content_type.value.decode()}.',
+                                   f'{content_type.decode()}.',
                                    decode_error)
 
     cpdef bint has_body(self):
@@ -204,10 +197,14 @@ cdef class Message:
 
     @property
     def charset(self):
-        content_type = self.headers.get_single(b'content-type')
+        content_type = self.content_type()
         if content_type:
-            return parse_charset(content_type.value) or 'utf8'
+            return parse_charset(content_type) or 'utf8'
         return 'utf8'
+
+
+cpdef bint method_without_body(str method):
+    return method == 'GET' or method == 'HEAD' or method == 'TRACE'
 
 
 cdef class Request(Message):
@@ -215,44 +212,65 @@ cdef class Request(Message):
     def __init__(self,
                  str method,
                  bytes url,
-                 Headers headers,
-                 Content content):
-        super().__init__(headers, content)
-        self.url = URL(url)
+                 list headers):
+        cdef URL _url = URL(url) if url else None
+        super().__init__(headers)
         self.method = method
-        self._query = None
-        self.route_values = None
-        self.active = True
-        if method in {'GET', 'HEAD', 'TRACE'}:
-            self.complete.set()  # methods without body
-        
-    def __repr__(self):
-        return f'<Request {self.method} {self.url.value.decode()}>'
+        self._url = _url
+        if _url:
+            self._path = _url.path
+            self._raw_query = _url.query
+
+    @classmethod
+    def incoming(cls, str method, bytes path, bytes query, list headers):
+        request = cls(method, None, headers)
+        request._path = path
+        request._raw_query = query
+        return request
 
     @property
     def query(self):
-        if self._query is None:
-            if self.url.query is None:
-                self._query = {}
-            else:
-                self._query = parse_qs(self.url.query.decode('utf8'))
-        return self._query
+        if self._raw_query:
+            return parse_qs(self._raw_query.decode('utf8'))
+        return {}
+
+    @property
+    def url(self):
+        if self._url:
+            return self._url
+
+        if self._raw_query:
+            self._url = URL(self._path + b'?' + self._raw_query)
+        else:
+            self._url = URL(self._path)
+        return self._url
+
+    @url.setter
+    def url(self, bytes value):
+        cdef URL _url = URL(value) if value else None
+
+        if _url:
+            self._path = _url.path
+            self._raw_query = _url.query
+        else:
+            self._path = None
+            self._raw_query = None
+
+    def __repr__(self):
+        return f'<Request {self.method} {self.path.decode()}>'
 
     @property
     def cookies(self):
-        cdef list pairs
-        cdef bytes name
-        cdef bytes value
-        cdef bytes fragment
-        if self._cookies is not None:
-            return self._cookies
+        cdef bytes header
+        cdef list cookies_headers
+        cdef dict cookies = {}
 
-        cookies = {}
-        if b'cookie' in self.headers:
-            # a single cookie header is expected from the client, but anyway here the case of
-            # multiple headers is handled:
-            for header in self.headers.get(b'cookie'):
-                pairs = header.value.split(b'; ')
+        cookies_headers = self.get_headers(b'cookie')
+        if cookies_headers:
+            for header in cookies_headers:
+                # a single cookie header is expected from the client, but anyway here
+                # multiple headers are handled:
+                pairs = header.split(b'; ')
 
                 for fragment in pairs:
                     try:
@@ -262,40 +280,41 @@ cdef class Request(Message):
                         # than blocking a request just because a cookie is malformed
                         pass
                     else:
-                        cookies[unquote(name.decode()).encode()] = unquote(value.rstrip(b'; ').decode()).encode()
-
-        self._cookies = cookies
+                        cookies[unquote(name.decode())] = unquote(value.rstrip(b'; ').decode())
         return cookies
 
     def get_cookie(self, bytes name):
         return self.cookies.get(name)
 
     def set_cookie(self, bytes name, bytes value):
-        self.cookies[name] = value
+        # self.cookies[name] = value
+        raise Exception('Not implemented')
 
     def set_cookies(self, list cookies):
-        cdef bytes name, value
-        for name, value in cookies:
-            self.set_cookie(name, value)
+        raise Exception('Not implemented')
+        # cdef bytes name, value
+        # for name, value in cookies:
+        #     self.set_cookie(name, value)
 
     def unset_cookie(self, bytes name):
-        try:
-            del self.cookies[name]
-        except KeyError:
-            pass
+        raise Exception('Not implemented')
+        # try:
+        #     del self.cookies[name]
+        # except KeyError:
+        #     pass
 
     @property
     def etag(self):
-        return self.headers.get(b'etag')
+        return self.get_first_header(b'etag')
 
     @property
     def if_none_match(self):
-        return self.headers.get_first(b'if-none-match')
+        return self.get_first_header(b'if-none-match')
 
     cpdef bint expect_100_continue(self):
-        cdef Header header
-        header = self.headers.get_first(b'expect')
-        if header and header.value.lower() == b'100-continue':
+        cdef bytes value
+        value = self.get_first_header(b'expect')
+        if value and value.lower() == b'100-continue':
             return True
         return False
 
@@ -304,35 +323,40 @@ cdef class Response(Message):
 
     def __init__(self,
                  int status,
-                 Headers headers=None,
+                 list headers=None,
                  Content content=None):
-        super().__init__(headers or Headers(), content)
+        super().__init__(headers)
         self.status = status
-        self.active = True
-        if status == 204:
-            self.complete.set()  # HTTP Status 204 No Content, means no body to wait for
+        self.content = content
 
     def __repr__(self):
         return f'<Response {self.status}>'
 
-    @property
-    def cookies(self):
-        if self._cookies is not None:
-            return self._cookies
+    def get_cookies(self):
+        cdef bytes value
+        cdef list cookies, set_cookies_headers
 
-        cookies = {}
-        if b'set-cookie' in self.headers:
-            for header in self.headers.get(b'set-cookie'):
-                cookie = parse_cookie(header.value)
-                cookies[cookie.name] = cookie
-        self._cookies = cookies
+        cookies = []
+        set_cookies_headers = self.get_headers(b'set-cookie')
+        if set_cookies_headers:
+            for value in set_cookies_headers:
+                cookies.append(parse_cookie(value))
         return cookies
 
     def get_cookie(self, bytes name):
-        return self.cookies.get(name)
+        cdef bytes value
+        cdef list set_cookies_headers = self.get_headers(b'set-cookie')
+
+        if set_cookies_headers:
+            for value in set_cookies_headers:
+                cookie = parse_cookie(value)
+                if cookie.name == name:
+                    return cookie
+
+        return None
 
     def set_cookie(self, Cookie cookie):
-        self.cookies[cookie.name] = cookie
+        self.headers.append((b'set-cookie', write_cookie_for_response(cookie)))
 
     def set_cookies(self, list cookies):
         cdef Cookie cookie
@@ -343,10 +367,17 @@ cdef class Response(Message):
         self.set_cookie(Cookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365))))
 
     def remove_cookie(self, bytes name):
-        try:
-            del self.cookies[name]
-        except KeyError:
-            pass
+        cdef list to_remove = []
+        cdef tuple value
+        cdef list set_cookies_headers = self.get_headers_tuples(b'set-cookie')
+
+        if set_cookies_headers:
+            for value in set_cookies_headers:
+                cookie = parse_cookie(value[1])
+                if cookie.name == name:
+                    to_remove.append(value)
+
+        self.remove_headers(to_remove)
 
     cpdef bint is_redirect(self):
         return self.status in {301, 302, 303, 307, 308}

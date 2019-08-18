@@ -1,7 +1,7 @@
 import logging
 from asyncio import Queue, QueueEmpty, QueueFull
 from ssl import SSLContext
-from .connection import ClientConnection, SECURE_SSLCONTEXT, INSECURE_SSLCONTEXT, ConnectionClosedError
+from .connection import ClientConnection, SECURE_SSLCONTEXT, INSECURE_SSLCONTEXT
 from blacksheep.exceptions import InvalidArgument
 
 

@@ -1,4 +1,5 @@
 cimport cython
+from .exceptions cimport MessageAborted
 
 import re
 import uuid
@@ -48,6 +49,51 @@ cdef class Content:
                     yield chunk
 
 
+cdef class ASGIContent(Content):
+
+    def __init__(self, object receive):
+        super().__init__(None, self.read)
+        self.receive = receive
+
+    cpdef void dispose(self):
+        self.receive = None
+        self.body = None
+
+    async def stream(self):
+        while True:
+            message = await self.receive()
+
+            if message.get('type') == 'http.disconnect':
+                raise MessageAborted()
+
+            yield message.get('body', b'')
+
+            if not message.get('more_body'):
+                break
+
+        yield b''
+
+    async def read(self):
+        if self.body is not None:
+            return self.body
+        value = bytearray()
+
+        while True:
+            message = await self.receive()
+
+            if message.get('type') == 'http.disconnect':
+                raise MessageAborted()
+
+            value.extend(message.get('body', b''))
+
+            if not message.get('more_body'):
+                break
+
+        self.body = bytes(value)
+        self.length = len(self.body)
+        return self.body
+
+
 cdef class TextContent(Content):
 
     def __init__(self, str text):
@@ -66,10 +112,10 @@ cdef class JsonContent(Content):
         super().__init__(b'application/json', dumps(data).encode('utf8'))
 
 
-cdef dict parse_www_form_urlencoded(bytes content):
+cdef dict parse_www_form_urlencoded(str content):
     # application/x-www-form-urlencoded
-    cdef bytes key, value
-    data = {}
+    cdef str key, value
+    cdef dict data = {}
     for key, value in parse_qsl(content):
         if key in data:
             data[key].append(value)
@@ -78,7 +124,7 @@ cdef dict parse_www_form_urlencoded(bytes content):
     return data
 
 
-cpdef dict parse_www_form(bytes content):
+cpdef dict parse_www_form(str content):
     return parse_www_form_urlencoded(content)
 
 

@@ -1,5 +1,4 @@
-from urllib.parse import urlparse as parse_url
-
+import httptools
 
 
 cdef class InvalidURL(Exception):
@@ -11,23 +10,24 @@ cdef class URL:
 
     def __init__(self, bytes value):
         cdef bytes schema
+        cdef object port
 
         try:
-            parsed = parse_url(value)
-        except Exception:
+            parsed = httptools.parse_url(value)
+        except httptools.parser.errors.HttpParserInvalidURLError:
             raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()})')
-        schema = parsed.scheme
+        schema = parsed.schema
         if schema and schema != b'https' and schema != b'http':
             raise InvalidURL(f'Expected http or https schema; got instead {schema.decode()} in ({value.decode()})')
 
         self.value = value or b''
-        self.schema = schema or None
-        self.host = parsed.netloc or None
+        self.schema = schema
+        self.host = parsed.host
         self.port = parsed.port or 0
-        self.path = parsed.path or None
-        self.query = parsed.query or None
-        self.fragment = parsed.fragment or None
-        self.is_absolute = bool(schema)
+        self.path = parsed.path
+        self.query = parsed.query
+        self.fragment = parsed.fragment
+        self.is_absolute = parsed.schema is not None
 
     def __repr__(self):
         return f'<URL {self.value}>'
@@ -50,7 +50,7 @@ cdef class URL:
 
         base_url = self.schema + b'://' + self.host
 
-        if b':' not in self.host and self.port != 0:
+        if self.port != 0:
             if (self.schema == b'http' and self.port != 80) or (self.schema == b'https' and self.port != 443):
                 base_url = base_url + b':' + str(self.port).encode()
 
@@ -68,4 +68,3 @@ cdef class URL:
         if isinstance(other, URL):
             return self.value == other.value
         return NotImplemented
-

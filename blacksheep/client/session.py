@@ -1,14 +1,12 @@
 import asyncio
 from urllib.parse import urlencode
 from asyncio import TimeoutError
-from typing import List, Optional, Union, Type, Any, Callable
+from typing import List, Optional, Union, Type, Any, Callable, Tuple
 from .pool import ClientConnectionPools
 from .exceptions import *
 from blacksheep import (Request,
                         Response,
                         Content,
-                        Headers,
-                        Header,
                         URL,
                         InvalidURL)
 from blacksheep.middlewares import get_middlewares_chain
@@ -18,6 +16,7 @@ from .logs import get_client_logging_middleware
 
 
 URLType = Union[str, bytes, URL]
+Header = Tuple[bytes, bytes]
 
 
 class RedirectsCache:
@@ -102,7 +101,7 @@ class ClientSession:
         self.loop = loop
         self.base_url = url
         self.ssl = ssl
-        self.default_headers = Headers(default_headers)
+        self.default_headers = default_headers
         self.pools = pools
         self.connection_timeout = connection_timeout
         self.request_timeout = request_timeout
@@ -320,8 +319,7 @@ class ClientSession:
                   params=None):
         return await self.send(Request('GET',
                                        self.get_url(url, params),
-                                       Headers(headers),
-                                       None))
+                                       headers))
 
     async def post(self,
                    url: URLType,
@@ -330,8 +328,7 @@ class ClientSession:
                    params=None):
         return await self.send(Request('POST',
                                        self.get_url(url, params),
-                                       Headers(headers),
-                                       content))
+                                       headers).with_content(content))
 
     async def put(self,
                   url: URLType,
@@ -340,8 +337,7 @@ class ClientSession:
                   params=None):
         return await self.send(Request('PUT',
                                        self.get_url(url, params),
-                                       Headers(headers),
-                                       content))
+                                       headers).with_content(content))
 
     async def delete(self,
                      url: URLType,
@@ -350,8 +346,7 @@ class ClientSession:
                      params=None):
         return await self.send(Request('DELETE',
                                        self.get_url(url, params),
-                                       Headers(headers),
-                                       content))
+                                       headers).with_content(content))
 
     async def trace(self,
                     url: URLType,
@@ -359,7 +354,7 @@ class ClientSession:
                     params=None):
         return await self.send(Request('TRACE',
                                        self.get_url(url, params),
-                                       Headers(headers),
+                                       headers,
                                        None))
 
     async def head(self,
@@ -368,8 +363,7 @@ class ClientSession:
                    params=None):
         return await self.send(Request('HEAD',
                                        self.get_url(url, params),
-                                       Headers(headers),
-                                       None))
+                                       headers))
 
     async def patch(self,
                     url: URLType,
@@ -378,8 +372,7 @@ class ClientSession:
                     params=None):
         return await self.send(Request('PATCH',
                                        self.get_url(url, params),
-                                       Headers(headers),
-                                       content))
+                                       headers).with_content(content))
 
     async def options(self,
                       url: URLType,
@@ -388,5 +381,5 @@ class ClientSession:
                       params=None):
         return await self.send(Request('OPTIONS',
                                        self.get_url(url, params),
-                                       Headers(headers),
-                                       content))
+                                       headers).with_content(content))
+

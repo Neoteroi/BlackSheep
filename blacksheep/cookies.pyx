@@ -132,3 +132,31 @@ cpdef Cookie parse_cookie(bytes value):
                   secure,
                   max_age,
                   same_site)
+
+
+cdef bytes write_cookie_for_response(Cookie cookie):
+    cdef list parts = []
+    parts.append(quote(cookie.name).encode() + b'=' + quote(cookie.value).encode())
+
+    if cookie.expires:
+        parts.append(b'Expires=' + cookie.expires)
+
+    if cookie.max_age:
+        parts.append(b'Max-Age=' + cookie.max_age)
+
+    if cookie.domain:
+        parts.append(b'Domain=' + cookie.domain)
+
+    if cookie.path:
+        parts.append(b'Path=' + cookie.path)
+
+    if cookie.http_only:
+        parts.append(b'HttpOnly')
+
+    if cookie.secure:
+        parts.append(b'Secure')
+
+    if cookie.same_site:
+        parts.append(b'SameSite=' + cookie.same_site)
+
+    return b'; '.join(parts)

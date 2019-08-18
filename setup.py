@@ -40,7 +40,7 @@ setup(name='blacksheep',
           Extension('blacksheep.exceptions',
                     ['blacksheep/exceptions.c'],
                     extra_compile_args=COMPILE_ARGS),
-          
+
           Extension('blacksheep.headers',
                     ['blacksheep/headers.c'],
                     extra_compile_args=COMPILE_ARGS),
@@ -66,6 +66,7 @@ setup(name='blacksheep',
                     extra_compile_args=COMPILE_ARGS)
       ],
       install_requires=[
+          'httptools',
           'certifi',
           'cchardet',
           'guardpost',

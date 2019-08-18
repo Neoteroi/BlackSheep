@@ -1,5 +1,5 @@
 from typing import Optional, Sequence
-from blacksheep import Response, Headers, Header, TextContent
+from blacksheep import Response, TextContent
 from guardpost.synchronous.authorization import Requirement, UnauthorizedError
 from guardpost.asynchronous.authorization import AuthorizationStrategy, AsyncRequirement, Policy
 
@@ -74,10 +74,10 @@ def get_www_authenticated_header_from_generic_unauthorized_error(error):
     if not error.scheme:
         return None
 
-    return Header(b'WWW-Authenticate', error.scheme.decode())
+    return (b'WWW-Authenticate', error.scheme.decode())
 
 
 async def handle_unauthorized(app, request, http_exception: UnauthorizedError):
     return Response(401,
-                    Headers([get_www_authenticated_header_from_generic_unauthorized_error(http_exception)]),
+                    [get_www_authenticated_header_from_generic_unauthorized_error(http_exception)],
                     content=TextContent('Unauthorized'))

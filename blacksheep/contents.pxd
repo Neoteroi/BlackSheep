@@ -7,10 +7,15 @@
 
 cdef class Content:
     cdef readonly bytes type
-    cdef readonly object body
+    cdef readonly bytes body
     cdef readonly object generator
     cdef readonly int length
     cdef bint _is_generator_async
+
+
+cdef class ASGIContent(Content):
+    cdef object receive
+    cpdef void dispose(self)
 
 
 cdef class TextContent(Content):
@@ -45,7 +50,7 @@ cdef class MultiPartFormData(Content):
 cpdef bytes extract_multipart_form_data_boundary(bytes content_type)
 
 
-cdef dict parse_www_form_urlencoded(bytes content)
+cdef dict parse_www_form_urlencoded(str content)
 
 
 cpdef list parse_multipart_form_data(bytes content, bytes boundary)

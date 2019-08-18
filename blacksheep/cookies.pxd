@@ -27,3 +27,6 @@ cpdef bytes datetime_to_cookie_format(object value)
 
 
 cpdef object datetime_from_cookie_format(bytes value)
+
+
+cdef bytes write_cookie_for_response(Cookie cookie)

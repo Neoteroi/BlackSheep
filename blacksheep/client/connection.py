@@ -3,7 +3,7 @@ import asyncio
 import httptools
 import certifi
 import weakref
-from blacksheep import Request, Response, Headers, Header
+from blacksheep import Request, Response
 from blacksheep.scribe import (is_small_request,
                                write_small_request,
                                write_request_without_body,
@@ -204,13 +204,13 @@ class ClientConnection(asyncio.Protocol):
             self.response_ready.set()
 
     def on_header(self, name, value):
-        self.headers.append(Header(name, value))
+        self.headers.append((name, value))
 
     def on_headers_complete(self):
         status = self.parser.get_status_code()
         self.response = Response(
             status,
-            Headers(self.headers),
+            self.headers,
             None
         )
         self.response_ready.set()

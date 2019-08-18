@@ -8,9 +8,11 @@
 cdef class Content:
     cdef readonly bytes type
     cdef readonly bytes body
-    cdef readonly object generator
     cdef readonly int length
-    cdef bint _is_generator_async
+
+
+cdef class StreamedContent(Content):
+    cdef readonly object generator
 
 
 cdef class ASGIContent(Content):

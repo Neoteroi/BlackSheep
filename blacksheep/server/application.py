@@ -253,9 +253,6 @@ class Application(BaseApplication):
         await self.stop()
         await send({'type': 'lifespan.shutdown.complete'})
 
-    def before_request(self, request: Request):
-        pass
-
     async def __call__(self, scope, receive, send):
         if scope['type'] == 'lifespan':
             return await self._handle_lifespan(receive, send)

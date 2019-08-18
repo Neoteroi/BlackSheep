@@ -214,7 +214,7 @@ cdef class Request(Message):
                  bytes url,
                  list headers):
         cdef URL _url = URL(url) if url else None
-        super().__init__(headers)
+        self.headers = headers or []
         self.method = method
         self._url = _url
         if _url:
@@ -323,9 +323,9 @@ cdef class Response(Message):
 
     def __init__(self,
                  int status,
-                 list headers=None,
-                 Content content=None):
-        super().__init__(headers)
+                 list headers = None,
+                 Content content = None):
+        self.headers = headers or []
         self.status = status
         self.content = content
 

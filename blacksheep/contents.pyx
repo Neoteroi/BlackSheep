@@ -23,36 +23,35 @@ cdef class Content:
 
     def __init__(self,
                  bytes content_type,
-                 data: Union[Callable, bytes]):
+                 bytes data):
         self.type = content_type
+        self.body = data
+        self.length = len(data)
 
-        if callable(data):
-            self.generator = data
-            self._is_generator_async = isasyncgenfunction(data)
-            self.body = None
-            self.length = -1
-        else:
-            self.body = data
-            self.length = len(data)
-            self.generator = None
-            self._is_generator_async = False
+
+cdef class StreamedContent(Content):
+
+    def __init__(self,
+                 bytes content_type,
+                 object data_provider):
+        self.type = content_type
+        self.body = None
+        self.length = -1
+        self.generator = data_provider
+        if not isasyncgenfunction(data_provider):
+            raise ValueError('Data provider must be an async generator')
 
     async def get_parts(self):
-        if self.body:
-            yield self.body
-        else:
-            if self._is_generator_async:
-                async for chunk in self.generator():
-                    yield chunk
-            else:
-                for chunk in self.generator():
-                    yield chunk
+        async for chunk in self.generator():
+            yield chunk
 
 
 cdef class ASGIContent(Content):
 
     def __init__(self, object receive):
-        super().__init__(None, self.read)
+        self.type = None
+        self.body = None
+        self.length = -1
         self.receive = receive
 
     cpdef void dispose(self):

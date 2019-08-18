@@ -102,7 +102,7 @@ def permanent_redirect(location: Union[bytes, str]):
 
 def text(value: str, status: int = 200):
     """Returns a response with text/plain content, and given status (default HTTP 200 OK)."""
-    return Response(status, [], TextContent(value))
+    return Response(status, None, Content(b'text/plain; charset=utf-8', value.encode('utf8')))
 
 
 def html(value: str, status: int = 200):

@@ -4,7 +4,6 @@
 cyt:
 	cython blacksheep/url.pyx
 	cython blacksheep/exceptions.pyx
-	cython blacksheep/headers.pyx
 	cython blacksheep/cookies.pyx
 	cython blacksheep/contents.pyx
 	cython blacksheep/messages.pyx

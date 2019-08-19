@@ -28,6 +28,9 @@ cdef class Content:
         self.body = data
         self.length = len(data)
 
+    async def read(self):
+        return self.body
+
 
 cdef class StreamedContent(Content):
 

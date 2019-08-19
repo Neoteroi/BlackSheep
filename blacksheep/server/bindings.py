@@ -267,7 +267,7 @@ class FromHeader(SyncBinder):
         return 'header'
 
     def get_raw_value(self, request: Request) -> Sequence[str]:
-        return [header.value.decode('utf8') for header in request.headers[self.name.encode()]]
+        return [header.decode('utf8') for header in request.get_headers(self.name.encode())]
 
 
 class FromQuery(SyncBinder):

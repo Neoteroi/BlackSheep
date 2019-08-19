@@ -41,10 +41,6 @@ setup(name='blacksheep',
                     ['blacksheep/exceptions.c'],
                     extra_compile_args=COMPILE_ARGS),
 
-          Extension('blacksheep.headers',
-                    ['blacksheep/headers.c'],
-                    extra_compile_args=COMPILE_ARGS),
-
           Extension('blacksheep.cookies',
                     ['blacksheep/cookies.c'],
                     extra_compile_args=COMPILE_ARGS),

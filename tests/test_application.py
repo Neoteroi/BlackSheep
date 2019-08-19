@@ -11,7 +11,7 @@ from tests.utils import ensure_folder
 class FakeApplication(Application):
 
     def __init__(self, *args):
-        super().__init__(*args)
+        super().__init__(show_error_details=True, *args)
         self.request = None
         self.response = None
 
@@ -973,11 +973,13 @@ async def test_handler_normalize_sync_method_from_header():
     app = FakeApplication()
 
     @app.router.get('/')
-    def home(request, xx: From(str)):
+    def home(request, xx: FromHeader(str)):
         assert xx == 'Hello World'
 
     app.normalize_handlers()
-    await app(get_example_scope('GET', '/', [[b'XX', b'Hello World']]), MockReceive(), MockSend())
+    await app(get_example_scope('GET', '/', [(b'XX', b'Hello World')]), MockReceive(), MockSend())
+    text = await app.response.text()
+    print(text)
     assert app.response.status == 204
 
 

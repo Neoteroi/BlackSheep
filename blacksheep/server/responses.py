@@ -1,6 +1,6 @@
 import ntpath
 from enum import Enum
-from typing import Any, Optional, Callable, Union
+from typing import Any, Callable, Union
 from blacksheep import Response, TextContent, HtmlContent, JsonContent, Content
 
 

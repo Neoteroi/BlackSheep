@@ -61,6 +61,21 @@ cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
 
+cdef void set_headers_for_response_content(Response message):
+    cdef Content content = message.content
+
+    if not content:
+        message._add_header(b'content-length', b'0')
+        return
+
+    message._add_header(b'content-type', content.type or b'application/octet-stream')
+
+    if should_use_chunked_encoding(content):
+        message._add_header(b'transfer-encoding', b'chunked')
+    else:
+        message._add_header(b'content-length', str(content.length).encode())
+
+
 cdef void set_headers_for_content(Message message):
     cdef Content content = message.content
 
@@ -306,7 +321,7 @@ async def send_asgi_response(Response response, object send):
     cdef bytes chunk
     cdef Content content = response.content
     
-    set_headers_for_content(response)
+    set_headers_for_response_content(response)
 
     await send({
         'type': 'http.response.start',

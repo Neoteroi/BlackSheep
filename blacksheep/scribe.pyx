@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 
 cdef bytes write_header(tuple header):
-    return tuple[0] + b': ' + tuple[1] + b'\r\n'
+    return header[0] + b': ' + header[1] + b'\r\n'
 
 
 cdef bytes write_headers(list headers):
@@ -61,19 +61,19 @@ cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
 
-cdef void set_headers_for_content(Response response):
-    cdef Content content = response.content
+cdef void set_headers_for_content(Message message):
+    cdef Content content = message.content
 
     if not content:
-        response._add_header(b'content-length', b'0')
+        message._add_header(b'content-length', b'0')
         return
 
-    response._add_header(b'content-type', content.type or b'application/octet-stream')
+    message._add_header(b'content-type', content.type or b'application/octet-stream')
 
     if should_use_chunked_encoding(content):
-        response._add_header(b'transfer-encoding', b'chunked')
+        message._add_header(b'transfer-encoding', b'chunked')
     else:
-        response._add_header(b'content-length', str(content.length).encode())
+        message._add_header(b'content-length', str(content.length).encode())
 
 
 cdef bytes write_cookie_for_response(Cookie cookie):
@@ -118,26 +118,6 @@ cdef bytes write_cookies_for_request(dict cookies):
     return b'; '.join(parts)
 
 
-cdef list get_all_response_headers(Response response):
-    cdef list result = []
-    cdef Content content
-    cdef tuple header
-    cdef Cookie cookie
-    cdef dict cookies
-
-    for header in response.headers:
-        result.append(header)
-
-    # get_headers_for_content(response.content, result)
-
-    cookies = response.cookies
-
-    if cookies:
-        for cookie in cookies.values():
-            result.append((b'Set-Cookie', write_cookie_for_response(cookie)))
-    return result
-
-
 async def write_chunks(Content http_content):
     async for chunk in http_content.get_parts():
         yield (hex(len(chunk))).encode()[2:] + b'\r\n' + chunk + b'\r\n'
@@ -174,7 +154,11 @@ cpdef bint request_has_body(Request request):
 cpdef bytes write_request_without_body(Request request):
     cdef bytearray data = bytearray()
     data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
-    extend_data_with_headers(get_all_request_headers(request), data)
+
+    # TODO: if the request port is not default; add b':' + port
+    request._add_header(b'host', request.url.host)
+    
+    extend_data_with_headers(request.headers, data)
     data.extend(b'\r\n')
     return bytes(data)
 
@@ -182,7 +166,12 @@ cpdef bytes write_request_without_body(Request request):
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
     data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
-    extend_data_with_headers(get_all_request_headers(request), data)
+    # TODO: if the request port is not default; add b':' + port
+    request._add_header(b'host', request.url.host)
+
+    set_headers_for_content(request)
+
+    extend_data_with_headers(request, data)
     data.extend(b'\r\n')
     if request.content:
         data.extend(request.content.body)
@@ -192,7 +181,8 @@ cpdef bytes write_small_request(Request request):
 cdef bytes write_small_response(Response response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
-    extend_data_with_headers(get_all_response_headers(response), data)
+    set_headers_for_content(response)
+    extend_data_with_headers(response.headers, data)
     data.extend(b'\r\n')
     if response.content:
         data.extend(response.content.body)
@@ -205,29 +195,6 @@ cpdef bytes py_write_small_response(Response response):
 
 cpdef bytes py_write_small_request(Request request):
     return write_small_request(request)
-
-
-cdef list get_all_request_headers(Request request):
-    cdef list result = request.headers
-    cdef Content content
-    cdef tuple header
-    cdef Cookie cookie
-    cdef dict cookies
-    
-    content = request.content
-
-    # TODO: if the request port is not default; add b':' + port
-    result.append((b'host', request.url.host))
-
-    if content:
-        raise Exception('Not done')
-        # get_headers_for_content(content, result)
-
-    cookies = request.cookies
-
-    if cookies:
-        result.append((b'Cookie', write_cookies_for_request(cookies)))
-    return result
 
 
 async def write_request_body_only(Request request):
@@ -260,8 +227,12 @@ async def write_request(Request request):
     cdef bytes chunk
     cdef Content content
 
+    request._add_header(b'host', request.url.host)
+
+    set_headers_for_content(request)
+
     yield request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
-        write_headers(get_all_request_headers(request)) + b'\r\n'
+        write_headers(request.__headers) + b'\r\n'
 
     content = request.content
 
@@ -291,8 +262,10 @@ async def write_response(Response response):
     cdef bytes chunk
     cdef Content content
 
+    set_headers_for_content(response)
+
     yield STATUS_LINES[response.status] + \
-        write_headers(get_all_response_headers(response)) + b'\r\n'
+        write_headers(response.__headers) + b'\r\n'
 
     content = response.content
 

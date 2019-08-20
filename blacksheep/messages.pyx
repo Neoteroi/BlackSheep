@@ -255,8 +255,20 @@ cdef class Request(Message):
         return self._url
 
     @url.setter
-    def url(self, bytes value):
-        cdef URL _url = URL(value) if value else None
+    def url(self, object value):
+        cdef URL _url
+
+        if value:
+            if isinstance(value, bytes):
+                _url = URL(value)
+            if isinstance(value, str):
+                _url = URL(value.encode('utf8'))
+            if isinstance(value, URL):
+                _url = value
+            else:
+                raise TypeError('Invalid value type, expected bytes, str, or URL')
+        else:
+            _url = None
 
         if _url:
             self._path = _url.path
@@ -295,22 +307,13 @@ cdef class Request(Message):
     def get_cookie(self, bytes name):
         return self.cookies.get(name)
 
-    def set_cookie(self, bytes name, bytes value):
-        # self.cookies[name] = value
-        raise Exception('Not implemented')
+    def set_cookie(self, Cookie cookie):
+        self.__headers.append((b'cookie', cookie.name + b'=' + cookie.value))
 
     def set_cookies(self, list cookies):
-        raise Exception('Not implemented')
-        # cdef bytes name, value
-        # for name, value in cookies:
-        #     self.set_cookie(name, value)
-
-    def unset_cookie(self, bytes name):
-        raise Exception('Not implemented')
-        # try:
-        #     del self.cookies[name]
-        # except KeyError:
-        #     pass
+        cdef Cookie cookie
+        for cookie in cookies:
+            self.set_cookie(cookie)
 
     @property
     def etag(self):
@@ -340,6 +343,10 @@ cdef class Response(Message):
 
     def __repr__(self):
         return f'<Response {self.status}>'
+
+    @property
+    def cookies(self):
+        return self.get_cookies()
 
     def get_cookies(self):
         cdef bytes value

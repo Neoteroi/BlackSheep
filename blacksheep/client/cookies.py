@@ -280,12 +280,12 @@ async def cookies_middleware(request, next_handler):
     cookie_jar = request.context.cookies
 
     for cookie in cookie_jar.get_cookies_for_url(request.url):
-        request.set_cookie(cookie.name, cookie.value)
+        request.set_cookie(cookie)
 
     response = await next_handler(request)
 
     if b'set-cookie' in response.headers:
-        for cookie in response.cookies.values():
+        for cookie in response.cookies:
             try:
                 cookie_jar.add(request.url, cookie)
             except InvalidCookie as invalid_cookie_error:

@@ -182,7 +182,7 @@ class ClientSession:
         # if the location cannot be parsed as URL, let exception happen: this might be a redirect to a URN!!
         # simply don't follows the redirect, and returns the response to the caller
         try:
-            return URL(location[-1].value)
+            return URL(location[-1])
         except InvalidURL:
             raise UnsupportedRedirect()
 
@@ -240,8 +240,9 @@ class ClientSession:
             return
 
         for header in self.default_headers:
-            if header.name not in request.headers:
-                request.headers.add(header)
+            # TODO: support tuple and Header?
+            if header[0] not in request.headers:
+                request.headers.add(header[0], header[1])
 
     def check_permanent_redirects(self, request):
         if self.follow_redirects and request.url.value in self._permanent_redirects_urls:
@@ -354,8 +355,7 @@ class ClientSession:
                     params=None):
         return await self.send(Request('TRACE',
                                        self.get_url(url, params),
-                                       headers,
-                                       None))
+                                       headers))
 
     async def head(self,
                    url: URLType,

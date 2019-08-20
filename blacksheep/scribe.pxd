@@ -6,7 +6,7 @@
 
 from .contents cimport Content
 from .cookies cimport Cookie
-from .messages cimport Request, Response
+from .messages cimport Request, Response, Message
 
 
 cpdef bytes get_status_line(int status)
@@ -23,5 +23,5 @@ cdef bint is_small_response(Response response)
 
 cdef bytes write_small_response(Response response)
 
-cdef void set_headers_for_content(Response response)
+cdef void set_headers_for_content(Message message)
 

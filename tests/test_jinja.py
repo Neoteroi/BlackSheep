@@ -21,9 +21,9 @@ def home_model():
 async def _home_scenario(app: FakeApplication):
     app.normalize_handlers()
     await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
+    text = await app.response.text()
     assert app.response.status == 200
 
-    text = await app.response.text()
     assert text == """<!DOCTYPE html>
 <html lang="en">
 <head>

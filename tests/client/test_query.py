@@ -15,7 +15,7 @@ from . import FakePools
     [{'name': 'Łukasz'}, b'name=%C5%81ukasz']
 ])
 async def test_query_params(params, expected_query):
-    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, None, TextContent('Hello, World!'))])
 
     async def middleware_for_assertions(request, next_handler):
         assert expected_query == request.url.query
@@ -42,7 +42,7 @@ async def test_query_params(params, expected_query):
     ['/?foo=power&search=something', {'ufo': 'ufo'}, b'foo=power&search=something&ufo=ufo']
 ])
 async def test_query_params_concatenation(request_url, params, expected_query):
-    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, None, TextContent('Hello, World!'))])
 
     async def middleware_for_assertions(request, next_handler):
         assert expected_query == request.url.query

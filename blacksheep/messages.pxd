@@ -11,13 +11,14 @@ from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_
 
 
 cdef class Message:
-    cdef readonly list headers
+    cdef list __headers
     cdef public Content content
 
     cpdef list get_headers(self, bytes key)
     cpdef bytes get_first_header(self, bytes key)
     cpdef bytes get_single_header(self, bytes key)
     cpdef void remove_header(self, bytes key)
+    cdef void _add_header(self, bytes key, bytes value)
     cpdef void add_header(self, bytes key, bytes value)
     cpdef void set_header(self, bytes key, bytes value)
     cpdef bytes content_type(self)

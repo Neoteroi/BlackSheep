@@ -52,14 +52,14 @@ def get_example_scope(method: str, path: str, extra_headers=None, query: Optiona
         'raw_path': path.encode(),
         'query_string': query,
         'headers': [
-            [b'host', b'127.0.0.1:8000'],
-            [b'user-agent', b'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0'],
-            [b'accept', b'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'],
-            [b'accept-language', b'en-US,en;q=0.5'],
-            [b'accept-encoding', b'gzip, deflate'],
-            [b'connection', b'keep-alive'],
-            [b'upgrade-insecure-requests', b'1']
-        ] + (extra_headers or [])
+            (b'host', b'127.0.0.1:8000'),
+            (b'user-agent', b'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0'),
+            (b'accept', b'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'),
+            (b'accept-language', b'en-US,en;q=0.5'),
+            (b'accept-encoding', b'gzip, deflate'),
+            (b'connection', b'keep-alive'),
+            (b'upgrade-insecure-requests', b'1')
+        ] + ([tuple(header) for header in extra_headers] if extra_headers else [])
     }
 
 
@@ -114,36 +114,7 @@ async def test_application_get_handler():
     assert request is not None
 
     connection = request.headers[b'connection']
-    assert connection == [(b'Connection', b'keep-alive')]
-
-    text = await request.text()
-    assert text == ''
-
-
-@pytest.mark.asyncio
-async def test_application_post_handler_crlf():
-    app = FakeApplication()
-
-    @app.router.post(b'/api/cat')
-    async def create_cat(request):
-        pass
-
-    send = MockSend()
-    receive = MockReceive([
-        b'{"name":"Celine","kind":"Persian"}'
-    ])
-
-    await app(get_example_scope('POST', '/api/cat', [[b'content-length', b'34']]),
-              receive,
-              send)
-
-    request = app.request  # type: Request
-
-    assert request is not None
-
-    content = await request.read()
-
-    assert b'{"name":"Celine","kind":"Persian"}' == content
+    assert connection == (b'keep-alive',)
 
 
 @pytest.mark.asyncio
@@ -279,19 +250,10 @@ async def test_application_post_handler():
 
     await app(get_example_scope('POST', '/api/cat',
                                 [
-                                    [b'content-length', str(len(content)).encode()]
+                                    (b'content-length', str(len(content)).encode())
                                 ]),
               receive,
               send)
-
-    request = app.request  # type: Request
-    assert request is not None
-
-    content = await request.read()
-    assert b'{"name":"Celine","kind":"Persian"}' == content
-
-    data = await request.json()
-    assert {"name": "Celine", "kind": "Persian"} == data
 
     response = app.response
     assert called_times == 1

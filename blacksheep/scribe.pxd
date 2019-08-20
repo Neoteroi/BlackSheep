@@ -23,5 +23,5 @@ cdef bint is_small_response(Response response)
 
 cdef bytes write_small_response(Response response)
 
-cdef void get_headers_for_content(Content content, list headers)
+cdef void set_headers_for_content(Response response)
 

@@ -5,7 +5,7 @@ from blacksheep.exceptions import BadRequestFormat, InvalidOperation
 
 
 def test_request_supports_dynamic_attributes():
-    request = Request('GET', b'/', Headers(), None)
+    request = Request('GET', b'/', None)
     foo = object()
 
     assert hasattr(request, 'foo') is False, 'This test makes sense if such attribute is not defined'
@@ -27,7 +27,7 @@ def test_request_supports_dynamic_attributes():
      b'GET /a/b/c/?foo=1&ufo=0 HTTP/1.1\r\nHost: foo.org\r\n\r\n'),
 ])
 async def test_request_writing(url, method, headers, content, expected_result):
-    request = Request(method, url, Headers(headers), content)
+    request = Request(method, url, headers).with_content(content)
     data = b''
     async for chunk in scribe.write_request(request):
         data += chunk
@@ -56,7 +56,7 @@ def test_parse_query(url, query, parsed_query):
 
 @pytest.mark.asyncio
 async def test_can_read_json_data_even_without_content_type_header():
-    request = Request('POST', b'/', Headers(), None)
+    request = Request('POST', b'/', None)
 
     request.extend_body(b'{"hello":"world","foo":false}')
     request.complete.set()

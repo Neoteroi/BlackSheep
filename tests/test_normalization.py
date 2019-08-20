@@ -352,7 +352,7 @@ async def fake_handler(_):
 @pytest.mark.asyncio
 async def test_middleware_normalization():
     services = {'context': object()}
-    fake_request = Request('GET', b'/', None, None)
+    fake_request = Request('GET', b'/', None)
 
     async def middleware(request, handler, context):
         assert request is fake_request
@@ -370,7 +370,7 @@ async def test_middleware_normalization():
 @pytest.mark.asyncio
 async def test_middleware_query_normalization():
     services = {'context': object()}
-    fake_request = Request('GET', b'/?example=Lorem', None, None)
+    fake_request = Request('GET', b'/?example=Lorem', None)
 
     async def middleware(request, handler, example: FromQuery(str)):
         assert request is fake_request
@@ -388,9 +388,9 @@ async def test_middleware_query_normalization():
 @pytest.mark.asyncio
 async def test_middleware_header_normalization():
     services = {'context': object()}
-    fake_request = Request('GET', b'/', Headers([
-        Header(b'example', b'Lorem')
-    ]), None)
+    fake_request = Request('GET', b'/', [
+        (b'example', b'Lorem')
+    ])
 
     async def middleware(request, handler, example: FromHeader(str)):
         assert request is fake_request
@@ -408,9 +408,9 @@ async def test_middleware_header_normalization():
 @pytest.mark.asyncio
 async def test_middleware_normalization_no_parameters():
     services = {'context': object()}
-    fake_request = Request('GET', b'/', Headers([
-        Header(b'example', b'Lorem')
-    ]), None)
+    fake_request = Request('GET', b'/', [
+        (b'example', b'Lorem')
+    ])
 
     called = False
 

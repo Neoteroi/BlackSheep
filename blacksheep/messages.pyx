@@ -1,4 +1,5 @@
 from .url cimport URL
+from .headers cimport Headers
 from .exceptions cimport BadRequestFormat, InvalidOperation, MessageAborted
 from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
 from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
@@ -27,7 +28,15 @@ cpdef str parse_charset(bytes value):
 cdef class Message:
 
     def __init__(self, list headers):
-        self.headers = headers or []
+        self.__headers = headers or []
+
+    @property
+    def headers(self):
+        cdef str key = '_headers'
+        if key in self.__dict__:
+            return self.__dict__[key]
+        self.__dict__[key] = Headers(self.__headers)
+        return self.__dict__[key]
 
     cpdef Message with_content(self, Content content):
         self.content = content
@@ -36,7 +45,7 @@ cdef class Message:
     cpdef bytes get_first_header(self, bytes key):
         cdef tuple header
         key = key.lower()
-        for header in self.headers:
+        for header in self.__headers:
             if header[0].lower() == key:
                 return header[1]
 
@@ -44,7 +53,7 @@ cdef class Message:
         cdef list results = []
         cdef tuple header
         key = key.lower()
-        for header in self.headers:
+        for header in self.__headers:
             if header[0].lower() == key:
                 results.append(header[1])
         return results
@@ -53,7 +62,7 @@ cdef class Message:
         cdef list results = []
         cdef tuple header
         key = key.lower()
-        for header in self.headers:
+        for header in self.__headers:
             if header[0].lower() == key:
                 results.append(header)
         return results
@@ -70,24 +79,27 @@ cdef class Message:
         cdef tuple header
         cdef list to_remove = []
         key = key.lower()
-        for header in self.headers:
+        for header in self.__headers:
             if header[0].lower() == key:
                 to_remove.append(header)
 
         for header in to_remove:
-            self.headers.remove(header)
+            self.__headers.remove(header)
 
     cdef void remove_headers(self, list headers):
         cdef tuple header
         for header in headers:
-            self.headers.remove(header)
+            self.__headers.remove(header)
+
+    cdef void _add_header(self, bytes key, bytes value):
+        self.__headers.append((key, value))
 
     cpdef void add_header(self, bytes key, bytes value):
-        self.headers.append((key, value))
+        self.__headers.append((key, value))
 
     cpdef void set_header(self, bytes key, bytes value):
         self.remove_header(key)
-        self.headers.append((key, value))
+        self.__headers.append((key, value))
 
     cpdef bytes content_type(self):
         return self.get_first_header(b'content-type')
@@ -211,7 +223,7 @@ cdef class Request(Message):
                  bytes url,
                  list headers):
         cdef URL _url = URL(url) if url else None
-        self.headers = headers or []
+        self.__headers = headers or []
         self.method = method
         self._url = _url
         if _url:
@@ -254,7 +266,7 @@ cdef class Request(Message):
             self._raw_query = None
 
     def __repr__(self):
-        return f'<Request {self.method} {self.path.decode()}>'
+        return f'<Request {self.method} {self.url.value.decode()}>'
 
     @property
     def cookies(self):
@@ -322,7 +334,7 @@ cdef class Response(Message):
                  int status,
                  list headers = None,
                  Content content = None):
-        self.headers = headers or []
+        self.__headers = headers or []
         self.status = status
         self.content = content
 
@@ -353,7 +365,7 @@ cdef class Response(Message):
         return None
 
     def set_cookie(self, Cookie cookie):
-        self.headers.append((b'set-cookie', write_cookie_for_response(cookie)))
+        self.__headers.append((b'set-cookie', write_cookie_for_response(cookie)))
 
     def set_cookies(self, list cookies):
         cdef Cookie cookie

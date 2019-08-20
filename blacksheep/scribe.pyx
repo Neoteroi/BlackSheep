@@ -61,17 +61,19 @@ cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
 
-cdef void get_headers_for_content(Content content, list headers):
+cdef void set_headers_for_content(Response response):
+    cdef Content content = response.content
+
     if not content:
-        headers.append((b'content-length', b'0'))
+        response._add_header(b'content-length', b'0')
         return
 
-    headers.append((b'content-type', content.type or b'application/octet-stream'))
+    response._add_header(b'content-type', content.type or b'application/octet-stream')
 
     if should_use_chunked_encoding(content):
-        headers.append((b'transfer-encoding', b'chunked'))
+        response._add_header(b'transfer-encoding', b'chunked')
     else:
-        headers.append((b'content-length', str(content.length).encode()))
+        response._add_header(b'content-length', str(content.length).encode())
 
 
 cdef bytes write_cookie_for_response(Cookie cookie):
@@ -126,7 +128,7 @@ cdef list get_all_response_headers(Response response):
     for header in response.headers:
         result.append(header)
 
-    get_headers_for_content(response.content, result)
+    # get_headers_for_content(response.content, result)
 
     cookies = response.cookies
 
@@ -134,14 +136,6 @@ cdef list get_all_response_headers(Response response):
         for cookie in cookies.values():
             result.append((b'Set-Cookie', write_cookie_for_response(cookie)))
     return result
-
-
-cdef list get_all_response_headers_asgi(Response response):
-    #if response.headers:
-    #    for header in response.headers:
-    #        result.append(header)
-    get_headers_for_content(response.content, response.headers)
-    return response.headers
 
 
 async def write_chunks(Content http_content):
@@ -226,7 +220,8 @@ cdef list get_all_request_headers(Request request):
     result.append((b'host', request.url.host))
 
     if content:
-        get_headers_for_content(content, result)
+        raise Exception('Not done')
+        # get_headers_for_content(content, result)
 
     cookies = request.cookies
 
@@ -338,18 +333,17 @@ async def send_asgi_response(Response response, object send):
     cdef bytes chunk
     cdef Content content = response.content
     
-    get_headers_for_content(response.content, response.headers)
+    set_headers_for_content(response)
 
     await send({
         'type': 'http.response.start',
         'status': response.status,
-        'headers': response.headers
+        'headers': response.__headers
     })
 
     if content:
         if content.length < 0:
-            # NB:
-            # ASGI HTTP Servers automatically handle chunked encoding
+            # NB: ASGI HTTP Servers automatically handle chunked encoding
             async for chunk in content.get_parts():
                 await send({
                     'type': 'http.response.body',

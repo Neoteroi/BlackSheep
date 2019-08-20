@@ -4,6 +4,7 @@
 cyt:
 	cython blacksheep/url.pyx
 	cython blacksheep/exceptions.pyx
+	cython blacksheep/headers.pyx
 	cython blacksheep/cookies.pyx
 	cython blacksheep/contents.pyx
 	cython blacksheep/messages.pyx
@@ -28,6 +29,7 @@ buildext:
 annotate:
 	cython blacksheep/url.pyx -a
 	cython blacksheep/exceptions.pyx -a
+	cython blacksheep/headers.pyx -a
 	cython blacksheep/cookies.pyx -a
 	cython blacksheep/contents.pyx -a
 	cython blacksheep/messages.pyx -a

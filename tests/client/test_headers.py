@@ -17,7 +17,7 @@ async def test_default_headers():
 
         return await next_handler(request)
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions],
                              default_headers=[(b'Hello', b'World'),
@@ -36,7 +36,7 @@ async def test_request_headers():
 
         return await next_handler(request)
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]
                              ) as client:
@@ -59,7 +59,7 @@ async def test_request_headers_override_default_header():
 
         return await next_handler(request)
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions],
                              default_headers=[(b'Hello', b'World'),

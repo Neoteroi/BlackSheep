@@ -64,7 +64,7 @@ class ClientSession:
 
     def __init__(self,
                  loop=None,
-                 url=None,
+                 base_url=None,
                  ssl=None,
                  pools=None,
                  default_headers: Optional[List[Header]] = None,
@@ -77,11 +77,6 @@ class ClientSession:
                  middlewares: Optional[List[Callable]] = None):
         if loop is None:
             loop = asyncio.get_event_loop()
-
-        if url and not isinstance(url, URL):
-            if isinstance(url, str):
-                url = url.encode()
-            url = URL(url)
 
         if not pools:
             pools = ClientConnectionPools(loop)
@@ -99,7 +94,8 @@ class ClientSession:
             middlewares.insert(0, cookies_middleware)
 
         self.loop = loop
-        self.base_url = url
+        self._base_url = None
+        self.base_url = base_url
         self.ssl = ssl
         self.default_headers = default_headers
         self.pools = pools
@@ -115,6 +111,18 @@ class ClientSession:
         if middlewares:
             self._build_middlewares_chain()
         self.delay_before_retry = 0.5
+
+    @property
+    def base_url(self):
+        return self._base_url
+
+    @base_url.setter
+    def base_url(self, value):
+        if value and not isinstance(value, URL):
+            if isinstance(value, str):
+                value = value.encode()
+            value = URL(value)
+        self._base_url = value
 
     def add_middlewares(self, middlewares: List[Callable]):
         self._middlewares += middlewares
@@ -175,14 +183,15 @@ class ClientSession:
 
     @staticmethod
     def extract_redirect_location(response: Response):
-        location = response.headers[b'Location']
+        # if the server returned more than one value, use the first header in order
+        location = response.get_first_header(b'Location')
         if not location:
             raise MissingLocationForRedirect(response)
-        # if the server returned more than one value, use the last header in order
+        
         # if the location cannot be parsed as URL, let exception happen: this might be a redirect to a URN!!
         # simply don't follows the redirect, and returns the response to the caller
         try:
-            return URL(location[-1])
+            return URL(location)
         except InvalidURL:
             raise UnsupportedRedirect()
 

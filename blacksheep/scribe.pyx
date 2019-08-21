@@ -173,7 +173,7 @@ cpdef bytes write_request_without_body(Request request):
     # TODO: if the request port is not default; add b':' + port
     request._add_header(b'host', request.url.host)
     
-    extend_data_with_headers(request.headers, data)
+    extend_data_with_headers(request.__headers, data)
     data.extend(b'\r\n')
     return bytes(data)
 
@@ -186,7 +186,7 @@ cpdef bytes write_small_request(Request request):
 
     set_headers_for_content(request)
 
-    extend_data_with_headers(request, data)
+    extend_data_with_headers(request.__headers, data)
     data.extend(b'\r\n')
     if request.content:
         data.extend(request.content.body)
@@ -197,7 +197,7 @@ cdef bytes write_small_response(Response response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
     set_headers_for_content(response)
-    extend_data_with_headers(response.headers, data)
+    extend_data_with_headers(response.__headers, data)
     data.extend(b'\r\n')
     if response.content:
         data.extend(response.content.body)

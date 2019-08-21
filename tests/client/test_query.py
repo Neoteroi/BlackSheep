@@ -21,7 +21,7 @@ async def test_query_params(params, expected_query):
         assert expected_query == request.url.query
         return await next_handler(request)
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/', params=params)
@@ -48,7 +48,7 @@ async def test_query_params_concatenation(request_url, params, expected_query):
         assert expected_query == request.url.query
         return await next_handler(request)
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(request_url, params=params)

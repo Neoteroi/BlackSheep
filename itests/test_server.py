@@ -2,7 +2,7 @@ import os
 import shutil
 from urllib.parse import unquote
 from uuid import uuid4
-from .fixtures import *
+from .server_fixtures import *
 from .utils import ensure_success, assert_files_equals
 from.lorem import LOREM_IPSUM
 
@@ -10,7 +10,7 @@ from.lorem import LOREM_IPSUM
 def test_hello_world(session):
     response = session.get('/hello-world')
     ensure_success(response)
-    assert 'Hello, World!'
+    assert response.text == 'Hello, World!'
 
 
 def test_not_found(session):

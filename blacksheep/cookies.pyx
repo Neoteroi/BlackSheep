@@ -71,6 +71,15 @@ cdef class Cookie:
     cpdef void set_max_age(self, int max_age):
         self.max_age = str(max_age).encode()
 
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return other.encode() == self.value
+        if isinstance(other, bytes):
+            return other == self.value
+        if isinstance(other, Cookie):
+            return other.name == self.name and other.value == self.value
+        return NotImplemented
+
     def __repr__(self):
         return f'<Cookie {self.name.decode()}: {self.value.decode()}>'
 
@@ -93,6 +102,9 @@ cpdef Cookie parse_cookie(bytes value):
         name, value = parts[0].split(eq)
     except ValueError as unpack_error:
         raise ValueError(f'Invalid name=value fragment: {parts[0]}')
+
+    if b' ' in value and value.startswith(b'"'):
+        value = value.strip(b'"')
 
     expires = None
     domain = None

@@ -32,7 +32,7 @@ def get_scenarios(fn):
 ]))
 async def test_non_url_redirect(responses, expected_status, expected_location, pools_factory):
 
-    async with ClientSession(url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
+    async with ClientSession(base_url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
         response = await client.get(b'/')
 
         assert response is not None
@@ -57,7 +57,7 @@ async def test_non_url_redirect(responses, expected_status, expected_location, p
 ]))
 async def test_good_redirect(responses, expected_response_body, pools_factory):
 
-    async with ClientSession(url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
+    async with ClientSession(base_url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
         response = await client.get(b'/')
 
         assert response is not None
@@ -79,7 +79,7 @@ async def test_good_redirect(responses, expected_response_body, pools_factory):
 ])
 async def test_not_follow_redirect(responses, expected_location, pools_factory):
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=pools_factory(responses),
                              follow_redirects=False) as client:
         response = await client.get(b'/')
@@ -118,7 +118,7 @@ async def test_not_follow_redirect(responses, expected_location, pools_factory):
 ])
 async def test_maximum_number_of_redirects_detection(responses, maximum_redirects, pools_factory):
 
-    async with ClientSession(url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
+    async with ClientSession(base_url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
         client.maximum_redirects = maximum_redirects
 
         with pytest.raises(MaximumRedirectsExceededError):
@@ -172,7 +172,7 @@ async def test_maximum_number_of_redirects_detection(responses, maximum_redirect
 ])
 async def test_circular_redirect_detection(responses, expected_error_message, pools_factory):
 
-    async with ClientSession(url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
+    async with ClientSession(base_url=b'http://localhost:8080', pools=pools_factory(responses)) as client:
 
         with pytest.raises(CircularRedirectError) as error:
             await client.get(b'/')

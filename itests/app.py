@@ -13,7 +13,7 @@ app.serve_files('static', discovery=True)
 
 
 @app.route('/hello-world')
-async def hello_world(request):
+async def hello_world():
     return text(f'Hello, World!')
 
 
@@ -92,7 +92,7 @@ async def echo_route_values_autobind(one, two, three):
 
 
 @app.route('/crash')
-async def crash(request):
+async def crash():
     raise CrashTest()
 
 

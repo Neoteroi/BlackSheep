@@ -3,7 +3,7 @@ import asyncio
 import httptools
 import certifi
 import weakref
-from blacksheep import Request, Response
+from blacksheep import Request, Response, Content
 from blacksheep.scribe import (is_small_request,
                                write_small_request,
                                write_request_without_body,
@@ -18,6 +18,34 @@ INSECURE_SSLCONTEXT = ssl.SSLContext()
 INSECURE_SSLCONTEXT.check_hostname = False
 
 
+class IncomingContent(Content):
+
+    def __init__(self, content_type: bytes):
+        super().__init__(content_type, b'')
+        self._body = bytearray()
+        self._chunk = asyncio.Event()
+        self.complete = asyncio.Event()
+
+    def extend_body(self, chunk: bytes):
+        self._body.extend(chunk)
+        self._chunk.set()
+
+    async def stream(self):
+        while True:
+            await self._chunk.wait()
+            self._chunk.clear()
+
+            yield bytes(self._body)
+            self._body.clear()
+
+            if self.complete.is_set():
+                break
+
+    async def read(self):
+        await self.complete.wait()
+        return bytes(self._body)
+
+
 class ConnectionClosedError(Exception):
 
     def __init__(self, can_retry: bool):
@@ -27,8 +55,8 @@ class ConnectionClosedError(Exception):
 
 class InvalidResponseFromServer(Exception):
 
-    def __init__(self, inner_exception):
-        super().__init__('The remote endpoint returned an invalid HTTP response.')
+    def __init__(self, inner_exception, message=None):
+        super().__init__(message or 'The remote endpoint returned an invalid HTTP response.')
         self.inner_exception = inner_exception
 
 
@@ -213,11 +241,34 @@ class ClientConnection(asyncio.Protocol):
             self.headers,
             None
         )
+        # NB: check if headers declare a content-length
+        if self._has_content():
+            self.response.content = IncomingContent(self.response.get_single_header(b'content-type'))
+
         self.response_ready.set()
 
+    def _has_content(self):
+        content_length = self.response.get_single_header(b'content-length')
+
+        if content_length:
+            try:
+                content_length_value = int(content_length)
+            except ValueError as value_error:
+                # server returned an invalid content-length value
+                raise InvalidResponseFromServer(value_error, f'The server returned an invalid value for'
+                                                             f'the Content-Lenght header; value: {content_length}')
+            return content_length_value > 0
+
+        transfer_encoding = self.response.get_single_header(b'transfer-encoding')
+
+        if transfer_encoding and b'chunked' in transfer_encoding:
+            return True
+
+        return False
+
     def on_message_complete(self):
-        if self.response:
-            self.response.complete.set()
+        if self.response and self.response.content:
+            self.response.content.complete.set()
 
         if self._pending_task:
             # the server returned a response before we ended sending the request,
@@ -245,4 +296,4 @@ class ClientConnection(asyncio.Protocol):
             self.close()
 
     def on_body(self, value: bytes):
-        self.response.extend_body(value)
+        self.response.content.extend_body(value)

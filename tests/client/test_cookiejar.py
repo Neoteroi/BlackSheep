@@ -70,7 +70,7 @@ async def test_cookies_jar_single_cookie():
 
         return await next_handler(request)
 
-    async with ClientSession(url=b'https://bezkitu.org',
+    async with ClientSession(base_url=b'https://bezkitu.org',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/')  # the first request doesn't have any cookie because the response will set;
@@ -150,7 +150,7 @@ async def test_remove_cookie_with_expiration():
 
         return await next_handler(request)
 
-    async with ClientSession(url=b'https://bezkitu.org',
+    async with ClientSession(base_url=b'https://bezkitu.org',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/')  # <-- cookie set here
@@ -188,7 +188,7 @@ async def test_remove_cookie_with_max_age():
             assert cookie is None
         return await next_handler(request)
 
-    async with ClientSession(url=b'https://bezkitu.org',
+    async with ClientSession(base_url=b'https://bezkitu.org',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/')  # <-- cookie set here

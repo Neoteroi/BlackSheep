@@ -106,18 +106,22 @@ cdef class Message:
 
     async def read(self):
         if self.content:
+            # TODO: return content.body if not instance of StreamedContent?
             return await self.content.read()
-        return b''
+        return None
 
     async def stream(self):
         if self.content:
             async for chunk in self.content.stream():
                 yield chunk
         else:
-            yield b''
+            yield None
 
     async def text(self):
         body = await self.read()
+
+        if body is None:
+            return None
         try:
             return body.decode(self.charset)
         except UnicodeDecodeError:
@@ -350,13 +354,16 @@ cdef class Response(Message):
 
     def get_cookies(self):
         cdef bytes value
-        cdef list cookies, set_cookies_headers
+        cdef Cookie cookie
+        cdef dict cookies
+        cdef list set_cookies_headers
 
-        cookies = []
+        cookies = {}
         set_cookies_headers = self.get_headers(b'set-cookie')
         if set_cookies_headers:
             for value in set_cookies_headers:
-                cookies.append(parse_cookie(value))
+                cookie = parse_cookie(value)
+                cookies[cookie.name] = cookie
         return cookies
 
     def get_cookie(self, bytes name):

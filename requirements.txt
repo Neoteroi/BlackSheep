@@ -7,3 +7,4 @@ certifi
 guardpost
 rodi
 httptools
+aiofiles

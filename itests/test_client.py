@@ -1,5 +1,5 @@
 from uuid import uuid4
-from blacksheep import Response
+from blacksheep import Response, JsonContent, FormContent
 from .client_fixtures import *
 
 
@@ -72,3 +72,41 @@ async def test_set_cookie(session, name, value):
     ensure_success(response)
 
     assert value == response.cookies[name]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('data', [
+    {
+        'name': 'Gorun Nova',
+        'type': 'Sword'
+    },
+    {
+        'id': str(uuid4()),
+        'price': 15.15,
+        'name': 'Ravenclaw T-Shirt'
+    },
+])
+async def test_post_json(session, data):
+    response = await session.post('/echo-posted-json', JsonContent(data))
+    ensure_success(response)
+
+    assert await response.json() == data
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('data', [
+    {
+        'name': 'Gorun Nova',
+        'type': 'Sword'
+    },
+    {
+        'id': str(uuid4()),
+        'price': '15.15',
+        'name': 'Ravenclaw T-Shirt'
+    },
+])
+async def test_post_form(session, data):
+    response = await session.post('/echo-posted-form', FormContent(data))
+    ensure_success(response)
+
+    assert await response.json() == data

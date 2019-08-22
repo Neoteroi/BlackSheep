@@ -1,4 +1,4 @@
-from flask import Flask, escape, request, Response
+from flask import Flask, escape, request, Response, jsonify
 
 
 # https://flask.palletsprojects.com/en/1.1.x/server/#server
@@ -31,3 +31,25 @@ def set_cookies():
     response.set_cookie(name, value)
     return response
 
+
+@app.route('/echo-posted-json', methods=['POST'])
+def post_json():
+    data = request.json
+    assert data is not None
+    return jsonify(data)
+
+
+@app.route('/echo-posted-form', methods=['POST'])
+def post_form():
+    data = request.form
+    assert data is not None
+    return jsonify(data)
+
+
+# https://flask.palletsprojects.com/en/1.1.x/patterns/fileuploads/
+@app.route('/', methods=['POST'])
+def upload_file():
+    file = request.files['file']
+
+    # TODO
+    return 'TODO'

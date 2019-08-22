@@ -74,10 +74,11 @@ def get_www_authenticated_header_from_generic_unauthorized_error(error):
     if not error.scheme:
         return None
 
-    return (b'WWW-Authenticate', error.scheme.decode())
+    return b'WWW-Authenticate', error.scheme.decode()
 
 
 async def handle_unauthorized(app, request, http_exception: UnauthorizedError):
+    www_authenticate = get_www_authenticated_header_from_generic_unauthorized_error(http_exception)
     return Response(401,
-                    [get_www_authenticated_header_from_generic_unauthorized_error(http_exception)],
+                    [www_authenticate] if www_authenticate else None,
                     content=TextContent('Unauthorized'))

@@ -1,10 +1,12 @@
 import os
+import json
 import shutil
 from urllib.parse import unquote
+from base64 import urlsafe_b64encode
 from uuid import uuid4
 from .server_fixtures import *
 from .utils import ensure_success, assert_files_equals
-from.lorem import LOREM_IPSUM
+from .lorem import LOREM_IPSUM
 
 
 def test_hello_world(session):
@@ -343,3 +345,41 @@ def test_xml_files_are_not_served(session):
     response = session.get('/example.xml', stream=True)
 
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize('claims,expected_status', [
+    (None, 401),
+    ({
+         'id': '001',
+         'name': 'Charlie Brown'
+     }, 204),
+])
+def test_requires_authenticated_user(session_two, claims, expected_status):
+    headers = {
+        'Authorization': urlsafe_b64encode(json.dumps(claims).encode('utf8')).decode()
+    } if claims else {}
+    response = session_two.get('/only-for-authenticated-users', headers=headers)
+
+    assert response.status_code == expected_status
+
+
+@pytest.mark.parametrize('claims,expected_status', [
+    (None, 401),
+    ({
+        'id': '001',
+        'name': 'Charlie Brown',
+        'role': 'user'
+     }, 401),
+    ({
+        'id': '002',
+        'name': 'Snoopy',
+        'role': 'admin'  # according to rules coded in app_two.py
+     }, 204),
+])
+def test_requires_admin_user(session_two, claims, expected_status):
+    headers = {
+        'Authorization': urlsafe_b64encode(json.dumps(claims).encode('utf8')).decode()
+    } if claims else {}
+    response = session_two.get('/only-for-admins', headers=headers)
+
+    assert response.status_code == expected_status

@@ -38,7 +38,7 @@ def session_alt(event_loop):
         (b'X-Default-Two', b'BBB')
     ])
     yield session
-    session.close()
+    event_loop.run_until_complete(session.close())
 
 
 @pytest.fixture(scope='module', autouse=True)

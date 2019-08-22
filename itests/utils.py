@@ -53,3 +53,14 @@ def assert_files_equals(path_one, path_two):
         chunk_two = two.read(1024)
 
         assert chunk_one == chunk_two
+
+
+def assert_file_content_equals(file_path, content):
+    with open(file_path, mode='rt', encoding='utf8') as file:
+        file_contents = file.read()
+        assert file_contents == content
+
+
+def get_file_bytes(file_path):
+    with open(file_path, mode='rb') as file:
+        return file.read()

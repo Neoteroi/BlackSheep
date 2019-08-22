@@ -70,7 +70,8 @@ setup(name='blacksheep',
           'certifi',
           'cchardet',
           'guardpost',
-          'rodi'
+          'rodi',
+          'aiofiles'
       ],
       include_package_data=True,
       zip_safe=False)

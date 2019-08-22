@@ -1,8 +1,9 @@
 from flask import Flask, escape, request, Response, jsonify
+from itests.utils import ensure_folder
 
 
 # https://flask.palletsprojects.com/en/1.1.x/server/#server
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='', static_folder='static')
 
 
 @app.route('/hello-world')
@@ -47,9 +48,29 @@ def post_form():
 
 
 # https://flask.palletsprojects.com/en/1.1.x/patterns/fileuploads/
-@app.route('/', methods=['POST'])
-def upload_file():
-    file = request.files['file']
+@app.route('/upload-files', methods=['POST'])
+def upload_files():
+    files = request.files
 
-    # TODO
-    return 'TODO'
+    assert bool(files)
+
+    folder = 'out'
+
+    ensure_folder(folder)
+
+    for part in files.values():
+        part.save(f'./{folder}/{part.filename}')
+
+    return jsonify({
+        'folder': folder,
+        'files': [{'name': file.filename} for file in files.values()]
+    })
+
+
+@app.route('/picture.jpg')
+def serve_picture():
+    return app.send_static_file('pexels-photo-126407.jpeg')
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=44778, debug=True)

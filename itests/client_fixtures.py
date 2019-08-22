@@ -17,7 +17,6 @@ def event_loop():
 @pytest.fixture(scope='module')
 def server_host():
     return '0.0.0.0'
-    # return '127.0.0.1'
 
 
 @pytest.fixture(scope='module')
@@ -34,9 +33,10 @@ def session(server_host, server_port, event_loop):
 
 @pytest.fixture(scope='module')
 def session_alt(event_loop):
-    # TODO: default headers,
-    # TODO: no base url
-    session = ClientSession(loop=event_loop)
+    session = ClientSession(loop=event_loop, default_headers=[
+        (b'X-Default-One', b'AAA'),
+        (b'X-Default-Two', b'BBB')
+    ])
     yield session
     session.close()
 

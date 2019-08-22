@@ -3,7 +3,7 @@ import asyncio
 import pkg_resources
 from typing import List, Optional
 from blacksheep.server import Application
-from blacksheep import Request, Response, Header, JsonContent, Headers, HttpException, TextContent
+from blacksheep import Request, Response, JsonContent, HttpException, TextContent
 from blacksheep.server.bindings import FromHeader, FromQuery, FromRoute, FromJson
 from tests.utils import ensure_folder
 
@@ -11,21 +11,19 @@ from tests.utils import ensure_folder
 class FakeApplication(Application):
 
     def __init__(self, *args):
-        super().__init__(*args)
+        super().__init__(show_error_details=True, *args)
         self.request = None
         self.response = None
+
+    async def handle(self, request):
+        self.request = request
+        response = await super().handle(request)
+        self.response = response
+        return response
 
     def prepare(self):
         self.normalize_handlers()
         self.configure_middlewares()
-
-    def before_request(self, request):
-        self.request = request
-        super().before_request(request)
-
-    async def send_response(self, response, send):
-        self.response = response
-        return await super().send_response(response, send)
 
 
 def test_application_supports_dynamic_attributes():
@@ -54,14 +52,14 @@ def get_example_scope(method: str, path: str, extra_headers=None, query: Optiona
         'raw_path': path.encode(),
         'query_string': query,
         'headers': [
-            [b'host', b'127.0.0.1:8000'],
-            [b'user-agent', b'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0'],
-            [b'accept', b'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'],
-            [b'accept-language', b'en-US,en;q=0.5'],
-            [b'accept-encoding', b'gzip, deflate'],
-            [b'connection', b'keep-alive'],
-            [b'upgrade-insecure-requests', b'1']
-        ] + (extra_headers or [])
+            (b'host', b'127.0.0.1:8000'),
+            (b'user-agent', b'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0'),
+            (b'accept', b'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'),
+            (b'accept-language', b'en-US,en;q=0.5'),
+            (b'accept-encoding', b'gzip, deflate'),
+            (b'connection', b'keep-alive'),
+            (b'upgrade-insecure-requests', b'1')
+        ] + ([tuple(header) for header in extra_headers] if extra_headers else [])
     }
 
 
@@ -116,36 +114,7 @@ async def test_application_get_handler():
     assert request is not None
 
     connection = request.headers[b'connection']
-    assert connection == [Header(b'Connection', b'keep-alive')]
-
-    text = await request.text()
-    assert text == ''
-
-
-@pytest.mark.asyncio
-async def test_application_post_handler_crlf():
-    app = FakeApplication()
-
-    @app.router.post(b'/api/cat')
-    async def create_cat(request):
-        pass
-
-    send = MockSend()
-    receive = MockReceive([
-        b'{"name":"Celine","kind":"Persian"}'
-    ])
-
-    await app(get_example_scope('POST', '/api/cat', [[b'content-length', b'34']]),
-              receive,
-              send)
-
-    request = app.request  # type: Request
-
-    assert request is not None
-
-    content = await request.read()
-
-    assert b'{"name":"Celine","kind":"Persian"}' == content
+    assert connection == (b'keep-alive',)
 
 
 @pytest.mark.asyncio
@@ -272,7 +241,7 @@ async def test_application_post_handler():
         data = await request.json()
         assert {"name": "Celine", "kind": "Persian"} == data
 
-        return Response(201, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(201, [(b'Server', b'Python/3.7')], JsonContent({'id': '123'}))
 
     content = b'{"name":"Celine","kind":"Persian"}'
 
@@ -281,19 +250,10 @@ async def test_application_post_handler():
 
     await app(get_example_scope('POST', '/api/cat',
                                 [
-                                    [b'content-length', str(len(content)).encode()]
+                                    (b'content-length', str(len(content)).encode())
                                 ]),
               receive,
               send)
-
-    request = app.request  # type: Request
-    assert request is not None
-
-    content = await request.read()
-    assert b'{"name":"Celine","kind":"Persian"}' == content
-
-    data = await request.json()
-    assert {"name": "Celine", "kind": "Persian"} == data
 
     response = app.response
     assert called_times == 1
@@ -325,7 +285,7 @@ async def test_application_middlewares_two():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(200, [(b'Server', b'Python/3.7')], JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -376,7 +336,7 @@ async def test_application_middlewares_three():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, Headers([Header(b'Server', b'Python/3.7')]), JsonContent({'id': '123'}))
+        return Response(200, [(b'Server', b'Python/3.7')], JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -426,7 +386,7 @@ async def test_application_middlewares_skip_handler():
         nonlocal calls
         calls.append(5)
         return Response(200,
-                        Headers([Header(b'Server', b'Python/3.7')]),
+                        [(b'Server', b'Python/3.7')],
                         JsonContent({'id': '123'}))
 
     app.middlewares.append(middleware_one)
@@ -979,7 +939,9 @@ async def test_handler_normalize_sync_method_from_header():
         assert xx == 'Hello World'
 
     app.normalize_handlers()
-    await app(get_example_scope('GET', '/', [[b'XX', b'Hello World']]), MockReceive(), MockSend())
+    await app(get_example_scope('GET', '/', [(b'XX', b'Hello World')]), MockReceive(), MockSend())
+    text = await app.response.text()
+    print(text)
     assert app.response.status == 204
 
 

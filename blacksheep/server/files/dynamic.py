@@ -118,7 +118,7 @@ def get_files_handler(source_folder_name, source_folder_full_path, discovery, ca
         if file_extension not in extensions:
             raise NotFound()
 
-        return get_response_for_file(request, resource_path, cache_time)
+        return await get_response_for_file(request, resource_path, cache_time)
     return file_getter
 
 

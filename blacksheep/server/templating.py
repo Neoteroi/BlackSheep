@@ -1,6 +1,6 @@
 from functools import lru_cache
 from blacksheep.server import Application
-from blacksheep import Response, Headers, Header, HtmlContent
+from blacksheep import Response, Content
 from jinja2 import Environment, Template, PackageLoader, select_autoescape
 
 
@@ -12,9 +12,9 @@ def template_name(name: str):
 
 
 def get_response(html: str):
-    return Response(200, Headers([
-        Header(b'Cache-Control', b'no-cache')
-    ]), content=HtmlContent(html))
+    return Response(200, [
+        (b'Cache-Control', b'no-cache')
+    ]).with_content(Content(b'text/html; charset=utf-8', html.encode('utf8')))
 
 
 def render_template(template: Template, *args, **kwargs):

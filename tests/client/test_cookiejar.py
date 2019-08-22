@@ -58,21 +58,19 @@ def test_stored_cookie_is_expired(cookie, expected_value):
 @pytest.mark.asyncio
 async def test_cookies_jar_single_cookie():
     fake_pools = FakePools([Response(200,
-                                     Headers([Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo')))]),
-                                     TextContent('Hello, World!')),
-                            Response(200,
-                                     Headers(),
-                                     TextContent('Hello!'))])
+                                     [(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo')))])
+                           .with_content(TextContent('Hello, World!')),
+                            Response(200, None, TextContent('Hello!'))])
     check_cookie = False
 
     async def middleware_for_assertions(request, next_handler):
         if check_cookie:
-            cookie = request.cookies.get(b'X-Foo')
+            cookie = request.cookies.get('X-Foo')
             assert cookie is not None, 'X-Foo cookie must be configured for following requests'
 
         return await next_handler(request)
 
-    async with ClientSession(url=b'https://bezkitu.org',
+    async with ClientSession(base_url=b'https://bezkitu.org',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/')  # the first request doesn't have any cookie because the response will set;
@@ -85,31 +83,31 @@ async def test_cookies_jar_single_cookie():
     [
         b'https://foo.bezkitu.org',
         b'https://bezkitu.org',
-        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'bezkitu.org')))],
-        [b'X-Foo']
+        [(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'bezkitu.org')))],
+        ['X-Foo']
     ],
     [
         b'https://foo.bezkitu.org',
         b'https://foo.bezkitu.org',
-        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'foo.bezkitu.org')))],
-        [b'X-Foo']
+        [(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'foo.bezkitu.org')))],
+        ['X-Foo']
     ],
     [
         b'https://foo.bezkitu.org',
         b'https://bezkitu.org',
-        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'foo.bezkitu.org')))],
+        [(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'foo.bezkitu.org')))],
         []
     ],
     [
         b'https://bezkitu.org',
         b'https://foo.org',
-        [Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'bezkitu.org')))],
+        [(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo', domain=b'bezkitu.org')))],
         []
     ]
 ])
 async def test_cookies_jar(first_request_url, second_request_url, set_cookies, expected_cookies):
-    fake_pools = FakePools([Response(200, Headers(set_cookies), TextContent('Hello, World!')),
-                            Response(200, Headers(), TextContent('Hello!'))])
+    fake_pools = FakePools([Response(200, set_cookies, TextContent('Hello, World!')),
+                            Response(200, None, TextContent('Hello!'))])
     check_cookie = False
 
     async def middleware_for_assertions(request, next_handler):
@@ -135,18 +133,16 @@ async def test_cookies_jar(first_request_url, second_request_url, set_cookies, e
 async def test_remove_cookie_with_expiration():
     expire_cookie = Cookie(b'X-Foo', b'Foo')
     expire_cookie.expiration = datetime.utcnow() + timedelta(days=-2)
-    fake_pools = FakePools([Response(200, Headers([Header(b'Set-Cookie',
-                                                          write_response_cookie(Cookie(b'X-Foo', b'Foo')))]),
-                                     TextContent('Hello, World!')),
-                            Response(200, Headers(), TextContent('Hello!')),
-                            Response(200,
-                                     Headers([Header(b'Set-Cookie', write_response_cookie(expire_cookie))]),
-                                     TextContent('Hello, World!')),
-                            Response(200, Headers(), TextContent('Hello!'))])
+    fake_pools = FakePools([Response(200, [(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo')))])
+                           .with_content(TextContent('Hello, World!')),
+                            Response(200, None, TextContent('Hello!')),
+                            Response(200, [(b'Set-Cookie', write_response_cookie(expire_cookie))])
+                           .with_content(TextContent('Hello, World!')),
+                            Response(200, None, TextContent('Hello!'))])
     expect_cookie = False
 
     async def middleware_for_assertions(request, next_handler):
-        cookie = request.cookies.get(b'X-Foo')
+        cookie = request.cookies.get('X-Foo')
         if expect_cookie:
             assert cookie is not None, 'X-Foo cookie must be configured'
         else:
@@ -154,7 +150,7 @@ async def test_remove_cookie_with_expiration():
 
         return await next_handler(request)
 
-    async with ClientSession(url=b'https://bezkitu.org',
+    async with ClientSession(base_url=b'https://bezkitu.org',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/')  # <-- cookie set here
@@ -171,28 +167,28 @@ async def test_remove_cookie_with_max_age():
     expire_cookie = Cookie(b'X-Foo', b'Foo')
     expire_cookie.set_max_age(0)
     fake_pools = FakePools([Response(200,
-                                     Headers([Header(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo')))]),
+                                     [(b'Set-Cookie', write_response_cookie(Cookie(b'X-Foo', b'Foo')))],
                                      TextContent('Hello, World!')),
                             Response(200,
-                                     Headers(),
+                                     None,
                                      TextContent('Hello!')),
                             Response(200,
-                                     Headers([Header(b'Set-Cookie', write_response_cookie(expire_cookie))]),
+                                     [(b'Set-Cookie', write_response_cookie(expire_cookie))],
                                      TextContent('Hello, World!')),
                             Response(200,
-                                     Headers(),
+                                     None,
                                      TextContent('Hello!'))])
     expect_cookie = False
 
     async def middleware_for_assertions(request, next_handler):
-        cookie = request.cookies.get(b'X-Foo')
+        cookie = request.cookies.get('X-Foo')
         if expect_cookie:
             assert cookie is not None, 'X-Foo cookie must be configured'
         else:
             assert cookie is None
         return await next_handler(request)
 
-    async with ClientSession(url=b'https://bezkitu.org',
+    async with ClientSession(base_url=b'https://bezkitu.org',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/')  # <-- cookie set here

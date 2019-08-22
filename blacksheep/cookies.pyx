@@ -71,6 +71,15 @@ cdef class Cookie:
     cpdef void set_max_age(self, int max_age):
         self.max_age = str(max_age).encode()
 
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return other.encode() == self.value
+        if isinstance(other, bytes):
+            return other == self.value
+        if isinstance(other, Cookie):
+            return other.name == self.name and other.value == self.value
+        return NotImplemented
+
     def __repr__(self):
         return f'<Cookie {self.name.decode()}: {self.value.decode()}>'
 
@@ -93,6 +102,9 @@ cpdef Cookie parse_cookie(bytes value):
         name, value = parts[0].split(eq)
     except ValueError as unpack_error:
         raise ValueError(f'Invalid name=value fragment: {parts[0]}')
+
+    if b' ' in value and value.startswith(b'"'):
+        value = value.strip(b'"')
 
     expires = None
     domain = None
@@ -132,3 +144,31 @@ cpdef Cookie parse_cookie(bytes value):
                   secure,
                   max_age,
                   same_site)
+
+
+cdef bytes write_cookie_for_response(Cookie cookie):
+    cdef list parts = []
+    parts.append(quote(cookie.name).encode() + b'=' + quote(cookie.value).encode())
+
+    if cookie.expires:
+        parts.append(b'Expires=' + cookie.expires)
+
+    if cookie.max_age:
+        parts.append(b'Max-Age=' + cookie.max_age)
+
+    if cookie.domain:
+        parts.append(b'Domain=' + cookie.domain)
+
+    if cookie.path:
+        parts.append(b'Path=' + cookie.path)
+
+    if cookie.http_only:
+        parts.append(b'HttpOnly')
+
+    if cookie.secure:
+        parts.append(b'Secure')
+
+    if cookie.same_site:
+        parts.append(b'SameSite=' + cookie.same_site)
+
+    return b'; '.join(parts)

@@ -13,7 +13,7 @@ from blacksheep.server.bindings import (FromJson,
                                         BadRequest)
 
 
-JsonContentType = Header(b'Content-Type', b'application/json')
+JsonContentType = (b'Content-Type', b'application/json')
 
 
 class ExampleOne:
@@ -33,9 +33,9 @@ class ExampleTwo:
 @pytest.mark.asyncio
 async def test_from_body_json_binding():
 
-    request = Request('POST', b'/', Headers([
+    request = Request('POST', b'/', [
         JsonContentType
-    ]), JsonContent({
+    ]).with_content(JsonContent({
         'a': 'world',
         'b': 9000
     }))
@@ -52,9 +52,9 @@ async def test_from_body_json_binding():
 @pytest.mark.asyncio
 async def test_from_body_json_binding_extra_parameters_strategy():
 
-    request = Request('POST', b'/', Headers([
+    request = Request('POST', b'/', [
         JsonContentType
-    ]), JsonContent({
+    ]).with_content(JsonContent({
         'a': 'world',
         'b': 9000,
         'c': 'This is an extra parameter, accepted by constructor explicitly'
@@ -72,9 +72,9 @@ async def test_from_body_json_binding_extra_parameters_strategy():
 @pytest.mark.asyncio
 async def test_from_body_json_with_converter():
 
-    request = Request('POST', b'/', Headers([
+    request = Request('POST', b'/', [
         JsonContentType
-    ]), JsonContent({
+    ]).with_content(JsonContent({
         'a': 'world',
         'b': 9000,
         'c': 'This is an extra parameter, accepted by constructor explicitly'
@@ -95,10 +95,7 @@ async def test_from_body_json_with_converter():
 @pytest.mark.asyncio
 async def test_from_body_json_binding_request_missing_content_type():
 
-    request = Request('POST', b'/', Headers(), JsonContent({
-        'a': 'world',
-        'b': 9000
-    }))
+    request = Request('POST', b'/', [])
 
     parameter = FromJson(ExampleOne)
 
@@ -110,9 +107,9 @@ async def test_from_body_json_binding_request_missing_content_type():
 @pytest.mark.asyncio
 async def test_from_body_json_binding_invalid_input():
 
-    request = Request('POST', b'/', Headers([
+    request = Request('POST', b'/', [
         JsonContentType
-    ]), JsonContent({
+    ]).with_content(JsonContent({
         'c': 1,
         'd': 2
     }))
@@ -138,9 +135,7 @@ async def test_from_body_json_binding_invalid_input():
 ])
 async def test_from_header_binding(expected_type, header_value, expected_value):
 
-    request = Request('GET', b'/', Headers([
-        Header(b'X-Foo', header_value)
-    ]), None)
+    request = Request('GET', b'/', [(b'X-Foo', header_value)])
 
     parameter = FromHeader(expected_type, 'X-Foo')
 
@@ -164,7 +159,7 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
 ])
 async def test_from_query_binding(expected_type, query_value, expected_value):
 
-    request = Request('GET', b'/?foo=' + query_value, Headers(), None)
+    request = Request('GET', b'/?foo=' + query_value, None)
 
     parameter = FromQuery(expected_type, 'foo')
 
@@ -188,7 +183,7 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
 ])
 async def test_from_route_binding(expected_type, route_value, expected_value):
 
-    request = Request('GET', b'/', Headers(), None)
+    request = Request('GET', b'/', None)
     request.route_values = {
         'name': route_value
     }
@@ -224,7 +219,7 @@ async def test_raises_for_missing_default_converter(binder_type):
 ])
 async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_value):
 
-    request = Request('GET', b'/', Headers(), None)
+    request = Request('GET', b'/', None)
     request.route_values = {
         'name': invalid_value
     }
@@ -245,7 +240,7 @@ async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_va
     [bool, b'yes']
 ])
 async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_value: bytes):
-    request = Request('GET', b'/?foo=' + invalid_value, Headers(), None)
+    request = Request('GET', b'/?foo=' + invalid_value, None)
 
     parameter = FromQuery(expected_type, 'foo', required=True)
 
@@ -255,7 +250,7 @@ async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_va
 
 @pytest.mark.asyncio
 async def test_from_services():
-    request = Request('GET', b'/', Headers(), None)
+    request = Request('GET', b'/', [])
 
     service_instance = ExampleOne(1, 2)
     services = {
@@ -277,9 +272,9 @@ async def test_from_services():
 ])
 async def test_from_header_binding_iterables(declared_type, expected_type, header_values, expected_values):
 
-    request = Request('GET', b'/', Headers([
-        Header(b'X-Foo', value) for value in header_values
-    ]), None)
+    request = Request('GET', b'/', [
+        (b'X-Foo', value) for value in header_values
+    ])
 
     parameter = FromHeader(declared_type, 'X-Foo')
 
@@ -320,7 +315,7 @@ async def test_from_header_binding_iterables(declared_type, expected_type, heade
 async def test_from_query_binding_iterables(declared_type, expected_type, query_values, expected_values):
     qs = b'&foo='.join([value for value in query_values])
 
-    request = Request('GET', b'/?foo=' + qs, Headers(), None)
+    request = Request('GET', b'/?foo=' + qs, None)
 
     parameter = FromQuery(declared_type, 'foo')
 
@@ -354,7 +349,7 @@ async def test_nested_iterables_raise_missing_converter_from_query(declared_type
 
 @pytest.mark.asyncio
 async def test_request_binder():
-    request = Request('GET', b'/', Headers(), None)
+    request = Request('GET', b'/', None)
 
     parameter = RequestBinder()
 

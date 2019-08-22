@@ -1,5 +1,5 @@
 from typing import Optional, Dict
-from blacksheep import Response, Headers, Header, TextContent
+from blacksheep import Response, TextContent
 from guardpost.authorization import AuthorizationError
 from guardpost.asynchronous.authentication import AuthenticationStrategy, AuthenticationHandler
 
@@ -44,11 +44,11 @@ class AuthenticateChallenge(AuthorizationError):
             parts.extend(b', '.join([f'{key}="{value}"'.encode() for key, value in self.parameters.items()]))
         return bytes(parts)
 
-    def get_header(self) -> Header:
-        return Header(self.header_name, self._get_header_value())
+    def get_header(self) -> tuple:
+        return (self.header_name, self._get_header_value())
 
 
 async def handle_authentication_challenge(app, request, exception: AuthenticateChallenge):
     return Response(401,
-                    Headers([exception.get_header()]),
+                    [exception.get_header()],
                     content=TextContent('Unauthorized'))

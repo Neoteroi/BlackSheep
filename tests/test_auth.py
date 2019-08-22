@@ -191,10 +191,10 @@ async def test_authentication_challenge_response():
     await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
     assert app.response.status == 401
-    header = app.response.headers.get_single(b'WWW-Authenticate')
+    header = app.response.get_single_header(b'WWW-Authenticate')
 
     assert header is not None
-    assert header.value == b'Bearer, error="Invalid access token", error_description="Access token expired"'
+    assert header == b'Bearer, error="Invalid access token", error_description="Access token expired"'
 
 
 def test_authorization_strategy_without_authentication_raises():
@@ -222,5 +222,5 @@ def test_authentication_challenge_error(scheme, realm, parameters, expected_valu
     error = AuthenticateChallenge(scheme, realm, parameters)
 
     header = error.get_header()
-    assert header.name == b'WWW-Authenticate'
-    assert header.value == expected_value
+    assert header[0] == b'WWW-Authenticate'
+    assert header[1] == expected_value

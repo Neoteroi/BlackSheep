@@ -1,6 +1,6 @@
 import pytest
 from typing import List
-from blacksheep import Content
+from blacksheep import Content, StreamedContent
 from blacksheep.contents import (parse_www_form,
                                  write_www_form_urlencoded,
                                  parse_multipart_form_data,
@@ -16,15 +16,20 @@ from blacksheep.scribe import write_chunks
 @pytest.mark.asyncio
 async def test_chunked_encoding_with_generated_content():
 
-    def data_generator():
+    async def data_generator():
         yield b'{"hello":"world",'
         yield b'"lorem":'
         yield b'"ipsum","dolor":"sit"'
         yield b',"amet":"consectetur"}'
 
-    content = Content(b'application/json', data_generator)
+    content = StreamedContent(b'application/json', data_generator)
 
-    gen = data_generator()
+    chunks = []
+
+    async for chunk in data_generator():
+        chunks.append(chunk)
+
+    gen = (item for item in chunks)
 
     async for chunk in write_chunks(content):
         try:
@@ -38,18 +43,18 @@ async def test_chunked_encoding_with_generated_content():
 
 @pytest.mark.parametrize('content,expected_result', [
     [
-        b'Name=Gareth+Wylie&Age=24&Formula=a+%2B+b+%3D%3D+13%25%21',
+        'Name=Gareth+Wylie&Age=24&Formula=a+%2B+b+%3D%3D+13%25%21',
         {
-            b'Name': [b'Gareth Wylie'],
-            b'Age': [b'24'],
-            b'Formula': [b'a + b == 13%!']
+            'Name': ['Gareth Wylie'],
+            'Age': ['24'],
+            'Formula': ['a + b == 13%!']
         }
     ],
     [
-        b'a=12&b=24&a=33',
+        'a=12&b=24&a=33',
         {
-            b'a': [b'12', b'33'],
-            b'b': [b'24']
+            'a': ['12', '33'],
+            'b': ['24']
         }
     ],
 ])
@@ -93,9 +98,7 @@ async def test_multipart_form_data():
         FormPart(b'file3', 'aωb'.encode('utf8'), b'application/octet-stream', b'binary'),
     ])
 
-    whole = b''
-    async for chunk in data.get_parts():
-        whole += chunk
+    whole = data.body
 
     expected_result_lines = [
         b'--' + data.boundary,

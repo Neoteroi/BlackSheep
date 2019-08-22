@@ -15,13 +15,13 @@ from . import FakePools
     [{'name': 'Łukasz'}, b'name=%C5%81ukasz']
 ])
 async def test_query_params(params, expected_query):
-    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, None, TextContent('Hello, World!'))])
 
     async def middleware_for_assertions(request, next_handler):
         assert expected_query == request.url.query
         return await next_handler(request)
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(b'/', params=params)
@@ -42,13 +42,13 @@ async def test_query_params(params, expected_query):
     ['/?foo=power&search=something', {'ufo': 'ufo'}, b'foo=power&search=something&ufo=ufo']
 ])
 async def test_query_params_concatenation(request_url, params, expected_query):
-    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, None, TextContent('Hello, World!'))])
 
     async def middleware_for_assertions(request, next_handler):
         assert expected_query == request.url.query
         return await next_handler(request)
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_for_assertions]) as client:
         await client.get(request_url, params=params)

@@ -2,14 +2,14 @@
 
 
 cyt:
-	cythonize -i blacksheep/url.pyx
-	cythonize -i blacksheep/exceptions.pyx
-	cythonize -i blacksheep/headers.pyx
-	cythonize -i blacksheep/cookies.pyx
-	cythonize -i blacksheep/contents.pyx
-	cythonize -i blacksheep/messages.pyx
-	cythonize -i blacksheep/scribe.pyx
-	cythonize -i blacksheep/baseapp.pyx
+	cython blacksheep/url.pyx
+	cython blacksheep/exceptions.pyx
+	cython blacksheep/headers.pyx
+	cython blacksheep/cookies.pyx
+	cython blacksheep/contents.pyx
+	cython blacksheep/messages.pyx
+	cython blacksheep/scribe.pyx
+	cython blacksheep/baseapp.pyx
 
 compile: cyt
 	python3 setup.py build_ext --inplace
@@ -54,7 +54,11 @@ release: clean compile artifacts
 
 
 test:
-	pytest
+	pytest tests/
+
+
+itest:
+	pytest itests/
 
 
 init:

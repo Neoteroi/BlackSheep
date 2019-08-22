@@ -35,11 +35,9 @@ cdef class BaseApplication:
         cdef object route
         cdef Response response
 
-        route = self.router.get_match(request.method, request.url.path)
+        route = self.router.get_match(request.method, request._path)
 
-        if not route:
-            response = await self.exceptions_handlers.get(404)(self, request, None)
-        else:
+        if route:
             request.route_values = route.values
 
             try:
@@ -48,14 +46,15 @@ cdef class BaseApplication:
                 response = await self.handle_http_exception(request, http_exception)
             except Exception as exc:
                 response = await self.handle_exception(request, exc)
-            else:
-                # if the request handler didn't return an object,
-                # and since the request was handled successfully, return success status code No Content
-                # for example, a user might return "None" from an handler
-                # this might be ambiguous, if a programmer thinks to return None for "Not found"
-                if not response:
-                    response = Response(204)
-        return response
+        else:
+            response = await self.exceptions_handlers.get(404)(self, request, None)
+            if not response:
+                response = Response(404)
+        # if the request handler didn't return an object,
+        # and since the request was handled successfully, return success status code No Content
+        # for example, a user might return "None" from an handler
+        # this might be ambiguous, if a programmer thinks to return None for "Not found"
+        return response or Response(204)
 
     cdef object get_http_exception_handler(self, HttpException http_exception):
         return self.exceptions_handlers.get(http_exception.status)

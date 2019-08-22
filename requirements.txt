@@ -6,3 +6,5 @@ cchardet
 certifi
 guardpost
 rodi
+httptools
+aiofiles

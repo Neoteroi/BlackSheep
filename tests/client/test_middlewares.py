@@ -6,7 +6,7 @@ from . import FakePools
 
 @pytest.mark.asyncio
 async def test_single_middleware():
-    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, None, TextContent('Hello, World!'))])
 
     steps = []
 
@@ -16,7 +16,7 @@ async def test_single_middleware():
         steps.append(2)
         return response
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_one]
                              ) as client:
@@ -30,7 +30,7 @@ async def test_single_middleware():
 
 @pytest.mark.asyncio
 async def test_multiple_middleware():
-    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, None, TextContent('Hello, World!'))])
 
     steps = []
 
@@ -52,7 +52,7 @@ async def test_multiple_middleware():
         steps.append(6)
         return response
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools,
                              middlewares=[middleware_one, middleware_two, middleware_three]
                              ) as client:
@@ -66,7 +66,7 @@ async def test_multiple_middleware():
 
 @pytest.mark.asyncio
 async def test_middlewares_can_be_applied_multiple_times_without_changing():
-    fake_pools = FakePools([Response(200, Headers(), TextContent('Hello, World!'))])
+    fake_pools = FakePools([Response(200, None, TextContent('Hello, World!'))])
 
     steps = []
 
@@ -88,7 +88,7 @@ async def test_middlewares_can_be_applied_multiple_times_without_changing():
         steps.append(6)
         return response
 
-    async with ClientSession(url=b'http://localhost:8080',
+    async with ClientSession(base_url=b'http://localhost:8080',
                              pools=fake_pools) as client:
         client.add_middlewares([middleware_one])
         client.add_middlewares([middleware_two])

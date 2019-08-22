@@ -43,12 +43,7 @@ To run an application like in the example above, use the methods provided by the
 $ uvicorn server:app
 ```
 
-Instead, the HTTP client component requires [`httptools`](https://github.com/MagicStack/httptools).
-
-
-```bash
-$ pip install httptools
-```
+To run for production, refer to the documentation of the chosen ASGI server (i.e. for [uvicorn](https://www.uvicorn.org/#running-with-gunicorn)).
 
 ## Automatic bindings and dependency injection
 BlackSheep supports automatic binding of values for request handlers, by type annotation or by conventions. See [more here](https://github.com/RobertoPrevato/BlackSheep/wiki/Model-binding).

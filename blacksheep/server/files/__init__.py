@@ -1,6 +1,7 @@
-import os
+import aiofiles
+from aiofiles import os as aiofilesos
 from datetime import datetime
-from blacksheep import Response, Header, Headers, Content
+from blacksheep import Response, StreamedContent
 from blacksheep.server.pathsutils import get_mime_type
 
 
@@ -28,10 +29,10 @@ def unix_timestamp_to_datetime(ts):
     return datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S').encode()
 
 
-def get_file_chunks(file_path):
-    with open(file_path, mode='rb') as file:
+async def get_file_chunks(file_path: str, size_limit: int = 1024*64):
+    async with aiofiles.open(file_path, mode='rb') as f:
         while True:
-            chunk = file.read(1024 * 64)
+            chunk = await f.read(size_limit)
 
             if not chunk:
                 break
@@ -40,41 +41,48 @@ def get_file_chunks(file_path):
 
 
 def get_file_data(file_path, file_size, size_limit=1024*64):
+    # NB: if the file size is small, we read its bytes and return them;
+    # otherwise, a lazy reader is returned; that returns the file in chunks
     if file_size > size_limit:
         async def file_chunker():
-            for chunk in get_file_chunks(file_path):
+            async for chunk in get_file_chunks(file_path, size_limit):
                 yield chunk
+            yield b''
 
         return file_chunker
 
-    with open(file_path, 'rb') as file:
-        return file.read()
+    async def file_getter():
+        async with aiofiles.open(file_path, mode='rb') as file:
+            data = await file.read()
+            yield data
+            yield b''
+    return file_getter
 
 
-def get_response_for_file(request, resource_path, cache_time):
-    # TODO: support for accept-range and bytes ranges
-    file_size = os.path.getsize(resource_path)
-    modified_time = os.path.getmtime(resource_path)
+async def get_response_for_file(request, resource_path, cache_time):
+    stat = await aiofilesos.stat(resource_path)
+    file_size = stat.st_size
+    modified_time = stat.st_mtime
     current_etag = str(modified_time).encode()
     previous_etag = request.if_none_match
 
     headers = [
-        Header(b'Last-Modified', unix_timestamp_to_datetime(modified_time)),
-        Header(b'ETag', current_etag)
+        (b'Last-Modified', unix_timestamp_to_datetime(modified_time)),
+        (b'ETag', current_etag)
     ]
 
     if cache_time > 0:
-        headers.append(Header(b'Cache-Control', b'max-age=' + str(cache_time).encode()))
+        headers.append((b'Cache-Control', b'max-age=' + str(cache_time).encode()))
 
     if previous_etag and current_etag == previous_etag:
         return Response(304, headers, None)
 
     if request.method == 'HEAD':
-        headers.append(Header(b'Content-Type', get_mime_type(resource_path)))
-        headers.append(Header(b'Content-Length', str(file_size).encode()))
+        headers.append((b'Content-Type', get_mime_type(resource_path)))
+        headers.append((b'Content-Length', str(file_size).encode()))
         return Response(200, headers, None)
 
     return Response(200, 
-                        Headers(headers),
-                        Content(get_mime_type(resource_path),
+                    headers,
+                    StreamedContent(get_mime_type(resource_path),
                                     get_file_data(resource_path, file_size)))

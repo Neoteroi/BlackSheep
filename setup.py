@@ -10,7 +10,7 @@ COMPILE_ARGS = ['-O3']
 
 
 setup(name='blacksheep',
-      version='0.1.4',
+      version='0.1.5',
       description='Fast HTTP Server/Client microframework for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',
@@ -40,7 +40,7 @@ setup(name='blacksheep',
           Extension('blacksheep.exceptions',
                     ['blacksheep/exceptions.c'],
                     extra_compile_args=COMPILE_ARGS),
-          
+
           Extension('blacksheep.headers',
                     ['blacksheep/headers.c'],
                     extra_compile_args=COMPILE_ARGS),
@@ -66,10 +66,12 @@ setup(name='blacksheep',
                     extra_compile_args=COMPILE_ARGS)
       ],
       install_requires=[
+          'httptools',
           'certifi',
           'cchardet',
           'guardpost',
-          'rodi'
+          'rodi',
+          'aiofiles'
       ],
       include_package_data=True,
       zip_safe=False)

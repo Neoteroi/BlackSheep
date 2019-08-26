@@ -1,7 +1,11 @@
+import os
+import aiofiles
+from aiofiles import os as aiofilesos
 import uvicorn
+import asyncio
 from blacksheep import Response, Content, Cookie
 from blacksheep.server import Application
-from blacksheep.server.responses import text, json
+from blacksheep.server.responses import text, json, file, ContentDispositionType
 from blacksheep.server.bindings import FromQuery
 from itests.utils import CrashTest, ensure_folder
 
@@ -126,5 +130,88 @@ async def echo_streamed_test(request):
     return Response(200, content=Content(b'text/plain; charset=utf-8', echo))
 
 
+@app.router.get('/file-response-with-path')
+async def send_file_with_async_gen(request):
+    return file('static/pexels-photo-923360.jpeg',
+                'image/jpeg',
+                'nice-cat.jpg',
+                content_disposition=ContentDispositionType.INLINE)
+
+
+@app.router.get('/file-response-with-generator')
+async def send_file_with_async_gen():
+
+    async def generator():
+        yield b'Black Knight: None shall pass.\n'
+        yield b'King Arthur: What?\n'
+        yield b'Black Knight: None shall pass.\n'
+        await asyncio.sleep(0.01)
+        yield b'King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.\n'
+        yield b'Black Knight: Then you shall die.\n'
+        yield b'King Arthur: I command you, as King of the Britons, to stand aside!\n'
+        await asyncio.sleep(0.01)
+        yield b'Black Knight: I move for no man.\n'
+        yield b'King Arthur: So be it!\n'
+        yield b'[rounds of melee, with Arthur cutting off the left arm of the black knight.]\n'
+        await asyncio.sleep(0.01)
+        yield b'King Arthur: Now stand aside, worthy adversary.\n'
+        yield b'Black Knight: Tis but a scratch.\n'
+
+    return file(generator,
+                'text/plain',
+                'black-knight.txt',
+                content_disposition=ContentDispositionType.INLINE)
+
+
+@app.router.get('/file-response-with-bytes')
+async def send_file_with_bytes():
+
+    def generator():
+        yield b'Black Knight: None shall pass.\n'
+        yield b'King Arthur: What?\n'
+        yield b'Black Knight: None shall pass.\n'
+        yield b'King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.\n'
+        yield b'Black Knight: Then you shall die.\n'
+        yield b'King Arthur: I command you, as King of the Britons, to stand aside!\n'
+        yield b'Black Knight: I move for no man.\n'
+        yield b'King Arthur: So be it!\n'
+        yield b'[rounds of melee, with Arthur cutting off the left arm of the black knight.]\n'
+        yield b'King Arthur: Now stand aside, worthy adversary.\n'
+        yield b'Black Knight: Tis but a scratch.\n'
+
+    all_bytes = b''.join(generator())
+
+    return file(all_bytes,
+                'text/plain',
+                'black-knight.txt',
+                content_disposition=ContentDispositionType.INLINE)
+
+
+@app.route('/modtime')
+async def sed_modtime():
+    # ---------------------------------------------- #
+    # NB: os.stat is 4x faster than aiofiles.stat    #
+    # so, why should we use the async version?       #
+    # Get rid of aiofiles                            #
+    # Also, check the speed of files downloads       #
+    # without aiofiles; it might be not worth        #
+    # how to prove that the event loop is not locked #
+    # while reading a file?                          #
+    # ---------------------------------------------- #
+    # stat = await aiofilesos.stat('/home/ra/pictures/example.png')
+    # file_size = stat.st_size
+    stat = os.stat('/home/ra/pictures/example.png')
+    modified_time = stat.st_mtime
+    return text(f'Mod time: {modified_time}')
+
+
+@app.route('/async-modtime')
+async def send_async_modtime():
+    stat = await aiofilesos.stat('/home/ra/pictures/example.png')
+    # file_size = stat.st_size
+    modified_time = stat.st_mtime
+    return text(f'Mod time: {modified_time}')
+
+
 if __name__ == '__main__':
-    uvicorn.run(app, host='127.0.0.1', port=44567, log_level="debug")
+    uvicorn.run(app, host='127.0.0.1', port=44567, log_level="error")

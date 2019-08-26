@@ -59,7 +59,7 @@ def get_file_data(file_path, file_size, size_limit=1024*64):
     return file_getter
 
 
-async def get_response_for_file(request, resource_path, cache_time):
+async def get_response_for_file(request, resource_path: str, cache_time: int):
     stat = await aiofilesos.stat(resource_path)
     file_size = stat.st_size
     modified_time = stat.st_mtime

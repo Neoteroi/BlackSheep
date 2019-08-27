@@ -1,7 +1,9 @@
 import json
 import ntpath
 import aiofiles
+from io import BytesIO
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Callable, Union
 from blacksheep import Response, TextContent, HtmlContent, JsonContent, Content, StreamedContent
 
@@ -117,7 +119,25 @@ def json(data: Any, status: int = 200, dumps=json.dumps):
     return Response(status, None, Content(b'application/json', dumps(data).encode('utf8')))
 
 
-def _file(value: Union[Callable, bytes],
+FileInput = Union[Callable, str, bytes, bytearray, BytesIO]
+
+
+@lru_cache(2000)
+def _get_file_provider(file_path: str):
+    async def data_provider():
+        async with aiofiles.open(file_path, mode='rb') as f:
+            while True:
+                chunk = await f.read(1024 * 64)
+
+                if not chunk:
+                    break
+
+                yield chunk
+            yield b''
+    return data_provider
+
+
+def _file(value: FileInput,
           content_type: Union[str, bytes],
           content_disposition_type: ContentDispositionType,
           file_name: str = None):
@@ -132,25 +152,23 @@ def _file(value: Union[Callable, bytes],
 
     content_type = _ensure_bytes(content_type)
 
-    # TODO: decide what to do with cache-control
-    # TODO: support str, bytes, bytearray, stream(?)
-
     if isinstance(value, str):
-        size_limit = 1024*64
-
+        # value is treated as a path
+        content = StreamedContent(content_type, _get_file_provider(value))
+    elif isinstance(value, BytesIO):
         async def data_provider():
-            async with aiofiles.open(value, mode='rb') as f:
-                while True:
-                    chunk = await f.read(size_limit)
+            while True:
+                chunk = value.read(1024*64)
 
-                    if not chunk:
-                        break
+                if not chunk:
+                    break
 
-                    yield chunk
-                yield b''
+                yield chunk
+            yield b''
 
         content = StreamedContent(content_type, data_provider)
     elif callable(value):
+        # value is treated as an async generator
         async def data_provider():
             async for chunk in value():
                 yield chunk
@@ -160,14 +178,11 @@ def _file(value: Union[Callable, bytes],
     elif isinstance(value, bytes):
         content = Content(content_type, value)
     elif isinstance(value, bytearray):
-        content = Content(content_type, value)
+        content = Content(content_type, bytes(value))
     else:
-        raise ValueError('Invalid value')
+        raise ValueError('Invalid value, expected one of: Callable, str, bytes, bytearray, io.BytesIO')
 
     return Response(200, [(b'Content-Disposition', content_disposition_value.encode())], content)
-
-
-FileInput = Union[Callable, bytes, bytes, bytearray]
 
 
 def inline_file(value: FileInput,

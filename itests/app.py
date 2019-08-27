@@ -1,6 +1,4 @@
-import os
-import aiofiles
-from aiofiles import os as aiofilesos
+import io
 import uvicorn
 import asyncio
 from blacksheep import Response, Content, Cookie
@@ -131,7 +129,7 @@ async def echo_streamed_test(request):
 
 
 @app.router.get('/file-response-with-path')
-async def send_file_with_async_gen(request):
+async def send_file_with_async_gen():
     return file('static/pexels-photo-923360.jpeg',
                 'image/jpeg',
                 'nice-cat.jpg',
@@ -187,31 +185,13 @@ async def send_file_with_bytes():
                 content_disposition=ContentDispositionType.INLINE)
 
 
-@app.route('/modtime')
-async def sed_modtime():
-    # ---------------------------------------------- #
-    # NB: os.stat is 4x faster than aiofiles.stat    #
-    # so, why should we use the async version?       #
-    # Get rid of aiofiles                            #
-    # Also, check the speed of files downloads       #
-    # without aiofiles; it might be not worth        #
-    # how to prove that the event loop is not locked #
-    # while reading a file?                          #
-    # ---------------------------------------------- #
-    # stat = await aiofilesos.stat('/home/ra/pictures/example.png')
-    # file_size = stat.st_size
-    stat = os.stat('/home/ra/pictures/example.png')
-    modified_time = stat.st_mtime
-    return text(f'Mod time: {modified_time}')
-
-
-@app.route('/async-modtime')
-async def send_async_modtime():
-    stat = await aiofilesos.stat('/home/ra/pictures/example.png')
-    # file_size = stat.st_size
-    modified_time = stat.st_mtime
-    return text(f'Mod time: {modified_time}')
+@app.router.get('/file-response-with-bytesio')
+async def send_file_with_bytes_io():
+    return file(io.BytesIO(b"some initial binary data: "),
+                'text/plain',
+                'data.txt',
+                content_disposition=ContentDispositionType.INLINE)
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='127.0.0.1', port=44567, log_level="error")
+    uvicorn.run(app, host='127.0.0.1', port=44567, log_level="debug")

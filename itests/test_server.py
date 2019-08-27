@@ -396,6 +396,15 @@ Black Knight: Tis but a scratch.
 """
 
 
+def test_get_file_with_bytesio(session):
+    response = session.get('/file-response-with-bytesio')
+    ensure_success(response)
+
+    text = response.text
+
+    assert text == """some initial binary data: """
+
+
 def test_xml_files_are_not_served(session):
     response = session.get('/example.xml', stream=True)
 

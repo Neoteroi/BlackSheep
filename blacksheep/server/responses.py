@@ -1,7 +1,11 @@
+import json
 import ntpath
+import aiofiles
+from io import BytesIO
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Callable, Union
-from blacksheep import Response, TextContent, HtmlContent, JsonContent, Content
+from blacksheep import Response, TextContent, HtmlContent, JsonContent, Content, StreamedContent
 
 
 class ContentDispositionType(Enum):
@@ -107,15 +111,33 @@ def text(value: str, status: int = 200):
 
 def html(value: str, status: int = 200):
     """Returns a response with text/html content, and given status (default HTTP 200 OK)."""
-    return Response(status, content=HtmlContent(value))
+    return Response(status, None, Content(b'text/html; charset=utf-8', value.encode('utf8')))
 
 
-def json(value: Any, status: int = 200):
+def json(data: Any, status: int = 200, dumps=json.dumps):
     """Returns a response with application/json content, and given status (default HTTP 200 OK)."""
-    return Response(status, content=JsonContent(value))
+    return Response(status, None, Content(b'application/json', dumps(data).encode('utf8')))
 
 
-def _file(value: Union[Callable, bytes],
+FileInput = Union[Callable, str, bytes, bytearray, BytesIO]
+
+
+@lru_cache(2000)
+def _get_file_provider(file_path: str):
+    async def data_provider():
+        async with aiofiles.open(file_path, mode='rb') as f:
+            while True:
+                chunk = await f.read(1024 * 64)
+
+                if not chunk:
+                    break
+
+                yield chunk
+            yield b''
+    return data_provider
+
+
+def _file(value: FileInput,
           content_type: Union[str, bytes],
           content_disposition_type: ContentDispositionType,
           file_name: str = None):
@@ -127,12 +149,43 @@ def _file(value: Union[Callable, bytes],
         content_disposition_value = f'{content_disposition_type.value}; filename="{exact_file_name}"'
     else:
         content_disposition_value = content_disposition_type.value
-    response = Response(200, content=Content(_ensure_bytes(content_type), value))
-    response.add_header((b'Content-Disposition', content_disposition_value.encode()))
-    return response
+
+    content_type = _ensure_bytes(content_type)
+
+    if isinstance(value, str):
+        # value is treated as a path
+        content = StreamedContent(content_type, _get_file_provider(value))
+    elif isinstance(value, BytesIO):
+        async def data_provider():
+            while True:
+                chunk = value.read(1024*64)
+
+                if not chunk:
+                    break
+
+                yield chunk
+            yield b''
+
+        content = StreamedContent(content_type, data_provider)
+    elif callable(value):
+        # value is treated as an async generator
+        async def data_provider():
+            async for chunk in value():
+                yield chunk
+            yield b''
+
+        content = StreamedContent(content_type, data_provider)
+    elif isinstance(value, bytes):
+        content = Content(content_type, value)
+    elif isinstance(value, bytearray):
+        content = Content(content_type, bytes(value))
+    else:
+        raise ValueError('Invalid value, expected one of: Callable, str, bytes, bytearray, io.BytesIO')
+
+    return Response(200, [(b'Content-Disposition', content_disposition_value.encode())], content)
 
 
-def inline_file(value: Union[Callable, bytes],
+def inline_file(value: FileInput,
                 content_type: Union[str, bytes],
                 file_name: str = None):
     """Returns a binary file response with given content type and optional file name, for inline use
@@ -143,13 +196,14 @@ def inline_file(value: Union[Callable, bytes],
     return _file(value, content_type, ContentDispositionType.INLINE, file_name)
 
 
-def file(value: Union[Callable, bytes],
+def file(value: FileInput,
          content_type: Union[str, bytes],
-         file_name: str = None):
+         file_name: str = None,
+         content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT):
     """Returns a binary file response with given content type and optional file name, for download (attachment)
     (default HTTP 200 OK). This method supports both call with bytes, or a generator yielding chunks.
 
     Remarks: this method does not handle cache, ETag and HTTP 304 Not Modified responses;
     when handling files it is recommended to handle cache, ETag and Not Modified, according to use case."""
-    return _file(value, content_type, ContentDispositionType.ATTACHMENT, file_name)
+    return _file(value, content_type, content_disposition, file_name)
 

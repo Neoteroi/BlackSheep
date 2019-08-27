@@ -1,7 +1,9 @@
+import io
 import uvicorn
+import asyncio
 from blacksheep import Response, Content, Cookie
 from blacksheep.server import Application
-from blacksheep.server.responses import text, json
+from blacksheep.server.responses import text, json, file, ContentDispositionType
 from blacksheep.server.bindings import FromQuery
 from itests.utils import CrashTest, ensure_folder
 
@@ -124,6 +126,71 @@ async def echo_streamed_test(request):
             yield chunk
 
     return Response(200, content=Content(b'text/plain; charset=utf-8', echo))
+
+
+@app.router.get('/file-response-with-path')
+async def send_file_with_async_gen():
+    return file('static/pexels-photo-923360.jpeg',
+                'image/jpeg',
+                'nice-cat.jpg',
+                content_disposition=ContentDispositionType.INLINE)
+
+
+@app.router.get('/file-response-with-generator')
+async def send_file_with_async_gen():
+
+    async def generator():
+        yield b'Black Knight: None shall pass.\n'
+        yield b'King Arthur: What?\n'
+        yield b'Black Knight: None shall pass.\n'
+        await asyncio.sleep(0.01)
+        yield b'King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.\n'
+        yield b'Black Knight: Then you shall die.\n'
+        yield b'King Arthur: I command you, as King of the Britons, to stand aside!\n'
+        await asyncio.sleep(0.01)
+        yield b'Black Knight: I move for no man.\n'
+        yield b'King Arthur: So be it!\n'
+        yield b'[rounds of melee, with Arthur cutting off the left arm of the black knight.]\n'
+        await asyncio.sleep(0.01)
+        yield b'King Arthur: Now stand aside, worthy adversary.\n'
+        yield b'Black Knight: Tis but a scratch.\n'
+
+    return file(generator,
+                'text/plain',
+                'black-knight.txt',
+                content_disposition=ContentDispositionType.INLINE)
+
+
+@app.router.get('/file-response-with-bytes')
+async def send_file_with_bytes():
+
+    def generator():
+        yield b'Black Knight: None shall pass.\n'
+        yield b'King Arthur: What?\n'
+        yield b'Black Knight: None shall pass.\n'
+        yield b'King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.\n'
+        yield b'Black Knight: Then you shall die.\n'
+        yield b'King Arthur: I command you, as King of the Britons, to stand aside!\n'
+        yield b'Black Knight: I move for no man.\n'
+        yield b'King Arthur: So be it!\n'
+        yield b'[rounds of melee, with Arthur cutting off the left arm of the black knight.]\n'
+        yield b'King Arthur: Now stand aside, worthy adversary.\n'
+        yield b'Black Knight: Tis but a scratch.\n'
+
+    all_bytes = b''.join(generator())
+
+    return file(all_bytes,
+                'text/plain',
+                'black-knight.txt',
+                content_disposition=ContentDispositionType.INLINE)
+
+
+@app.router.get('/file-response-with-bytesio')
+async def send_file_with_bytes_io():
+    return file(io.BytesIO(b"some initial binary data: "),
+                'text/plain',
+                'data.txt',
+                content_disposition=ContentDispositionType.INLINE)
 
 
 if __name__ == '__main__':

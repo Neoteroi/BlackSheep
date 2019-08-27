@@ -1,5 +1,5 @@
+import os
 import aiofiles
-from aiofiles import os as aiofilesos
 from datetime import datetime
 from blacksheep import Response, StreamedContent
 from blacksheep.server.pathsutils import get_mime_type
@@ -59,8 +59,8 @@ def get_file_data(file_path, file_size, size_limit=1024*64):
     return file_getter
 
 
-async def get_response_for_file(request, resource_path, cache_time):
-    stat = await aiofilesos.stat(resource_path)
+def get_response_for_file(request, resource_path: str, cache_time: int):
+    stat = os.stat(resource_path)
     file_size = stat.st_size
     modified_time = stat.st_mtime
     current_etag = str(modified_time).encode()

@@ -341,6 +341,70 @@ def test_get_file(session, url_path, file_name):
     assert_files_equals('./static' + url_path, file_name)
 
 
+def test_get_file_response_with_path(session):
+    response = session.get('/file-response-with-path', stream=True)
+    ensure_success(response)
+
+    with open('nice-cat.jpg', 'wb') as output_file:
+        for chunk in response:
+            output_file.write(chunk)
+
+    assert_files_equals('./static/pexels-photo-923360.jpeg', 'nice-cat.jpg')
+
+
+def test_get_file_response_with_generator(session):
+    response = session.get('/file-response-with-generator', stream=True)
+    ensure_success(response)
+
+    body = bytearray()
+    for chunk in response:
+        body.extend(chunk)
+
+    text = body.decode('utf8')
+
+    assert text == """Black Knight: None shall pass.
+King Arthur: What?
+Black Knight: None shall pass.
+King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.
+Black Knight: Then you shall die.
+King Arthur: I command you, as King of the Britons, to stand aside!
+Black Knight: I move for no man.
+King Arthur: So be it!
+[rounds of melee, with Arthur cutting off the left arm of the black knight.]
+King Arthur: Now stand aside, worthy adversary.
+Black Knight: Tis but a scratch.
+"""
+
+
+def test_get_file_with_bytes(session):
+    response = session.get('/file-response-with-bytes')
+    ensure_success(response)
+
+    text = response.text
+
+    assert text == """Black Knight: None shall pass.
+King Arthur: What?
+Black Knight: None shall pass.
+King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.
+Black Knight: Then you shall die.
+King Arthur: I command you, as King of the Britons, to stand aside!
+Black Knight: I move for no man.
+King Arthur: So be it!
+[rounds of melee, with Arthur cutting off the left arm of the black knight.]
+King Arthur: Now stand aside, worthy adversary.
+Black Knight: Tis but a scratch.
+"""
+
+
+def test_get_file_with_bytesio(session):
+    response = session.get('/file-response-with-bytesio')
+    ensure_success(response)
+
+    text = response.text
+
+    assert text == """some initial binary data: """
+
+
 def test_xml_files_are_not_served(session):
     response = session.get('/example.xml', stream=True)
 

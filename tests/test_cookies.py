@@ -177,7 +177,7 @@ def test_datetime_from_cookie_format(expected_result, value):
      b'c12038089a7sdlkj1237192873',
      b'/')
 ])
-def test_parse_cookie(value, expected_name, expected_value, expected_path):
+def test_parse_cookie_separators(value, expected_name, expected_value, expected_path):
     cookie = parse_cookie(value)
 
     assert cookie is not None

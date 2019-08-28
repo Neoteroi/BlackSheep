@@ -107,7 +107,7 @@ class ClientConnection(asyncio.Protocol):
         self._upgraded = False
 
     def reset(self):
-        self.headers.clear()
+        self.headers = []
         self.request = None
         self.response = None
         self.writing_paused = False
@@ -158,7 +158,7 @@ class ClientConnection(asyncio.Protocol):
 
             # ignore;
             self.response_ready.clear()
-            self.headers.clear()
+            self.headers = []
 
             # await the final response
             return await self._wait_response()

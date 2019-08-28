@@ -280,6 +280,7 @@ cdef class Request(Message):
         else:
             self._path = None
             self._raw_query = None
+        self._url = _url
 
     def __repr__(self):
         return f'<Request {self.method} {self.url.value.decode()}>'

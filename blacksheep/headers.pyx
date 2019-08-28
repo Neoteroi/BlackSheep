@@ -24,7 +24,9 @@ cdef class Header:
 cdef class Headers:
 
     def __init__(self, list values = None):
-        self.values = values or []
+        if values is None:
+            values = []
+        self.values = values
 
     cpdef tuple get(self, bytes name):
         cdef list results = []

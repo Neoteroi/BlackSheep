@@ -2,6 +2,8 @@ import pytest
 from blacksheep import Request, Headers, Header, Content
 from blacksheep import scribe
 from blacksheep.exceptions import BadRequestFormat, InvalidOperation
+from blacksheep.scribe import write_small_request
+from blacksheep.url import URL
 
 
 def test_request_supports_dynamic_attributes():
@@ -149,3 +151,52 @@ def test_request_expect_100_continue(header, expected_result):
 def test_request_declares_json(headers, expected_result):
     request = Request('GET', b'/', headers)
     assert request.declares_json() is expected_result
+
+
+def test_small_request_headers_add_through_higher_api():
+    request = Request('GET', b'https://hello-world', None)
+
+    request.headers.add(b'Hello', b'World')
+
+    raw_bytes = write_small_request(request)
+
+    assert b'Hello: World\r\n' in raw_bytes
+
+
+def test_small_request_headers_add_through_higher_api_many():
+    request = Request('GET', b'https://hello-world', None)
+
+    request.headers.add_many({
+        b'Hello': b'World',
+        b'X-Foo': b'Foo'
+    })
+
+    raw_bytes = write_small_request(request)
+
+    assert b'Hello: World\r\n' in raw_bytes
+    assert b'X-Foo: Foo\r\n' in raw_bytes
+
+
+def test_small_request_headers_add_through_lower_api():
+    request = Request('GET', b'https://hello-world', None)
+
+    request.add_header(b'Hello', b'World')
+
+    raw_bytes = write_small_request(request)
+
+    assert b'Hello: World\r\n' in raw_bytes
+
+
+@pytest.mark.parametrize('initial_url,new_url', [
+    (b'https://hello-world/', b'https://ciao-mondo/'),
+    (b'https://hello-world/one/two/three', b'https://hello-world/one/two/three/'),
+    (b'https://hello-world/one/two/three/', b'https://hello-world/one/two/three')
+])
+def test_request_can_update_url(initial_url, new_url):
+    request = Request('GET', initial_url, None)
+
+    assert request.url.value == initial_url
+
+    request.url = URL(new_url)
+
+    assert request.url.value == new_url

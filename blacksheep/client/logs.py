@@ -44,7 +44,7 @@ def get_logged_url(request):
 
 
 def get_response_record(response, trace_id, method, logged_url):
-    message = f'({trace_id}) RECEIVED: {str(response.status).ljust(8)} FOR {method.decode()} {logged_url}'
+    message = f'({trace_id}) RECEIVED: {str(response.status).ljust(8)} FOR {method} {logged_url}'
     if response.is_redirect():
         location = response.headers.get_single(b'location')
         if location:

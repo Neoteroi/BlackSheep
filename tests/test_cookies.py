@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime
 from blacksheep import Cookie, datetime_from_cookie_format, datetime_to_cookie_format, parse_cookie
 from blacksheep import scribe
+from blacksheep.cookies import parse_cookie
 
 COOKIES = [
     (b'Foo',
@@ -164,3 +165,22 @@ def test_datetime_from_cookie_format(value, expected_result):
 def test_datetime_from_cookie_format(expected_result, value):
     bytes_value = datetime_to_cookie_format(value)
     assert bytes_value == expected_result
+
+
+@pytest.mark.parametrize('value,expected_name,expected_value,expected_path', [
+    (b'ARRAffinity=c12038089a7sdlkj1237192873; Path=/; HttpOnly; Domain=example.scm.azurewebsites.net',
+     b'ARRAffinity',
+     b'c12038089a7sdlkj1237192873',
+     b'/'),
+    (b'ARRAffinity=c12038089a7sdlkj1237192873;Path=/;HttpOnly;Domain=example.scm.azurewebsites.net',
+     b'ARRAffinity',
+     b'c12038089a7sdlkj1237192873',
+     b'/')
+])
+def test_parse_cookie(value, expected_name, expected_value, expected_path):
+    cookie = parse_cookie(value)
+
+    assert cookie is not None
+    assert cookie.name == expected_name
+    assert cookie.value == expected_value
+    assert cookie.path == expected_path

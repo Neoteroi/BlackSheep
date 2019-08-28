@@ -98,6 +98,9 @@ cpdef Cookie parse_cookie(bytes value):
             raise ValueError(f'Invalid name=value fragment: {parts[0]}')
         else:
             return Cookie(name, value)
+    if len(parts) == 1:
+        # some set a cookie with a separator without space
+        parts = value.split(b';')
     try:
         name, value = parts[0].split(eq)
     except ValueError as unpack_error:

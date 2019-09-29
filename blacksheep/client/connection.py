@@ -248,7 +248,7 @@ class ClientConnection(asyncio.Protocol):
         self.response_ready.set()
 
     def _has_content(self):
-        content_length = self.response.get_single_header(b'content-length')
+        content_length = self.response.get_first_header(b'content-length')
 
         if content_length:
             try:
@@ -259,7 +259,7 @@ class ClientConnection(asyncio.Protocol):
                                                              f'the Content-Lenght header; value: {content_length}')
             return content_length_value > 0
 
-        transfer_encoding = self.response.get_single_header(b'transfer-encoding')
+        transfer_encoding = self.response.get_first_header(b'transfer-encoding')
 
         if transfer_encoding and b'chunked' in transfer_encoding:
             return True

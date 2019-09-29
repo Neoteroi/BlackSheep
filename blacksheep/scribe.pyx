@@ -57,6 +57,11 @@ cdef bytes write_request_uri(Request request):
     return p
 
 
+cdef void ensure_host_header(Request request):
+    # TODO: if the request port is not default; add b':' + port to the Host value (?)
+    request._add_header_if_missing(b'host', request.url.host)
+
+
 cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
@@ -80,15 +85,15 @@ cdef void set_headers_for_content(Message message):
     cdef Content content = message.content
 
     if not content:
-        message._add_header(b'content-length', b'0')
+        message._add_header_if_missing(b'content-length', b'0')
         return
 
-    message._add_header(b'content-type', content.type or b'application/octet-stream')
+    message._add_header_if_missing(b'content-type', content.type or b'application/octet-stream')
 
     if should_use_chunked_encoding(content):
-        message._add_header(b'transfer-encoding', b'chunked')
+        message._add_header_if_missing(b'transfer-encoding', b'chunked')
     else:
-        message._add_header(b'content-length', str(content.length).encode())
+        message._add_header_if_missing(b'content-length', str(content.length).encode())
 
 
 cdef bytes write_cookie_for_response(Cookie cookie):
@@ -170,8 +175,7 @@ cpdef bytes write_request_without_body(Request request):
     cdef bytearray data = bytearray()
     data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
 
-    # TODO: if the request port is not default; add b':' + port
-    request._add_header(b'host', request.url.host)
+    ensure_host_header(request)
     
     extend_data_with_headers(request.__headers, data)
     data.extend(b'\r\n')
@@ -181,9 +185,8 @@ cpdef bytes write_request_without_body(Request request):
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
     data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
-    # TODO: if the request port is not default; add b':' + port
-    request._add_header(b'host', request.url.host)
-
+    
+    ensure_host_header(request)
     set_headers_for_content(request)
 
     extend_data_with_headers(request.__headers, data)
@@ -242,7 +245,7 @@ async def write_request(Request request):
     cdef bytes chunk
     cdef Content content
 
-    request._add_header(b'host', request.url.host)
+    ensure_host_header(request)
 
     set_headers_for_content(request)
 

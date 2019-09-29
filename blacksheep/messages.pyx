@@ -6,6 +6,7 @@ from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_
 
 
 import re
+import http
 import cchardet as chardet
 from asyncio import Event
 from urllib.parse import parse_qs, unquote
@@ -91,8 +92,23 @@ cdef class Message:
         for header in headers:
             self.__headers.remove(header)
 
+    cdef bint _has_header(self, bytes key):
+        cdef bytes existing_key, existing_value
+        key = key.lower()
+        for existing_key, existing_value in self.__headers:
+            if existing_key.lower() == key:
+                return True
+        return False
+
+    cpdef bint has_header(self, bytes key):
+        return self._has_header(key)
+
     cdef void _add_header(self, bytes key, bytes value):
         self.__headers.append((key, value))
+
+    cdef void _add_header_if_missing(self, bytes key, bytes value):
+        if not self._has_header(key):
+            self.__headers.append((key, value))
 
     cpdef void add_header(self, bytes key, bytes value):
         self.__headers.append((key, value))
@@ -352,6 +368,10 @@ cdef class Response(Message):
     @property
     def cookies(self):
         return self.get_cookies()
+
+    @property
+    def reason(self) -> str:
+        return http.HTTPStatus(self.status).phrase
 
     def get_cookies(self):
         cdef bytes value

@@ -262,8 +262,7 @@ class ClientSession:
 
         try:
             return await asyncio.wait_for(pool.get_connection(),
-                                          self.connection_timeout,
-                                          loop=self.loop)
+                                          self.connection_timeout)
         except TimeoutError:
             raise ConnectionTimeout(url.base_url(), self.connection_timeout)
 
@@ -312,8 +311,7 @@ class ClientSession:
 
         try:
             return await asyncio.wait_for(connection.send(request),
-                                          self.request_timeout,
-                                          loop=self.loop)
+                                          self.request_timeout)
         except ConnectionClosedError as connection_closed_error:
 
             if connection_closed_error.can_retry:

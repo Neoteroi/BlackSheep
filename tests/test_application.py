@@ -14,7 +14,11 @@ class FakeApplication(Application):
         super().__init__(show_error_details=True, *args)
         self.request = None
         self.response = None
-        print(f'[*] CONTAINER: {id(self.services)}')
+
+    def setup_controllers(self):
+        self.use_controllers()
+        self.build_services()
+        self.normalize_handlers()
 
     async def handle(self, request):
         self.request = request

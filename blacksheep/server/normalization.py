@@ -16,20 +16,28 @@ _next_handler_binder = object()
 
 
 class NormalizationError(Exception):
-    pass
+    ...
+
+
+class UnsupportedSignatureError(NormalizationError):
+
+    def __init__(self, method):
+        super().__init__(f'Cannot normalize method `{method.__qualname__}` because its signature contains '
+                         f'*args or *kwargs parameters. If you use a decorator, please use `functools.@wraps` '
+                         f'with your wrapper, to fix this error.')
 
 
 class MultipleFromBodyBinders(NormalizationError):
 
     def __init__(self, method, first_match, new_match):
-        super().__init__(f'Cannot use more than one `FromBody` binder for the same method ({method.__name__}). '
+        super().__init__(f'Cannot use more than one `FromBody` binder for the same method ({method.__qualname__}). '
                          f'The first match was: {first_match}, a second one {new_match}.')
 
 
 class AmbiguousMethodSignatureError(NormalizationError):
 
     def __init__(self, method):
-        super().__init__(f'Cannot normalize method {method.__name__} due to its ambiguous signature. '
+        super().__init__(f'Cannot normalize method `{method.__qualname__}` due to its ambiguous signature. '
                          f'Please specify exact binders for its arguments.')
 
 
@@ -260,6 +268,9 @@ def normalize_handler(route, services):
     sig = Signature.from_callable(method)
     params = sig.parameters
     params_len = len(params)
+
+    if any(str(param).startswith('*') for param in params.values()):
+        raise UnsupportedSignatureError(method)
 
     if inspect.iscoroutinefunction(method):
         normalized = get_async_wrapper(services, route, method, params, params_len)

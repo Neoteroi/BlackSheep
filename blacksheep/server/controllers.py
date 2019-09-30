@@ -1,3 +1,4 @@
+from blacksheep import Request
 from blacksheep.server.routing import Router
 
 
@@ -28,4 +29,6 @@ class ControllerMeta(type):
 class Controller(metaclass=ControllerMeta):
     """Base class for controller types"""
 
+    async def on_request(self, request: Request):
+        ...
 

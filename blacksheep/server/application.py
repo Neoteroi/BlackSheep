@@ -1,7 +1,7 @@
 import os
 import logging
 import inspect
-from typing import Optional, List, Callable, Union
+from typing import Optional, List, Callable, Union, Type
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
@@ -196,19 +196,30 @@ class Application(BaseApplication):
         self.middlewares = [normalize_middleware(middleware, self.services) for middleware in self.middlewares]
 
     def use_controllers(self):
+        # NB: controller types are collected here, and not with Controller.__subclasses__(),
+        # to avoid funny bugs in case several Application objects are defined, with different controllers;
+        # this is the case for example of tests.
+
+        # NB: this sophisticated approach, using metaclassing and dynamic attributes, and calling handlers dynamically
+        # with activated instances of controllers; still supports custom and generic decorators (*args, **kwargs);
+        # as long as `functools.wraps` decorator is used in those decorators.
+        controller_types = []
         for method, routes in self.controllers_router.routes.items():
             for route in routes:
                 handler = route.handler
                 controller_type = getattr(handler, 'controller_type')
-
+                controller_types.append(controller_type)
                 handler.__annotations__['self'] = FromServices(controller_type)
                 self.router.add(method, route.pattern, handler)
 
-        self.register_controllers()
+        self.register_controllers(controller_types)
 
-    def register_controllers(self):
-        for controller_class in Controller.__subclasses__():
-            # TODO: if any controller is defined, call automatically `use_controllers`!!
+    def register_controllers(self, controller_types: List[Type]):
+
+        if not controller_types:
+            return
+
+        for controller_class in controller_types:
             is_abstract = inspect.isabstract(controller_class)
             if is_abstract:
                 continue
@@ -274,6 +285,7 @@ class Application(BaseApplication):
 
         self.started = True
 
+        self.use_controllers()
         self.build_services()
         self.apply_routes()
         self.normalize_handlers()

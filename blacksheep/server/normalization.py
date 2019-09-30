@@ -199,8 +199,11 @@ def get_binders_for_middleware(method, services):
 
 
 def _copy_name_and_docstring(source_method, wrapper):
-    wrapper.__name__ = source_method.__name__
-    wrapper.__doc__ = source_method.__doc__
+    try:
+        wrapper.__name__ = source_method.__name__
+        wrapper.__doc__ = source_method.__doc__
+    except AttributeError:
+        pass
 
 
 def get_sync_wrapper(services, route, method, params, params_len):

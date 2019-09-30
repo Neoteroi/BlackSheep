@@ -1,16 +1,19 @@
 import os
 import logging
-from typing import Optional, List, Callable
+import inspect
+from typing import Optional, List, Callable, Union
 from blacksheep.server.routing import Router
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
+from blacksheep.server.controllers import Controller, router as controllers_router
 from blacksheep.baseapp import BaseApplication
 from blacksheep.messages import Request, Response
 from blacksheep.contents import ASGIContent
 from blacksheep.scribe import send_asgi_response
 from blacksheep.middlewares import get_middlewares_chain
+from blacksheep.server.bindings import FromServices
 from blacksheep.server.authentication import (get_authentication_middleware,
                                               AuthenticateChallenge,
                                               handle_authentication_challenge)
@@ -20,7 +23,10 @@ from blacksheep.server.authorization import (get_authorization_middleware,
 from guardpost.authorization import UnauthorizedError, Policy
 from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
-from rodi import Services
+from rodi import Services, Container
+
+
+ServicesType = Union[Services, Container]
 
 
 server_logger = logging.getLogger('blacksheep.server')
@@ -86,20 +92,21 @@ class Application(BaseApplication):
                  router: Optional[Router] = None,
                  middlewares: Optional[List[Callable]] = None,
                  resources: Optional[Resources] = None,
-                 services: Optional[Services] = None,
+                 services: Optional[ServicesType] = None,
                  debug: bool = False,
                  show_error_details: bool = False,
                  auto_reload: bool = True):
         if router is None:
             router = Router()
         if services is None:
-            services = Services()
-        super().__init__(get_show_error_details(debug or show_error_details), router, services)
+            services = Container()
+        super().__init__(get_show_error_details(debug or show_error_details), router)
 
         if middlewares is None:
             middlewares = []
         if resources is None:
             resources = Resources(get_resource_file_content('error.html'))
+        self.services = services  # type: ServicesType
         self.debug = debug
         self.auto_reload = auto_reload
         self.running = False
@@ -117,6 +124,7 @@ class Application(BaseApplication):
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
         self.started = False
+        self.controllers_router = controllers_router  # type: Router
 
     def use_authentication(self, strategy: Optional[AuthenticationStrategy] = None) -> AuthenticationStrategy:
         if self.running:
@@ -187,6 +195,32 @@ class Application(BaseApplication):
     def _normalize_middlewares(self):
         self.middlewares = [normalize_middleware(middleware, self.services) for middleware in self.middlewares]
 
+    def use_controllers(self):
+        for method, routes in self.controllers_router.routes.items():
+            for route in routes:
+                handler = route.handler
+                controller_type = getattr(handler, 'controller_type')
+
+                handler.__annotations__['self'] = FromServices(controller_type)
+                self.router.add(method, route.pattern, handler)
+
+        self.register_controllers()
+
+    def register_controllers(self):
+        for controller_class in Controller.__subclasses__():
+            # TODO: if any controller is defined, call automatically `use_controllers`!!
+            is_abstract = inspect.isabstract(controller_class)
+            if is_abstract:
+                continue
+
+            if controller_class in self.services:
+                continue
+
+            if getattr(controller_class, '__init__') is object.__init__:
+                self.services.add_transient_by_factory(controller_class, controller_class)
+            else:
+                self.services.add_exact_transient(controller_class)
+
     def normalize_handlers(self):
         configured_handlers = set()
 
@@ -227,14 +261,20 @@ class Application(BaseApplication):
         if self._serve_files:
             serve_files(self.router, *self._serve_files)
 
+    def build_services(self):
+        if isinstance(self.services, Container):
+            self.services = self.services.build_provider()
+
     async def start(self):
         if self.started:
             return
 
         if self.on_start:
             await self.on_start.fire()
+
         self.started = True
 
+        self.build_services()
         self.apply_routes()
         self.normalize_handlers()
         self.configure_middlewares()

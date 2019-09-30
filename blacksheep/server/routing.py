@@ -146,6 +146,7 @@ class Router:
             method_patterns[pattern] = True
 
     def add(self, method, pattern, handler):
+        setattr(handler, 'route_handler', True)
         if isinstance(method, bytes):
             method = method.decode()
         new_route = Route(pattern, handler)

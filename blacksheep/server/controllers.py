@@ -2,7 +2,9 @@ from blacksheep import Request
 from blacksheep.server.routing import Router
 
 
-router = Router()  # singleton router used to store initial configuration, before the application starts
+# singleton router used to store initial configuration, before the application starts
+# this is used as *default* router for controllers, but it can be overridden - see for example tests in test_controllers
+router = Router()
 
 
 head = router.head
@@ -37,6 +39,7 @@ class Controller(metaclass=ControllerMeta):
 
 
 # decorator pattern example:
+# TODO: decide whether to go for metaclass or decorator;
 def controller():
     def controller_decorator(cls):
         for value in cls.__dict__.values():
@@ -44,5 +47,3 @@ def controller():
                 setattr(value, 'controller_type', cls)
         return cls
     return controller_decorator
-
-

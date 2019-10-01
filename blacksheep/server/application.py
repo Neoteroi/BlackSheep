@@ -13,7 +13,7 @@ from blacksheep.messages import Request, Response
 from blacksheep.contents import ASGIContent
 from blacksheep.scribe import send_asgi_response
 from blacksheep.middlewares import get_middlewares_chain
-from blacksheep.server.bindings import FromServices
+from blacksheep.server.bindings import ControllerBinder
 from blacksheep.server.authentication import (get_authentication_middleware,
                                               AuthenticateChallenge,
                                               handle_authentication_challenge)
@@ -84,6 +84,18 @@ def get_show_error_details(show_error_details):
     if show_error_details and show_error_details not in ('0', 'false'):
         return True
     return False
+
+
+class ApplicationStartupError(RuntimeError):
+    ...
+
+
+class RequiresServiceContainerError(ApplicationStartupError):
+
+    def __init__(self, details: str):
+        super().__init__(f'The application requires services to be a Container at this point of execution. '
+                         f'Details: {details}')
+        self.details = details
 
 
 class Application(BaseApplication):
@@ -197,27 +209,34 @@ class Application(BaseApplication):
 
     def use_controllers(self):
         # NB: controller types are collected here, and not with Controller.__subclasses__(),
-        # to avoid funny bugs in case several Application objects are defined, with different controllers;
+        # to avoid funny bugs in case several Application objects are defined with different controllers;
         # this is the case for example of tests.
 
-        # NB: this sophisticated approach, using metaclassing and dynamic attributes, and calling handlers dynamically
+        # NB: this sophisticated approach, using metaclassing, dynamic attributes, and calling handlers dynamically
         # with activated instances of controllers; still supports custom and generic decorators (*args, **kwargs);
         # as long as `functools.wraps` decorator is used in those decorators.
+        self.register_controllers(self.prepare_controllers())
+
+    def prepare_controllers(self) -> List[Type]:
         controller_types = []
         for method, routes in self.controllers_router.routes.items():
             for route in routes:
                 handler = route.handler
                 controller_type = getattr(handler, 'controller_type')
                 controller_types.append(controller_type)
-                handler.__annotations__['self'] = FromServices(controller_type)
+                handler.__annotations__['self'] = ControllerBinder(controller_type)
                 self.router.add(method, route.pattern, handler)
-
-        self.register_controllers(controller_types)
+        return controller_types
 
     def register_controllers(self, controller_types: List[Type]):
-
+        """Registers controller types as transient services in the application service container."""
         if not controller_types:
             return
+
+        if not isinstance(self.services, Container):
+            raise RequiresServiceContainerError('When using controllers, the application.services must be '
+                                                'a service `Container` (`rodi.Container`; not a built service '
+                                                'provider).')
 
         for controller_class in controller_types:
             is_abstract = inspect.isabstract(controller_class)
@@ -227,6 +246,10 @@ class Application(BaseApplication):
             if controller_class in self.services:
                 continue
 
+            # TODO: maybe rodi should be modified to handle the following internally;
+            # if a type does not define an __init__ method, then a fair assumption is that it can be instantiated
+            # by calling it;
+            # TODO: the following if statement can be removed if rodi is modified as described above.
             if getattr(controller_class, '__init__') is object.__init__:
                 self.services.add_transient_by_factory(controller_class, controller_class)
             else:

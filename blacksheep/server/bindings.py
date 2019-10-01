@@ -45,7 +45,7 @@ class Binder(ABC):
 
     @abstractmethod
     async def get_value(self, request: Request) -> T:
-        pass
+        ...
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.expected_type} at {id(self)}>'
@@ -311,6 +311,19 @@ class FromServices(Binder):
             context = None
 
         return self.services.get(self.expected_type, context)
+
+
+class ControllerBinder(FromServices):
+    """
+    Binder used to activate an instance of Controller. This binder is applied automatically by the application
+    object at startup, as type annotation, for handlers configured on classes inheriting `blacksheep.server.Controller`.
+    """
+
+    async def get_value(self, request: Request) -> T:
+        controller = await super().get_value(request)
+        # controller extensibility point: support calling a method for each request handler;
+        await controller.on_request(request)
+        return controller
 
 
 class RequestBinder(Binder):

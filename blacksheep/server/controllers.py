@@ -29,13 +29,16 @@ class ControllerMeta(type):
 
 
 class Controller(metaclass=ControllerMeta):
-    """Base class for controller types"""
+    """Base class for all controller"""
 
-    # TODO: support `before_request`, or `on_request` extensibility point
-    # TODO: verify that a base Controller class can be used with others
-    # NB: this can be achieved by supporting `on_request` on Binder / FromServices / Controller!
     async def on_request(self, request: Request):
-        ...
+        """Extensibility point: controllers support executing a function at each web request.
+        This method is executed before model binding happens: it is possible to read values from the request:
+        headers are immediately available, and the user can decide to wait for the body (e.g. await request.json()).
+
+        Since controllers support dependency injection, it is possible to apply logic using dependent services,
+        specified in the __init__ constructor.
+        """
 
 
 # decorator pattern example:

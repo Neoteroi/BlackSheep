@@ -56,6 +56,50 @@ async def test_handler_through_controller():
 
 
 @pytest.mark.asyncio
+async def test_controller_supports_on_request():
+    app = FakeApplication()
+    app.controllers_router = Router()
+    get = app.controllers_router.get
+
+    k = 0
+
+    # noinspection PyUnusedLocal
+    class Home(Controller):
+
+        def greet(self):
+            return 'Hello World'
+
+        async def on_request(self, request: Request):
+            nonlocal k
+            k += 1
+            assert isinstance(request, Request)
+            assert request.url.path == b'/' if k < 10 else b'/foo'
+            return await super().on_request(request)
+
+        @get('/')
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return text(self.greet())
+
+        @get('/foo')
+        async def foo(self):
+            assert isinstance(self, Home)
+            return text('foo')
+
+    app.setup_controllers()
+
+    for j in range(1, 10):
+        await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
+        assert app.response.status == 200
+        assert k == j
+
+    for j in range(10, 20):
+        await app(get_example_scope('GET', '/foo'), MockReceive(), MockSend())
+        assert app.response.status == 200
+        assert k == j
+
+
+@pytest.mark.asyncio
 async def test_handler_through_controller_supports_generic_decorator():
     app = FakeApplication()
     app.controllers_router = Router()
@@ -76,9 +120,9 @@ async def test_handler_through_controller_supports_generic_decorator():
     app.setup_controllers()
     await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
 
-    assert app.response.status == 200
     body = await app.response.text()
     assert body == 'Hello World'
+    assert app.response.status == 200
 
 
 @pytest.mark.asyncio
@@ -113,10 +157,10 @@ async def test_controller_with_dependency(value):
 
     app.setup_controllers()
     await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
-    assert app.response.status == 200
 
     body = await app.response.text()
     assert body == value
+    assert app.response.status == 200
 
 
 @pytest.mark.asyncio
@@ -157,10 +201,10 @@ async def test_many_controllers(value):
 
     app.setup_controllers()
     await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
-    assert app.response.status == 200
 
     body = await app.response.text()
     assert body == value
+    assert app.response.status == 200
 
 
 @pytest.mark.asyncio

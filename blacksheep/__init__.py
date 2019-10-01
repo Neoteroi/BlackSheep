@@ -12,7 +12,10 @@ from .contents import (Content,
                        HtmlContent,
                        MultiPartFormData,
                        parse_www_form)
-from .cookies import Cookie, datetime_from_cookie_format, datetime_to_cookie_format, parse_cookie
+from .cookies import (Cookie,
+                      datetime_from_cookie_format,
+                      datetime_to_cookie_format,
+                      parse_cookie)
 from .messages import Request, Response
 
 

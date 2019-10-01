@@ -8,7 +8,8 @@ from .bindings import (FromJson,
                        Binder,
                        FromBody,
                        RequestBinder,
-                       ExactBinder)
+                       ExactBinder,
+                       IdentityBinder)
 from blacksheep.normalization import copy_special_attributes
 
 
@@ -134,7 +135,11 @@ def get_parameter_binder(parameter, services, route, method):
         if name in services:
             return FromServices(name, services)
 
-        # 3. default to query parameter
+        # 3. does it use a specific name? (convention over configuration for common scenarios);
+        if name == 'user' or name == 'identity':
+            return IdentityBinder()
+
+        # 4. default to query parameter
         return FromQuery(List[str], name)
 
     # unwrap the Optional[] annotation, if present:
@@ -172,7 +177,7 @@ def get_parameter_binder(parameter, services, route, method):
     if annotation in _simple_types_handled_with_query:
         return FromQuery(annotation, name, required=not is_optional)
 
-    # 5. from body
+    # 5. from json body (last default)
     return FromJson(annotation, required=not is_optional)
 
 

@@ -8,11 +8,11 @@ See:
 """
 from abc import ABC, abstractmethod
 from collections.abc import Iterable as IterableAbc
-from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List
+from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List, Any
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
-from rodi import Services, GetServiceContext
+from rodi import Services
 
 
 T = TypeVar('T')
@@ -333,6 +333,25 @@ class RequestBinder(Binder):
 
     async def get_value(self, request: Request) -> T:
         return request
+
+
+class RequestPropertyBinder(Binder):
+
+    def __init__(self, property_name: str):
+        super().__init__(Any)
+        self.property_name = property_name
+
+    async def get_value(self, request: Request) -> T:
+        return getattr(request, self.property_name, None)
+
+
+class IdentityBinder(RequestPropertyBinder):
+
+    def __init__(self):
+        super().__init__('identity')
+
+
+User = IdentityBinder
 
 
 class ExactBinder(Binder):

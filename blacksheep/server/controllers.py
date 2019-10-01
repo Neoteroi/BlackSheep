@@ -40,13 +40,3 @@ class Controller(metaclass=ControllerMeta):
         specified in the __init__ constructor.
         """
 
-
-# decorator pattern example:
-# TODO: decide whether to go for metaclass or decorator;
-def controller():
-    def controller_decorator(cls):
-        for value in cls.__dict__.values():
-            if hasattr(value, 'route_handler'):
-                setattr(value, 'controller_type', cls)
-        return cls
-    return controller_decorator

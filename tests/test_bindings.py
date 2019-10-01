@@ -10,7 +10,8 @@ from blacksheep.server.bindings import (FromJson,
                                         RequestBinder,
                                         InvalidRequestBody,
                                         MissingConverterError,
-                                        BadRequest)
+                                        BadRequest,
+                                        IdentityBinder)
 
 
 JsonContentType = (b'Content-Type', b'application/json')
@@ -348,11 +349,23 @@ async def test_nested_iterables_raise_missing_converter_from_query(declared_type
 
 
 @pytest.mark.asyncio
-async def test_request_binder():
+async def test_identity_binder_identity_not_set():
     request = Request('GET', b'/', None)
 
-    parameter = RequestBinder()
+    parameter = IdentityBinder()
 
     value = await parameter.get_value(request)
 
-    assert value is request
+    assert value is None
+
+
+@pytest.mark.asyncio
+async def test_identity_binder():
+    request = Request('GET', b'/', None)
+    request.identity = object()
+
+    parameter = IdentityBinder()
+
+    value = await parameter.get_value(request)
+
+    assert value is request.identity

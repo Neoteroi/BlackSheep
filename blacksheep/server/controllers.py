@@ -29,6 +29,20 @@ class ControllerMeta(type):
 class Controller(metaclass=ControllerMeta):
     """Base class for controller types"""
 
+    # TODO: support `before_request`, or `on_request` extensibility point
+    # TODO: verify that a base Controller class can be used with others
+    # NB: this can be achieved by supporting `on_request` on Binder / FromServices / Controller!
     async def on_request(self, request: Request):
         ...
+
+
+# decorator pattern example:
+def controller():
+    def controller_decorator(cls):
+        for value in cls.__dict__.values():
+            if hasattr(value, 'route_handler'):
+                setattr(value, 'controller_type', cls)
+        return cls
+    return controller_decorator
+
 

@@ -1,13 +1,12 @@
 import pytest
 from pytest import raises
 from typing import List, Sequence, Set, Tuple
-from blacksheep import Request, Headers, Header, JsonContent
+from blacksheep import Request, JsonContent
 from blacksheep.server.bindings import (FromJson,
                                         FromHeader,
                                         FromQuery,
                                         FromRoute,
                                         FromServices,
-                                        RequestBinder,
                                         InvalidRequestBody,
                                         MissingConverterError,
                                         BadRequest,

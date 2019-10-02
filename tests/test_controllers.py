@@ -1,9 +1,11 @@
 import pytest
+from typing import Optional
 from functools import wraps
 from blacksheep import Request
 from blacksheep.server.responses import text
 from blacksheep.server.controllers import Controller, Router
 from blacksheep.server.routing import RouteDuplicate
+from guardpost.authentication import User
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
 
@@ -229,3 +231,29 @@ async def test_controllers_with_duplicate_routes_throw():
 
     with pytest.raises(RouteDuplicate):
         app.use_controllers()
+
+
+@pytest.mark.asyncio
+async def test_controller_on_request_setting_identity():
+    app = FakeApplication()
+    app.controllers_router = Router()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Home(Controller):
+
+        async def on_request(self, request: Request):
+            request.identity = User({'id': '001', 'name': 'Charlie Brown'}, 'JWTBearer')
+
+        @get('/')
+        async def index(self, request: Request, user: Optional[User]):
+            assert hasattr(request, 'identity')
+            assert isinstance(request.identity, User)
+            return text(request.identity.name)
+
+    app.setup_controllers()
+
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
+    body = await app.response.text()
+    assert body == 'Charlie Brown'
+    assert app.response.status == 200

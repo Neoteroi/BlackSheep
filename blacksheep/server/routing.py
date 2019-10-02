@@ -6,7 +6,7 @@ from urllib.parse import unquote
 from typing import Callable
 
 
-__all__ = ['Router', 'Route', 'RouteMatch']
+__all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate']
 
 
 _route_all_rx = re.compile(b'\\*')

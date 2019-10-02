@@ -10,6 +10,7 @@ from .bindings import (FromJson,
                        RequestBinder,
                        ExactBinder,
                        IdentityBinder)
+from guardpost.authentication import User, Identity
 from blacksheep.normalization import copy_special_attributes
 
 
@@ -176,6 +177,9 @@ def get_parameter_binder(parameter, services, route, method):
     # 4. is simple type?
     if annotation in _simple_types_handled_with_query:
         return FromQuery(annotation, name, required=not is_optional)
+
+    if annotation is User or annotation is Identity:
+        return IdentityBinder()
 
     # 5. from json body (last default)
     return FromJson(annotation, required=not is_optional)

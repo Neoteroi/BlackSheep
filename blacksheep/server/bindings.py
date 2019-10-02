@@ -12,6 +12,7 @@ from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List, Any
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
+from guardpost.authentication import Identity
 from rodi import Services
 
 
@@ -337,8 +338,8 @@ class RequestBinder(Binder):
 
 class RequestPropertyBinder(Binder):
 
-    def __init__(self, property_name: str):
-        super().__init__(Any)
+    def __init__(self, property_name: str, expected_type: Type = Any):
+        super().__init__(expected_type)
         self.property_name = property_name
 
     async def get_value(self, request: Request) -> T:
@@ -348,7 +349,7 @@ class RequestPropertyBinder(Binder):
 class IdentityBinder(RequestPropertyBinder):
 
     def __init__(self):
-        super().__init__('identity')
+        super().__init__('identity', Identity)
 
 
 User = IdentityBinder

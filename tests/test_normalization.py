@@ -1,9 +1,9 @@
 import pytest
 from pytest import raises
 from typing import List, Sequence, Optional
-from blacksheep import Request, Headers, Header
+from blacksheep import Request
 from blacksheep.server.routing import Route
-from blacksheep.server.bindings import FromHeader, FromQuery, IdentityBinder
+from blacksheep.server.bindings import FromHeader, IdentityBinder
 from blacksheep.server.normalization import (get_from_body_parameter,
                                              AmbiguousMethodSignatureError,
                                              RouteBinderMismatch,
@@ -17,6 +17,7 @@ from blacksheep.server.normalization import (get_from_body_parameter,
                                              ExactBinder,
                                              normalize_handler,
                                              normalize_middleware)
+from guardpost.authentication import Identity, User
 
 
 class Pet:
@@ -100,6 +101,23 @@ def test_identity_binder_by_param_name_user():
 
     async def handler(user):
         ...
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], IdentityBinder)
+
+
+@pytest.mark.parametrize('annotation_type', [
+    Identity,
+    User,
+    Optional[User],
+    Optional[Identity]
+])
+def test_identity_binder_by_param_type(annotation_type):
+    async def handler(param):
+        ...
+
+    handler.__annotations__['param'] = annotation_type
 
     binders = get_binders(Route(b'/', handler), {})
 

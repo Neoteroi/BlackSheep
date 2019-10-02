@@ -3,7 +3,7 @@ from functools import lru_cache
 from blacksheep import HttpMethod
 from collections import defaultdict
 from urllib.parse import unquote
-from typing import Callable
+from typing import Callable, Dict, Optional
 
 
 __all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate']
@@ -55,9 +55,10 @@ class RouteMatch:
     __slots__ = ('values',
                  'handler')
 
-    def __init__(self, route, values):
+    def __init__(self, route: 'Route', values: Optional[Dict[str, bytes]]):
         self.handler = route.handler
-        self.values = {k: unquote(v.decode('utf8')) for k, v in values.items()} if values else {}
+        self.values = {k: unquote(v.decode('utf8')) for k, v in values.items()} \
+            if values else None  # type: Optional[Dict[str, str]]
 
     def __repr__(self):
         return f'<RouteMatch {id(self)}>'

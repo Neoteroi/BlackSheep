@@ -1,7 +1,7 @@
 import io
 import uvicorn
 import asyncio
-from blacksheep import Response, Content, Cookie
+from blacksheep import Request, Response, Content, Cookie
 from blacksheep.server import Application
 from blacksheep.server.responses import text, json, file, ContentDispositionType
 from blacksheep.server.bindings import FromQuery
@@ -77,13 +77,13 @@ async def upload_files(request):
 
 
 @app.router.get('/echo-query')
-async def echo_query(request):
+async def echo_query(request: Request):
     params = request.query
     return json(params)
 
 
 @app.router.get('/echo-route/:one/:two/:three')
-async def echo_route_values(request):
+async def echo_route_values(request: Request):
     params = request.route_values
     return json(params)
 

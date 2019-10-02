@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 
 class InvalidURL(Exception):
@@ -10,12 +10,12 @@ class URL:
 
     def __init__(self, value: bytes):
         self.value = ... # type: bytes
-        self.schema = ... # type: bytes
-        self.host = ... # type: bytes
+        self.schema = ... # type: Optional[bytes]
+        self.host = ... # type: Optional[bytes]
         self.port = ... # type: int
         self.path = ... # type: bytes
         self.query = ... # type: bytes
-        self.fragment = ... # type: bytes
+        self.fragment = ... # type: Optional[bytes]
         self.is_absolute = ... # type: bool
 
     def __repr__(self):

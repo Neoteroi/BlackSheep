@@ -104,6 +104,7 @@ async def only_for_authenticated_users():
 ## Web framework features
 * [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
+* [Request handlers defined as functions, or class methods](https://github.com/RobertoPrevato/BlackSheep/wiki/Defining-request-handlers)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
 * [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
 * [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
@@ -114,6 +115,7 @@ async def only_for_authenticated_users():
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
+
 
 ## Client features
 * [HTTP connection pooling](https://github.com/RobertoPrevato/BlackSheep/wiki/Connection-pooling)

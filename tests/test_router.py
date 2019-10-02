@@ -48,7 +48,7 @@ class TestRoute:
         (b'/foo/:id/ufo/:b', b'/foo/223/ufo/a13', {'id': '223', 'b': 'a13'}),
         (b'/foo/:id/ufo/:b', b'/Foo/223/Ufo/a13', {'id': '223', 'b': 'a13'}),
         (b'/:a', b'/Something', {'a': 'Something'}),
-        (b'/alive', b'/alive', {})
+        (b'/alive', b'/alive', None)
     ])
     def test_route_good_matches(self, pattern, url, expected_values):
         route = Route(pattern, mock_handler)

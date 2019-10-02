@@ -71,7 +71,8 @@ setup(name='blacksheep',
           'cchardet',
           'guardpost',
           'rodi',
-          'aiofiles'
+          'aiofiles',
+          'essentials'
       ],
       include_package_data=True,
       zip_safe=False)

@@ -61,6 +61,9 @@ class Message:
 Cookies = Dict[str, Cookie]
 
 
+def method_without_body(method: str) -> bool: ...
+
+
 class Request(Message):
 
     def __init__(self,
@@ -83,8 +86,47 @@ class Request(Message):
     @url.setter
     def url(self, value: Union[URL, bytes, str]): ...
 
+    def __repr__(self):
+        return f'<Request {self.method} {self.url.value.decode()}>'
+
     @property
     def cookies(self) -> Cookies: ...
+
+    def get_cookies(self) -> Cookies: ...
+
+    def get_cookie(self, name: bytes) -> Optional[Cookie]: ...
+
+    def set_cookie(self, cookie: Cookie): ...
+
+    def set_cookies(self, cookies: List[Cookie]): ...
+
+    @property
+    def etag(self) -> Optional[bytes]: ...
+
+    @property
+    def if_none_match(self) -> Optional[bytes]: ...
+
+    def expect_100_continue(self) -> bool: ...
+
+
+class Response(Message):
+
+    def __init__(self,
+                 status: int,
+                 headers: Optional[List[HeaderType]] = None,
+                 content: Optional[Content] = None):
+        self.__headers = headers or []
+        self.status = status
+        self.content = content
+
+    def __repr__(self):
+        return f'<Response {self.status}>'
+
+    @property
+    def cookies(self) -> Cookies: ...
+
+    @property
+    def reason(self) -> str: ...
 
     def get_cookies(self) -> Cookies: ...
 
@@ -98,45 +140,4 @@ class Request(Message):
 
     def remove_cookie(self, name: bytes): ...
 
-    @property
-    def if_none_match(self) -> Optional[bytes]: ...
-
-    def expect_100_continue(self) -> bool: ...
-
-
-class Response(Message):
-
-    def __init__(self,
-                 status: int,
-                 headers: List[HeaderType],
-                 content: Content = None):
-        ...
-
-    @property
-    def cookies(self) -> Dict[str, Cookie]:
-        ...
-
-    @property
-    def reason(self) -> str:
-        ...
-
-    def get_cookies(self) -> Dict[str, Cookie]:
-        ...
-
-    def get_cookie(self, name: bytes) -> Optional[Cookie]:
-        ...
-
-    def set_cookie(self, cookie: Cookie):
-        ...
-
-    def set_cookies(self, cookies: List[Cookie]):
-        ...
-
-    def unset_cookie(self, name: bytes):
-        ...
-
-    def remove_cookie(self, name: bytes):
-        ...
-
-    def is_redirect(self) -> bool:
-        ...
+    def is_redirect(self) -> bool: ...

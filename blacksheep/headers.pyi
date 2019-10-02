@@ -1,4 +1,4 @@
-from collections.abc import Mapping, MutableSequence
+from collections.abc import MutableSequence
 from typing import Union, Dict, List, Tuple, Optional, Generator
 
 
@@ -8,17 +8,11 @@ class Header:
         self.name = name
         self.value = value
 
-    def __repr__(self):
-        return f'<Header {self.name}: {self.value}>'
+    def __repr__(self) -> str: ...
 
-    def __iter__(self) -> Generator[bytes, None, None]:
-        yield self.name
-        yield self.value
+    def __iter__(self) -> Generator[bytes, None, None]: ...
 
-    def __eq__(self, other):
-        if isinstance(other, Header):
-            return other.name.lower() == self.name.lower() and other.value == self.value
-        return NotImplemented
+    def __eq__(self, other: Header) -> bool: ...
 
 
 HeaderType = Tuple[bytes, bytes]
@@ -45,29 +39,15 @@ class Headers:
 
     def clone(self) -> Headers: ...
 
-    def add_many(self, values: Union[Dict[bytes, bytes], List[Tuple[bytes, bytes]]]):
-        if isinstance(values, MutableSequence):
-            for item in values:
-                self.add(*item)
-            return
+    def add_many(self, values: Union[Dict[bytes, bytes], List[Tuple[bytes, bytes]]]): ...
 
-        if isinstance(values, Mapping):
-            for key, value in values.items():
-                self.add(key, value)
-            return
-        raise ValueError('values must be Dict[bytes, bytes] or List[Header]')
+    def __add__(self, other: Union[Headers, Header, HeaderType, MutableSequence]): ...
 
-    def __add__(self, other):
-        return self._add_to_instance(self.clone(), other)
+    def __radd__(self, other: Union[Headers, Header, HeaderType, MutableSequence]): ...
 
-    def __radd__(self, other):
-        return self._add_to_instance(self.clone(), other)
+    def __iadd__(self, other: Union[Headers, Header, HeaderType, MutableSequence]): ...
 
-    def __iadd__(self, other):
-        return self._add_to_instance(self, other)
-
-    def __iter__(self):
-        yield from self.values
+    def __iter__(self) -> Generator[HeaderType, None, None]: ...
 
     def __setitem__(self, key: bytes, value: bytes): ...
 
@@ -75,23 +55,16 @@ class Headers:
 
     def keys(self) -> Tuple[bytes]: ...
 
-    def add(self, name: bytes, value: bytes):
-        self.values.append((name, value))
+    def add(self, name: bytes, value: bytes): ...
 
-    def set(self, name: bytes, value: bytes):
-        if self.contains(name):
-            self.remove(name)
-        self.add(name, value)
+    def set(self, name: bytes, value: bytes): ...
 
     def remove(self, key: bytes): ...
 
     def contains(self, key: bytes) -> bool: ...
 
-    def __delitem__(self, key: bytes):
-        self.remove(key)
+    def __delitem__(self, key: bytes): ...
 
-    def __contains__(self, key: bytes) -> bool:
-        return self.contains(key)
+    def __contains__(self, key: bytes) -> bool: ...
 
-    def __repr__(self):
-        return f'<Headers {self.values}>'
+    def __repr__(self) -> str: ...

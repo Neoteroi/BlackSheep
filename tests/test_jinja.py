@@ -7,7 +7,6 @@ from .test_application import FakeApplication, get_example_scope, MockSend, Mock
 def get_app(enable_async):
     app = FakeApplication()
     render = use_templates(app, loader=PackageLoader('tests.testapp', 'templates'), enable_async=enable_async)
-
     return app, render
 
 
@@ -19,6 +18,7 @@ def home_model():
 
 
 async def _home_scenario(app: FakeApplication):
+    app.build_services()
     app.normalize_handlers()
     await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
     text = await app.response.text()

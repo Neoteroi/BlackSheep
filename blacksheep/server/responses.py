@@ -1,11 +1,11 @@
-import json
 import ntpath
 import aiofiles
 from io import BytesIO
 from enum import Enum
+from essentials import json as JSON
 from functools import lru_cache
 from typing import Any, Callable, Union
-from blacksheep import Response, TextContent, HtmlContent, JsonContent, Content, StreamedContent
+from blacksheep import Response, TextContent, JsonContent, Content, StreamedContent
 
 
 class ContentDispositionType(Enum):
@@ -114,9 +114,14 @@ def html(value: str, status: int = 200):
     return Response(status, None, Content(b'text/html; charset=utf-8', value.encode('utf8')))
 
 
-def json(data: Any, status: int = 200, dumps=json.dumps):
+def json(data: Any, status: int = 200, dumps=JSON.dumps):
     """Returns a response with application/json content, and given status (default HTTP 200 OK)."""
-    return Response(status, None, Content(b'application/json', dumps(data).encode('utf8')))
+    return Response(status, None, Content(b'application/json', dumps(data, separators=(',', ':')).encode('utf8')))
+
+
+def pretty_json(data: Any, status: int = 200, dumps=JSON.dumps, indent: int = 4):
+    """Returns a response with indented application/json content, and given status (default HTTP 200 OK)."""
+    return Response(status, None, Content(b'application/json', dumps(data, indent=indent).encode('utf8')))
 
 
 FileInput = Union[Callable, str, bytes, bytearray, BytesIO]

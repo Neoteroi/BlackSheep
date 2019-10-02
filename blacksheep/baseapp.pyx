@@ -20,7 +20,6 @@ cdef class BaseApplication:
 
     def __init__(self, bint show_error_details, object router):
         self.router = router
-        self.connections = []
         self.exceptions_handlers = self.init_exceptions_handlers()
         self.show_error_details = show_error_details
 

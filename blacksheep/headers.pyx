@@ -120,10 +120,6 @@ cdef class Headers:
                                      f'cannot add {str(value)} to {instance.__class__.__name__}')
             return instance
 
-        if isinstance(other, Header):
-            instance.add(other)
-            return instance
-
         return NotImplemented
 
     def __add__(self, other):

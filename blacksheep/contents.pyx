@@ -1,7 +1,6 @@
 cimport cython
 from .exceptions cimport MessageAborted
 
-import re
 import uuid
 import json
 from inspect import isasyncgenfunction
@@ -9,14 +8,7 @@ from collections.abc import MutableSequence
 from typing import Union, List, Optional, Callable, Any, Tuple, Dict
 from urllib.parse import parse_qsl
 from urllib.parse import quote_plus
-
-
-_charset_rx = re.compile(b'charset=\\s?([^;]+)')
-_boundary_rx = re.compile(b'boundary=(.+)$', re.I)
-_content_type_form_data_line_rx = re.compile(b'content-type:\\s?([^;]+)(?:(charset=\\s?([^;]+)))?', re.I)
-_content_disposition_header_type_rx = re.compile(b'^content-disposition:\\s([^;]+)', re.I)
-_content_disposition_header_name_rx = re.compile(b'\\sname="([^\\"]+)"', re.I)
-_content_disposition_header_filename_rx = re.compile(b'\\sfilename="([^\\"]+)"', re.I)
+from blacksheep.multipart import parse_multipart
 
 
 cdef class Content:
@@ -133,28 +125,6 @@ cpdef dict parse_www_form(str content):
     return parse_www_form_urlencoded(content)
 
 
-cpdef bytes extract_multipart_form_data_boundary(bytes content_type):
-    m = _boundary_rx.search(content_type)
-    if not m:
-        return None
-    return m.group(1)
-
-
-cpdef tuple parse_content_disposition_header(bytes header):
-    # content-disposition: form-data; name="file1"; filename="a.txt"
-    type_m = _content_disposition_header_type_rx.search(header)
-
-    if not type_m:
-        raise ValueError(f'Failed to parse content-disposition type: {header}')
-
-    name_m = _content_disposition_header_name_rx.search(header)
-    if not name_m:
-        raise ValueError(f'Given content-disposition header does not contain required field name: {header}')
-
-    file_name_m = _content_disposition_header_filename_rx.search(header)
-    return type_m.group(1), name_m.group(1), file_name_m.group(1) if file_name_m else None
-
-
 cpdef bytes remove_last_crlf(bytes data):
     if data[-2:] == b'\r\n':
         return data[:-2]
@@ -221,46 +191,6 @@ cdef dict multiparts_to_dictionary(list parts):
             data[key] = try_decode_utf8(part.data)
 
     return data
-
-
-cpdef list parse_multipart_form_data(bytes content):
-    cdef bytes part
-    cdef list result = []
-    cdef bytes default_charset = b'utf8'
-    cdef bytes boundary = ... # TODO!
-    cdef:
-        bytes charset
-        bytes content_type
-        bytes disposition_type
-        bytes name
-        bytes file_name
-
-    for part in content.split(boundary):
-        if part == b'' or part == b'--' or part == b'--\r' or part == b'--\r\n':
-            continue
-
-        parts = split_multipart_form_data_parts(part.lstrip(b'\r\n'))
-
-        charset = None
-        content_type = None
-        disposition_type, name, file_name = parse_content_disposition_header(parts[0])
-
-        if name == b'_charset_':
-            # https://tools.ietf.org/html/rfc7578#section-4.6
-            default_charset = parts[2]
-            continue
-
-        # NB: if a content-type is defined, the second line is populated, otherwise is an empty bytes b''
-        if parts[1]:
-            content_type_m = _content_type_form_data_line_rx.search(parts[1])
-            if content_type_m:
-                content_type = content_type_m.group(1)
-                charset = content_type_m.group(2)
-                if not charset and content_type == b'text/plain':
-                    charset = default_charset
-
-        result.append(FormPart(name, parts[2], content_type, file_name, charset))
-    return result
 
 
 cpdef void write_multipart_part(FormPart part, bytearray destination):

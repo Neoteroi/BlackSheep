@@ -1,11 +1,21 @@
-import pytest
 from typing import Tuple, Optional, Generator
 from blacksheep.contents import FormPart
-from .examples.multipart import FIELDS_THREE_VALUES, FIELDS_WITH_CARRIAGE_RETURNS, FIELDS_WITH_SMALL_PICTURE
 
 
 def get_boundary(value: bytes):
     return value[:value.index(b'\n')+1]
+
+
+def get_boundary_from_header(value: bytes):
+    return value.split(b'=', 1)[1].split(b' ', 1)[0]
+
+
+def _remove_last_crlf(value: bytes):
+    if value.endswith(b'\r\n'):
+        return value[:-2]
+    if value.endswith(b'\n'):
+        return value[:-1]
+    return value
 
 
 def split_multipart(value: bytes):
@@ -14,7 +24,7 @@ def split_multipart(value: bytes):
     boundary = value[:value.index(b'\n')].rstrip(b'\r')
 
     for part in value.split(boundary):
-        part = part.strip(b'\r\n')
+        part = _remove_last_crlf(part.lstrip(b'\r\n'))
         if part == b'' or part == b'--':
             continue
         yield part
@@ -40,7 +50,7 @@ def split_content_disposition_values(value: bytes) -> Tuple[bytes, Optional[byte
             name, value = part.split(b'=', 1)
             yield name.lower().strip(b' '), value.strip(b'" ')
         else:
-            yield 'type', part
+            yield b'type', part
 
 
 def parse_content_disposition_values(value: bytes):
@@ -70,14 +80,13 @@ def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
     field_name = content_disposition_values.get(b'name')
 
     if field_name == b'_charset_':
-        # TODO: set default charset!
+        # NB: handling charset...
+        # https://tools.ietf.org/html/rfc7578#section-4.6
         raise CharsetPart(data)
-    #
-    # NB: a charset is passed as a whole part!!
-    #
-    content_type = None
-    charset = None or default_charset ## TODO!
-    # TODO: use string for file name and name?
+
+    content_type = headers.get(b'content-type', None)  # TODO: b'text/plain' default to text plain?
+    charset = content_type or default_charset
+
     return FormPart(field_name,
                     data,
                     content_type,
@@ -85,10 +94,7 @@ def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
                     charset)
 
 
-def parse_multipart(value: bytes):
-
-    # NB: handling charset...
-    # https://tools.ietf.org/html/rfc7578#section-4.6
+def parse_multipart(value: bytes) -> Generator[FormPart, None, None]:
     default_charset = None
 
     for part_bytes in split_multipart(value):
@@ -97,34 +103,3 @@ def parse_multipart(value: bytes):
             yield parse_part(part_bytes, default_charset)
         except CharsetPart as charset:
             default_charset = charset.default_charset
-
-
-@pytest.mark.parametrize('value', [
-    FIELDS_THREE_VALUES,
-    FIELDS_WITH_CARRIAGE_RETURNS,
-    FIELDS_WITH_SMALL_PICTURE
-])
-def test_function(value):
-
-    for part in parse_multipart(value):
-        print(part)
-
-
-"""
-
-    # TODO: handle!!
-    if field_name == b'_charset_':
-        # https://tools.ietf.org/html/rfc7578#section-4.6
-        # default_charset = parts[2]
-        ...
-        
-       --AaB03x
-       content-disposition: form-data; name="_charset_"
-
-       iso-8859-1
-       --AaB03x--
-       content-disposition: form-data; name="field1"
-
-       ...text encoded in iso-8859-1 ...
-       AaB03x--
-"""

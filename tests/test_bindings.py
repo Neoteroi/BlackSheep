@@ -423,8 +423,6 @@ async def test_from_body_form_binding_multipart():
     ]))
 
     parameter = FromForm(ExampleOne)
-    x = await request.read()
-    data = await request.form()
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleOne)
@@ -446,6 +444,6 @@ async def test_from_body_form_binding_multipart_keys_duplicates():
 
     value = await parameter.get_value(request)
 
-    assert isinstance(value, ExampleOne)
+    assert isinstance(value, ExampleThree)
     assert value.a == 'world'
     assert value.b == ['one', 'two', 'three']

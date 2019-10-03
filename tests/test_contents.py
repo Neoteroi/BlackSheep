@@ -1,11 +1,9 @@
 import pytest
 from typing import List
 from blacksheep import StreamedContent
+from blacksheep.multipart import parse_multipart, parse_content_disposition_values, get_boundary_from_header
 from blacksheep.contents import (parse_www_form,
                                  write_www_form_urlencoded,
-                                 parse_multipart_form_data,
-                                 parse_content_disposition_header,
-                                 extract_multipart_form_data_boundary,
                                  FormPart,
                                  MultiPartFormData,
                                  TextContent,
@@ -133,12 +131,12 @@ async def test_multipart_form_data():
     assert whole == b'\r\n'.join(expected_result_lines)
 
 
-def test_parse_multipart_form_data_two_fields():
+def test_parse_multipart_two_fields():
     content = b'--------28cbeda4cdd04d1595b71933e31928cd\r\nContent-Disposition: form-data; name="a"\r\n\r\nworld\r\n' \
               b'--------28cbeda4cdd04d1595b71933e31928cd\r\nContent-Disposition: form-data; name="b"\r\n\r\n9000\r\n' \
               b'--------28cbeda4cdd04d1595b71933e31928cd--\r\n'
 
-    data = list(parse_multipart_form_data(content, b'--------28cbeda4cdd04d1595b71933e31928cd'))  # type: List[FormPart]
+    data = list(parse_multipart(content))  # type: List[FormPart]
 
     assert data is not None
     assert len(data) == 2
@@ -149,10 +147,10 @@ def test_parse_multipart_form_data_two_fields():
     assert data[1].data == b'9000'
 
 
-def test_parse_multipart_form_data():
+def test_parse_multipart():
     boundary = b'---------------------0000000000000000000000001'
 
-    content = b'\n'.join([
+    content = b'\r\n'.join([
         boundary,
         b'Content-Disposition: form-data; name="text1"',
         b'',
@@ -181,7 +179,7 @@ def test_parse_multipart_form_data():
         boundary + b'--'
     ])
 
-    data = list(parse_multipart_form_data(content, boundary))  # type: List[FormPart]
+    data = list(parse_multipart(content))  # type: List[FormPart]
 
     assert data is not None
     assert len(data) == 5
@@ -199,12 +197,12 @@ def test_parse_multipart_form_data():
     assert data[2].name == b'file1'
     assert data[2].file_name == b'a.txt'
     assert data[2].content_type == b'text/plain'
-    assert data[2].data == b'Content of a.txt.\n'
+    assert data[2].data == b'Content of a.txt.\r\n'
 
     assert data[3].name == b'file2'
     assert data[3].file_name == b'a.html'
     assert data[3].content_type == b'text/html'
-    assert data[3].data == b'<!DOCTYPE html><title>Content of a.html.</title>\n'
+    assert data[3].data == b'<!DOCTYPE html><title>Content of a.html.</title>\r\n'
 
     assert data[4].name == b'file3'
     assert data[4].file_name == b'binary'
@@ -214,24 +212,30 @@ def test_parse_multipart_form_data():
 
 @pytest.mark.parametrize('value, expected_result', [
     [
-        b'Content-Disposition: form-data; name="file2"; filename="a.html"',
-        (b'form-data', b'file2', b'a.html')
+        b'form-data; name="file2"; filename="a.html"',
+        {
+            b'type': b'form-data',
+            b'name': b'file2',
+            b'filename': b'a.html'
+        }
     ],
     [
-        b'Content-Disposition: form-data; name="example"',
-        (b'form-data', b'example', None)
+        b'form-data; name="example"',
+        {
+            b'type': b'form-data',
+            b'name': b'example'
+        }
     ],
     [
-        b'Content-Disposition: form-data; name="hello-world"',
-        (b'form-data', b'hello-world', None)
-    ],
-    [
-        b'Content-Disposition: form-data; name="hello-world";',
-        (b'form-data', b'hello-world', None)
+        b'form-data; name="hello-world"',
+        {
+            b'type': b'form-data',
+            b'name': b'hello-world'
+        }
     ]
 ])
 def test_parsing_content_disposition_header(value, expected_result):
-    parsed = parse_content_disposition_header(value)
+    parsed = parse_content_disposition_values(value)
     assert parsed == expected_result
 
 
@@ -246,7 +250,7 @@ def test_parsing_content_disposition_header(value, expected_result):
      b'-------------AAAA12345'),
 ])
 def test_extract_multipart_form_data_boundary(value, expected_result):
-    boundary = extract_multipart_form_data_boundary(value)
+    boundary = get_boundary_from_header(value)
     assert boundary == expected_result
 
 

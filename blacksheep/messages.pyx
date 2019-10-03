@@ -2,7 +2,7 @@ from .url cimport URL
 from .headers cimport Headers
 from .exceptions cimport BadRequestFormat, InvalidOperation, MessageAborted
 from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
-from .contents cimport Content, MultiPartFormData, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data, multiparts_to_dictionary
+from .contents cimport Content, MultiPartFormData, parse_www_form_urlencoded, multiparts_to_dictionary
 
 
 import re
@@ -14,6 +14,8 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
+# TODO: cythonize
+from blacksheep.multipart import parse_multipart
 
 
 _charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
@@ -170,7 +172,7 @@ cdef class Message:
 
         if b'multipart/form-data;' in content_type_value:
             body = await self.read()
-            return multiparts_to_dictionary(parse_multipart_form_data(body))
+            return multiparts_to_dictionary(list(parse_multipart(body)))
         return None
 
     async def multipart(self):
@@ -183,8 +185,7 @@ cdef class Message:
 
         if b'multipart/form-data;' in content_type_value:
             body = await self.read()
-            boundary = extract_multipart_form_data_boundary(content_type_value)
-            return parse_multipart_form_data(body, boundary)
+            return list(parse_multipart(body))
         return None
 
     cpdef bint declares_content_type(self, bytes type):

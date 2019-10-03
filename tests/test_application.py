@@ -145,12 +145,12 @@ async def test_application_post_multipart_formdata():
         assert data[2].name == b'file1'
         assert data[2].file_name == b'a.txt'
         assert data[2].content_type == b'text/plain'
-        assert data[2].data == b'Content of a.txt.\n'
+        assert data[2].data == b'Content of a.txt.\r\n'
 
         assert data[3].name == b'file2'
         assert data[3].file_name == b'a.html'
         assert data[3].content_type == b'text/html'
-        assert data[3].data == b'<!DOCTYPE html><title>Content of a.html.</title>\n'
+        assert data[3].data == b'<!DOCTYPE html><title>Content of a.html.</title>\r\n'
 
         assert data[4].name == b'file3'
         assert data[4].file_name == b'binary'
@@ -162,12 +162,12 @@ async def test_application_post_multipart_formdata():
         assert files[0].name == b'file1'
         assert files[0].file_name == b'a.txt'
         assert files[0].content_type == b'text/plain'
-        assert files[0].data == b'Content of a.txt.\n'
+        assert files[0].data == b'Content of a.txt.\r\n'
 
         assert files[1].name == b'file2'
         assert files[1].file_name == b'a.html'
         assert files[1].content_type == b'text/html'
-        assert files[1].data == b'<!DOCTYPE html><title>Content of a.html.</title>\n'
+        assert files[1].data == b'<!DOCTYPE html><title>Content of a.html.</title>\r\n'
 
         assert files[2].name == b'file3'
         assert files[2].file_name == b'binary'
@@ -181,7 +181,7 @@ async def test_application_post_multipart_formdata():
 
     boundary = b'---------------------0000000000000000000000001'
 
-    content = b'\n'.join([
+    content = b'\r\n'.join([
         boundary,
         b'Content-Disposition: form-data; name="text1"',
         b'',
@@ -225,8 +225,10 @@ async def test_application_post_multipart_formdata():
 
     response = app.response  # type: Response
 
+    data = await response.text()
+
     assert response is not None
-    assert response.status == 200
+    assert response.status == 200, data
 
 
 @pytest.mark.asyncio
@@ -455,7 +457,7 @@ async def test_application_post_multipart_formdata_files_handler():
             ]
 
     lines += [boundary + b'--']
-    content = b'\n'.join(lines)
+    content = b'\r\n'.join(lines)
 
     send = MockSend()
     receive = MockReceive([
@@ -471,7 +473,8 @@ async def test_application_post_multipart_formdata_files_handler():
               send)
 
     response = app.response  # type: Response
-    assert response.status == 200
+    body = await response.text()
+    assert response.status == 200, body
 
     # now files are in both folders: compare to ensure they are identical
     for file_name in file_names:

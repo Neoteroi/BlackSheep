@@ -125,46 +125,6 @@ cpdef dict parse_www_form(str content):
     return parse_www_form_urlencoded(content)
 
 
-cpdef bytes remove_last_crlf(bytes data):
-    if data[-2:] == b'\r\n':
-        return data[:-2]
-    if data[-1:] == b'\n':
-        return data[:-1]
-    return data
-
-
-cpdef bytes remove_first_crlf(bytes data):
-    if data[:2] == b'\r\n':
-        return data[2:]
-    if data[:1] == b'\n':
-        return data[1:]
-    return data
-
-
-cpdef bytes remove_extreme_crlf(bytes data):
-    return remove_last_crlf(remove_first_crlf(data))
-
-
-cpdef list split_multipart_form_data_parts(bytes data):
-    """
-    What is the purspose and objective of this function?
-    """
-    result = []
-    cdef int j = 0
-    cdef int k = 0
-    cdef char c
-
-    for i, c in enumerate(data):
-        if c == 10:  # \n
-            k += 1
-            if k == 3:
-                result.append(remove_extreme_crlf(data[j:]))
-                return result
-
-            result.append(data[j:i])
-            j = i+1
-
-
 cdef object try_decode_utf8(bytes value):
     try:
         return value.decode('utf8')
@@ -234,7 +194,6 @@ cdef class FormContent(Content):
         super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
 
 
-
 cdef class FormPart:
 
     def __init__(self,
@@ -248,6 +207,13 @@ cdef class FormPart:
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+
+    def __eq__(self, other):
+        if isinstance(other, FormPart):
+            return other.name == self.name and other.file_name == self.file_name and other.content_type == self.content_type and other.charset == self.charset and other.data == self.data
+        if other is None:
+            return False
+        return NotImplemented
 
     def __repr__(self):
         return f'<FormPart {self.name} - at {id(self)}>'

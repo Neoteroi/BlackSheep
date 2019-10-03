@@ -125,30 +125,35 @@ cpdef dict parse_www_form(str content):
     return parse_www_form_urlencoded(content)
 
 
-cdef object try_decode_utf8(bytes value):
+cdef object try_decode(bytes value, str encoding):
     try:
-        return value.decode('utf8')
+        return value.decode(encoding or 'utf8')
     except:
         return value
 
 
 cdef dict multiparts_to_dictionary(list parts):
     cdef str key
+    cdef str charset
     cdef data = {}
     cdef FormPart part
 
     for part in parts:
         key = part.name.decode('utf8')
+        if part.charset:
+            charset = part.charset.encode()
+        else:
+            charset = None
 
         # NB: we cannot assume that the value of a multipart form part can be decoded as UTF8;
         # here we try to decode it, just to be more consistent with values read from www-urlencoded form data
         if key in data:
             if isinstance(data[key], str):
-                data[key] = [data[key], try_decode_utf8(part.data)]
+                data[key] = [data[key], try_decode(part.data, charset)]
             else:
-                data[key].append(try_decode_utf8(part.data))
+                data[key].append(try_decode(part.data, charset))
         else:
-            data[key] = try_decode_utf8(part.data)
+            data[key] = try_decode(part.data, charset)
 
     return data
 

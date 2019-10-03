@@ -60,7 +60,7 @@ from .examples.multipart import FIELDS_THREE_VALUES, FIELDS_WITH_CARRIAGE_RETURN
                      b'\xaeB`\x82',
                      b'image/png',
                      b'example-001.png',
-                     b'image/png'),
+                     None),
             FormPart(b'description', b'Beee\r\n\r\nBeeeeee!'),
             FormPart(b'Submit', b'Submit')
         ]

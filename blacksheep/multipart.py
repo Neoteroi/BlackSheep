@@ -85,13 +85,12 @@ def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
         raise CharsetPart(data)
 
     content_type = headers.get(b'content-type', None)  # TODO: b'text/plain' default to text plain?
-    charset = content_type or default_charset
 
     return FormPart(field_name,
                     data,
                     content_type,
                     content_disposition_values.get(b'filename'),
-                    charset)
+                    default_charset)
 
 
 def parse_multipart(value: bytes) -> Generator[FormPart, None, None]:

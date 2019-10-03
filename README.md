@@ -94,7 +94,6 @@ async def only_for_authenticated_users():
 ```
 
 ## Objectives
-* Clean architecture and source code, following [SOLID principles](https://en.wikipedia.org/wiki/SOLID)
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
 * Rich code API, based on Dependency Injection and inspired by ASP.NET Core
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards
@@ -102,7 +101,6 @@ async def only_for_authenticated_users():
 * [High performance, see results from TechEmpower benchmarks (links in Wiki page)](https://github.com/RobertoPrevato/BlackSheep/wiki/Server-performance)
 
 ## Web framework features
-* [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
 * [Request handlers defined as functions, or class methods](https://github.com/RobertoPrevato/BlackSheep/wiki/Defining-request-handlers)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
@@ -111,11 +109,10 @@ async def only_for_authenticated_users():
 * [Strategy to handle exceptions](https://github.com/RobertoPrevato/BlackSheep/wiki/Exceptions-handling)
 * [Strategy to handle authentication and authorization](https://github.com/RobertoPrevato/BlackSheep/wiki/Authentication-and-authorization-strategies)
 * [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
-* Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
-
+* [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 
 ## Client features
 * [HTTP connection pooling](https://github.com/RobertoPrevato/BlackSheep/wiki/Connection-pooling)

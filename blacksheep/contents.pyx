@@ -6,7 +6,7 @@ import uuid
 import json
 from inspect import isasyncgenfunction
 from collections.abc import MutableSequence
-from typing import Union, List, Optional, Callable, Any
+from typing import Union, List, Optional, Callable, Any, Tuple, Dict
 from urllib.parse import parse_qsl
 from urllib.parse import quote_plus
 
@@ -120,9 +120,12 @@ cdef dict parse_www_form_urlencoded(str content):
     cdef dict data = {}
     for key, value in parse_qsl(content):
         if key in data:
-            data[key].append(value)
+            if isinstance(data[key], str):
+                data[key] = [data[key], value]
+            else:
+                data[key].append(value)
         else:
-            data[key] = [value]
+            data[key] = value
     return data
 
 
@@ -173,13 +176,16 @@ cpdef bytes remove_extreme_crlf(bytes data):
 
 
 cpdef list split_multipart_form_data_parts(bytes data):
+    """
+    What is the purspose and objective of this function?
+    """
     result = []
     cdef int j = 0
     cdef int k = 0
     cdef char c
 
     for i, c in enumerate(data):
-        if c == 10:
+        if c == 10:  # \n
             k += 1
             if k == 3:
                 result.append(remove_extreme_crlf(data[j:]))
@@ -189,10 +195,39 @@ cpdef list split_multipart_form_data_parts(bytes data):
             j = i+1
 
 
-cpdef list parse_multipart_form_data(bytes content, bytes boundary):
+cdef object try_decode_utf8(bytes value):
+    try:
+        return value.decode('utf8')
+    except:
+        return value
+
+
+cdef dict multiparts_to_dictionary(list parts):
+    cdef str key
+    cdef data = {}
+    cdef FormPart part
+
+    for part in parts:
+        key = part.name.decode('utf8')
+
+        # NB: we cannot assume that the value of a multipart form part can be decoded as UTF8;
+        # here we try to decode it, just to be more consistent with values read from www-urlencoded form data
+        if key in data:
+            if isinstance(data[key], str):
+                data[key] = [data[key], try_decode_utf8(part.data)]
+            else:
+                data[key].append(try_decode_utf8(part.data))
+        else:
+            data[key] = try_decode_utf8(part.data)
+
+    return data
+
+
+cpdef list parse_multipart_form_data(bytes content):
     cdef bytes part
     cdef list result = []
     cdef bytes default_charset = b'utf8'
+    cdef bytes boundary = ... # TODO!
     cdef:
         bytes charset
         bytes content_type
@@ -265,8 +300,9 @@ cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
 
 cdef class FormContent(Content):
 
-    def __init__(self, data: dict):
+    def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
         super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
+
 
 
 cdef class FormPart:

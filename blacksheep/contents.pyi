@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import AsyncGenerator, Any, Callable, Optional, List, Dict
+from typing import AsyncGenerator, Any, Callable, Optional, List, Dict, Union, Tuple
 
 
 class Content:
@@ -64,8 +64,14 @@ class JsonContent(Content):
 
 class FormContent(Content):
 
-    def __init__(self, data: dict):
-        super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
+    def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
+        """
+        Creates a new instance of content with application/x-www-form-urlencoded type,
+        and bytes data serialized from the given dictionary.
+
+        :param data: data to be serialized.
+        """
+        super().__init__(b'application/x-www-form-urlencoded', ...)
 
 
 class FormPart:
@@ -94,5 +100,17 @@ class MultiPartFormData(Content):
         super().__init__(b'multipart/form-data; boundary=' + self.boundary, ...)
 
 
-def parse_www_form(content: str) -> Dict[str, List[str]]:
+def parse_www_form(content: str) -> Dict[str, Union[str, List[str]]]:
     """Parses application/x-www-form-urlencoded content"""
+
+
+def write_www_form_urlencoded(data: Union[Dict[str, str], List[Tuple[str, str]]]) -> bytes: ...
+
+
+def extract_multipart_form_data_boundary(content_type: bytes) -> bytes: ...
+
+
+def parse_content_disposition_header(header: bytes) -> Tuple[bytes, bytes, Optional[bytes]]: ...
+
+
+def parse_multipart_form_data(data: bytes) -> List[FormPart]: ...

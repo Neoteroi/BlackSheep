@@ -78,11 +78,7 @@ class MissingConverterError(Exception):
 
 
 class FromBody(Binder):
-
     _excluded_methods = {'GET', 'HEAD', 'TRACE'}
-
-
-class FromJson(FromBody):
 
     def __init__(self,
                  expected_type: T,
@@ -96,17 +92,15 @@ class FromJson(FromBody):
 
         super().__init__(expected_type, required, converter)
 
-    def parse_value(self, data: dict) -> T:
-        try:
-            return self.converter(data)
-        except TypeError as te:
-            raise InvalidRequestBody(_generalize_init_type_error_message(te))
-        except ValueError as ve:
-            raise InvalidRequestBody(str(ve))
+    @abstractmethod
+    def matches_content_type(self, request: Request) -> bool: ...
+
+    @abstractmethod
+    async def read_data(self, request: Request) -> Any: ...
 
     async def get_value(self, request: Request) -> T:
-        if request.declares_json() and request.method not in self._excluded_methods:
-            data = await request.json()
+        if request.method not in self._excluded_methods and self.matches_content_type(request):
+            data = await self.read_data(request)
 
             if not data:
                 raise MissingBodyError()
@@ -117,9 +111,38 @@ class FromJson(FromBody):
             if not request.has_body():
                 raise MissingBodyError()
 
-            raise InvalidRequestBody('Expected JSON payload')
+            raise InvalidRequestBody(f'Expected payload {self.__class__.__name__}')
 
         return None
+
+    def parse_value(self, data: dict) -> T:
+        try:
+            return self.converter(data)
+        except TypeError as te:
+            raise InvalidRequestBody(_generalize_init_type_error_message(te))
+        except ValueError as ve:
+            raise InvalidRequestBody(str(ve))
+
+
+class FromJson(FromBody):
+    """Extracts a model from JSON content"""
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_json()
+
+    async def read_data(self, request: Request) -> Any:
+        return await request.json()
+
+
+class FromForm(FromBody):
+    """Extracts a model from form content, either application/x-www-form-urlencoded, or multipart/form-data"""
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_content_type(b'application/x-www-form-urlencoded') or \
+               request.declares_content_type(b'multipart/form-data')
+
+    async def read_data(self, request: Request) -> Any:
+        return await request.form()
 
 
 def _default_bool_converter(value: str):
@@ -131,7 +154,7 @@ def _default_bool_converter(value: str):
 
     # bad request: expected a bool value, but
     # got something different that is not handled
-    raise BadRequest()
+    raise BadRequest(f'Expected a bool value for a parameter, but got {value}.')
 
 
 def _default_bool_list_converter(values: Sequence[str]):

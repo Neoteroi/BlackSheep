@@ -128,7 +128,8 @@ async def test_application_post_multipart_formdata():
 
     @app.router.post(b'/files/upload')
     async def upload_files(request):
-        data = await request.form()
+        # TODO: add method to test .form() method
+        data = await request.multipart()
         assert data is not None
 
         assert data[0].name == b'text1'

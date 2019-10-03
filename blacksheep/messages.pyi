@@ -6,9 +6,6 @@ from .headers import HeaderType, Headers
 from .cookies import Cookie
 
 
-FormResultType = Optional[Union[List[FormPart], Dict[str, str]]]
-
-
 class Message:
 
     @property
@@ -40,7 +37,19 @@ class Message:
 
     async def text(self) -> str: ...
 
-    async def form(self) -> FormResultType: ...
+    async def form(self) -> Union[Dict[str, str], Dict[str, List[str]], None]:
+        """Returns values read either from multipart or www-form-urlencoded payload.
+
+        This function adopts some compromises to provide a consistent api, returning a dictionary of key: values.
+        If a key is unique, the value is a single string; if a key is duplicated (licit in both form types),
+        the value is a list of strings.
+
+        Multipart form parts values that can be decoded as UTF8 are decoded, otherwise kept as raw bytes.
+        In case of ambiguity, use the dedicated `multiparts()` method.
+        """
+
+    async def multipart(self) -> List[FormPart]:
+        """Returns parts read from multipart/form-data, if present, otherwise None"""
 
     def declares_content_type(self, type: bytes) -> bool: ...
 
@@ -74,6 +83,7 @@ class Request(Message):
         self.url = ... # type: URL
         self.headers = headers
         self.route_values: Optional[Dict[str, str]] = ...
+        self.content: Optional[Content] = ...
 
     @classmethod
     def incoming(cls, method: str, path: bytes, query: bytes, headers: List[HeaderType]) -> Request: ...

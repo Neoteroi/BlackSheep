@@ -1,6 +1,6 @@
 import pytest
 from typing import List
-from blacksheep import Content, StreamedContent
+from blacksheep import StreamedContent
 from blacksheep.contents import (parse_www_form,
                                  write_www_form_urlencoded,
                                  parse_multipart_form_data,
@@ -45,16 +45,16 @@ async def test_chunked_encoding_with_generated_content():
     [
         'Name=Gareth+Wylie&Age=24&Formula=a+%2B+b+%3D%3D+13%25%21',
         {
-            'Name': ['Gareth Wylie'],
-            'Age': ['24'],
-            'Formula': ['a + b == 13%!']
+            'Name': 'Gareth Wylie',
+            'Age': '24',
+            'Formula': 'a + b == 13%!'
         }
     ],
     [
         'a=12&b=24&a=33',
         {
             'a': ['12', '33'],
-            'b': ['24']
+            'b': '24'
         }
     ],
 ])
@@ -131,6 +131,22 @@ async def test_multipart_form_data():
     ]
 
     assert whole == b'\r\n'.join(expected_result_lines)
+
+
+def test_parse_multipart_form_data_two_fields():
+    content = b'--------28cbeda4cdd04d1595b71933e31928cd\r\nContent-Disposition: form-data; name="a"\r\n\r\nworld\r\n' \
+              b'--------28cbeda4cdd04d1595b71933e31928cd\r\nContent-Disposition: form-data; name="b"\r\n\r\n9000\r\n' \
+              b'--------28cbeda4cdd04d1595b71933e31928cd--\r\n'
+
+    data = list(parse_multipart_form_data(content, b'--------28cbeda4cdd04d1595b71933e31928cd'))  # type: List[FormPart]
+
+    assert data is not None
+    assert len(data) == 2
+
+    assert data[0].name == b'a'
+    assert data[0].data == b'world'
+    assert data[1].name == b'b'
+    assert data[1].data == b'9000'
 
 
 def test_parse_multipart_form_data():

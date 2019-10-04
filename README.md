@@ -1,7 +1,7 @@
 [![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7) [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
 
 # BlackSheep
-Fast web framework and HTTP client for Python asyncio, using [Cython](https://cython.org). BlackSheep web framework is [ASGI](https://asgi.readthedocs.io/en/latest/) compatible, and requires an ASGI HTTP Server.
+Fast web framework and HTTP client for Python asyncio, using [Cython](https://cython.org).
 
 <p align="left">
   <a href="#blacksheep"><img width="320" height="271" src="https://labeuwstacc.blob.core.windows.net/github/blacksheep.png" alt="Black Sheep"></a>
@@ -45,6 +45,12 @@ $ uvicorn server:app
 
 To run for production, refer to the documentation of the chosen ASGI server (i.e. for [uvicorn](https://www.uvicorn.org/#running-with-gunicorn)).
 
+## Getting started
+Get started with the [project templates in GitHub](https://github.com/RobertoPrevato/BlackSheep/wiki/Project-templates).
+
+* [BlackSheepMVC](https://github.com/RobertoPrevato/BlackSheepMVC)
+* [BlackSheepPlain](https://github.com/RobertoPrevato/BlackSheepPlain)
+
 ## Automatic bindings and dependency injection
 BlackSheep supports automatic binding of values for request handlers, by type annotation or by conventions. See [more here](https://github.com/RobertoPrevato/BlackSheep/wiki/Model-binding).
 ```python
@@ -60,7 +66,7 @@ async def example(a: FromQuery(List[str]),
                   c: FromJson(Cat),
                   d: FromRoute(),
                   e: FromHeader(name='X-Example')):
-    pass
+    ...
 
 
 @app.router.get(b'/:culture_code/:area')
@@ -84,13 +90,13 @@ app.use_authorization()\
 @auth('admin')
 @app.router.get(b'/')
 async def only_for_admins():
-    return None
+    ...
 
 
 @auth()
 @app.router.get(b'/')
 async def only_for_authenticated_users():
-    return None
+    ...
 ```
 
 ## Objectives
@@ -101,6 +107,7 @@ async def only_for_authenticated_users():
 * [High performance, see results from TechEmpower benchmarks (links in Wiki page)](https://github.com/RobertoPrevato/BlackSheep/wiki/Server-performance)
 
 ## Web framework features
+* [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
 * [Request handlers defined as functions, or class methods](https://github.com/RobertoPrevato/BlackSheep/wiki/Defining-request-handlers)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
@@ -112,7 +119,6 @@ async def only_for_authenticated_users():
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
-* [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 
 ## Client features
 * [HTTP connection pooling](https://github.com/RobertoPrevato/BlackSheep/wiki/Connection-pooling)

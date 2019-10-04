@@ -4,6 +4,7 @@ from .url import URL
 from .contents import Content, FormPart
 from .headers import HeaderType, Headers
 from .cookies import Cookie
+from guardpost.authentication import Identity, User
 
 
 class Message:
@@ -84,6 +85,7 @@ class Request(Message):
         self.headers = headers
         self.route_values: Optional[Dict[str, str]] = ...
         self.content: Optional[Content] = ...
+        self.identity: Union[None, Identity, User] = ...
 
     @classmethod
     def incoming(cls, method: str, path: bytes, query: bytes, headers: List[HeaderType]) -> Request: ...

@@ -3,7 +3,7 @@ from typing import Optional
 from functools import wraps
 from blacksheep import Request
 from blacksheep.server.responses import text
-from blacksheep.server.controllers import Controller, Router
+from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.routing import RouteDuplicate
 from guardpost.authentication import User
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
@@ -24,7 +24,7 @@ def example():
 @pytest.mark.asyncio
 async def test_handler_through_controller():
     app = FakeApplication()
-    app.controllers_router = Router()
+    app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
     # noinspection PyUnusedLocal
@@ -60,7 +60,7 @@ async def test_handler_through_controller():
 @pytest.mark.asyncio
 async def test_controller_supports_on_request():
     app = FakeApplication()
-    app.controllers_router = Router()
+    app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
     k = 0
@@ -104,7 +104,7 @@ async def test_controller_supports_on_request():
 @pytest.mark.asyncio
 async def test_handler_through_controller_supports_generic_decorator():
     app = FakeApplication()
-    app.controllers_router = Router()
+    app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
     # noinspection PyUnusedLocal
@@ -133,7 +133,7 @@ async def test_handler_through_controller_supports_generic_decorator():
 ])
 async def test_controller_with_dependency(value):
     app = FakeApplication()
-    app.controllers_router = Router()
+    app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
     class Settings:
@@ -171,7 +171,7 @@ async def test_controller_with_dependency(value):
 ])
 async def test_many_controllers(value):
     app = FakeApplication()
-    app.controllers_router = Router()
+    app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
     class Settings:
@@ -212,22 +212,20 @@ async def test_many_controllers(value):
 @pytest.mark.asyncio
 async def test_controllers_with_duplicate_routes_throw():
     app = FakeApplication()
-    app.controllers_router = Router()
+    app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
     # noinspection PyUnusedLocal
     class A(Controller):
 
         @get('/')
-        async def index(self, request: Request):
-            ...
+        async def index(self, request: Request): ...
 
     # noinspection PyUnusedLocal
     class B(Controller):
 
         @get('/')
-        async def index(self, request: Request):
-            ...
+        async def index(self, request: Request): ...
 
     with pytest.raises(RouteDuplicate):
         app.use_controllers()
@@ -236,7 +234,7 @@ async def test_controllers_with_duplicate_routes_throw():
 @pytest.mark.asyncio
 async def test_controller_on_request_setting_identity():
     app = FakeApplication()
-    app.controllers_router = Router()
+    app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
     # noinspection PyUnusedLocal
@@ -257,3 +255,37 @@ async def test_controller_on_request_setting_identity():
     body = await app.response.text()
     assert body == 'Charlie Brown'
     assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_controller_with_base_route():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Home(Controller):
+        
+        route = '/home'
+
+        def greet(self):
+            return 'Hello World'
+
+        @get('/')
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return text(self.greet())
+
+    app.setup_controllers()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
+    assert app.response.status == 404
+
+    await app(get_example_scope('GET', '/home'), MockReceive(), MockSend())
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == 'Hello World'
+
+    await app(get_example_scope('GET', '/home/'), MockReceive(), MockSend())
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == 'Hello World'

@@ -1,12 +1,12 @@
 import re
+from abc import abstractmethod
 from functools import lru_cache
 from blacksheep import HttpMethod
 from collections import defaultdict
 from urllib.parse import unquote
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, List
 
-
-__all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate']
+__all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate', 'RegisteredRoute', 'RoutesRegistry']
 
 
 _route_all_rx = re.compile(b'\\*')
@@ -36,11 +36,12 @@ def _get_regex_for_pattern(pattern):
 
         param_names.append(param_name)
 
-    return re.compile(b'^' + pattern + b'$', re.IGNORECASE), param_names
+    # NB: the /? at the end, ensures that a route is matched both with a trailing slash or not
+    return re.compile(b'^' + pattern + b'/?$', re.IGNORECASE), param_names
 
 
 class RouteException(Exception):
-    pass
+    ...
 
 
 class RouteDuplicate(RouteException):
@@ -77,6 +78,8 @@ class Route:
             pattern = pattern.encode('utf8')
         if pattern == b'':
             pattern = b'/'
+        if len(pattern) > 1 and pattern.endswith(b'/'):
+            pattern = pattern.rstrip(b'/')
         pattern = pattern.lower()
         self.handler = handler
         self.pattern = pattern
@@ -100,66 +103,14 @@ class Route:
         return f'<Route {self.pattern}>'
 
 
-class Router:
+class RouterBase:
 
-    __slots__ = ('routes',
-                 '_map',
-                 '_fallback')
-
-    def __init__(self):
-        self.routes = defaultdict(list)
-        self._map = {}
-        self._fallback = None
-
-    @property
-    def fallback(self):
-        return self._fallback
-
-    @fallback.setter
-    def fallback(self, value):
-        if not isinstance(value, Route):
-            if callable(value):
-                self._fallback = Route(b'*', value)
-                return
-            raise ValueError('fallback must be a Route')
-        self._fallback = value
-
-    def __iter__(self):
-        for key, routes in self.routes.items():
-            for route in routes:
-                yield route
-        if self._fallback:
-            yield self._fallback
-
-    def _is_route_configured(self, method: bytes, pattern: bytes):
-        method_patterns = self._map.get(method)
-        if not method_patterns:
-            return False
-        if method_patterns.get(pattern):
-            return True
-        return False
-
-    def _set_configured_route(self, method: bytes, pattern: bytes):
-        method_patterns = self._map.get(method)
-        if not method_patterns:
-            self._map[method] = {pattern: True}
-        else:
-            method_patterns[pattern] = True
-
-    def add(self, method, pattern, handler):
+    def mark_handler(self, handler: Callable):
         setattr(handler, 'route_handler', True)
-        if isinstance(method, bytes):
-            method = method.decode()
-        new_route = Route(pattern, handler)
-        if self._is_route_configured(method, new_route.pattern):
-            current_match = self.get_match(method, pattern)
-            raise RouteDuplicate(method, new_route.pattern, current_match.handler)
-        else:
-            self._set_configured_route(method, pattern)
-        self.add_route(method, new_route)
 
-    def add_route(self, method, route):
-        self.routes[method].append(route)
+    @abstractmethod
+    def add(self, method: str, pattern: bytes, handler: Callable):
+        ...
 
     def add_head(self, pattern, handler):
         self.add(HttpMethod.HEAD, pattern, handler)
@@ -245,6 +196,68 @@ class Router:
             return f
         return decorator
 
+
+class Router(RouterBase):
+
+    __slots__ = ('routes',
+                 '_map',
+                 '_fallback')
+
+    def __init__(self):
+        self.routes = defaultdict(list)
+        self._map = {}
+        self._fallback = None
+
+    @property
+    def fallback(self):
+        return self._fallback
+
+    @fallback.setter
+    def fallback(self, value):
+        if not isinstance(value, Route):
+            if callable(value):
+                self._fallback = Route(b'*', value)
+                return
+            raise ValueError('fallback must be a Route')
+        self._fallback = value
+
+    def __iter__(self):
+        for key, routes in self.routes.items():
+            for route in routes:
+                yield route
+        if self._fallback:
+            yield self._fallback
+
+    def _is_route_configured(self, method: str, pattern: bytes):
+        method_patterns = self._map.get(method)
+        if not method_patterns:
+            return False
+        if method_patterns.get(pattern):
+            return True
+        return False
+
+    def _set_configured_route(self, method: str, pattern: bytes):
+        method_patterns = self._map.get(method)
+        if not method_patterns:
+            self._map[method] = {pattern: True}
+        else:
+            method_patterns[pattern] = True
+
+    def add(self, method: str, pattern, handler):
+        self.mark_handler(handler)
+        if isinstance(method, bytes):
+            method = method.decode()
+        new_route = Route(pattern, handler)
+        if self._is_route_configured(method, new_route.pattern):
+            current_match = self.get_match(method, pattern)
+            raise RouteDuplicate(method, new_route.pattern, current_match.handler)
+        else:
+            self._set_configured_route(method, pattern)
+        self.add_route(method, new_route)
+
+    def add_route(self, method, route):
+        self.routes[method].append(route)
+
     @lru_cache(maxsize=1200)
     def get_match(self, method, value):
         if isinstance(method, bytes):
@@ -255,3 +268,37 @@ class Router:
                 return match
         return RouteMatch(self._fallback, None) if self.fallback else None
 
+
+class RegisteredRoute:
+
+    __slots__ = ('method', 'pattern', 'handler')
+
+    def __init__(self, method: str, pattern: bytes, handler: Callable):
+        self.method = method
+        self.pattern = pattern
+        self.handler = handler
+
+    def __repr__(self):
+        try:
+            return f'<{self.__class__.__name__} {self.method} {self.pattern.decode()} {self.handler.__name__}>'
+        except AttributeError:
+            return f'<{self.__class__.__name__} at {id(self)}>'
+
+
+class RoutesRegistry(RouterBase):
+    """A registry for routes: not a full router able to get matches.
+    Unlike a router, a registry does not throw for duplicated routes; because such routes can be modified
+    when applied to an actual router.
+
+    This class is meant to enable scenarios like base pattern for controllers.
+    """
+
+    def __init__(self):
+        self.routes = []  # type: List[RegisteredRoute]
+
+    def __iter__(self):
+        yield from self.routes
+
+    def add(self, method: str, pattern: bytes, handler: Callable):
+        self.mark_handler(handler)
+        self.routes.append(RegisteredRoute(method, pattern, handler))

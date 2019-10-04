@@ -1,10 +1,10 @@
 from blacksheep import Request
-from blacksheep.server.routing import Router
+from blacksheep.server.routing import RoutesRegistry
 
 
 # singleton router used to store initial configuration, before the application starts
 # this is used as *default* router for controllers, but it can be overridden - see for example tests in test_controllers
-router = Router()
+router = RoutesRegistry()
 
 
 head = router.head

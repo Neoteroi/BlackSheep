@@ -30,6 +30,7 @@ NON_MATCHING_ROUTE = [
     ('delete', b'/', b'/a'),
 ]
 
+
 def mock_handler():
     return None
 

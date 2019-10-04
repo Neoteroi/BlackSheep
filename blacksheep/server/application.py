@@ -2,7 +2,8 @@ import os
 import logging
 import inspect
 from typing import Optional, List, Callable, Union, Type
-from blacksheep.server.routing import Router
+from blacksheep.utils import join_fragments, ensure_bytes
+from blacksheep.server.routing import Router, RoutesRegistry, RegisteredRoute
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.resources import get_resource_file_content
@@ -136,7 +137,7 @@ class Application(BaseApplication):
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
         self.started = False
-        self.controllers_router = controllers_router  # type: Router
+        self.controllers_router = controllers_router  # type: RoutesRegistry
 
     def use_authentication(self, strategy: Optional[AuthenticationStrategy] = None) -> AuthenticationStrategy:
         if self.running:
@@ -217,15 +218,21 @@ class Application(BaseApplication):
         # as long as `functools.wraps` decorator is used in those decorators.
         self.register_controllers(self.prepare_controllers())
 
+    def get_controller_handler_pattern(self, controller_type: Type, route: RegisteredRoute) -> bytes:
+        base_route = getattr(controller_type, 'route', None)
+
+        if base_route:
+            return ensure_bytes(join_fragments(base_route, route.pattern))
+        return route.pattern
+
     def prepare_controllers(self) -> List[Type]:
         controller_types = []
-        for method, routes in self.controllers_router.routes.items():
-            for route in routes:
-                handler = route.handler
-                controller_type = getattr(handler, 'controller_type')
-                controller_types.append(controller_type)
-                handler.__annotations__['self'] = ControllerBinder(controller_type)
-                self.router.add(method, route.pattern, handler)
+        for route in self.controllers_router:
+            handler = route.handler
+            controller_type = getattr(handler, 'controller_type')
+            controller_types.append(controller_type)
+            handler.__annotations__['self'] = ControllerBinder(controller_type)
+            self.router.add(route.method, self.get_controller_handler_pattern(controller_type, route), handler)
         return controller_types
 
     def register_controllers(self, controller_types: List[Type]):

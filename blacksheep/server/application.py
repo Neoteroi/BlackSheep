@@ -219,10 +219,20 @@ class Application(BaseApplication):
         self.register_controllers(self.prepare_controllers())
 
     def get_controller_handler_pattern(self, controller_type: Type, route: RegisteredRoute) -> bytes:
+        """Returns the full pattern to be used for a route handler, defined as controller method."""
         base_route = getattr(controller_type, 'route', None)
 
         if base_route:
-            return ensure_bytes(join_fragments(base_route, route.pattern))
+            if callable(base_route):
+                value = base_route()
+            elif isinstance(base_route, (str, bytes)):
+                value = base_route
+            else:
+                raise RuntimeError(f'Invalid controller `route` attribute. Controller `{controller_type.__name__}` '
+                                   f'has an invalid route attribute: it should be callable, or str, or bytes.')
+
+            if value:
+                return ensure_bytes(join_fragments(value, route.pattern))
         return route.pattern
 
     def prepare_controllers(self) -> List[Type]:

@@ -4,7 +4,8 @@ from functools import lru_cache
 from blacksheep import HttpMethod
 from collections import defaultdict
 from urllib.parse import unquote
-from typing import Callable, Dict, Optional, List
+from typing import Callable, Dict, Optional, List, Any
+from blacksheep.utils import ensure_bytes, ensure_str, BytesOrStr
 
 __all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate', 'RegisteredRoute', 'RoutesRegistry']
 
@@ -36,8 +37,10 @@ def _get_regex_for_pattern(pattern):
 
         param_names.append(param_name)
 
-    # NB: the /? at the end, ensures that a route is matched both with a trailing slash or not
-    return re.compile(b'^' + pattern + b'/?$', re.IGNORECASE), param_names
+    if len(pattern) > 1 and not pattern.endswith(b'*'):
+        # NB: the /? at the end, ensures that a route is matched both with a trailing slash or not
+        pattern = pattern + b'/?'
+    return re.compile(b'^' + pattern + b'$', re.IGNORECASE), param_names
 
 
 class RouteException(Exception):
@@ -47,8 +50,13 @@ class RouteException(Exception):
 class RouteDuplicate(RouteException):
 
     def __init__(self, method, pattern, current_handler):
+        method = ensure_str(method)
+        pattern = ensure_str(pattern)
         super().__init__(f'Cannot register route pattern `{pattern}` for `{method}` more than once. '
-                         f'This pattern is already registered for handler {current_handler.__name__}.')
+                         f'This pattern is already registered for handler {current_handler.__qualname__}.')
+        self.method = method
+        self.pattern = pattern
+        self.current_handler = current_handler
 
 
 class RouteMatch:
@@ -73,7 +81,7 @@ class Route:
                  'param_names',
                  '_rx')
 
-    def __init__(self, pattern: bytes, handler: Callable):
+    def __init__(self, pattern: bytes, handler: Any):
         if isinstance(pattern, str):
             pattern = pattern.encode('utf8')
         if pattern == b'':
@@ -87,6 +95,10 @@ class Route:
         rx, param_names = _get_regex_for_pattern(pattern)
         self._rx = rx
         self.param_names = [name.decode('utf8') for name in param_names]
+
+    @property
+    def full_pattern(self) -> bytes:
+        return self._rx.pattern
 
     def match(self, value: bytes):
         if not self.has_params and value.lower() == self.pattern:
@@ -109,7 +121,7 @@ class RouterBase:
         setattr(handler, 'route_handler', True)
 
     @abstractmethod
-    def add(self, method: str, pattern: bytes, handler: Callable):
+    def add(self, method: str, pattern: BytesOrStr, handler: Callable):
         ...
 
     def add_head(self, pattern, handler):
@@ -142,55 +154,55 @@ class RouterBase:
     def add_any(self, pattern, handler):
         self.add('*', pattern, handler)
 
-    def head(self, pattern):
+    def head(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.HEAD, pattern, f)
             return f
         return decorator
 
-    def get(self, pattern):
+    def get(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.GET, pattern, f)
             return f
         return decorator
 
-    def post(self, pattern):
+    def post(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.POST, pattern, f)
             return f
         return decorator
 
-    def put(self, pattern):
+    def put(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.PUT, pattern, f)
             return f
         return decorator
 
-    def delete(self, pattern):
+    def delete(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.DELETE, pattern, f)
             return f
         return decorator
 
-    def trace(self, pattern):
+    def trace(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.TRACE, pattern, f)
             return f
         return decorator
 
-    def options(self, pattern):
+    def options(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.OPTIONS, pattern, f)
             return f
         return decorator
 
-    def connect(self, pattern):
+    def connect(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.CONNECT, pattern, f)
             return f
         return decorator
 
-    def patch(self, pattern):
+    def patch(self, pattern='/'):
         def decorator(f):
             self.add(HttpMethod.PATCH, pattern, f)
             return f
@@ -204,9 +216,9 @@ class Router(RouterBase):
                  '_fallback')
 
     def __init__(self):
-        self.routes = defaultdict(list)
         self._map = {}
         self._fallback = None
+        self.routes = defaultdict(list)
 
     @property
     def fallback(self):
@@ -228,40 +240,43 @@ class Router(RouterBase):
         if self._fallback:
             yield self._fallback
 
-    def _is_route_configured(self, method: str, pattern: bytes):
+    def _is_route_configured(self, method: bytes, route: Route):
         method_patterns = self._map.get(method)
         if not method_patterns:
             return False
-        if method_patterns.get(pattern):
+        if method_patterns.get(route.full_pattern):
             return True
         return False
 
-    def _set_configured_route(self, method: str, pattern: bytes):
+    def _set_configured_route(self, method: bytes, route: Route):
         method_patterns = self._map.get(method)
         if not method_patterns:
-            self._map[method] = {pattern: True}
+            self._map[method] = {route.full_pattern: route}
         else:
-            method_patterns[pattern] = True
+            method_patterns[route.full_pattern] = route
 
-    def add(self, method: str, pattern, handler):
+    def _check_duplicate(self, method: bytes, new_route: Route):
+        if self._is_route_configured(method, new_route):
+            current_route = self._map.get(method).get(new_route.full_pattern)
+            raise RouteDuplicate(method, new_route.pattern, current_route.handler)
+        self._set_configured_route(method, new_route)
+
+    def add(self, method: str, pattern: BytesOrStr, handler: Any):
         self.mark_handler(handler)
-        if isinstance(method, bytes):
-            method = method.decode()
+        method = ensure_bytes(method)
+        pattern = ensure_bytes(pattern)
         new_route = Route(pattern, handler)
-        if self._is_route_configured(method, new_route.pattern):
-            current_match = self.get_match(method, pattern)
-            raise RouteDuplicate(method, new_route.pattern, current_match.handler)
-        else:
-            self._set_configured_route(method, pattern)
+        self._check_duplicate(method, new_route)
         self.add_route(method, new_route)
 
-    def add_route(self, method, route):
-        self.routes[method].append(route)
+    def add_route(self, method: BytesOrStr, route: Route):
+        self.routes[ensure_bytes(method)].append(route)
 
     @lru_cache(maxsize=1200)
     def get_match(self, method, value):
-        if isinstance(method, bytes):
-            method = method.decode()
+        method = ensure_bytes(method)
+        value = ensure_bytes(value)
+
         for route in self.routes[method]:
             match = route.match(value)
             if match:
@@ -299,6 +314,6 @@ class RoutesRegistry(RouterBase):
     def __iter__(self):
         yield from self.routes
 
-    def add(self, method: str, pattern: bytes, handler: Callable):
+    def add(self, method: str, pattern: BytesOrStr, handler: Callable):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))

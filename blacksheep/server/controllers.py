@@ -1,5 +1,6 @@
 from blacksheep import Request
 from blacksheep.server.routing import RoutesRegistry
+from typing import Optional
 
 
 # singleton router used to store initial configuration, before the application starts
@@ -29,7 +30,15 @@ class ControllerMeta(type):
 
 
 class Controller(metaclass=ControllerMeta):
-    """Base class for all controller"""
+    """Base class for all controllers."""
+
+    @classmethod
+    def route(cls) -> Optional[str]:
+        """
+        The base route to be used by all request handlers defined on a controller type.
+        Override this class method in subclasses, to implement base routes.
+        """
+        return None
 
     async def on_request(self, request: Request):
         """Extensibility point: controllers support executing a function at each web request.
@@ -39,4 +48,5 @@ class Controller(metaclass=ControllerMeta):
         Since controllers support dependency injection, it is possible to apply logic using dependent services,
         specified in the __init__ constructor.
         """
+
 

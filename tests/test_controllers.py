@@ -5,6 +5,7 @@ from blacksheep import Request
 from blacksheep.server.responses import text
 from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.routing import RouteDuplicate
+from blacksheep.utils import ensure_str
 from guardpost.authentication import User
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
@@ -210,7 +211,20 @@ async def test_many_controllers(value):
 
 
 @pytest.mark.asyncio
-async def test_controllers_with_duplicate_routes_throw():
+@pytest.mark.parametrize('first_pattern,second_pattern', [
+    ('/', '/'),
+    (b'/', b'/'),
+    (b'/', '/'),
+    ('/', b'/'),
+    ('/home', '/home/'),
+    (b'/home', b'/home/'),
+    ('/home', '/home//'),
+    (b'/home', b'/home//'),
+    ('/hello/world', '/hello/world/'),
+    (b'/hello/world', b'/hello/world//'),
+    ('/a/b', '/a/b')
+])
+async def test_controllers_with_duplicate_routes_throw(first_pattern, second_pattern):
     app = FakeApplication()
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -218,17 +232,22 @@ async def test_controllers_with_duplicate_routes_throw():
     # noinspection PyUnusedLocal
     class A(Controller):
 
-        @get('/')
+        @get(first_pattern)
         async def index(self, request: Request): ...
 
     # noinspection PyUnusedLocal
     class B(Controller):
 
-        @get('/')
+        @get(second_pattern)
         async def index(self, request: Request): ...
 
-    with pytest.raises(RouteDuplicate):
+    with pytest.raises(RouteDuplicate) as context:
         app.use_controllers()
+
+    error = context.value
+    assert 'Cannot register route pattern `' + ensure_str(first_pattern) + '` for `GET` more than once.' in str(error)
+    assert 'This pattern is already registered for handler ' \
+           'test_controllers_with_duplicate_routes_throw.<locals>.A.index.' in str(error)
 
 
 @pytest.mark.asyncio
@@ -258,7 +277,7 @@ async def test_controller_on_request_setting_identity():
 
 
 @pytest.mark.asyncio
-async def test_controller_with_base_route():
+async def test_controller_with_base_route_as_string_attribute():
     app = FakeApplication()
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -271,7 +290,7 @@ async def test_controller_with_base_route():
         def greet(self):
             return 'Hello World'
 
-        @get('/')
+        @get()
         async def index(self, request: Request):
             assert isinstance(self, Home)
             return text(self.greet())
@@ -289,3 +308,148 @@ async def test_controller_with_base_route():
     assert app.response.status == 200
     body = await app.response.text()
     assert body == 'Hello World'
+
+
+@pytest.mark.asyncio
+async def test_controller_with_base_route_as_class_method():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Api(Controller):
+
+        @classmethod
+        def route(cls):
+            return cls.__name__.lower()
+
+    # noinspection PyUnusedLocal
+    class Home(Api):
+
+        def greet(self):
+            return 'Hello World'
+
+        @get()
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return text(self.greet())
+
+    # noinspection PyUnusedLocal
+    class Health(Api):
+
+        @get()
+        def alive(self):
+            return text('Good')
+
+    app.setup_controllers()
+    await app(get_example_scope('GET', '/home'), MockReceive(), MockSend())
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == 'Hello World'
+
+    for value in {'/Health', '/health'}:
+        await app(get_example_scope('GET', value), MockReceive(), MockSend())
+        assert app.response.status == 200
+        body = await app.response.text()
+        assert body == 'Good'
+
+
+@pytest.mark.asyncio
+async def test_controller_with_base_route_as_class_method_fragments():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Api(Controller):
+
+        @classmethod
+        def route(cls):
+            return '/api/' + cls.__name__.lower()
+
+    # noinspection PyUnusedLocal
+    class Home(Api):
+
+        def greet(self):
+            return 'Hello World'
+
+        @get()
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return text(self.greet())
+
+    # noinspection PyUnusedLocal
+    class Health(Api):
+
+        @get()
+        def alive(self):
+            return text('Good')
+
+    app.setup_controllers()
+    await app(get_example_scope('GET', '/api/home'), MockReceive(), MockSend())
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == 'Hello World'
+
+    for value in {'/api/Health', '/api/health'}:
+        await app(get_example_scope('GET', value), MockReceive(), MockSend())
+        assert app.response.status == 200
+        body = await app.response.text()
+        assert body == 'Good'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('first_pattern,second_pattern', [
+    ('/', '/home'),
+    (b'/', b'/home'),
+])
+async def test_controllers_with_duplicate_routes_with_base_route_throw(first_pattern, second_pattern):
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # NB: this test creates ambiguity between the full route of a controller handler,
+    # and another handler
+
+    # noinspection PyUnusedLocal
+    class A(Controller):
+
+        route = 'home'
+
+        @get(first_pattern)
+        async def index(self, request: Request): ...
+
+    # noinspection PyUnusedLocal
+    class B(Controller):
+
+        @get(second_pattern)
+        async def index(self, request: Request): ...
+
+    with pytest.raises(RouteDuplicate):
+        app.use_controllers()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('first_pattern,second_pattern', [
+    ('/', '/home'),
+    (b'/', b'/home'),
+])
+async def test_controller_with_duplicate_route_with_base_route_throw(first_pattern, second_pattern):
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # NB: this test creates ambiguity between the full route of a controller handler,
+    # and another handler
+
+    # noinspection PyUnusedLocal
+    class A(Controller):
+
+        route = 'home'
+
+        @get(first_pattern)
+        async def index(self, request: Request): ...
+
+    @app.route(second_pattern)
+    async def home(): ...
+
+    with pytest.raises(RouteDuplicate):
+        app.use_controllers()

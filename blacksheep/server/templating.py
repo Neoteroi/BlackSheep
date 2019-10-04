@@ -1,3 +1,4 @@
+from rodi import Container, Services
 from functools import lru_cache
 from blacksheep.server import Application
 from blacksheep import Response, Content
@@ -26,7 +27,7 @@ async def render_template_async(template: Template, *args, **kwargs):
 
 
 def use_templates(app: Application, loader: PackageLoader, enable_async: bool = False):
-    env = app.services['jinja_environment']
+    env = getattr(app, 'jinja_environment', None)
     if not env:
         env = Environment(
             loader=loader,
@@ -35,8 +36,22 @@ def use_templates(app: Application, loader: PackageLoader, enable_async: bool = 
             enable_async=enable_async
         )
 
-        app.services['jinja_environment'] = env
-        app.services['jinja'] = env
+        app.jinja_environment = env
+
+        if isinstance(app.services, Container):
+            def get_jinja_env() -> Environment:
+                return env
+
+            app.services.add_singleton_by_factory(get_jinja_env)
+            app.services.add_alias('jinja_environment', Environment)
+            app.services.add_alias('jinja', Environment)
+            app.services.add_alias('templates_environment', Environment)
+        elif isinstance(app.services, Services):
+            app.services['jinja_environment'] = env
+            app.services['jinja'] = env
+            app.services['templates_environment'] = env
+        else:
+            raise RuntimeError('Application services must be either `rodi.Services` or `rodi.Container`.')
         env.globals['app'] = app
 
     if enable_async:
@@ -51,7 +66,7 @@ def use_templates(app: Application, loader: PackageLoader, enable_async: bool = 
     return sync_view
 
 
-def view(jinja_environment, name: str, *args, **kwargs):
+def view(jinja_environment: Environment, name: str, *args, **kwargs):
     """Returns a Response object with HTML obtained from synchronous rendering.
 
     Use this when `enable_async` is set to False when calling `use_templates`."""
@@ -59,7 +74,7 @@ def view(jinja_environment, name: str, *args, **kwargs):
                                         *args, **kwargs))
 
 
-async def view_async(jinja_environment, name: str, *args, **kwargs):
+async def view_async(jinja_environment: Environment, name: str, *args, **kwargs):
     """Returns a Response object with HTML obtained from synchronous rendering."""
     return get_response(await render_template_async(jinja_environment
                                                     .get_template(template_name(name)), *args, **kwargs))

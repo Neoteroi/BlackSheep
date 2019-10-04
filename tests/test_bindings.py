@@ -1,16 +1,17 @@
 import pytest
 from pytest import raises
 from typing import List, Sequence, Set, Tuple
-from blacksheep import Request, Headers, Header, JsonContent
+from blacksheep import Request, JsonContent, FormContent, MultiPartFormData, FormPart
 from blacksheep.server.bindings import (FromJson,
+                                        FromForm,
                                         FromHeader,
                                         FromQuery,
                                         FromRoute,
                                         FromServices,
-                                        RequestBinder,
                                         InvalidRequestBody,
                                         MissingConverterError,
-                                        BadRequest)
+                                        BadRequest,
+                                        IdentityBinder)
 
 
 JsonContentType = (b'Content-Type', b'application/json')
@@ -20,12 +21,19 @@ class ExampleOne:
 
     def __init__(self, a, b):
         self.a = a
-        self.b = b
+        self.b = int(b)
 
 
 class ExampleTwo:
 
     def __init__(self, a, b, **kwargs):
+        self.a = a
+        self.b = b
+
+
+class ExampleThree:
+
+    def __init__(self, a: str, b: List[str]):
         self.a = a
         self.b = b
 
@@ -348,11 +356,94 @@ async def test_nested_iterables_raise_missing_converter_from_query(declared_type
 
 
 @pytest.mark.asyncio
-async def test_request_binder():
+async def test_identity_binder_identity_not_set():
     request = Request('GET', b'/', None)
 
-    parameter = RequestBinder()
+    parameter = IdentityBinder()
 
     value = await parameter.get_value(request)
 
-    assert value is request
+    assert value is None
+
+
+@pytest.mark.asyncio
+async def test_identity_binder():
+    request = Request('GET', b'/', None)
+    request.identity = object()
+
+    parameter = IdentityBinder()
+
+    value = await parameter.get_value(request)
+
+    assert value is request.identity
+
+
+@pytest.mark.asyncio
+async def test_from_body_form_binding_urlencoded():
+
+    request = Request('POST', b'/', []).with_content(FormContent({
+        'a': 'world',
+        'b': 9000
+    }))
+
+    parameter = FromForm(ExampleOne)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, ExampleOne)
+    assert value.a == 'world'
+    assert value.b == 9000
+
+
+@pytest.mark.asyncio
+async def test_from_body_form_binding_urlencoded_keys_duplicates():
+
+    request = Request('POST', b'/', []).with_content(FormContent([
+        ('a', 'world'),
+        ('b', 'one'),
+        ('b', 'two'),
+        ('b', 'three')
+    ]))
+
+    parameter = FromForm(ExampleThree)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, ExampleThree)
+    assert value.a == 'world'
+    assert value.b == ['one', 'two', 'three']
+
+
+@pytest.mark.asyncio
+async def test_from_body_form_binding_multipart():
+
+    request = Request('POST', b'/', []).with_content(MultiPartFormData([
+        FormPart(b'a', b'world'),
+        FormPart(b'b', b'9000'),
+    ]))
+
+    parameter = FromForm(ExampleOne)
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, ExampleOne)
+    assert value.a == 'world'
+    assert value.b == 9000
+
+
+@pytest.mark.asyncio
+async def test_from_body_form_binding_multipart_keys_duplicates():
+
+    request = Request('POST', b'/', []).with_content(MultiPartFormData([
+        FormPart(b'a', b'world'),
+        FormPart(b'b', b'one'),
+        FormPart(b'b', b'two'),
+        FormPart(b'b', b'three')
+    ]))
+
+    parameter = FromForm(ExampleThree)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, ExampleThree)
+    assert value.a == 'world'
+    assert value.b == ['one', 'two', 'three']

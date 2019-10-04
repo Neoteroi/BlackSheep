@@ -2,7 +2,7 @@ from .url cimport URL
 from .headers cimport Headers
 from .exceptions cimport BadRequestFormat, InvalidOperation, MessageAborted
 from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
-from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
+from .contents cimport Content, MultiPartFormData, parse_www_form_urlencoded, multiparts_to_dictionary
 
 
 import re
@@ -14,6 +14,8 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
+# TODO: cythonize
+from blacksheep.multipart import parse_multipart
 
 
 _charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
@@ -118,6 +120,8 @@ cdef class Message:
         self.__headers.append((key, value))
 
     cpdef bytes content_type(self):
+        if self.content and self.content.type:
+            return self.content.type
         return self.get_first_header(b'content-type')
 
     async def read(self):
@@ -155,6 +159,7 @@ cdef class Message:
 
     async def form(self):
         cdef str text
+        cdef bytes boundary
         cdef bytes body
         cdef bytes content_type_value = self.content_type()
 
@@ -167,8 +172,20 @@ cdef class Message:
 
         if b'multipart/form-data;' in content_type_value:
             body = await self.read()
-            boundary = extract_multipart_form_data_boundary(content_type_value)
-            return list(parse_multipart_form_data(body, boundary))
+            return multiparts_to_dictionary(list(parse_multipart(body)))
+        return None
+
+    async def multipart(self):
+        cdef str text
+        cdef bytes body
+        cdef bytes content_type_value = self.content_type()
+
+        if not content_type_value:
+            return None
+
+        if b'multipart/form-data;' in content_type_value:
+            body = await self.read()
+            return list(parse_multipart(body))
         return None
 
     cpdef bint declares_content_type(self, bytes type):
@@ -195,7 +212,7 @@ cdef class Message:
 
         if not content_type or b'multipart/form-data;' not in content_type:
             return []
-        data = await self.form()
+        data = await self.multipart()
         if name:
             return [part for part in data if part.file_name and part.name == name]
         return [part for part in data if part.file_name]

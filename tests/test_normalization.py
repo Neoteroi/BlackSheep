@@ -1,9 +1,9 @@
 import pytest
 from pytest import raises
 from typing import List, Sequence, Optional
-from blacksheep import Request, Headers, Header
+from blacksheep import Request
 from blacksheep.server.routing import Route
-from blacksheep.server.bindings import FromHeader, FromQuery
+from blacksheep.server.bindings import FromHeader, IdentityBinder
 from blacksheep.server.normalization import (get_from_body_parameter,
                                              AmbiguousMethodSignatureError,
                                              RouteBinderMismatch,
@@ -17,6 +17,7 @@ from blacksheep.server.normalization import (get_from_body_parameter,
                                              ExactBinder,
                                              normalize_handler,
                                              normalize_middleware)
+from guardpost.authentication import Identity, User
 
 
 class Pet:
@@ -25,11 +26,11 @@ class Pet:
 
 
 class Cat(Pet):
-    pass
+    ...
 
 
 class Dog(Pet):
-    pass
+    ...
 
 
 def valid_method_one(a: FromJson(Cat)):
@@ -86,7 +87,7 @@ def test_get_body_parameter_invalid_method(invalid_method):
 def test_parameters_get_binders_default_query():
 
     def handler(a, b, c):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -96,10 +97,46 @@ def test_parameters_get_binders_default_query():
     assert binders[2].name == 'c'
 
 
+def test_identity_binder_by_param_name_user():
+
+    async def handler(user):
+        ...
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], IdentityBinder)
+
+
+@pytest.mark.parametrize('annotation_type', [
+    Identity,
+    User,
+    Optional[User],
+    Optional[Identity]
+])
+def test_identity_binder_by_param_type(annotation_type):
+    async def handler(param):
+        ...
+
+    handler.__annotations__['param'] = annotation_type
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], IdentityBinder)
+
+
+def test_identity_binder_by_param_name_identity():
+    async def handler(identity):
+        ...
+
+    binders = get_binders(Route(b'/', handler), {})
+
+    assert isinstance(binders[0], IdentityBinder)
+
+
 def test_parameters_get_binders_from_route():
 
     def handler(a, b, c):
-        pass
+        ...
 
     binders = get_binders(Route(b'/:a/:b/:c', handler), {})
 
@@ -112,7 +149,7 @@ def test_parameters_get_binders_from_route():
 def test_parameters_get_binders_from_services_by_name():
 
     def handler(a, b, c):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {
         'a': object(),
@@ -129,7 +166,7 @@ def test_parameters_get_binders_from_services_by_name():
 def test_parameters_get_binders_from_services_by_type():
 
     def handler(a: str, b: int, c: Cat):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {
         str: object(),
@@ -146,7 +183,7 @@ def test_parameters_get_binders_from_services_by_type():
 def test_parameters_get_binders_from_body():
 
     def handler(a: Cat):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
     assert len(binders) == 1
@@ -160,7 +197,7 @@ def test_parameters_get_binders_from_body():
 def test_parameters_get_binders_from_body_optional():
 
     def handler(a: Optional[Cat]):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
     assert len(binders) == 1
@@ -174,7 +211,7 @@ def test_parameters_get_binders_from_body_optional():
 def test_parameters_get_binders_simple_types_default_from_query():
 
     def handler(a: str, b: int, c: bool):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -190,7 +227,7 @@ def test_parameters_get_binders_simple_types_default_from_query():
 def test_parameters_get_binders_list_types_default_from_query():
 
     def handler(a: List[str], b: List[int], c: List[bool]):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -206,7 +243,7 @@ def test_parameters_get_binders_list_types_default_from_query():
 def test_parameters_get_binders_list_types_default_from_query_optional():
 
     def handler(a: Optional[List[str]]):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -219,7 +256,7 @@ def test_parameters_get_binders_list_types_default_from_query_optional():
 def test_parameters_get_binders_list_types_default_from_query_required():
 
     def handler(a: List[str]):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -230,7 +267,7 @@ def test_parameters_get_binders_list_types_default_from_query_required():
 def test_parameters_get_binders_sequence_types_default_from_query():
 
     def handler(a: Sequence[str], b: Sequence[int], c: Sequence[bool]):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -246,7 +283,7 @@ def test_parameters_get_binders_sequence_types_default_from_query():
 def test_throw_for_ambiguous_binder_multiple_from_body():
 
     def handler(a: Cat, b: Dog):
-        pass
+        ...
 
     with pytest.raises(AmbiguousMethodSignatureError):
         get_binders(Route(b'/', handler), {})
@@ -259,7 +296,7 @@ def test_combination_of_sources():
                 c: FromJson(Cat),
                 d: FromRoute(),
                 e: FromHeader()):
-        pass
+        ...
 
     binders = get_binders(Route(b'/:d', handler), {
         Dog: Dog('Snoopy')
@@ -280,7 +317,7 @@ def test_combination_of_sources():
 def test_from_query_specific_name():
 
     def handler(a: FromQuery(str, 'example')):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -292,7 +329,7 @@ def test_from_query_specific_name():
 def test_from_header_specific_name():
 
     def handler(a: FromHeader(str, 'example')):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 
@@ -304,7 +341,7 @@ def test_from_header_specific_name():
 def test_raises_for_route_mismatch():
 
     def handler(a: FromRoute(str, 'missing_name')):
-        pass
+        ...
 
     with raises(RouteBinderMismatch):
         get_binders(Route(b'/', handler), {})
@@ -313,7 +350,7 @@ def test_raises_for_route_mismatch():
 def test_request_binding():
 
     def handler(request):
-        pass
+        ...
 
     binders = get_binders(Route(b'/', handler), {})
 

@@ -1,11 +1,15 @@
-import json
 import ntpath
 import aiofiles
 from io import BytesIO
 from enum import Enum
+from essentials import json as JSON
 from functools import lru_cache
 from typing import Any, Callable, Union
-from blacksheep import Response, TextContent, HtmlContent, JsonContent, Content, StreamedContent
+from blacksheep.utils import BytesOrStr
+from blacksheep import Response, TextContent, JsonContent, Content, StreamedContent
+
+
+MessageType = Union[None, str, Any]
 
 
 class ContentDispositionType(Enum):
@@ -13,7 +17,7 @@ class ContentDispositionType(Enum):
     ATTACHMENT = 'attachment'
 
 
-def _ensure_bytes(value: Union[str, bytes]):
+def _ensure_bytes(value: BytesOrStr):
     if isinstance(value, str):
         return value.encode()
     if isinstance(value, bytes):
@@ -21,7 +25,7 @@ def _ensure_bytes(value: Union[str, bytes]):
     raise ValueError('Input value must be bytes or str')
 
 
-def status_code(status: int = 200, message: Union[None, str, dict] = None):
+def status_code(status: int = 200, message: MessageType = None):
     """Returns a plain response with given status, with optional message; sent as plain text or JSON."""
     if not message:
         return Response(status)
@@ -32,21 +36,21 @@ def status_code(status: int = 200, message: Union[None, str, dict] = None):
     return Response(status, content=content)
 
 
-def ok(message: Union[None, str, dict] = None):
+def ok(message: MessageType = None):
     """Returns an HTTP 200 OK response, with optional message; sent as plain text or JSON."""
     return status_code(200, message)
 
 
-def created(location: Union[bytes, str], value: Any = None):
+def created(location: BytesOrStr, value: Any = None):
     """Returns an HTTP 201 Created response, to the given location and with optional JSON content."""
     return Response(201,
                     [(b'Location', _ensure_bytes(location))],
                     JsonContent(value) if value else None)
 
 
-def accepted():
-    """Returns an HTTP 202 Accepted response."""
-    return Response(202)
+def accepted(message: MessageType = None):
+    """Returns an HTTP 202 Accepted response, with optional message; sent as plain text or JSON."""
+    return status_code(202, message)
 
 
 def no_content():
@@ -59,47 +63,47 @@ def not_modified():
     return Response(304)
 
 
-def unauthorized(message: Union[None, str, dict] = None):
+def unauthorized(message: MessageType = None):
     """Returns an HTTP 401 Unauthorized response, with optional message; sent as plain text or JSON."""
     return status_code(401, message)
 
 
-def forbidden(message: Union[None, str, dict] = None):
+def forbidden(message: MessageType = None):
     """Returns an HTTP 403 Forbidden response, with optional message; sent as plain text or JSON."""
     return status_code(403, message)
 
 
-def bad_request(message: Union[None, str, dict] = None):
+def bad_request(message: MessageType = None):
     """Returns an HTTP 400 Bad Request response, with optional message; sent as plain text or JSON."""
     return status_code(400, message)
 
 
-def not_found():
-    """Returns an HTTP 404 Not Found response"""
-    return Response(404)
+def not_found(message: MessageType = None):
+    """Returns an HTTP 404 Not Found response, with optional message; sent as plain text or JSON."""
+    return status_code(404, message)
 
 
-def moved_permanently(location: Union[bytes, str]):
+def moved_permanently(location: BytesOrStr):
     """Returns an HTTP 301 Moved Permanently response, to the given location"""
     return Response(301, [(b'Location', _ensure_bytes(location))])
 
 
-def redirect(location: Union[bytes, str]):
+def redirect(location: BytesOrStr):
     """Returns an HTTP 302 Found response (commonly called redirect), to the given location"""
     return Response(302, [(b'Location', _ensure_bytes(location))])
 
 
-def see_other(location: Union[bytes, str]):
+def see_other(location: BytesOrStr):
     """Returns an HTTP 303 See Other response, to the given location."""
     return Response(303, [(b'Location', _ensure_bytes(location))])
 
 
-def temporary_redirect(location: Union[bytes, str]):
+def temporary_redirect(location: BytesOrStr):
     """Returns an HTTP 307 Temporary Redirect response, to the given location."""
     return Response(307, [(b'Location', _ensure_bytes(location))])
 
 
-def permanent_redirect(location: Union[bytes, str]):
+def permanent_redirect(location: BytesOrStr):
     """Returns an HTTP 308 Permanent Redirect response, to the given location."""
     return Response(308, [(b'Location', _ensure_bytes(location))])
 
@@ -114,9 +118,14 @@ def html(value: str, status: int = 200):
     return Response(status, None, Content(b'text/html; charset=utf-8', value.encode('utf8')))
 
 
-def json(data: Any, status: int = 200, dumps=json.dumps):
+def json(data: Any, status: int = 200, dumps=JSON.dumps):
     """Returns a response with application/json content, and given status (default HTTP 200 OK)."""
-    return Response(status, None, Content(b'application/json', dumps(data).encode('utf8')))
+    return Response(status, None, Content(b'application/json', dumps(data, separators=(',', ':')).encode('utf8')))
+
+
+def pretty_json(data: Any, status: int = 200, dumps=JSON.dumps, indent: int = 4):
+    """Returns a response with indented application/json content, and given status (default HTTP 200 OK)."""
+    return Response(status, None, Content(b'application/json', dumps(data, indent=indent).encode('utf8')))
 
 
 FileInput = Union[Callable, str, bytes, bytearray, BytesIO]
@@ -138,7 +147,7 @@ def _get_file_provider(file_path: str):
 
 
 def _file(value: FileInput,
-          content_type: Union[str, bytes],
+          content_type: BytesOrStr,
           content_disposition_type: ContentDispositionType,
           file_name: str = None):
     if file_name:
@@ -186,7 +195,7 @@ def _file(value: FileInput,
 
 
 def inline_file(value: FileInput,
-                content_type: Union[str, bytes],
+                content_type: BytesOrStr,
                 file_name: str = None):
     """Returns a binary file response with given content type and optional file name, for inline use
     (default HTTP 200 OK). This method supports both call with bytes, or a generator yielding chunks.
@@ -197,7 +206,7 @@ def inline_file(value: FileInput,
 
 
 def file(value: FileInput,
-         content_type: Union[str, bytes],
+         content_type: BytesOrStr,
          file_name: str = None,
          content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT):
     """Returns a binary file response with given content type and optional file name, for download (attachment)

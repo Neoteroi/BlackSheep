@@ -1,7 +1,7 @@
 [![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7) [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
 
 # BlackSheep
-Fast web framework and HTTP client for Python asyncio, using [Cython](https://cython.org). BlackSheep web framework is [ASGI](https://asgi.readthedocs.io/en/latest/) compatible, and requires an ASGI HTTP Server.
+Fast web framework and HTTP client for Python asyncio, using [Cython](https://cython.org).
 
 <p align="left">
   <a href="#blacksheep"><img width="320" height="271" src="https://labeuwstacc.blob.core.windows.net/github/blacksheep.png" alt="Black Sheep"></a>
@@ -45,6 +45,12 @@ $ uvicorn server:app
 
 To run for production, refer to the documentation of the chosen ASGI server (i.e. for [uvicorn](https://www.uvicorn.org/#running-with-gunicorn)).
 
+## Getting started
+Get started with the [project templates in GitHub](https://github.com/RobertoPrevato/BlackSheep/wiki/Project-templates).
+
+* [BlackSheepMVC](https://github.com/RobertoPrevato/BlackSheepMVC)
+* [BlackSheepEmptyProject](https://github.com/RobertoPrevato/BlackSheepEmptyProject)
+
 ## Automatic bindings and dependency injection
 BlackSheep supports automatic binding of values for request handlers, by type annotation or by conventions. See [more here](https://github.com/RobertoPrevato/BlackSheep/wiki/Model-binding).
 ```python
@@ -60,7 +66,7 @@ async def example(a: FromQuery(List[str]),
                   c: FromJson(Cat),
                   d: FromRoute(),
                   e: FromHeader(name='X-Example')):
-    pass
+    ...
 
 
 @app.router.get(b'/:culture_code/:area')
@@ -84,17 +90,16 @@ app.use_authorization()\
 @auth('admin')
 @app.router.get(b'/')
 async def only_for_admins():
-    return None
+    ...
 
 
 @auth()
 @app.router.get(b'/')
 async def only_for_authenticated_users():
-    return None
+    ...
 ```
 
 ## Objectives
-* Clean architecture and source code, following [SOLID principles](https://en.wikipedia.org/wiki/SOLID)
 * Intelligible and easy to learn API, similar to those of many Python web frameworks
 * Rich code API, based on Dependency Injection and inspired by ASP.NET Core
 * Keep the core package minimal and focused, as much as possible, on features defined in HTTP and HTML standards
@@ -104,13 +109,13 @@ async def only_for_authenticated_users():
 ## Web framework features
 * [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
+* [Request handlers defined as functions, or class methods](https://github.com/RobertoPrevato/BlackSheep/wiki/Defining-request-handlers)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
 * [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
 * [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
 * [Strategy to handle exceptions](https://github.com/RobertoPrevato/BlackSheep/wiki/Exceptions-handling)
 * [Strategy to handle authentication and authorization](https://github.com/RobertoPrevato/BlackSheep/wiki/Authentication-and-authorization-strategies)
 * [Handlers normalization](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization)
-* Integration with built-in `logging` module [to log access and errors](https://github.com/RobertoPrevato/BlackSheep/wiki/Logging) synchronously - this is completely disabled by default
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)

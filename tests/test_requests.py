@@ -1,8 +1,9 @@
 import pytest
-from blacksheep import Request, Headers, Header, Content
 from blacksheep import scribe
-from blacksheep.exceptions import BadRequestFormat, InvalidOperation
+from blacksheep import Request, Content
 from blacksheep.scribe import write_small_request
+from blacksheep.exceptions import BadRequestFormat, InvalidOperation
+from blacksheep.contents import MultiPartFormData, FormPart
 from blacksheep.url import URL
 
 
@@ -81,11 +82,9 @@ async def test_if_read_json_fails_content_type_header_is_checked_json_gives_bad_
 
 @pytest.mark.asyncio
 async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_invalid_operation():
-    request = Request('POST', b'/', [
-        (b'Content-Type', b'text/html')
-    ])
+    request = Request('POST', b'/', [])
 
-    request.with_content(Content(b'application/json', b'{"hello":'))  # broken json
+    request.with_content(Content(b'text/html', b'{"hello":'))  # broken json; broken content-type
 
     with pytest.raises(InvalidOperation):
         await request.json()
@@ -200,3 +199,12 @@ def test_request_can_update_url(initial_url, new_url):
     request.url = URL(new_url)
 
     assert request.url.value == new_url
+
+
+def test_request_content_type_is_read_from_content():
+    request = Request('POST', b'/', []).with_content(MultiPartFormData([
+        FormPart(b'a', b'world'),
+        FormPart(b'b', b'9000'),
+    ]))
+
+    assert request.content_type() == request.content.type

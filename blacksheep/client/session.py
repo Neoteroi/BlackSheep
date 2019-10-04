@@ -60,6 +60,21 @@ def get_default_headers_middleware(headers):
     return default_headers_middleware
 
 
+_default_pools_by_loop_id = {}
+
+
+def _get_default_pools_for_loop(loop):
+    """This function is meant to help users of the ClientSession: to prevent creating many pools,
+     decreasing performance only by instantiating several ClientSession without a specific HTTP Connections pools."""
+    loop_id = id(loop)
+    try:
+        return _default_pools_by_loop_id[loop_id]
+    except KeyError:
+        pools = ClientConnectionPools(loop)
+        _default_pools_by_loop_id[loop_id] = pools
+        return pools
+
+
 class ClientSession:
 
     def __init__(self,
@@ -79,7 +94,7 @@ class ClientSession:
             loop = asyncio.get_event_loop()
 
         if not pools:
-            pools = ClientConnectionPools(loop)
+            pools = _get_default_pools_for_loop(loop)
 
         if redirects_cache_type is None and follow_redirects:
             redirects_cache_type = RedirectsCache

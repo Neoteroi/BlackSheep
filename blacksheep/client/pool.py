@@ -13,8 +13,8 @@ class ClientConnectionPool:
     def __init__(self, loop, scheme, host, port, ssl=None, max_size=0):
         self.loop = loop
         self.scheme = scheme
-        self.host = host
-        self.port = port
+        self.host = host if isinstance(host, str) else host.decode()
+        self.port = int(port)
         self.ssl = self._ssl_option(ssl)
         self.max_size = max_size
         self._idle_connections = Queue(maxsize=max_size)

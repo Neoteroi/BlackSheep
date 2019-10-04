@@ -5,10 +5,13 @@ from .bindings import (FromJson,
                        FromQuery,
                        FromRoute,
                        FromServices,
+                       ControllerBinder,
                        Binder,
                        FromBody,
                        RequestBinder,
-                       ExactBinder)
+                       ExactBinder,
+                       IdentityBinder)
+from guardpost.authentication import User, Identity
 from blacksheep.normalization import copy_special_attributes
 
 
@@ -16,20 +19,28 @@ _next_handler_binder = object()
 
 
 class NormalizationError(Exception):
-    pass
+    ...
+
+
+class UnsupportedSignatureError(NormalizationError):
+
+    def __init__(self, method):
+        super().__init__(f'Cannot normalize method `{method.__qualname__}` because its signature contains '
+                         f'*args or *kwargs parameters. If you use a decorator, please use `functools.@wraps` '
+                         f'with your wrapper, to fix this error.')
 
 
 class MultipleFromBodyBinders(NormalizationError):
 
     def __init__(self, method, first_match, new_match):
-        super().__init__(f'Cannot use more than one `FromBody` binder for the same method ({method.__name__}). '
+        super().__init__(f'Cannot use more than one `FromBody` binder for the same method ({method.__qualname__}). '
                          f'The first match was: {first_match}, a second one {new_match}.')
 
 
 class AmbiguousMethodSignatureError(NormalizationError):
 
     def __init__(self, method):
-        super().__init__(f'Cannot normalize method {method.__name__} due to its ambiguous signature. '
+        super().__init__(f'Cannot normalize method `{method.__qualname__}` due to its ambiguous signature. '
                          f'Please specify exact binders for its arguments.')
 
 
@@ -126,7 +137,11 @@ def get_parameter_binder(parameter, services, route, method):
         if name in services:
             return FromServices(name, services)
 
-        # 3. default to query parameter
+        # 3. does it use a specific name? (convention over configuration for common scenarios);
+        if name == 'user' or name == 'identity':
+            return IdentityBinder()
+
+        # 4. default to query parameter
         return FromQuery(List[str], name)
 
     # unwrap the Optional[] annotation, if present:
@@ -164,7 +179,10 @@ def get_parameter_binder(parameter, services, route, method):
     if annotation in _simple_types_handled_with_query:
         return FromQuery(annotation, name, required=not is_optional)
 
-    # 5. from body
+    if annotation is User or annotation is Identity:
+        return IdentityBinder()
+
+    # 5. from json body (last default)
     return FromJson(annotation, required=not is_optional)
 
 
@@ -199,8 +217,46 @@ def get_binders_for_middleware(method, services):
 
 
 def _copy_name_and_docstring(source_method, wrapper):
-    wrapper.__name__ = source_method.__name__
-    wrapper.__doc__ = source_method.__doc__
+    try:
+        wrapper.__name__ = source_method.__name__
+        wrapper.__doc__ = source_method.__doc__
+    except AttributeError:
+        pass
+
+
+def _get_sync_wrapper_for_controller(binders, method):
+    async def handler(request):
+        values = []
+        controller = await binders[0].get_value(request)
+        await controller.on_request(request)
+
+        values.append(controller)
+
+        for binder in binders[1:]:
+            values.append(await binder.get_value(request))
+
+        response = method(*values)
+        await controller.on_response(response)
+        return response
+    return handler
+
+
+def _get_async_wrapper_for_controller(binders, method):
+    async def handler(request):
+        values = []
+        controller = await binders[0].get_value(request)
+        await controller.on_request(request)
+
+        values.append(controller)
+
+        for binder in binders[1:]:
+            values.append(await binder.get_value(request))
+
+        response = await method(*values)
+        await controller.on_response(response)
+        return response
+
+    return handler
 
 
 def get_sync_wrapper(services, route, method, params, params_len):
@@ -218,6 +274,9 @@ def get_sync_wrapper(services, route, method, params, params_len):
         return handler
 
     binders = get_binders(route, services)
+
+    if isinstance(binders[0], ControllerBinder):
+        return _get_sync_wrapper_for_controller(binders, method)
 
     async def handler(request):
         values = []
@@ -242,6 +301,9 @@ def get_async_wrapper(services, route, method, params, params_len):
 
     binders = get_binders(route, services)
 
+    if isinstance(binders[0], ControllerBinder):
+        return _get_async_wrapper_for_controller(binders, method)
+
     async def handler(request):
         values = []
         for binder in binders:
@@ -257,6 +319,9 @@ def normalize_handler(route, services):
     sig = Signature.from_callable(method)
     params = sig.parameters
     params_len = len(params)
+
+    if any(str(param).startswith('*') for param in params.values()):
+        raise UnsupportedSignatureError(method)
 
     if inspect.iscoroutinefunction(method):
         normalized = get_async_wrapper(services, route, method, params, params_len)

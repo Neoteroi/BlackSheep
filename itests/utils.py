@@ -26,7 +26,7 @@ class CrashTest(Exception):
 
 
 def ensure_success(response):
-    if response.status_code == 500:
+    if response.status_code != 200:
         text = response.text
         logger.error(text)
 

@@ -15,7 +15,7 @@ cdef class BadRequestFormat(Exception):
 
 cdef class HttpException(Exception):
 
-    def __init__(self, int status, str message = None):
+    def __init__(self, int status, str message = 'HTTP Exception'):
         super().__init__(message)
         self.status = status
 

@@ -8,11 +8,12 @@ See:
 """
 from abc import ABC, abstractmethod
 from collections.abc import Iterable as IterableAbc
-from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List
+from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List, Any
 from urllib.parse import unquote
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
-from rodi import Services, GetServiceContext
+from guardpost.authentication import Identity
+from rodi import Services
 
 
 T = TypeVar('T')
@@ -45,7 +46,7 @@ class Binder(ABC):
 
     @abstractmethod
     async def get_value(self, request: Request) -> T:
-        pass
+        ...
 
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.expected_type} at {id(self)}>'
@@ -77,11 +78,7 @@ class MissingConverterError(Exception):
 
 
 class FromBody(Binder):
-
     _excluded_methods = {'GET', 'HEAD', 'TRACE'}
-
-
-class FromJson(FromBody):
 
     def __init__(self,
                  expected_type: T,
@@ -95,17 +92,15 @@ class FromJson(FromBody):
 
         super().__init__(expected_type, required, converter)
 
-    def parse_value(self, data: dict) -> T:
-        try:
-            return self.converter(data)
-        except TypeError as te:
-            raise InvalidRequestBody(_generalize_init_type_error_message(te))
-        except ValueError as ve:
-            raise InvalidRequestBody(str(ve))
+    @abstractmethod
+    def matches_content_type(self, request: Request) -> bool: ...
+
+    @abstractmethod
+    async def read_data(self, request: Request) -> Any: ...
 
     async def get_value(self, request: Request) -> T:
-        if request.declares_json() and request.method not in self._excluded_methods:
-            data = await request.json()
+        if request.method not in self._excluded_methods and self.matches_content_type(request):
+            data = await self.read_data(request)
 
             if not data:
                 raise MissingBodyError()
@@ -116,9 +111,38 @@ class FromJson(FromBody):
             if not request.has_body():
                 raise MissingBodyError()
 
-            raise InvalidRequestBody('Expected JSON payload')
+            raise InvalidRequestBody(f'Expected payload {self.__class__.__name__}')
 
         return None
+
+    def parse_value(self, data: dict) -> T:
+        try:
+            return self.converter(data)
+        except TypeError as te:
+            raise InvalidRequestBody(_generalize_init_type_error_message(te))
+        except ValueError as ve:
+            raise InvalidRequestBody(str(ve))
+
+
+class FromJson(FromBody):
+    """Extracts a model from JSON content"""
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_json()
+
+    async def read_data(self, request: Request) -> Any:
+        return await request.json()
+
+
+class FromForm(FromBody):
+    """Extracts a model from form content, either application/x-www-form-urlencoded, or multipart/form-data"""
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_content_type(b'application/x-www-form-urlencoded') or \
+               request.declares_content_type(b'multipart/form-data')
+
+    async def read_data(self, request: Request) -> Any:
+        return await request.form()
 
 
 def _default_bool_converter(value: str):
@@ -130,7 +154,7 @@ def _default_bool_converter(value: str):
 
     # bad request: expected a bool value, but
     # got something different that is not handled
-    raise BadRequest()
+    raise BadRequest(f'Expected a bool value for a parameter, but got {value}.')
 
 
 def _default_bool_list_converter(values: Sequence[str]):
@@ -313,6 +337,19 @@ class FromServices(Binder):
         return self.services.get(self.expected_type, context)
 
 
+class ControllerBinder(FromServices):
+    """
+    Binder used to activate an instance of Controller. This binder is applied automatically by the application
+    object at startup, as type annotation, for handlers configured on classes inheriting `blacksheep.server.Controller`.
+
+    If used manually, it causes several controllers to be instantiated and injected into request handlers.
+    However, only the controller configured as `self` is taken into consideration for base route and callbacks.
+    """
+
+    async def get_value(self, request: Request) -> T:
+        return await super().get_value(request)
+
+
 class RequestBinder(Binder):
 
     def __init__(self):
@@ -320,6 +357,25 @@ class RequestBinder(Binder):
 
     async def get_value(self, request: Request) -> T:
         return request
+
+
+class RequestPropertyBinder(Binder):
+
+    def __init__(self, property_name: str, expected_type: Type = Any):
+        super().__init__(expected_type)
+        self.property_name = property_name
+
+    async def get_value(self, request: Request) -> T:
+        return getattr(request, self.property_name, None)
+
+
+class IdentityBinder(RequestPropertyBinder):
+
+    def __init__(self):
+        super().__init__('identity', Identity)
+
+
+User = IdentityBinder
 
 
 class ExactBinder(Binder):

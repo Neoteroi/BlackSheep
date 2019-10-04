@@ -18,10 +18,8 @@ async def handle_bad_request(app, Request request, HttpException http_exception)
 
 cdef class BaseApplication:
 
-    def __init__(self, bint show_error_details, object router, object services):
+    def __init__(self, bint show_error_details, object router):
         self.router = router
-        self.services = services
-        self.connections = []
         self.exceptions_handlers = self.init_exceptions_handlers()
         self.show_error_details = show_error_details
 

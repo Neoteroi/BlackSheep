@@ -1,22 +1,14 @@
 cimport cython
 from .exceptions cimport MessageAborted
 
-import re
 import uuid
 import json
 from inspect import isasyncgenfunction
 from collections.abc import MutableSequence
-from typing import Union, List, Optional, Callable, Any
+from typing import Union, List, Optional, Callable, Any, Tuple, Dict
 from urllib.parse import parse_qsl
 from urllib.parse import quote_plus
-
-
-_charset_rx = re.compile(b'charset=\\s?([^;]+)')
-_boundary_rx = re.compile(b'boundary=(.+)$', re.I)
-_content_type_form_data_line_rx = re.compile(b'content-type:\\s?([^;]+)(?:(charset=\\s?([^;]+)))?', re.I)
-_content_disposition_header_type_rx = re.compile(b'^content-disposition:\\s([^;]+)', re.I)
-_content_disposition_header_name_rx = re.compile(b'\\sname="([^\\"]+)"', re.I)
-_content_disposition_header_filename_rx = re.compile(b'\\sfilename="([^\\"]+)"', re.I)
+from blacksheep.multipart import parse_multipart
 
 
 cdef class Content:
@@ -120,9 +112,12 @@ cdef dict parse_www_form_urlencoded(str content):
     cdef dict data = {}
     for key, value in parse_qsl(content):
         if key in data:
-            data[key].append(value)
+            if isinstance(data[key], str):
+                data[key] = [data[key], value]
+            else:
+                data[key].append(value)
         else:
-            data[key] = [value]
+            data[key] = value
     return data
 
 
@@ -130,102 +125,37 @@ cpdef dict parse_www_form(str content):
     return parse_www_form_urlencoded(content)
 
 
-cpdef bytes extract_multipart_form_data_boundary(bytes content_type):
-    m = _boundary_rx.search(content_type)
-    if not m:
-        return None
-    return m.group(1)
+cdef object try_decode(bytes value, str encoding):
+    try:
+        return value.decode(encoding or 'utf8')
+    except:
+        return value
 
 
-cpdef tuple parse_content_disposition_header(bytes header):
-    # content-disposition: form-data; name="file1"; filename="a.txt"
-    type_m = _content_disposition_header_type_rx.search(header)
+cdef dict multiparts_to_dictionary(list parts):
+    cdef str key
+    cdef str charset
+    cdef data = {}
+    cdef FormPart part
 
-    if not type_m:
-        raise ValueError(f'Failed to parse content-disposition type: {header}')
+    for part in parts:
+        key = part.name.decode('utf8')
+        if part.charset:
+            charset = part.charset.encode()
+        else:
+            charset = None
 
-    name_m = _content_disposition_header_name_rx.search(header)
-    if not name_m:
-        raise ValueError(f'Given content-disposition header does not contain required field name: {header}')
+        # NB: we cannot assume that the value of a multipart form part can be decoded as UTF8;
+        # here we try to decode it, just to be more consistent with values read from www-urlencoded form data
+        if key in data:
+            if isinstance(data[key], str):
+                data[key] = [data[key], try_decode(part.data, charset)]
+            else:
+                data[key].append(try_decode(part.data, charset))
+        else:
+            data[key] = try_decode(part.data, charset)
 
-    file_name_m = _content_disposition_header_filename_rx.search(header)
-    return type_m.group(1), name_m.group(1), file_name_m.group(1) if file_name_m else None
-
-
-cpdef bytes remove_last_crlf(bytes data):
-    if data[-2:] == b'\r\n':
-        return data[:-2]
-    if data[-1:] == b'\n':
-        return data[:-1]
     return data
-
-
-cpdef bytes remove_first_crlf(bytes data):
-    if data[:2] == b'\r\n':
-        return data[2:]
-    if data[:1] == b'\n':
-        return data[1:]
-    return data
-
-
-cpdef bytes remove_extreme_crlf(bytes data):
-    return remove_last_crlf(remove_first_crlf(data))
-
-
-cpdef list split_multipart_form_data_parts(bytes data):
-    result = []
-    cdef int j = 0
-    cdef int k = 0
-    cdef char c
-
-    for i, c in enumerate(data):
-        if c == 10:
-            k += 1
-            if k == 3:
-                result.append(remove_extreme_crlf(data[j:]))
-                return result
-
-            result.append(data[j:i])
-            j = i+1
-
-
-cpdef list parse_multipart_form_data(bytes content, bytes boundary):
-    cdef bytes part
-    cdef list result = []
-    cdef bytes default_charset = b'utf8'
-    cdef:
-        bytes charset
-        bytes content_type
-        bytes disposition_type
-        bytes name
-        bytes file_name
-
-    for part in content.split(boundary):
-        if part == b'' or part == b'--' or part == b'--\r' or part == b'--\r\n':
-            continue
-
-        parts = split_multipart_form_data_parts(part.lstrip(b'\r\n'))
-
-        charset = None
-        content_type = None
-        disposition_type, name, file_name = parse_content_disposition_header(parts[0])
-
-        if name == b'_charset_':
-            # https://tools.ietf.org/html/rfc7578#section-4.6
-            default_charset = parts[2]
-            continue
-
-        # NB: if a content-type is defined, the second line is populated, otherwise is an empty bytes b''
-        if parts[1]:
-            content_type_m = _content_type_form_data_line_rx.search(parts[1])
-            if content_type_m:
-                content_type = content_type_m.group(1)
-                charset = content_type_m.group(2)
-                if not charset and content_type == b'text/plain':
-                    charset = default_charset
-
-        result.append(FormPart(name, parts[2], content_type, file_name, charset))
-    return result
 
 
 cpdef void write_multipart_part(FormPart part, bytearray destination):
@@ -265,7 +195,7 @@ cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
 
 cdef class FormContent(Content):
 
-    def __init__(self, data: dict):
+    def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
         super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
 
 
@@ -282,6 +212,13 @@ cdef class FormPart:
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+
+    def __eq__(self, other):
+        if isinstance(other, FormPart):
+            return other.name == self.name and other.file_name == self.file_name and other.content_type == self.content_type and other.charset == self.charset and other.data == self.data
+        if other is None:
+            return False
+        return NotImplemented
 
     def __repr__(self):
         return f'<FormPart {self.name} - at {id(self)}>'
@@ -307,7 +244,3 @@ cpdef bytes write_multipart_form_data(MultiPartFormData data):
     contents.extend(data.boundary)
     contents.extend(b'--\r\n')
     return bytes(contents)
-
-
-
-

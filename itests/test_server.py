@@ -162,8 +162,8 @@ def test_post_json_autobind(session, data):
         'type': 'Sword'
     },
      {
-         'name': ['Gorun Nova'],
-         'type': ['Sword']
+         'name': 'Gorun Nova',
+         'type': 'Sword'
     }),
     ({
         'id': 123,
@@ -171,9 +171,9 @@ def test_post_json_autobind(session, data):
         'name': 'Ravenclaw T-Shirt'
     },
      {
-         'id': ['123'],
-         'price': ['15.15'],
-         'name': ['Ravenclaw T-Shirt']
+         'id': '123',
+         'price': '15.15',
+         'name': 'Ravenclaw T-Shirt'
      })
 ])
 def test_post_form_urlencoded(session, data, echoed):

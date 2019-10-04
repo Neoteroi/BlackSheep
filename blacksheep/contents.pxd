@@ -49,10 +49,8 @@ cdef class MultiPartFormData(Content):
     cdef readonly bytes boundary
 
 
-cpdef bytes extract_multipart_form_data_boundary(bytes content_type)
-
 
 cdef dict parse_www_form_urlencoded(str content)
 
 
-cpdef list parse_multipart_form_data(bytes content, bytes boundary)
+cdef dict multiparts_to_dictionary(list parts)

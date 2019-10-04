@@ -7,7 +7,7 @@
 from .url cimport URL
 from .exceptions cimport BadRequestFormat
 from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
-from .contents cimport Content, extract_multipart_form_data_boundary, parse_www_form_urlencoded, parse_multipart_form_data
+from .contents cimport Content, parse_www_form_urlencoded
 
 
 cdef class Message:

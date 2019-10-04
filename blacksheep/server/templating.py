@@ -45,9 +45,11 @@ def use_templates(app: Application, loader: PackageLoader, enable_async: bool = 
             app.services.add_singleton_by_factory(get_jinja_env)
             app.services.add_alias('jinja_environment', Environment)
             app.services.add_alias('jinja', Environment)
+            app.services.add_alias('templates_environment', Environment)
         elif isinstance(app.services, Services):
             app.services['jinja_environment'] = env
             app.services['jinja'] = env
+            app.services['templates_environment'] = env
         else:
             raise RuntimeError('Application services must be either `rodi.Services` or `rodi.Container`.')
         env.globals['app'] = app

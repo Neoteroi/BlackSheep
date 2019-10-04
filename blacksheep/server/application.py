@@ -8,7 +8,7 @@ from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.files.dynamic import serve_files
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
-from blacksheep.server.controllers import Controller, router as controllers_router
+from blacksheep.server.controllers import router as controllers_router
 from blacksheep.baseapp import BaseApplication
 from blacksheep.messages import Request, Response
 from blacksheep.contents import ASGIContent

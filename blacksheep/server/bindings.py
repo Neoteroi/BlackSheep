@@ -341,13 +341,13 @@ class ControllerBinder(FromServices):
     """
     Binder used to activate an instance of Controller. This binder is applied automatically by the application
     object at startup, as type annotation, for handlers configured on classes inheriting `blacksheep.server.Controller`.
+
+    If used manually, it causes several controllers to be instantiated and injected into request handlers.
+    However, only the controller configured as `self` is taken into consideration for base route and callbacks.
     """
 
     async def get_value(self, request: Request) -> T:
-        controller = await super().get_value(request)
-        # controller extensibility point: support calling a method for each request handler;
-        await controller.on_request(request)
-        return controller
+        return await super().get_value(request)
 
 
 class RequestBinder(Binder):

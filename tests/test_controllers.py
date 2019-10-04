@@ -1,7 +1,7 @@
 import pytest
 from typing import Optional
 from functools import wraps
-from blacksheep import Request
+from blacksheep import Request, Response
 from blacksheep.server.responses import text
 from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.routing import RouteDuplicate
@@ -59,6 +59,42 @@ async def test_handler_through_controller():
 
 
 @pytest.mark.asyncio
+async def test_handler_through_controller_owned_text_method():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Home(Controller):
+
+        def greet(self):
+            return 'Hello World'
+
+        @get('/')
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return self.text(self.greet())
+
+        @get('/foo')
+        async def foo(self):
+            assert isinstance(self, Home)
+            return self.text('foo')
+
+    app.setup_controllers()
+    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == 'Hello World'
+
+    await app(get_example_scope('GET', '/foo'), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == 'foo'
+
+
+@pytest.mark.asyncio
 async def test_controller_supports_on_request():
     app = FakeApplication()
     app.controllers_router = RoutesRegistry()
@@ -78,6 +114,53 @@ async def test_controller_supports_on_request():
             assert isinstance(request, Request)
             assert request.url.path == b'/' if k < 10 else b'/foo'
             return await super().on_request(request)
+
+        @get('/')
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return text(self.greet())
+
+        @get('/foo')
+        async def foo(self):
+            assert isinstance(self, Home)
+            return text('foo')
+
+    app.setup_controllers()
+
+    for j in range(1, 10):
+        await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
+        assert app.response.status == 200
+        assert k == j
+
+    for j in range(10, 20):
+        await app(get_example_scope('GET', '/foo'), MockReceive(), MockSend())
+        assert app.response.status == 200
+        assert k == j
+
+
+@pytest.mark.asyncio
+async def test_controller_supports_on_response():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    k = 0
+
+    # noinspection PyUnusedLocal
+    class Home(Controller):
+
+        def greet(self):
+            return 'Hello World'
+
+        async def on_response(self, response: Response):
+            nonlocal k
+            k += 1
+            assert isinstance(response, Response)
+            if response.content.body == b'Hello World':
+                assert k < 10
+            else:
+                assert k >= 10
+            return await super().on_response(response)
 
         @get('/')
         async def index(self, request: Request):

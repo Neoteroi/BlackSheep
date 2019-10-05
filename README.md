@@ -45,12 +45,6 @@ $ uvicorn server:app
 
 To run for production, refer to the documentation of the chosen ASGI server (i.e. for [uvicorn](https://www.uvicorn.org/#running-with-gunicorn)).
 
-## Getting started
-Get started with the [project templates in GitHub](https://github.com/RobertoPrevato/BlackSheep/wiki/Project-templates).
-
-* [BlackSheepMVC](https://github.com/RobertoPrevato/BlackSheepMVC)
-* [BlackSheepEmptyProject](https://github.com/RobertoPrevato/BlackSheepEmptyProject)
-
 ## Automatic bindings and dependency injection
 BlackSheep supports automatic binding of values for request handlers, by type annotation or by conventions. See [more here](https://github.com/RobertoPrevato/BlackSheep/wiki/Model-binding).
 ```python

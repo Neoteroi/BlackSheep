@@ -2,7 +2,7 @@ import asyncio
 from urllib.parse import urlencode
 from asyncio import TimeoutError
 from typing import List, Optional, Union, Type, Any, Callable, Tuple
-from .pool import ClientConnectionPools
+from .pool import ClientConnectionPools, ClientConnection
 from .exceptions import *
 from blacksheep import (Request,
                         Response,
@@ -128,11 +128,11 @@ class ClientSession:
         self.delay_before_retry = 0.5
 
     @property
-    def base_url(self):
+    def base_url(self) -> URL:
         return self._base_url
 
     @base_url.setter
-    def base_url(self, value):
+    def base_url(self, value: Union[str, URL]):
         if value and not isinstance(value, URL):
             if isinstance(value, str):
                 value = value.encode()
@@ -197,7 +197,7 @@ class ClientSession:
         self.pools.dispose()
 
     @staticmethod
-    def extract_redirect_location(response: Response):
+    def extract_redirect_location(response: Response) -> URL:
         # if the server returned more than one value, use the first header in order
         location = response.get_first_header(b'Location')
         if not location:
@@ -211,7 +211,7 @@ class ClientSession:
             raise UnsupportedRedirect()
 
     @staticmethod
-    def get_redirect_url(request: Request, location: URL):
+    def get_redirect_url(request: Request, location: URL) -> URL:
         if location.is_absolute:
             return location
         # relative redirect URI
@@ -272,7 +272,7 @@ class ClientSession:
         if self.follow_redirects and request.url.value in self._permanent_redirects_urls:
             request.url = self._permanent_redirects_urls[request.url.value]
 
-    async def get_connection(self, url: URL):
+    async def get_connection(self, url: URL) -> ClientConnection:
         pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
 
         try:
@@ -292,7 +292,7 @@ class ClientSession:
                 raise ValueError('request.url must be a complete, absolute URL. Either provide a base_url '
                                  'for the client, or specify a full URL for the request.')
 
-    async def send(self, request: Request):
+    async def send(self, request: Request) -> Response:
         self._validate_request_url(request)
 
         if not hasattr(request, 'context'):
@@ -306,7 +306,7 @@ class ClientSession:
         # without middlewares
         return await self._send_core(request)
 
-    async def _send_core(self, request: Request):
+    async def _send_core(self, request: Request) -> Response:
         self.check_permanent_redirects(request)
 
         response = await self._send_using_connection(request)
@@ -321,7 +321,7 @@ class ClientSession:
 
         return response
 
-    async def _send_using_connection(self, request):
+    async def _send_using_connection(self, request) -> Response:
         connection = await self.get_connection(request.url)
 
         try:
@@ -339,7 +339,7 @@ class ClientSession:
     async def get(self,
                   url: URLType,
                   headers: Optional[List[Header]] = None,
-                  params=None):
+                  params=None) -> Response:
         return await self.send(Request('GET',
                                        self.get_url(url, params),
                                        headers))
@@ -348,7 +348,7 @@ class ClientSession:
                    url: URLType,
                    content: Content = None,
                    headers: Optional[List[Header]] = None,
-                   params=None):
+                   params=None) -> Response:
         return await self.send(Request('POST',
                                        self.get_url(url, params),
                                        headers).with_content(content))
@@ -357,7 +357,7 @@ class ClientSession:
                   url: URLType,
                   content: Content = None,
                   headers: Optional[List[Header]] = None,
-                  params=None):
+                  params=None) -> Response:
         return await self.send(Request('PUT',
                                        self.get_url(url, params),
                                        headers).with_content(content))
@@ -366,7 +366,7 @@ class ClientSession:
                      url: URLType,
                      content: Content = None,
                      headers: Optional[List[Header]] = None,
-                     params=None):
+                     params=None) -> Response:
         return await self.send(Request('DELETE',
                                        self.get_url(url, params),
                                        headers).with_content(content))
@@ -374,7 +374,7 @@ class ClientSession:
     async def trace(self,
                     url: URLType,
                     headers: Optional[List[Header]] = None,
-                    params=None):
+                    params=None) -> Response:
         return await self.send(Request('TRACE',
                                        self.get_url(url, params),
                                        headers))
@@ -382,7 +382,7 @@ class ClientSession:
     async def head(self,
                    url: URLType,
                    headers: Optional[List[Header]] = None,
-                   params=None):
+                   params=None) -> Response:
         return await self.send(Request('HEAD',
                                        self.get_url(url, params),
                                        headers))
@@ -391,7 +391,7 @@ class ClientSession:
                     url: URLType,
                     content: Content = None,
                     headers: Optional[List[Header]] = None,
-                    params=None):
+                    params=None) -> Response:
         return await self.send(Request('PATCH',
                                        self.get_url(url, params),
                                        headers).with_content(content))
@@ -400,7 +400,7 @@ class ClientSession:
                       url: URLType,
                       content: Content = None,
                       headers: Optional[List[Header]] = None,
-                      params=None):
+                      params=None) -> Response:
         return await self.send(Request('OPTIONS',
                                        self.get_url(url, params),
                                        headers).with_content(content))

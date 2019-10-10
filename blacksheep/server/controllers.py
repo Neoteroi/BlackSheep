@@ -1,3 +1,4 @@
+import inspect
 from typing import Any, Optional
 from essentials import json as JSON
 from blacksheep import Request, Response
@@ -21,8 +22,7 @@ from blacksheep.server.responses import (json,
                                          accepted,
                                          created,
                                          MessageType)
-
-
+from blacksheep.server.templating import view, view_async
 # singleton router used to store initial configuration, before the application starts
 # this is used as *default* router for controllers, but it can be overridden - see for example tests in test_controllers
 router = RoutesRegistry()
@@ -143,3 +143,15 @@ class Controller(metaclass=ControllerMeta):
     def not_found(self, message: MessageType = None) -> Response:
         """Returns an HTTP 404 Not Found response, with optional message; sent as plain text or JSON."""
         return not_found(message)
+
+    def view(self, name: str, model: Optional[Any] = None) -> Response:
+        """Returns a rendered view"""
+        if model:
+            return view(self.templates, name, **model)
+        return view(self.templates, name)
+
+    async def view_async(self, name: str, model: Optional[Any] = None) -> Response:
+        """Returns a rendered asynchronous view"""
+        if model:
+            return await view_async(self.templates, name, **model)
+        return await view_async(self.templates, name)

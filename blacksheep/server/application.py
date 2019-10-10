@@ -251,6 +251,12 @@ class Application(BaseApplication):
             self.router.add(route.method, self.get_controller_handler_pattern(controller_type, route), handler)
         return controller_types
 
+    def bind_controller_type(self, controller_type: Type):
+        templates_environment = getattr(self, 'templates_environment', None)
+
+        if templates_environment:
+            setattr(controller_type, 'templates', templates_environment)
+
     def register_controllers(self, controller_types: List[Type]):
         """Registers controller types as transient services in the application service container."""
         if not controller_types:
@@ -268,6 +274,8 @@ class Application(BaseApplication):
 
             if controller_class in self.services:
                 continue
+
+            self.bind_controller_type(controller_class)
 
             # TODO: maybe rodi should be modified to handle the following internally;
             # if a type does not define an __init__ method, then a fair assumption is that it can be instantiated

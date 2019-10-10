@@ -1,6 +1,5 @@
 from rodi import Container, Services
 from functools import lru_cache
-from blacksheep.server import Application
 from blacksheep import Response, Content
 from jinja2 import Environment, Template, PackageLoader, select_autoescape
 
@@ -26,7 +25,7 @@ async def render_template_async(template: Template, *args, **kwargs):
     return await template.render_async(*args, **kwargs)
 
 
-def use_templates(app: Application, loader: PackageLoader, enable_async: bool = False):
+def use_templates(app, loader: PackageLoader, enable_async: bool = False):
     env = getattr(app, 'jinja_environment', None)
     if not env:
         env = Environment(
@@ -37,6 +36,7 @@ def use_templates(app: Application, loader: PackageLoader, enable_async: bool = 
         )
 
         app.jinja_environment = env
+        app.templates_environment = env
 
         if isinstance(app.services, Container):
             def get_jinja_env() -> Environment:

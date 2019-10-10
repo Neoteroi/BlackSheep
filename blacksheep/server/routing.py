@@ -1,4 +1,5 @@
 import re
+import logging
 from abc import abstractmethod
 from functools import lru_cache
 from blacksheep import HttpMethod
@@ -6,6 +7,7 @@ from collections import defaultdict
 from urllib.parse import unquote
 from typing import Callable, Dict, Optional, List, Any
 from blacksheep.utils import ensure_bytes, ensure_str, BytesOrStr
+from blacksheep.server.logs import _get_loggers
 
 __all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate', 'RegisteredRoute', 'RoutesRegistry']
 
@@ -14,6 +16,9 @@ _route_all_rx = re.compile(b'\\*')
 _route_param_rx = re.compile(b'/:([^/]+)')
 _named_group_rx = re.compile(b'\\?P<([^>]+)>')
 _escaped_chars = {b'.', b'[', b']', b'(', b')'}
+
+
+access_logger, app_logger = _get_loggers()
 
 
 def _get_regex_for_pattern(pattern):
@@ -117,12 +122,30 @@ class Route:
 
 class RouterBase:
 
-    def mark_handler(self, handler: Callable):
-        setattr(handler, 'route_handler', True)
-
     @abstractmethod
     def add(self, method: str, pattern: BytesOrStr, handler: Callable):
         ...
+
+    def mark_handler(self, handler: Callable):
+        setattr(handler, 'route_handler', True)
+
+    def normalize_default_pattern_name(self, handler_name: str):
+        return handler_name.replace('_', '-')
+
+    def get_decorator(self, method, pattern=None):
+        def decorator(fn):
+            nonlocal pattern
+            if pattern is ... or pattern is None:
+                # default to something depending on decorated function's name
+                if fn.__name__ in {'index', 'default'}:
+                    pattern = '/'
+                else:
+                    pattern = '/' + self.normalize_default_pattern_name(fn.__name__)
+
+                app_logger.info('Defaulting to route pattern "%s" for request handler <%s>', pattern, fn.__qualname__)
+            self.add(method, pattern, fn)
+            return fn
+        return decorator
 
     def add_head(self, pattern, handler):
         self.add(HttpMethod.HEAD, pattern, handler)
@@ -154,59 +177,32 @@ class RouterBase:
     def add_any(self, pattern, handler):
         self.add('*', pattern, handler)
 
-    def head(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.HEAD, pattern, f)
-            return f
-        return decorator
+    def head(self, pattern=None):
+        return self.get_decorator(HttpMethod.HEAD, pattern)
 
-    def get(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.GET, pattern, f)
-            return f
-        return decorator
+    def get(self, pattern=None):
+        return self.get_decorator(HttpMethod.GET, pattern)
 
-    def post(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.POST, pattern, f)
-            return f
-        return decorator
+    def post(self, pattern=None):
+        return self.get_decorator(HttpMethod.POST, pattern)
 
-    def put(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.PUT, pattern, f)
-            return f
-        return decorator
+    def put(self, pattern=None):
+        return self.get_decorator(HttpMethod.PUT, pattern)
 
-    def delete(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.DELETE, pattern, f)
-            return f
-        return decorator
+    def delete(self, pattern=None):
+        return self.get_decorator(HttpMethod.DELETE, pattern)
 
-    def trace(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.TRACE, pattern, f)
-            return f
-        return decorator
+    def trace(self, pattern=None):
+        return self.get_decorator(HttpMethod.TRACE, pattern)
 
-    def options(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.OPTIONS, pattern, f)
-            return f
-        return decorator
+    def options(self, pattern=None):
+        return self.get_decorator(HttpMethod.OPTIONS, pattern)
 
-    def connect(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.CONNECT, pattern, f)
-            return f
-        return decorator
+    def connect(self, pattern=None):
+        return self.get_decorator(HttpMethod.CONNECT, pattern)
 
-    def patch(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.PATCH, pattern, f)
-            return f
-        return decorator
+    def patch(self, pattern=None):
+        return self.get_decorator(HttpMethod.PATCH, pattern)
 
 
 class Router(RouterBase):

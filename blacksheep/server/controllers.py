@@ -51,6 +51,9 @@ class ControllerMeta(type):
 class Controller(metaclass=ControllerMeta):
     """Base class for all controllers."""
 
+    templates: Any
+    """Templates environment."""
+
     @classmethod
     def route(cls) -> Optional[str]:
         """
@@ -171,4 +174,8 @@ class ApiController(Controller):
 
     @classmethod
     def route(cls) -> Optional[str]:
-        return join_fragments('api', cls.version(), cls.__name__.lower())
+        cls_name = cls.__name__.lower()
+        cls_version = cls.version() or ''
+        if cls_version and cls_name.endswith(cls_version.lower()):
+            cls_name = cls_name[:-len(cls_version)]
+        return join_fragments('api', cls_version, cls_name)

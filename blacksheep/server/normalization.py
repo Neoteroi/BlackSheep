@@ -1,4 +1,5 @@
 import inspect
+from functools import wraps
 from typing import Union, List, Sequence, Set, Tuple
 from inspect import Signature, _empty
 from .bindings import (FromJson,
@@ -225,6 +226,7 @@ def _copy_name_and_docstring(source_method, wrapper):
 
 
 def _get_sync_wrapper_for_controller(binders, method):
+    @wraps(method)
     async def handler(request):
         values = []
         controller = await binders[0].get_value(request)
@@ -242,6 +244,7 @@ def _get_sync_wrapper_for_controller(binders, method):
 
 
 def _get_async_wrapper_for_controller(binders, method):
+    @wraps(method)
     async def handler(request):
         values = []
         controller = await binders[0].get_value(request)
@@ -278,12 +281,12 @@ def get_sync_wrapper(services, route, method, params, params_len):
     if isinstance(binders[0], ControllerBinder):
         return _get_sync_wrapper_for_controller(binders, method)
 
+    @wraps(method)
     async def handler(request):
         values = []
         for binder in binders:
             values.append(await binder.get_value(request))
         return method(*values)
-
     return handler
 
 
@@ -304,12 +307,12 @@ def get_async_wrapper(services, route, method, params, params_len):
     if isinstance(binders[0], ControllerBinder):
         return _get_async_wrapper_for_controller(binders, method)
 
+    @wraps(method)
     async def handler(request):
         values = []
         for binder in binders:
             values.append(await binder.get_value(request))
         return await method(*values)
-
     return handler
 
 

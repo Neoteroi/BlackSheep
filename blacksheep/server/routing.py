@@ -1,5 +1,4 @@
 import re
-import logging
 from abc import abstractmethod
 from functools import lru_cache
 from blacksheep import HttpMethod
@@ -132,7 +131,7 @@ class RouterBase:
     def normalize_default_pattern_name(self, handler_name: str):
         return handler_name.replace('_', '-')
 
-    def get_decorator(self, method, pattern=None):
+    def get_decorator(self, method, pattern='/'):
         def decorator(fn):
             nonlocal pattern
             if pattern is ... or pattern is None:
@@ -177,31 +176,31 @@ class RouterBase:
     def add_any(self, pattern, handler):
         self.add('*', pattern, handler)
 
-    def head(self, pattern=None):
+    def head(self, pattern='/'):
         return self.get_decorator(HttpMethod.HEAD, pattern)
 
-    def get(self, pattern=None):
+    def get(self, pattern='/'):
         return self.get_decorator(HttpMethod.GET, pattern)
 
-    def post(self, pattern=None):
+    def post(self, pattern='/'):
         return self.get_decorator(HttpMethod.POST, pattern)
 
-    def put(self, pattern=None):
+    def put(self, pattern='/'):
         return self.get_decorator(HttpMethod.PUT, pattern)
 
-    def delete(self, pattern=None):
+    def delete(self, pattern='/'):
         return self.get_decorator(HttpMethod.DELETE, pattern)
 
-    def trace(self, pattern=None):
+    def trace(self, pattern='/'):
         return self.get_decorator(HttpMethod.TRACE, pattern)
 
-    def options(self, pattern=None):
+    def options(self, pattern='/'):
         return self.get_decorator(HttpMethod.OPTIONS, pattern)
 
-    def connect(self, pattern=None):
+    def connect(self, pattern='/'):
         return self.get_decorator(HttpMethod.CONNECT, pattern)
 
-    def patch(self, pattern=None):
+    def patch(self, pattern='/'):
         return self.get_decorator(HttpMethod.PATCH, pattern)
 
 
@@ -269,7 +268,7 @@ class Router(RouterBase):
         self.routes[ensure_bytes(method)].append(route)
 
     @lru_cache(maxsize=1200)
-    def get_match(self, method, value):
+    def get_match(self, method: BytesOrStr, value: BytesOrStr) -> RouteMatch:
         method = ensure_bytes(method)
         value = ensure_bytes(value)
 

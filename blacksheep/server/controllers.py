@@ -1,8 +1,7 @@
-import inspect
 from typing import Any, Optional
 from essentials import json as JSON
 from blacksheep import Request, Response
-from blacksheep.utils import BytesOrStr
+from blacksheep.utils import BytesOrStr, join_fragments
 from blacksheep.server.routing import RoutesRegistry
 from blacksheep.server.responses import (json,
                                          pretty_json,
@@ -155,3 +154,21 @@ class Controller(metaclass=ControllerMeta):
         if model:
             return await view_async(self.templates, name, **model)
         return await view_async(self.templates, name)
+
+
+class ApiController(Controller):
+
+    @classmethod
+    def version(cls) -> Optional[str]:
+        """
+        The version of this api controller. If specified, it is included in the base route for this controller.
+
+        Example:
+            if version is 'v1', and base route 'cat'; all route handlers defined on the controller have prefix:
+            /api/v1/cat
+        """
+        return None
+
+    @classmethod
+    def route(cls) -> Optional[str]:
+        return join_fragments('api', cls.version(), cls.__name__.lower())

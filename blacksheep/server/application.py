@@ -73,6 +73,9 @@ class ApplicationEvent:
         for handler in self.__handlers:
             await handler(self.context, *args, **keywargs)
 
+    def __repr__(self):
+        return f'<ApplicationEvent [{",".join(handler.__name__ for handler in self.__handlers)}]>'
+
 
 def get_show_error_details(show_error_details):
     if show_error_details:

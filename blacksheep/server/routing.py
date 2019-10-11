@@ -283,16 +283,13 @@ class RegisteredRoute:
 
     __slots__ = ('method', 'pattern', 'handler')
 
-    def __init__(self, method: str, pattern: bytes, handler: Callable):
+    def __init__(self, method: str, pattern: BytesOrStr, handler: Callable):
         self.method = method
         self.pattern = pattern
         self.handler = handler
 
     def __repr__(self):
-        try:
-            return f'<{self.__class__.__name__} {self.method} {self.pattern.decode()} {self.handler.__name__}>'
-        except AttributeError:
-            return f'<{self.__class__.__name__} at {id(self)}>'
+        return f'<RegisteredRoute {self.method} "{self.pattern}" {self.handler.__name__}>'
 
 
 class RoutesRegistry(RouterBase):
@@ -312,3 +309,6 @@ class RoutesRegistry(RouterBase):
     def add(self, method: str, pattern: BytesOrStr, handler: Callable):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
+
+    def __repr__(self):
+        return f'<RoutesRegistry {self.routes}>'

@@ -27,6 +27,12 @@ async def home(request):
 
 ```
 
+## Getting started
+Use these project templates to get started:
+
+* [BlackSheep MVC project template](https://github.com/RobertoPrevato/BlackSheepMVC)
+* [BlackSheep empty project template](https://github.com/RobertoPrevato/BlackSheepEmptyProject)
+
 ## Requirements
 
 The web framework requires an [ASGI](https://asgi.readthedocs.io/en/latest/) server, such as [uvicorn](http://www.uvicorn.org/), [daphne](https://github.com/django/daphne/), or [hypercorn](https://pgjones.gitlab.io/hypercorn/). For example, to use it with uvicorn:

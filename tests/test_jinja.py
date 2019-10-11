@@ -1,6 +1,7 @@
 import pytest
 from jinja2 import PackageLoader
 from blacksheep.server.templating import use_templates, view, view_async
+from blacksheep.server.controllers import Controller, RoutesRegistry
 from .test_application import FakeApplication, get_example_scope, MockSend, MockReceive
 
 
@@ -17,14 +18,29 @@ def home_model():
             'paragraph': 'Lorem ipsum dolor sit amet'}
 
 
-async def _home_scenario(app: FakeApplication):
+@pytest.fixture()
+def specific_text():
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Specific Example</title>
+</head>
+<body>
+    <h1>Hello World!</h1>
+    <p>Lorem ipsum dolor sit amet</p>
+</body>
+</html>"""
+
+
+async def _home_scenario(app: FakeApplication, url='/', expected_text=None):
     app.build_services()
     app.normalize_handlers()
-    await app(get_example_scope('GET', '/'), MockReceive(), MockSend())
+    await app(get_example_scope('GET', url), MockReceive(), MockSend())
     text = await app.response.text()
-    assert app.response.status == 200
 
-    assert text == """<!DOCTYPE html>
+    if expected_text is None:
+        expected_text = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -35,6 +51,9 @@ async def _home_scenario(app: FakeApplication):
     <p>Lorem ipsum dolor sit amet</p>
 </body>
 </html>"""
+
+    assert text == expected_text
+    assert app.response.status == 200
 
 
 @pytest.mark.asyncio
@@ -114,4 +133,143 @@ async def test_jinja_sync_mode_with_verbose_method_named_parameters(home_model):
     @app.router.get(b'/')
     async def home(jinja):
         return view(jinja, 'home', **home_model)
+    await _home_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_controller_conventional_view_name(home_model):
+    app, _ = get_app(False)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Lorem(Controller):
+
+        @get()
+        def index(self):
+            return self.view(model=home_model)
+
+    app.setup_controllers()
+
+    await _home_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_controller_conventional_view_name_async(home_model):
+    app, _ = get_app(True)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Lorem(Controller):
+
+        @get()
+        async def index(self):
+            return await self.view_async(model=home_model)
+
+    app.setup_controllers()
+    await _home_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_controller_specific_view_name(home_model, specific_text):
+    app, _ = get_app(False)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Lorem(Controller):
+
+        @get()
+        def index(self):
+            return self.view('specific', home_model)
+
+    app.setup_controllers()
+
+    await _home_scenario(app, expected_text=specific_text)
+
+
+@pytest.mark.asyncio
+async def test_controller_specific_view_name_async(home_model, specific_text):
+    app, _ = get_app(True)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Lorem(Controller):
+
+        @get()
+        async def index(self):
+            return await self.view_async('specific', model=home_model)
+
+    app.setup_controllers()
+    await _home_scenario(app, expected_text=specific_text)
+
+
+@pytest.mark.asyncio
+async def test_controller_conventional_view_name_no_model(home_model):
+    app, _ = get_app(False)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Lorem(Controller):
+
+        @get(...)
+        def nomodel(self):
+            return self.view()
+
+    app.setup_controllers()
+
+    await _home_scenario(app, '/nomodel')
+
+
+@pytest.mark.asyncio
+async def test_controller_conventional_view_name_sub_function(home_model):
+    app, _ = get_app(False)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    # noinspection PyUnusedLocal
+    class Lorem(Controller):
+
+        def ufo(self, model):
+            return self.foo(model)
+
+        def foo(self, model):
+            return self.view(model=model)
+
+        @get()
+        def index(self):
+            return self.ufo(home_model)
+
+    app.setup_controllers()
+
+    await _home_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_controller_conventional_view_name_extraneous_function(home_model):
+    app, _ = get_app(False)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    def extraneous(controller, model):
+        return controller.view(model=model)
+
+    # noinspection PyUnusedLocal
+    class Lorem(Controller):
+
+        def ufo(self, model):
+            return self.foo(model)
+
+        def foo(self, model):
+            return extraneous(self, model)
+
+        @get()
+        def index(self):
+            return self.ufo(home_model)
+
+    app.setup_controllers()
+
     await _home_scenario(app)

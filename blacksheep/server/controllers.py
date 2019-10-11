@@ -1,3 +1,4 @@
+import sys
 from typing import Any, Optional
 from essentials import json as JSON
 from blacksheep import Request, Response
@@ -21,7 +22,7 @@ from blacksheep.server.responses import (json,
                                          accepted,
                                          created,
                                          MessageType)
-from blacksheep.server.templating import view, view_async
+from blacksheep.server.templating import view, view_async, Environment, MissingJinjaModuleError
 # singleton router used to store initial configuration, before the application starts
 # this is used as *default* router for controllers, but it can be overridden - see for example tests in test_controllers
 router = RoutesRegistry()
@@ -38,6 +39,13 @@ options = router.options
 connect = router.connect
 
 
+class CannotDetermineDefaultViewNameError(RuntimeError):
+
+    def __init__(self):
+        super().__init__('Cannot determine the default view name to be used for the calling function. '
+                         'Modify your Controller `view()` function call to specify the name of the view to be used.')
+
+
 class ControllerMeta(type):
 
     def __init__(cls, name, bases, attr_dict):
@@ -51,8 +59,12 @@ class ControllerMeta(type):
 class Controller(metaclass=ControllerMeta):
     """Base class for all controllers."""
 
-    templates: Any
-    """Templates environment."""
+    templates: Optional[Environment] = None
+    """Templates environment: this class property is configured automatically by the application object at startup,
+    because controllers activated by an application, need to use the same templating engine of the application.
+    
+    Templates are available only if the application uses templating - which is not necessary.
+    """
 
     @classmethod
     def route(cls) -> Optional[str]:
@@ -146,17 +158,95 @@ class Controller(metaclass=ControllerMeta):
         """Returns an HTTP 404 Not Found response, with optional message; sent as plain text or JSON."""
         return not_found(message)
 
-    def view(self, name: str, model: Optional[Any] = None) -> Response:
-        """Returns a rendered view"""
-        if model:
-            return view(self.templates, name, **model)
-        return view(self.templates, name)
+    def get_default_view_name(self):
+        """Returns the default view name, to be used by the calling function."""
+        route_handler_name = self._get_route_handler_name()
 
-    async def view_async(self, name: str, model: Optional[Any] = None) -> Response:
-        """Returns a rendered asynchronous view"""
+        if route_handler_name is None:
+            raise CannotDetermineDefaultViewNameError()
+        return route_handler_name
+
+    def _get_route_handler_name(self):
+        """Returns the name of the closest route handler in the call stack.
+
+        Note: this function is designed to improve user's experience when using the framework.
+        It removes the need to explicit the name of the template when using the `view()` function.
+
+        It uses sys._getframe, which is a CPython implementation detail and is not guaranteed to be
+        to exist in all implementations of Python.
+        https://docs.python.org/3/library/sys.html
+        """
+        i = 2  # Note: no need to get the frame for this function and the direct caller;
+        while True:
+            i += 1
+            try:
+                fn_meta = sys._getframe(i).f_code
+            except AttributeError:
+                # NB: if sys._getframe raises attribute error, it means is not supported
+                # by the used Python runtime; return None; which in turn will cause an exception.
+                return None
+            except ValueError:
+                break
+            fn = getattr(self, fn_meta.co_name, None)
+
+            if not fn:
+                continue
+
+            try:
+                if fn.route_handler:
+                    return fn_meta.co_name
+            except AttributeError:
+                pass
+        return None
+
+    @classmethod
+    def class_name(cls):
+        """Returns the class name to be used for conventional behavior.
+        By default, it returns the lowercase class name.
+        """
+        return cls.__name__.lower()
+
+    def full_view_name(self, name: str):
+        """Returns the full view name for this controller.
+        By default, this function concatenates the lowercase class name to the view name.
+
+        Therefore, a Home(Controller) will look for templates inside /views/home/ folder.
+        """
+        return f'{self.class_name()}/{name}'
+
+    def view(self,
+             name: Optional[str] = None,
+             model: Optional[Any] = None) -> Response:
+        """
+        Returns a view rendered synchronously.
+
+        :param name: name of the template (path to the template file, optionally without '.html' extension
+        :param model: optional model, required to render the template.
+        :return: a Response object
+        """
+        if not name:
+            name = self.get_default_view_name()
+
         if model:
-            return await view_async(self.templates, name, **model)
-        return await view_async(self.templates, name)
+            return view(self.templates, self.full_view_name(name), **model)
+        return view(self.templates, self.full_view_name(name))
+
+    async def view_async(self,
+                         name: Optional[str] = None,
+                         model: Optional[Any] = None) -> Response:
+        """
+        Returns a view rendered asynchronously.
+
+        :param name: name of the template (path to the template file, optionally without '.html' extension
+        :param model: optional model, required to render the template.
+        :return: a Response object
+        """
+        if not name:
+            name = self.get_default_view_name()
+
+        if model:
+            return await view_async(self.templates, self.full_view_name(name), **model)
+        return await view_async(self.templates, self.full_view_name(name))
 
 
 class ApiController(Controller):
@@ -169,13 +259,26 @@ class ApiController(Controller):
         Example:
             if version is 'v1', and base route 'cat'; all route handlers defined on the controller have prefix:
             /api/v1/cat
+
+            if the class name ends with the version string, the suffix is automatically removed from routes, so:
+            class CatV2; with version() -> "v2"; produces such routes:
+            /api/v2/cat
+            And not, ~/api/v2/catv2~!
         """
         return None
 
     @classmethod
     def route(cls) -> Optional[str]:
-        cls_name = cls.__name__.lower()
+        cls_name = cls.class_name()
         cls_version = cls.version() or ''
         if cls_version and cls_name.endswith(cls_version.lower()):
             cls_name = cls_name[:-len(cls_version)]
         return join_fragments('api', cls_version, cls_name)
+
+
+if Environment is ...:
+    # Jinja2 is not a required dependency;
+    # the Environment is configured as Ellipsis
+    # Replace view functions with functions raising user-friendly exceptions
+    setattr(Controller, 'view', MissingJinjaModuleError.replace_function())
+    setattr(Controller, 'view_async', MissingJinjaModuleError.replace_function(True))

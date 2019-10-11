@@ -1,7 +1,19 @@
 from rodi import Container, Services
 from functools import lru_cache
 from blacksheep import Response, Content
-from jinja2 import Environment, Template, PackageLoader, select_autoescape
+from blacksheep.utils.imports import OptionalModuleNotFoundError
+
+try:
+    from jinja2 import Environment, Template, PackageLoader, select_autoescape
+except ModuleNotFoundError:
+    # Jinja2 is not a required dependency
+    Environment, Template, PackageLoader, select_autoescape = [... for _ in range(4)]
+
+
+class MissingJinjaModuleError(OptionalModuleNotFoundError):
+
+    def __init__(self):
+        super().__init__('Jinja2')
 
 
 @lru_cache(1200)
@@ -78,3 +90,9 @@ async def view_async(jinja_environment: Environment, name: str, *args, **kwargs)
     """Returns a Response object with HTML obtained from synchronous rendering."""
     return get_response(await render_template_async(jinja_environment
                                                     .get_template(template_name(name)), *args, **kwargs))
+
+
+if Environment is ...:
+    use_templates = MissingJinjaModuleError.replace_function()
+    view = MissingJinjaModuleError.replace_function()
+    view_async = MissingJinjaModuleError.replace_function(True)

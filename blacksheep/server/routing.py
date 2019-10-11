@@ -6,7 +6,6 @@ from collections import defaultdict
 from urllib.parse import unquote
 from typing import Callable, Dict, Optional, List, Any
 from blacksheep.utils import ensure_bytes, ensure_str, BytesOrStr
-from blacksheep.server.logs import _get_loggers
 
 __all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate', 'RegisteredRoute', 'RoutesRegistry']
 
@@ -15,9 +14,6 @@ _route_all_rx = re.compile(b'\\*')
 _route_param_rx = re.compile(b'/:([^/]+)')
 _named_group_rx = re.compile(b'\\?P<([^>]+)>')
 _escaped_chars = {b'.', b'[', b']', b'(', b')'}
-
-
-access_logger, app_logger = _get_loggers()
 
 
 def _get_regex_for_pattern(pattern):
@@ -141,7 +137,8 @@ class RouterBase:
                 else:
                     pattern = '/' + self.normalize_default_pattern_name(fn.__name__)
 
-                app_logger.info('Defaulting to route pattern "%s" for request handler <%s>', pattern, fn.__qualname__)
+                # TODO: implement log here
+                # app_logger.info('Defaulting to route pattern "%s" for request handler <%s>', pattern, fn.__qualname__)
             self.add(method, pattern, fn)
             return fn
         return decorator

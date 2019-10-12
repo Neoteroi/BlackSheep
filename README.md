@@ -1,7 +1,8 @@
 [![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=7) [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
 
 # BlackSheep
-Fast web framework and HTTP client for Python asyncio, using [Cython](https://cython.org).
+BlackSheep is an asynchronous web framework to build event based, non-blocking Python web applications.
+It is inspired by [Flask](https://palletsprojects.com/p/flask/), [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/), and the work by [Yury Selivanov](https://magic.io/blog/uvloop-blazing-fast-python-networking/).
 
 <p align="left">
   <a href="#blacksheep"><img width="320" height="271" src="https://labeuwstacc.blob.core.windows.net/github/blacksheep.png" alt="Black Sheep"></a>
@@ -35,7 +36,7 @@ Use these project templates to get started:
 
 ## Requirements
 
-The web framework requires an [ASGI](https://asgi.readthedocs.io/en/latest/) server, such as [uvicorn](http://www.uvicorn.org/), [daphne](https://github.com/django/daphne/), or [hypercorn](https://pgjones.gitlab.io/hypercorn/). For example, to use it with uvicorn:
+BlackSheep belongs to the category of [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires an ASGI HTTP server to run, such as [uvicorn](http://www.uvicorn.org/), [daphne](https://github.com/django/daphne/), or [hypercorn](https://pgjones.gitlab.io/hypercorn/). For example, to use it with uvicorn:
 
 ```bash
 $ pip install uvicorn

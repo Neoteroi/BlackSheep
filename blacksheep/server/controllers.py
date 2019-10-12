@@ -39,6 +39,12 @@ options = router.options
 connect = router.connect
 
 
+if Environment is ...:
+    TemplatesType = Any
+else:
+    TemplatesType = Optional[Environment]
+
+
 class CannotDetermineDefaultViewNameError(RuntimeError):
 
     def __init__(self):
@@ -59,7 +65,7 @@ class ControllerMeta(type):
 class Controller(metaclass=ControllerMeta):
     """Base class for all controllers."""
 
-    templates: Optional[Environment] = None
+    templates: TemplatesType = None
     """Templates environment: this class property is configured automatically by the application object at startup,
     because controllers activated by an application, need to use the same templating engine of the application.
     

@@ -26,12 +26,9 @@ from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
 from rodi import Services, Container
 
-
 ServicesType = Union[Services, Container]
 
-
 server_logger = logging.getLogger('blacksheep.server')
-
 
 __all__ = ('Application',)
 
@@ -42,6 +39,7 @@ def get_default_headers_middleware(headers):
         for header in headers:
             response.headers.add(header)
         return response
+
     return default_headers_middleware
 
 
@@ -75,6 +73,9 @@ class ApplicationEvent:
         for handler in self.__handlers:
             await handler(self.context, *args, **keywargs)
 
+    def __repr__(self):
+        return f'<ApplicationEvent [{",".join(handler.__name__ for handler in self.__handlers)}]>'
+
 
 def get_show_error_details(show_error_details):
     if show_error_details:
@@ -107,8 +108,7 @@ class Application(BaseApplication):
                  resources: Optional[Resources] = None,
                  services: Optional[ServicesType] = None,
                  debug: bool = False,
-                 show_error_details: bool = False,
-                 auto_reload: bool = True):
+                 show_error_details: bool = False):
         if router is None:
             router = Router()
         if services is None:
@@ -121,10 +121,7 @@ class Application(BaseApplication):
             resources = Resources(get_resource_file_content('error.html'))
         self.services = services  # type: ServicesType
         self.debug = debug
-        self.auto_reload = auto_reload
-        self.running = False
         self.middlewares = middlewares
-        self.processes = []
         self.access_logger = None
         self.logger = None
         self._default_headers = None
@@ -137,10 +134,21 @@ class Application(BaseApplication):
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
         self.started = False
-        self.controllers_router = controllers_router  # type: RoutesRegistry
+        self.controllers_router: RoutesRegistry = controllers_router
+
+    def __repr__(self):
+        return f'<BlackSheep Application>'
+
+    @property
+    def default_headers(self):
+        return self._default_headers
+
+    @default_headers.setter
+    def default_headers(self, value):
+        self._default_headers = value
 
     def use_authentication(self, strategy: Optional[AuthenticationStrategy] = None) -> AuthenticationStrategy:
-        if self.running:
+        if self.started:
             raise RuntimeError('The application is already running, configure authentication '
                                'before starting the application')
         if not strategy:
@@ -150,7 +158,7 @@ class Application(BaseApplication):
         return strategy
 
     def use_authorization(self, strategy: Optional[AuthorizationStrategy] = None) -> AuthorizationStrategy:
-        if self.running:
+        if self.started:
             raise RuntimeError('The application is already running, configure authorization '
                                'before starting the application')
 
@@ -176,6 +184,7 @@ class Application(BaseApplication):
             for method in methods:
                 self.router.add(method, pattern, f)
             return f
+
         return decorator
 
     def set_default_headers(self, headers):
@@ -245,6 +254,12 @@ class Application(BaseApplication):
             self.router.add(route.method, self.get_controller_handler_pattern(controller_type, route), handler)
         return controller_types
 
+    def bind_controller_type(self, controller_type: Type):
+        templates_environment = getattr(self, 'templates_environment', None)
+
+        if templates_environment:
+            setattr(controller_type, 'templates', templates_environment)
+
     def register_controllers(self, controller_types: List[Type]):
         """Registers controller types as transient services in the application service container."""
         if not controller_types:
@@ -262,6 +277,8 @@ class Application(BaseApplication):
 
             if controller_class in self.services:
                 continue
+
+            self.bind_controller_type(controller_class)
 
             # TODO: maybe rodi should be modified to handle the following internally;
             # if a type does not define an __init__ method, then a fair assumption is that it can be instantiated
@@ -320,10 +337,9 @@ class Application(BaseApplication):
         if self.started:
             return
 
+        self.started = True
         if self.on_start:
             await self.on_start.fire()
-
-        self.started = True
 
         self.use_controllers()
         self.build_services()
@@ -337,7 +353,14 @@ class Application(BaseApplication):
     async def _handle_lifespan(self, receive, send):
         message = await receive()
         assert message['type'] == 'lifespan.startup'
-        await self.start()
+
+        try:
+            await self.start()
+        except:
+            logging.exception('Startup error')
+            await send({'type': 'lifespan.startup.failed'})
+            return
+
         await send({'type': 'lifespan.startup.complete'})
 
         message = await receive()

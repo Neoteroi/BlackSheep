@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import logging.handlers
 from datetime import datetime
@@ -41,6 +42,11 @@ def _get_loggers():
 
     access_logger.addHandler(access_handler)
     app_logger.addHandler(app_handler)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    app_logger.addHandler(handler)
+    access_logger.addHandler(handler)
 
     access_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
 

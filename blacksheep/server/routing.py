@@ -117,12 +117,31 @@ class Route:
 
 class RouterBase:
 
-    def mark_handler(self, handler: Callable):
-        setattr(handler, 'route_handler', True)
-
     @abstractmethod
     def add(self, method: str, pattern: BytesOrStr, handler: Callable):
         ...
+
+    def mark_handler(self, handler: Callable):
+        setattr(handler, 'route_handler', True)
+
+    def normalize_default_pattern_name(self, handler_name: str):
+        return handler_name.replace('_', '-')
+
+    def get_decorator(self, method, pattern='/'):
+        def decorator(fn):
+            nonlocal pattern
+            if pattern is ... or pattern is None:
+                # default to something depending on decorated function's name
+                if fn.__name__ in {'index', 'default'}:
+                    pattern = '/'
+                else:
+                    pattern = '/' + self.normalize_default_pattern_name(fn.__name__)
+
+                # TODO: implement log here
+                # app_logger.info('Defaulting to route pattern "%s" for request handler <%s>', pattern, fn.__qualname__)
+            self.add(method, pattern, fn)
+            return fn
+        return decorator
 
     def add_head(self, pattern, handler):
         self.add(HttpMethod.HEAD, pattern, handler)
@@ -155,58 +174,31 @@ class RouterBase:
         self.add('*', pattern, handler)
 
     def head(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.HEAD, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.HEAD, pattern)
 
     def get(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.GET, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.GET, pattern)
 
     def post(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.POST, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.POST, pattern)
 
     def put(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.PUT, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.PUT, pattern)
 
     def delete(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.DELETE, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.DELETE, pattern)
 
     def trace(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.TRACE, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.TRACE, pattern)
 
     def options(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.OPTIONS, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.OPTIONS, pattern)
 
     def connect(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.CONNECT, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.CONNECT, pattern)
 
     def patch(self, pattern='/'):
-        def decorator(f):
-            self.add(HttpMethod.PATCH, pattern, f)
-            return f
-        return decorator
+        return self.get_decorator(HttpMethod.PATCH, pattern)
 
 
 class Router(RouterBase):
@@ -273,7 +265,7 @@ class Router(RouterBase):
         self.routes[ensure_bytes(method)].append(route)
 
     @lru_cache(maxsize=1200)
-    def get_match(self, method, value):
+    def get_match(self, method: BytesOrStr, value: BytesOrStr) -> RouteMatch:
         method = ensure_bytes(method)
         value = ensure_bytes(value)
 
@@ -288,16 +280,13 @@ class RegisteredRoute:
 
     __slots__ = ('method', 'pattern', 'handler')
 
-    def __init__(self, method: str, pattern: bytes, handler: Callable):
+    def __init__(self, method: str, pattern: BytesOrStr, handler: Callable):
         self.method = method
         self.pattern = pattern
         self.handler = handler
 
     def __repr__(self):
-        try:
-            return f'<{self.__class__.__name__} {self.method} {self.pattern.decode()} {self.handler.__name__}>'
-        except AttributeError:
-            return f'<{self.__class__.__name__} at {id(self)}>'
+        return f'<RegisteredRoute {self.method} "{self.pattern}" {self.handler.__name__}>'
 
 
 class RoutesRegistry(RouterBase):
@@ -317,3 +306,6 @@ class RoutesRegistry(RouterBase):
     def add(self, method: str, pattern: BytesOrStr, handler: Callable):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
+
+    def __repr__(self):
+        return f'<RoutesRegistry {self.routes}>'

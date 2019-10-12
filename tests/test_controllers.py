@@ -3,9 +3,9 @@ from typing import Optional
 from functools import wraps
 from blacksheep import Request, Response
 from blacksheep.server.responses import text
-from blacksheep.server.controllers import Controller, RoutesRegistry
+from blacksheep.server.controllers import Controller, ApiController, RoutesRegistry
 from blacksheep.server.routing import RouteDuplicate
-from blacksheep.utils import ensure_str
+from blacksheep.utils import ensure_str, join_fragments
 from guardpost.authentication import User
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
@@ -536,3 +536,160 @@ async def test_controller_with_duplicate_route_with_base_route_throw(first_patte
 
     with pytest.raises(RouteDuplicate):
         app.use_controllers()
+
+
+@pytest.mark.asyncio
+async def test_api_controller_without_version():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+    post = app.controllers_router.post
+    delete = app.controllers_router.delete
+    patch = app.controllers_router.patch
+
+    # noinspection PyUnusedLocal
+    class Cat(ApiController):
+
+        @get(':cat_id')
+        def get_cat(self, cat_id: str): return text('1')
+
+        @patch()
+        def update_cat(self): return text('2')
+
+        @post()
+        def create_cat(self): return text('3')
+
+        @delete(':cat_id')
+        def delete_cat(self): return text('4')
+
+    app.setup_controllers()
+
+    expected_result = {
+        ('GET', '/api/cat/100'): '1',
+        ('PATCH', '/api/cat'): '2',
+        ('POST', '/api/cat'): '3',
+        ('DELETE', '/api/cat/100'): '4',
+    }
+
+    for key, value in expected_result.items():
+        method, pattern = key
+        await app(get_example_scope(method, pattern), MockReceive(), MockSend())
+
+        assert app.response.status == 200
+        body = await app.response.text()
+        assert body == value
+
+
+@pytest.mark.asyncio
+async def test_api_controller_with_version():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+    post = app.controllers_router.post
+    delete = app.controllers_router.delete
+    patch = app.controllers_router.patch
+
+    # noinspection PyUnusedLocal
+    class Cat(ApiController):
+
+        @classmethod
+        def version(cls) -> Optional[str]:
+            return 'v1'
+
+        @get(':cat_id')
+        def get_cat(self, cat_id: str): return text('1')
+
+        @patch()
+        def update_cat(self): return text('2')
+
+        @post()
+        def create_cat(self): return text('3')
+
+        @delete(':cat_id')
+        def delete_cat(self): return text('4')
+
+    app.setup_controllers()
+
+    expected_result = {
+        ('GET', '/api/v1/cat/100'): '1',
+        ('PATCH', '/api/v1/cat'): '2',
+        ('POST', '/api/v1/cat'): '3',
+        ('DELETE', '/api/v1/cat/100'): '4',
+    }
+
+    for key, value in expected_result.items():
+        method, pattern = key
+        await app(get_example_scope(method, pattern), MockReceive(), MockSend())
+
+        assert app.response.status == 200
+        body = await app.response.text()
+        assert body == value
+
+
+@pytest.mark.asyncio
+async def test_api_controller_with_version():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+    post = app.controllers_router.post
+    delete = app.controllers_router.delete
+    patch = app.controllers_router.patch
+
+    # noinspection PyUnusedLocal
+    class CatV1(ApiController):
+
+        @classmethod
+        def version(cls) -> Optional[str]:
+            return 'v1'
+
+        @get(':cat_id')
+        def get_cat(self, cat_id: str): return text('1')
+
+        @patch()
+        def update_cat(self): return text('2')
+
+        @post()
+        def create_cat(self): return text('3')
+
+        @delete(':cat_id')
+        def delete_cat(self): return text('4')
+
+    # noinspection PyUnusedLocal
+    class CatV2(ApiController):
+
+        @classmethod
+        def version(cls) -> Optional[str]:
+            return 'v2'
+
+        @get(':cat_id')
+        def get_cat(self, cat_id: str): return text('5')
+
+        @patch()
+        def update_cat(self): return text('6')
+
+        @post()
+        def create_cat(self): return text('7')
+
+        @delete(':cat_id')
+        def delete_cat(self): return text('8')
+
+    app.setup_controllers()
+
+    expected_result = {
+        ('GET', '/api/v1/cat/100'): '1',
+        ('PATCH', '/api/v1/cat'): '2',
+        ('POST', '/api/v1/cat'): '3',
+        ('DELETE', '/api/v1/cat/100'): '4',
+        ('GET', '/api/v2/cat/100'): '5',
+        ('PATCH', '/api/v2/cat'): '6',
+        ('POST', '/api/v2/cat'): '7',
+        ('DELETE', '/api/v2/cat/100'): '8',
+    }
+
+    for key, value in expected_result.items():
+        method, pattern = key
+        await app(get_example_scope(method, pattern), MockReceive(), MockSend())
+
+        assert app.response.status == 200
+        body = await app.response.text()
+        assert body == value

@@ -359,3 +359,55 @@ def test_duplicate_pattern_star_raises():
 
     with pytest.raises(RouteDuplicate):
         router.add_get(b'*', another)
+
+
+def test_automatic_pattern_with_ellipsis():
+    router = Router()
+
+    @router.get(...)
+    def home(): ...
+
+    @router.get(...)
+    def another(): ...
+
+    match = router.get_match('GET', '/')
+
+    assert match is None
+
+    match = router.get_match('GET', '/home')
+
+    assert match is not None
+    assert match.handler is home
+
+    match = router.get_match('GET', '/another')
+
+    assert match is not None
+    assert match.handler is another
+
+
+def test_automatic_pattern_with_ellipsis_name_normalization():
+    router = Router()
+
+    @router.get(...)
+    def hello_world(): ...
+
+    match = router.get_match('GET', '/hello_world')
+
+    assert match is None
+
+    match = router.get_match('GET', '/hello-world')
+
+    assert match is not None
+    assert match.handler is hello_world
+
+
+def test_automatic_pattern_with_ellipsis_index_name():
+    router = Router()
+
+    @router.get(...)
+    def index(): ...
+
+    match = router.get_match('GET', '/')
+
+    assert match is not None
+    assert match.handler is index

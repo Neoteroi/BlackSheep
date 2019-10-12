@@ -6,6 +6,7 @@ from blacksheep.utils import join_fragments, ensure_bytes, ensure_str, BytesOrSt
 @pytest.mark.parametrize('fragments,expected_value', [
     [['a'], '/a'],
     [['a', 'b', 'c', 'd'], '/a/b/c/d'],
+    [['a', None, 'b', 'c', '', 'd'], '/a/b/c/d'],
     [[b'a', b'b', b'c', b'd'], '/a/b/c/d'],
     [[b'a', 'b', 'c', b'd'], '/a/b/c/d'],
     [['hello/world', 'today'], '/hello/world/today'],

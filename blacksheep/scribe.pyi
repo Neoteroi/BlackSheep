@@ -1,4 +1,5 @@
-from blacksheep.messages import Request
+from typing import Callable
+from blacksheep.messages import Request, Response
 from blacksheep.contents import Content
 
 
@@ -12,5 +13,6 @@ def write_small_request(request: Request) -> bytes: ...
 
 def write_request_without_body(request: Request) -> bytes: ...
 
-# TODO: how to annotate an async generator?
 async def write_chunks(content: Content): ...
+
+async def send_asgi_response(response: Response, send: Callable): ...

@@ -10,7 +10,7 @@ COMPILE_ARGS = ['-O3']
 
 
 setup(name='blacksheep',
-      version='0.1.9',
+      version='0.2.0',
       description='Fast web framework and HTTP client for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',

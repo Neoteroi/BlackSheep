@@ -99,7 +99,7 @@ def get_files_handler(source_folder_name, source_folder_full_path, discovery, ca
         if '../' in tail:
             abs_path = os.path.abspath(resource_path)
             if not str(abs_path).lower().startswith(source_folder_full_path):
-                # someone is trying to read out of the static folder
+                # someone is trying to read out of the static folder!
                 raise NotFound()
 
         if not os.path.exists(resource_path) or os.path.islink(resource_path):

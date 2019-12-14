@@ -1,4 +1,4 @@
-from typing import Sequence, Optional
+from typing import Sequence, Optional, List
 from .utils import BytesOrStr, ensure_str
 
 
@@ -113,7 +113,7 @@ class Range:
         self._unit = None
         self._parts = None
         self.unit = unit
-        self.parts = parts
+        self.parts = list(parts)
 
     def __repr__(self):
         return f'<Range {self.unit}={", ".join(map(repr, self.parts))}>'
@@ -123,12 +123,15 @@ class Range:
             return other.unit == self.unit and other.parts == self.parts
         return NotImplemented
 
+    def __iter__(self):
+        yield from self.parts
+
     def can_satisfy(self, size: int) -> bool:
         """Returns a value indicating whether this range can satisfy a given size"""
         return all(part.can_satisfy(size) for part in self.parts)
 
     @property
-    def unit(self):
+    def unit(self) -> bytes:
         return self._unit
 
     @unit.setter
@@ -136,7 +139,11 @@ class Range:
         self._unit = value
 
     @property
-    def parts(self):
+    def is_multipart(self) -> bool:
+        return len(self.parts) > 1
+
+    @property
+    def parts(self) -> List[RangePart]:
         return self._parts
 
     @parts.setter

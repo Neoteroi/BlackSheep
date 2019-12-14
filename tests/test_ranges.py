@@ -33,6 +33,24 @@ def test_range_equality(range_a, range_b, equals):
     assert (range_a == range_b) is equals
 
 
+@pytest.mark.parametrize('value,expected_value', [
+    [
+        Range('bytes', [RangePart(100, None)]),
+        False
+    ],
+    [
+        Range('bytes', [RangePart(100, 200), RangePart(400, 600)]),
+        True
+    ],
+    [
+        Range('bytes', [RangePart(100, 200), RangePart(400, 600), RangePart(300, 500)]),
+        True
+    ]
+])
+def test_range_is_multipart(value: Range, expected_value: bool):
+    assert value.is_multipart == expected_value
+
+
 @pytest.mark.parametrize('value,expected_range', [
     (b'bytes=100-', Range('bytes', [RangePart(100, None)])),
     (b'bytes=-120', Range('bytes', [RangePart(None, 120)])),

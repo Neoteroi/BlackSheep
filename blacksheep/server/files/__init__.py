@@ -1,8 +1,9 @@
 import os
+import uuid
 import aiofiles
 from typing import Optional
 from datetime import datetime
-from blacksheep import Response, StreamedContent
+from blacksheep import Request, Response, StreamedContent
 from blacksheep.server.pathsutils import get_mime_type
 from blacksheep.exceptions import BadRequest, RangeNotSatisfiable
 from blacksheep.ranges import Range, RangePart, InvalidRangeValue
@@ -29,8 +30,8 @@ def get_default_extensions():
     }
 
 
-def unix_timestamp_to_datetime(ts):
-    return datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S').encode()
+def unix_timestamp_to_datetime(ts: int) -> str:
+    return datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 
 async def get_file_chunks(file_path: str, size_limit: int = 1024*64):
@@ -44,9 +45,77 @@ async def get_file_chunks(file_path: str, size_limit: int = 1024*64):
             yield chunk
 
 
-def get_file_data(file_path, file_size, size_limit=1024*64):
+def _get_content_range_value(part: RangePart, file_size: int):
+    start = part.start
+    end = part.end
+
+    if part.start is None:
+        end = file_size - 1
+        start = file_size - part.end
+
+    if part.end is None:
+        end = file_size - 1
+
+    return b'bytes ' + f'{start}-{end}/{file_size}'.encode()
+
+
+def get_range_file_getter(file_path,
+                          file_size,
+                          range_option: Range,
+                          size_limit=1024*64,
+                          boundary: Optional[bytes] = None,
+                          file_type: Optional[bytes] = None):
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range
+    async def file_chunker():
+        async with aiofiles.open(file_path, mode='rb') as file:
+            for part in range_option:
+                if part.start is not None and part.end is not None:
+                    # return a portion between start and end indexes
+                    await file.seek(part.start, 0)
+                    part_size = (part.end - part.start)
+
+                elif part.end is None:
+                    # return all bytes to the end, starting from start index
+                    await file.seek(part.start)
+                    part_size = file_size - part.start
+
+                elif part.start is None:
+                    # return a number of units at the end of the file
+                    await file.seek(file_size - part.end)
+                    part_size = part.end
+                else:
+                    raise RuntimeError('Invalid range part: both boundaries are None')
+
+                bytes_to_return = part_size
+
+                while True:
+                    chunk_limit = size_limit if bytes_to_return > size_limit else bytes_to_return
+                    chunk = await file.read(chunk_limit)
+
+                    if not chunk:
+                        break
+
+                    bytes_to_return -= len(chunk)
+
+                    if boundary:
+                        yield b'--' + boundary + b'\r\n'
+                        yield b'Content-Type: ' + file_type + b'\r\n'
+                        yield b'Content-Range: ' + _get_content_range_value(part, file_size) + b'\r\n\r\n'
+
+                    yield chunk
+
+        if boundary:
+            yield b'--' + boundary + b'--\r\n'
+
+    return file_chunker
+
+
+def get_file_getter(file_path,
+                    file_size,
+                    size_limit=1024*64):
     # NB: if the file size is small, we read its bytes and return them;
     # otherwise, a lazy reader is returned; that returns the file in chunks
+
     if file_size > size_limit:
         async def file_chunker():
             async for chunk in get_file_chunks(file_path, size_limit):
@@ -64,6 +133,11 @@ def get_file_data(file_path, file_size, size_limit=1024*64):
 
 
 def _get_requested_range(request) -> Optional[Range]:
+    # http://svn.tools.ietf.org/svn/wg/httpbis/specs/rfc7233.html#rfc.section.3.1
+    # A server must ignore a Range header field received with a request method other than GET
+    if request.method != 'GET':
+        return None
+
     # NB: only the first Range request header is taken into consideration;
     # if the HTTP contains several Range headers, only the first is used
     range_header = request.get_first_header(b'range')
@@ -72,34 +146,83 @@ def _get_requested_range(request) -> Optional[Range]:
         return None
 
     try:
-        return Range.parse(range_header)
+        value = Range.parse(range_header)
     except InvalidRangeValue:
         raise BadRequest('Invalid Range header')
+    else:
+        # An origin server must ignore a Range header field that contains a range unit it does not understand.
+        if value.unit != 'bytes':
+            return None
+
+        return value
 
 
-def get_response_for_file(request, resource_path: str, cache_time: int):
-    stat = os.stat(resource_path)
-    file_size = stat.st_size
-    modified_time = stat.st_mtime
-    current_etag = str(modified_time).encode()
+class FileInfo:
+
+    __slots__ = ('etag',
+                 'size',
+                 'mime',
+                 'modified_time')
+
+    def __init__(self,
+                 size: int,
+                 etag: str,
+                 mime: str,
+                 modified_time: str):
+        self.size = size
+        self.etag = etag
+        self.mime = mime
+        self.modified_time = modified_time
+
+    def __repr__(self):
+        return f'<FileInfo mime={self.mime} etag={self.etag} modified_time={self.modified_time}>'
+
+    def to_dict(self):
+        return {key: getattr(self, key, None) for key in FileInfo.__slots__}
+
+    @classmethod
+    def from_path(cls, resource_path: str):
+        stat = os.stat(resource_path)
+        return cls(stat.st_size,
+                   str(stat.st_mtime),
+                   get_mime_type(resource_path),
+                   unix_timestamp_to_datetime(stat.st_mtime))
+
+
+def _validate_range(requested_range: Range, file_size: int):
+    if not requested_range.can_satisfy(file_size):
+        raise RangeNotSatisfiable()
+
+
+def is_requested_range_actual(request: Request,
+                              info: FileInfo) -> bool:
+    if_range = request.get_first_header(b'if-range')
+
+    if not if_range:
+        return True
+
+    return if_range == info.etag.encode() or if_range == info.modified_time.encode()
+
+
+def get_response_for_file(request: Request,
+                          resource_path: str,
+                          cache_time: int,
+                          info: Optional[FileInfo] = None):
+    if not info:
+        info = FileInfo.from_path(resource_path)
+
+    current_etag = info.etag.encode()
     previous_etag = request.if_none_match
 
     # is the client requesting a Range of bytes?
+    # NB: ignored if not GET or unit cannot be handled
     requested_range = _get_requested_range(request)
 
     if requested_range:
-        # only bytes ranges are supported
-        if requested_range.unit != 'bytes':
-            raise RangeNotSatisfiable()
-
-        if not requested_range.can_satisfy(file_size):
-            raise RangeNotSatisfiable()
-
-        # TODO: handle If-Range
-        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests
+        _validate_range(requested_range, info.size)
 
     headers = [
-        (b'Last-Modified', unix_timestamp_to_datetime(modified_time)),
+        (b'Last-Modified', info.modified_time.encode()),
         (b'ETag', current_etag),
         (b'Accept-Ranges', b'bytes')
     ]
@@ -108,14 +231,43 @@ def get_response_for_file(request, resource_path: str, cache_time: int):
         headers.append((b'Cache-Control', b'max-age=' + str(cache_time).encode()))
 
     if previous_etag and current_etag == previous_etag:
+        # handle HTTP 304 Not Modified
         return Response(304, headers, None)
 
     if request.method == 'HEAD':
-        headers.append((b'Content-Type', get_mime_type(resource_path)))
-        headers.append((b'Content-Length', str(file_size).encode()))
+        # NB: responses to HEAD requests don't have a body,
+        # and responses with a body in BlackSheep have content-type and content-length headers set automatically,
+        # depending on their content; therefore here it's necessary to set content-type and content-length for HEAD
+        headers.append((b'Content-Type', info.mime.encode()))
+        headers.append((b'Content-Length', str(info.size).encode()))
         return Response(200, headers, None)
 
-    return Response(200, 
-                    headers,
-                    StreamedContent(get_mime_type(resource_path),
-                                    get_file_data(resource_path, file_size)))
+    status = 200
+    mime = get_mime_type(resource_path).encode()
+
+    if requested_range and is_requested_range_actual(request, info):
+        # NB: the method can only be GET for range requests, so it cannot happen
+        # to have response 206 partial content with HEAD
+        status = 206
+
+        if requested_range.is_multipart:
+            # NB: multipart byteranges return the mime inside the portions
+            boundary = b'------' + str(uuid.uuid4()).replace('-', '').encode()
+            file_type = mime
+            mime = b'multipart/byteranges; boundary=' + boundary
+        else:
+            boundary = file_type = None
+            single_part = requested_range.parts[0]
+            headers.append((b'Content-Range',
+                            _get_content_range_value(single_part, info.size)))
+
+        content = StreamedContent(mime, get_range_file_getter(resource_path,
+                                                              info.size,
+                                                              requested_range,
+                                                              boundary=boundary,
+                                                              file_type=file_type))
+    else:
+        content = StreamedContent(mime, get_file_getter(resource_path,
+                                                        info.size))
+
+    return Response(status, headers, content)

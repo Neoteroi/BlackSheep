@@ -14,7 +14,6 @@ from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
-# TODO: cythonize
 from blacksheep.multipart import parse_multipart
 
 
@@ -159,7 +158,6 @@ cdef class Message:
 
     async def form(self):
         cdef str text
-        cdef bytes boundary
         cdef bytes body
         cdef bytes content_type_value = self.content_type()
 

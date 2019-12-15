@@ -20,7 +20,7 @@ class StreamedContent(Content):
 
     def __init__(self,
                  content_type: bytes,
-                 data_provider: AsyncGenerator[bytes]):
+                 data_provider: Callable):
         self.type = content_type
         self.body = None
         self.length = -1

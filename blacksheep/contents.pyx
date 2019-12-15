@@ -36,6 +36,16 @@ cdef class StreamedContent(Content):
         if not isasyncgenfunction(data_provider):
             raise ValueError('Data provider must be an async generator')
 
+    async def read(self):
+        value = bytearray()
+
+        async for chunk in self.generator():
+            value.extend(chunk)
+
+        self.body = bytes(value)
+        self.length = len(self.body)
+        return self.body
+
     async def get_parts(self):
         async for chunk in self.generator():
             yield chunk

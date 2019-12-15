@@ -32,6 +32,36 @@ cdef class NotFound(HttpException):
         super().__init__(404)
 
 
+cdef class Unauthorized(HttpException):
+
+    def __init__(self):
+        super().__init__(401)
+
+
+cdef class Forbidden(HttpException):
+
+    def __init__(self):
+        super().__init__(403)
+
+
+cdef class RangeNotSatisfiable(HttpException):
+
+    def __init__(self):
+        super().__init__(416)
+
+
+cdef class InternalServerError(HttpException):
+
+    def __init__(self):
+        super().__init__(500)
+
+
+cdef class NotImplementedByServer(HttpException):
+
+    def __init__(self):
+        super().__init__(501)
+
+
 cdef class InvalidArgument(Exception):
 
     def __init__(self, str message):

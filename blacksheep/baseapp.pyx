@@ -5,6 +5,7 @@ from .exceptions cimport HttpException, NotFound
 
 import os
 import html
+import http
 import traceback
 
 
@@ -14,6 +15,10 @@ async def handle_not_found(app, Request request, HttpException http_exception):
 
 async def handle_bad_request(app, Request request, HttpException http_exception):
     return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
+
+
+async def common_http_exception_handler(app, Request request, HttpException http_exception):
+    return Response(http_exception.status, content=TextContent(http.HTTPStatus(http_exception.status).phrase))
 
 
 cdef class BaseApplication:
@@ -55,7 +60,7 @@ cdef class BaseApplication:
         return response or Response(204)
 
     cdef object get_http_exception_handler(self, HttpException http_exception):
-        return self.exceptions_handlers.get(http_exception.status)
+        return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
 
     cdef object get_exception_handler(self, Exception exception):
         return self.exceptions_handlers.get(type(exception))

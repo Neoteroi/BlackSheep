@@ -3,6 +3,7 @@ import uuid
 import aiofiles
 from typing import Optional
 from datetime import datetime
+from email.utils import formatdate
 from blacksheep import Request, Response, StreamedContent
 from blacksheep.server.pathsutils import get_mime_type
 from blacksheep.exceptions import BadRequest, RangeNotSatisfiable
@@ -104,8 +105,13 @@ def get_range_file_getter(file_path,
 
                     yield chunk
 
+                    if boundary:
+                        yield b'\r\n'
+
         if boundary:
             yield b'--' + boundary + b'--\r\n'
+
+        yield b''
 
     return file_chunker
 
@@ -186,7 +192,7 @@ class FileInfo:
         return cls(stat.st_size,
                    str(stat.st_mtime),
                    get_mime_type(resource_path),
-                   unix_timestamp_to_datetime(stat.st_mtime))
+                   formatdate(stat.st_mtime, usegmt=True))
 
 
 def _validate_range(requested_range: Range, file_size: int):
@@ -252,7 +258,7 @@ def get_response_for_file(request: Request,
 
         if requested_range.is_multipart:
             # NB: multipart byteranges return the mime inside the portions
-            boundary = b'------' + str(uuid.uuid4()).replace('-', '').encode()
+            boundary = str(uuid.uuid4()).replace('-', '').encode()
             file_type = mime
             mime = b'multipart/byteranges; boundary=' + boundary
         else:

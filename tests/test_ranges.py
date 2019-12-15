@@ -60,7 +60,9 @@ def test_range_is_multipart(value: Range, expected_value: bool):
                                                         RangePart(300, 500)])),
     ('bytes=100-200,400-600,300-500', Range('bytes', [RangePart(100, 200),
                                                       RangePart(400, 600),
-                                                      RangePart(300, 500)]))
+                                                      RangePart(300, 500)])),
+    ('bytes=1200-, -100', Range('bytes', [RangePart(1200, None),
+                                          RangePart(None, 100)]))
 ])
 def test_parse_range(value, expected_range):
     parsed_range = Range.parse(value)

@@ -99,8 +99,11 @@ def _parse_range_value(range_value: str):
         try:
             # NB: value error can happen both in case of a portion containing more than one hyphen (like trying to
             # define a negative number of bytes), and in the case of value that cannot be converted to int
-            start, end = portion.split('-')
-            yield RangePart(start or None, end or None)
+            if portion.lstrip().startswith('-'):
+                yield RangePart(None, abs(int(portion)))
+            else:
+                start, end = portion.split('-')
+                yield RangePart(start or None, end or None)
         except ValueError:
             raise InvalidRangeValue()
 

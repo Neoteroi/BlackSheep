@@ -157,6 +157,50 @@ async def test_invalid_range_request_range_not_satisfiable(range_value):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('range_value,expected_bytes_lines', [
+    [b'bytes=0-10, 10-20', [
+        b'--##BOUNDARY##',
+        b'Content-Type: text/plain',
+        b'Content-Range: bytes 0-10/447',
+        b'',
+        b'Lorem ipsu',
+        b'--##BOUNDARY##',
+        b'Content-Type: text/plain',
+        b'Content-Range: bytes 10-20/447',
+        b'',
+        b'm dolor si',
+        b'--##BOUNDARY##--'
+    ]],
+    [b'bytes=0-10, -66', [
+        b'--##BOUNDARY##',
+        b'Content-Type: text/plain',
+        b'Content-Range: bytes 0-10/447',
+        b'',
+        b'Lorem ipsu',
+        b'--##BOUNDARY##',
+        b'Content-Type: text/plain',
+        b'Content-Range: bytes 381-446/447',
+        b'',
+        b'nt, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+        b'--##BOUNDARY##--'
+    ]],
+])
+async def test_text_file_range_request_multi_part(range_value, expected_bytes_lines: bytes):
+    file_path = _get_file_path('example.txt')
+    response = get_response_for_file(Request('GET', b'/example',
+                                             [(b'Range', range_value)]),
+                                     file_path,
+                                     1200)
+    assert response.status == 206
+    content_type = response.content.type
+    boundary = content_type.split(b'=')[1]
+    body = await response.read()
+
+    expected_bytes_lines = [line.replace(b'##BOUNDARY##', boundary) for line in expected_bytes_lines]
+    assert body.splitlines() == expected_bytes_lines
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('range_value,matches', [
     [b'bytes=0-10', True],
     [b'bytes=0-10', False],

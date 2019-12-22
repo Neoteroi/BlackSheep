@@ -1,0 +1,60 @@
+# BlackSheep build pipeline
+
+trigger:
+- master
+
+pool:
+  vmImage: 'ubuntu-latest'
+strategy:
+  matrix:
+    Python36:
+      python.version: '3.6'
+    Python37:
+      python.version: '3.7'
+    Python38:
+      python.version: '3.8'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(python.version)'
+  displayName: 'Use Python $(python.version)'
+
+- bash: |
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+    pip install pytest pytest-azurepipelines
+  displayName: 'Install dependencies'
+
+- bash: |
+    make compile
+  displayName: 'Compile Cython extensions'
+
+- bash: |
+    pytest --doctest-modules --junitxml=junit/test-results.xml
+  displayName: 'tests'
+  workingDirectory: tests
+  continueOnError: true
+
+- bash: |
+   pytest --doctest-modules --junitxml=junit/test-results.xml
+  workingDirectory: itests
+  displayName: 'integration tests'
+  continueOnError: true
+
+- task: PublishTestResults@2
+  displayName: 'publish test results **/test-results.xml'
+  inputs:
+    testResultsFiles: '**/test-results.xml'
+    failTaskOnFailedTests: true
+
+- bash: |
+    python setup.py sdist
+  displayName: 'create artifacts'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'publish dist artifacts'
+  condition: and(succeeded(), eq(variables['python.version'], '3.8'))
+  inputs:
+    PathtoPublish: dist
+    ArtifactName: dist

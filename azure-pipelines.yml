@@ -7,8 +7,6 @@ pool:
   vmImage: 'ubuntu-latest'
 strategy:
   matrix:
-    Python36:
-      python.version: '3.6'
     Python37:
       python.version: '3.7'
     Python38:
@@ -47,6 +45,14 @@ steps:
   inputs:
     testResultsFiles: '**/test-results.xml'
     failTaskOnFailedTests: true
+
+- bash: |
+    if [ -f "build_info.txt" ]; then rm build_info.txt; fi
+    echo "Build id: $(Build.BuildId)" >> build_info.txt
+    echo "Build date: $(date)" >> build_info.txt
+    echo "Build URL: $(Build.BuildUri)" >> build_info.txt
+    echo "Build version: $(Build.DefinitionVersion)" >> build_info.txt
+  displayName: 'writes build id'
 
 - bash: |
     python setup.py sdist

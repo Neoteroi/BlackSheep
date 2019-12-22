@@ -40,17 +40,11 @@ steps:
   displayName: 'integration tests'
   continueOnError: true
 
-- task: PublishTestResults@2
-  displayName: 'publish test results **/test-results.xml'
-  inputs:
-    testResultsFiles: '**/test-results.xml'
-    failTaskOnFailedTests: true
-
 - bash: |
     if [ -f "build_info.txt" ]; then rm build_info.txt; fi
     echo "Build id: $(Build.BuildId)" >> build_info.txt
     echo "Build date: $(date)" >> build_info.txt
-    echo "Build URL: $(Build.BuildUri)" >> build_info.txt
+    echo "Build URL: https://dev.azure.com/robertoprevato/BlackSheep/_build/results?buildId=$(Build.BuildId)&view=results" >> build_info.txt
     echo "Build version: $(Build.DefinitionVersion)" >> build_info.txt
   displayName: 'writes build id'
 

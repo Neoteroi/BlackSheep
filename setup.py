@@ -17,7 +17,7 @@ setup(name='blacksheep',
       classifiers=[
           'Development Status :: 4 - Beta',
           'License :: OSI Approved :: MIT License',
-          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8',
           'Operating System :: OS Independent',
           'Framework :: AsyncIO'
       ],
@@ -28,6 +28,7 @@ setup(name='blacksheep',
       platforms=['*nix'],
       license='MIT',
       packages=['blacksheep',
+                'blacksheep.middlewares',
                 'blacksheep.server',
                 'blacksheep.server.files',
                 'blacksheep.server.res',
@@ -71,8 +72,8 @@ setup(name='blacksheep',
           'cchardet',
           'guardpost',
           'rodi',
-          'aiofiles',
-          'essentials'
+          'essentials',
+          'aiofiles @ git+https://github.com/harpiyacloud/aiofiles#egg=aiofies-0.5.0.dev'
       ],
       include_package_data=True,
       zip_safe=False)

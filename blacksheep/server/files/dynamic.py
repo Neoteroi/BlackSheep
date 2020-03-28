@@ -1,20 +1,26 @@
-import os
 import html
+import os
 from pathlib import Path
-from blacksheep.exceptions import InvalidArgument
-from blacksheep.server.routing import Route
-from blacksheep import Response, HtmlContent
+from typing import TYPE_CHECKING, Optional, Set
+from urllib.parse import unquote
+
+from blacksheep import HtmlContent, Response
+from blacksheep.exceptions import InvalidArgument, NotFound
 from blacksheep.server.pathsutils import get_file_extension_from_name
 from blacksheep.server.resources import get_resource_file_content
-from blacksheep.exceptions import NotFound
-from urllib.parse import unquote
-from . import get_default_extensions, get_response_for_file
+
+from . import get_response_for_file, ServeFilesOptions
+
+if TYPE_CHECKING:
+    from blacksheep.server.routing import Route, Router
 
 
-def get_files_to_serve(source_folder, extensions=None, recurse=False, root_folder=None):
-    if extensions is None:
-        extensions = get_default_extensions()
-
+def get_files_to_serve(
+    source_folder,
+    extensions=None,
+    recurse=False,
+    root_folder=None
+):
     if not root_folder:
         root_folder = source_folder
 
@@ -87,7 +93,13 @@ def get_files_list_html_response(template, parent_folder_path, contents):
     return Response(200, content=HtmlContent(template.format_map({'path': '/'.join(p), 'info': info})))
 
 
-def get_files_handler(source_folder_name, source_folder_full_path, discovery, cache_time, extensions):
+def get_files_handler(
+    source_folder_name,
+    source_folder_full_path,
+    discovery,
+    cache_time,
+    extensions
+):
     files_list_template = get_resource_file_content('fileslist.html') if discovery else None
     source_folder_full_path = source_folder_full_path.lower()
 
@@ -122,26 +134,21 @@ def get_files_handler(source_folder_name, source_folder_full_path, discovery, ca
     return file_getter
 
 
-def serve_files(router,
-                source_folder,
-                extensions=None,
-                discovery=False,
-                cache_time=10800):
-    if extensions is None:
-        extensions = get_default_extensions()
+def serve_files(
+    router: Router,
+    options: ServeFilesOptions
+):
+    options.validate()
 
-    source_folder_path = Path(source_folder)
-
-    if not source_folder_path.exists():
-        raise InvalidArgument('given root path does not exist')
-
-    if not source_folder_path.is_dir():
-        raise InvalidArgument('given root path is not a directory')
-
-    route = Route(b'*', get_files_handler(source_folder,
-                                          os.path.abspath(source_folder),
-                                          discovery,
-                                          cache_time,
-                                          extensions))
+    route = Route(
+        b'*',
+        get_files_handler(
+            options.source_folder,
+            os.path.abspath(options.source_folder),
+            options.discovery,
+            options.cache_time,
+            options.extensions
+        )
+    )
     router.add_route('GET', route)
     router.add_route('HEAD', route)

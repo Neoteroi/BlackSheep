@@ -1,30 +1,33 @@
-import os
-import logging
 import inspect
-from typing import Optional, List, Callable, Union, Type
-from blacksheep.utils import join_fragments, ensure_bytes
-from blacksheep.server.routing import Router, RoutesRegistry, RegisteredRoute
-from blacksheep.server.logs import setup_sync_logging
-from blacksheep.server.files.dynamic import serve_files
-from blacksheep.server.resources import get_resource_file_content
-from blacksheep.server.normalization import normalize_handler, normalize_middleware
-from blacksheep.server.controllers import router as controllers_router
-from blacksheep.baseapp import BaseApplication
-from blacksheep.messages import Request, Response
-from blacksheep.contents import ASGIContent
-from blacksheep.scribe import send_asgi_response
-from blacksheep.middlewares import get_middlewares_chain
-from blacksheep.server.bindings import ControllerBinder
-from blacksheep.server.authentication import (get_authentication_middleware,
-                                              AuthenticateChallenge,
-                                              handle_authentication_challenge)
-from blacksheep.server.authorization import (get_authorization_middleware,
-                                             AuthorizationWithoutAuthenticationError,
-                                             handle_unauthorized)
-from guardpost.authorization import UnauthorizedError, Policy
+import logging
+import os
+from typing import Callable, List, Optional, Type, Union
+
 from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
-from rodi import Services, Container
+from guardpost.authorization import Policy, UnauthorizedError
+from rodi import Container, Services
+
+from blacksheep.baseapp import BaseApplication
+from blacksheep.contents import ASGIContent
+from blacksheep.messages import Request, Response
+from blacksheep.middlewares import get_middlewares_chain
+from blacksheep.scribe import send_asgi_response
+from blacksheep.server.authentication import (AuthenticateChallenge,
+                                              get_authentication_middleware,
+                                              handle_authentication_challenge)
+from blacksheep.server.authorization import (
+    AuthorizationWithoutAuthenticationError, get_authorization_middleware,
+    handle_unauthorized)
+from blacksheep.server.bindings import ControllerBinder
+from blacksheep.server.controllers import router as controllers_router
+from blacksheep.server.files.dynamic import serve_files, ServeFilesOptions
+from blacksheep.server.logs import setup_sync_logging
+from blacksheep.server.normalization import (normalize_handler,
+                                             normalize_middleware)
+from blacksheep.server.resources import get_resource_file_content
+from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
+from blacksheep.utils import ensure_bytes, join_fragments
 
 ServicesType = Union[Services, Container]
 
@@ -119,7 +122,7 @@ class Application(BaseApplication):
             middlewares = []
         if resources is None:
             resources = Resources(get_resource_file_content('error.html'))
-        self.services = services  # type: ServicesType
+        self.services: ServicesType = services
         self.debug = debug
         self.middlewares = middlewares
         self.access_logger = None
@@ -128,16 +131,13 @@ class Application(BaseApplication):
         self._use_sync_logging = False
         self._middlewares_configured = False
         self.resources = resources
-        self._serve_files = None
-        self._authentication_strategy = None  # type: Optional[AuthenticationStrategy]
-        self._authorization_strategy = None  # type: Optional[AuthorizationStrategy]
+        self._serve_files: Optional[ServeFilesOptions] = None
+        self._authentication_strategy: Optional[AuthenticationStrategy] = None
+        self._authorization_strategy: Optional[AuthorizationStrategy] = None
         self.on_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
         self.started = False
         self.controllers_router: RoutesRegistry = controllers_router
-
-    def __repr__(self):
-        return f'<BlackSheep Application>'
 
     @property
     def default_headers(self):
@@ -193,8 +193,8 @@ class Application(BaseApplication):
     def use_sync_logging(self):
         self._use_sync_logging = True
 
-    def serve_files(self, folder_name: str, extensions=None, discovery=False, cache_max_age=10800):
-        self._serve_files = folder_name, extensions, discovery, cache_max_age
+    def serve_files(self, options: ServeFilesOptions):
+        self._serve_files = options
 
     def _configure_sync_logging(self):
         logging_middleware, access_logger, app_logger = setup_sync_logging()
@@ -327,7 +327,7 @@ class Application(BaseApplication):
 
     def apply_routes(self):
         if self._serve_files:
-            serve_files(self.router, *self._serve_files)
+            serve_files(self.router, self._serve_files)
 
     def build_services(self):
         if isinstance(self.services, Container):
@@ -375,7 +375,7 @@ class Application(BaseApplication):
         if scope['type'] == 'lifespan':
             return await self._handle_lifespan(receive, send)
 
-        # assert scope['type'] == 'http'
+        assert scope['type'] == 'http'
 
         request = Request.incoming(
             scope['method'],

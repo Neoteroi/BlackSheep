@@ -10,7 +10,7 @@ COMPILE_ARGS = ['-O3']
 
 
 setup(name='blacksheep',
-      version='0.2.2',
+      version='0.2.3',
       description='Fast web framework and HTTP client for Python asyncio',
       long_description=readme(),
       long_description_content_type='text/markdown',
@@ -31,7 +31,9 @@ setup(name='blacksheep',
                 'blacksheep.server',
                 'blacksheep.server.files',
                 'blacksheep.server.res',
-                'blacksheep.client'],
+                'blacksheep.client',
+                'blacksheep.common',
+                'blacksheep.common.asyncfs'],
       ext_modules=[
           Extension('blacksheep.url',
                     ['blacksheep/url.c'],
@@ -71,7 +73,6 @@ setup(name='blacksheep',
           'cchardet',
           'guardpost',
           'rodi',
-          'aiofiles',
           'essentials'
       ],
       include_package_data=True,

@@ -1,41 +1,26 @@
 import os
 import uuid
-import aiofiles
-from typing import Optional
 from datetime import datetime
 from email.utils import formatdate
+from pathlib import Path
+from typing import AsyncIterable, Callable, Optional, Set
+
 from blacksheep import Request, Response, StreamedContent
+from blacksheep.common.asyncfs.core import FilesReader
+from blacksheep.exceptions import (BadRequest, InvalidArgument,
+                                   RangeNotSatisfiable)
+from blacksheep.ranges import InvalidRangeValue, Range, RangePart
 from blacksheep.server.pathsutils import get_mime_type
-from blacksheep.exceptions import BadRequest, RangeNotSatisfiable
-from blacksheep.ranges import Range, RangePart, InvalidRangeValue
-
-
-def get_default_extensions():
-    """It returns a set of extensions that are served by default."""
-    return {
-        '.txt',
-        '.css',
-        '.js',
-        '.jpeg',
-        '.jpg',
-        '.html',
-        '.ico',
-        '.png',
-        '.woff',
-        '.woff2',
-        '.ttf',
-        '.eot',
-        '.svg',
-        '.mp4',
-        '.mp3'
-    }
 
 
 def unix_timestamp_to_datetime(ts: int) -> str:
     return datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
 
-async def get_file_chunks(file_path: str, size_limit: int = 1024*64):
+async def get_file_chunks(
+    file_path: str,
+    size_limit: int = 1024*64
+) -> AsyncIterable[bytes]:
     async with aiofiles.open(file_path, mode='rb') as f:
         while True:
             chunk = await f.read(size_limit)
@@ -46,7 +31,10 @@ async def get_file_chunks(file_path: str, size_limit: int = 1024*64):
             yield chunk
 
 
-def _get_content_range_value(part: RangePart, file_size: int):
+def _get_content_range_value(
+    part: RangePart,
+    file_size: int
+) -> bytes:
     start = part.start
     end = part.end
 
@@ -60,12 +48,14 @@ def _get_content_range_value(part: RangePart, file_size: int):
     return b'bytes ' + f'{start}-{end}/{file_size}'.encode()
 
 
-def get_range_file_getter(file_path,
-                          file_size,
-                          range_option: Range,
-                          size_limit=1024*64,
-                          boundary: Optional[bytes] = None,
-                          file_type: Optional[bytes] = None):
+def get_range_file_getter(
+    file_path: str,
+    file_size: int,
+    range_option: Range,
+    size_limit=1024*64,
+    boundary: Optional[bytes] = None,
+    file_type: Optional[bytes] = None
+) -> AsyncIterable[bytes]:
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range
     async def file_chunker():
         async with aiofiles.open(file_path, mode='rb') as file:
@@ -116,9 +106,11 @@ def get_range_file_getter(file_path,
     return file_chunker
 
 
-def get_file_getter(file_path,
-                    file_size,
-                    size_limit=1024*64):
+def get_file_getter(
+    file_path: str,
+    file_size: int,
+    size_limit=1024*64
+) -> Callable[[], AsyncIterable[bytes]]:
     # NB: if the file size is small, we read its bytes and return them;
     # otherwise, a lazy reader is returned; that returns the file in chunks
 
@@ -170,11 +162,13 @@ class FileInfo:
                  'mime',
                  'modified_time')
 
-    def __init__(self,
-                 size: int,
-                 etag: str,
-                 mime: str,
-                 modified_time: str):
+    def __init__(
+        self,
+        size: int,
+        etag: str,
+        mime: str,
+        modified_time: str
+    ):
         self.size = size
         self.etag = etag
         self.mime = mime
@@ -200,8 +194,10 @@ def _validate_range(requested_range: Range, file_size: int):
         raise RangeNotSatisfiable()
 
 
-def is_requested_range_actual(request: Request,
-                              info: FileInfo) -> bool:
+def is_requested_range_actual(
+    request: Request,
+    info: FileInfo
+) -> bool:
     if_range = request.get_first_header(b'if-range')
 
     if not if_range:
@@ -210,10 +206,65 @@ def is_requested_range_actual(request: Request,
     return if_range == info.etag.encode() or if_range == info.modified_time.encode()
 
 
-def get_response_for_file(request: Request,
-                          resource_path: str,
-                          cache_time: int,
-                          info: Optional[FileInfo] = None):
+class ServeFilesOptions:
+
+    __slots__ = (
+        'source_folder',
+        'extensions',
+        'discovery',
+        'cache_time',
+    )
+
+    def __init__(
+        self,
+        source_folder: str,
+        extensions: Optional[Set[str]] = None,
+        discovery: bool = False,
+        cache_time: int = 10800
+    ):
+        if extensions is None:
+            extensions = self.get_default_extensions()
+        self.source_folder = source_folder
+        self.extensions = set(extensions)
+        self.discovery = bool(discovery)
+        self.cache_time = int(cache_time)
+
+    def get_default_extensions() -> Set[str]:
+        """Returns a set of extensions that are served by default."""
+        return {
+            '.txt',
+            '.css',
+            '.js',
+            '.jpeg',
+            '.jpg',
+            '.html',
+            '.ico',
+            '.png',
+            '.woff',
+            '.woff2',
+            '.ttf',
+            '.eot',
+            '.svg',
+            '.mp4',
+            '.mp3'
+        }
+
+    def validate(self) -> None:
+        source_folder_path = Path(self.source_folder)
+
+        if not source_folder_path.exists():
+            raise InvalidArgument('given root path does not exist')
+
+        if not source_folder_path.is_dir():
+            raise InvalidArgument('given root path is not a directory')
+
+
+def get_response_for_file(
+    request: Request,
+    resource_path: str,
+    cache_time: int,
+    info: Optional[FileInfo] = None
+) -> Response:
     if not info:
         info = FileInfo.from_path(resource_path)
 
@@ -267,11 +318,12 @@ def get_response_for_file(request: Request,
             headers.append((b'Content-Range',
                             _get_content_range_value(single_part, info.size)))
 
-        content = StreamedContent(mime, get_range_file_getter(resource_path,
-                                                              info.size,
-                                                              requested_range,
-                                                              boundary=boundary,
-                                                              file_type=file_type))
+        content = StreamedContent(mime,
+                                  get_range_file_getter(resource_path,
+                                                        info.size,
+                                                        requested_range,
+                                                        boundary=boundary,
+                                                        file_type=file_type))
     else:
         content = StreamedContent(mime, get_file_getter(resource_path,
                                                         info.size))

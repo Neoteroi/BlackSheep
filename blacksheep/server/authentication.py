@@ -1,8 +1,10 @@
-from typing import Optional, Dict, Tuple
-from blacksheep import Response, TextContent
-from guardpost.authorization import AuthorizationError
-from guardpost.asynchronous.authentication import AuthenticationStrategy, AuthenticationHandler
+from typing import Dict, Optional, Tuple
 
+from guardpost.asynchronous.authentication import (AuthenticationHandler,
+                                                   AuthenticationStrategy)
+from guardpost.authorization import AuthorizationError
+
+from blacksheep import Response, TextContent
 
 __all__ = ('AuthenticationStrategy',
            'AuthenticationHandler',
@@ -13,7 +15,10 @@ __all__ = ('AuthenticationStrategy',
 
 def get_authentication_middleware(strategy: AuthenticationStrategy):
     async def authentication_middleware(request, handler):
-        await strategy.authenticate(request, getattr(handler, 'auth_schemes', None))
+        await strategy.authenticate(
+            request,
+            getattr(handler, 'auth_schemes', None)
+        )
         return await handler(request)
     return authentication_middleware
 
@@ -39,7 +44,9 @@ class AuthenticateChallenge(AuthorizationError):
 
         if self.parameters:
             parts.extend(b', ')
-            parts.extend(b', '.join([f'{key}="{value}"'.encode() for key, value in self.parameters.items()]))
+            parts.extend(b', '.join(
+                [f'{key}="{value}"'.encode()
+                 for key, value in self.parameters.items()]))
         return bytes(parts)
 
     def get_header(self) -> Tuple[bytes, bytes]:

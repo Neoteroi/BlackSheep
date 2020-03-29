@@ -7,7 +7,8 @@ try:
     from jinja2 import Environment, Template, PackageLoader, select_autoescape
 except ModuleNotFoundError:
     # Jinja2 is not a required dependency
-    Environment, Template, PackageLoader, select_autoescape = [... for _ in range(4)]
+    Environment, Template, PackageLoader, select_autoescape = \
+        [... for _ in range(4)]
 
 
 class MissingJinjaModuleError(OptionalModuleNotFoundError):
@@ -63,36 +64,58 @@ def use_templates(app, loader: PackageLoader, enable_async: bool = False):
             app.services['jinja'] = env
             app.services['templates_environment'] = env
         else:
-            raise RuntimeError('Application services must be either `rodi.Services` or `rodi.Container`.')
+            raise RuntimeError(
+                'Application services must be either `rodi.Services` '
+                'or `rodi.Container`.'
+            )
         env.globals['app'] = app
 
     if enable_async:
         async def async_view(name: str, *args, **kwargs):
-            return get_response(await render_template_async(env.get_template(template_name(name)), *args, **kwargs))
+            return get_response(
+                await render_template_async(
+                    env.get_template(template_name(name)),
+                    *args,
+                    **kwargs
+                )
+            )
 
         return async_view
 
     def sync_view(name: str, *args, **kwargs):
-        return get_response(render_template(env.get_template(template_name(name)), *args, **kwargs))
+        return get_response(
+            render_template(env.get_template(
+                template_name(name)), *args, **kwargs))
 
     return sync_view
 
 
 def view(jinja_environment: Environment, name: str, *args, **kwargs):
-    """Returns a Response object with HTML obtained from synchronous rendering.
+    """
+    Returns a Response object with HTML obtained from synchronous rendering.
 
-    Use this when `enable_async` is set to False when calling `use_templates`."""
-    return get_response(render_template(jinja_environment.get_template(template_name(name)),
-                                        *args, **kwargs))
+    Use this when `enable_async` is set to False when calling `use_templates`.
+    """
+    return get_response(render_template(
+        jinja_environment.get_template(template_name(name)), *args, **kwargs))
 
 
-async def view_async(jinja_environment: Environment, name: str, *args, **kwargs):
-    """Returns a Response object with HTML obtained from synchronous rendering."""
-    return get_response(await render_template_async(jinja_environment
-                                                    .get_template(template_name(name)), *args, **kwargs))
+async def view_async(
+    jinja_environment: Environment,
+    name: str,
+    *args,
+    **kwargs
+):
+    """
+    Returns a Response object with HTML obtained from synchronous rendering.
+    """
+    return get_response(await render_template_async(
+        jinja_environment.get_template(template_name(name)), *args, **kwargs))
 
 
 if Environment is ...:
-    use_templates = MissingJinjaModuleError.replace_function()
-    view = MissingJinjaModuleError.replace_function()
-    view_async = MissingJinjaModuleError.replace_function(True)
+    # NOQA below, because the redefinition is done intentionally and to
+    # improve the programmers' experience
+    use_templates = MissingJinjaModuleError.replace_function()  # NOQA
+    view = MissingJinjaModuleError.replace_function()  # NOQA
+    view_async = MissingJinjaModuleError.replace_function(True)  # NOQA

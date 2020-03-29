@@ -1,10 +1,12 @@
 import json
-from typing import Dict, Generator, List, Union, Optional, Any, Callable
-from .url import URL
-from .contents import Content, FormPart
-from .headers import HeaderType, Headers
-from .cookies import Cookie
+from typing import Any, Callable, Dict, Generator, List, Optional, Union
+
 from guardpost.authentication import Identity, User
+
+from .contents import Content, FormPart
+from .cookies import Cookie
+from .headers import Headers, HeaderType
+from .url import URL
 
 
 class Message:
@@ -14,7 +16,7 @@ class Message:
 
     def content_type(self) -> bytes: ...
 
-    def with_content(self, content: Content) -> Message: ...
+    def with_content(self, content: Content) -> "Message": ...
 
     def get_first_header(self, key: bytes) -> bytes: ...
 
@@ -30,8 +32,6 @@ class Message:
 
     def set_header(self, key: bytes, value: bytes): ...
 
-    def content_type(self) -> bytes: ...
-
     async def read(self) -> Optional[bytes]: ...
 
     async def stream(self) -> Generator[bytes, None, None]: ...
@@ -39,18 +39,25 @@ class Message:
     async def text(self) -> str: ...
 
     async def form(self) -> Union[Dict[str, str], Dict[str, List[str]], None]:
-        """Returns values read either from multipart or www-form-urlencoded payload.
+        """
+        Returns values read either from multipart or www-form-urlencoded
+        payload.
 
-        This function adopts some compromises to provide a consistent api, returning a dictionary of key: values.
-        If a key is unique, the value is a single string; if a key is duplicated (licit in both form types),
-        the value is a list of strings.
+        This function adopts some compromises to provide a consistent api,
+        returning a dictionary of key: values pairs.
+        If a key is unique, the value is a single string; if a key is
+        duplicated (licit in both form types), the value is a list of strings.
 
-        Multipart form parts values that can be decoded as UTF8 are decoded, otherwise kept as raw bytes.
+        Multipart form parts values that can be decoded as UTF8 are decoded,
+        otherwise kept as raw bytes.
         In case of ambiguity, use the dedicated `multiparts()` method.
         """
 
     async def multipart(self) -> List[FormPart]:
-        """Returns parts read from multipart/form-data, if present, otherwise None"""
+        """
+        Returns parts read from multipart/form-data, if present, otherwise
+        None
+        """
 
     def declares_content_type(self, type: bytes) -> bool: ...
 
@@ -60,7 +67,7 @@ class Message:
 
     async def files(self, name: Optional[str] = None) -> List[FormPart]: ...
 
-    async def json(self, loads: Callable[[str], Any]=json.loads) -> Any: ...
+    async def json(self, loads: Callable[[str], Any] = json.loads) -> Any: ...
 
     def has_body(self) -> bool: ...
 
@@ -80,15 +87,21 @@ class Request(Message):
                  method: str,
                  url: bytes,
                  headers: Optional[List[HeaderType]]):
-        self.method = ... # type: str
-        self.url = ... # type: URL
+        self.method: str = ...
+        self.url: URL = ...
         self.headers = headers
         self.route_values: Optional[Dict[str, str]] = ...
         self.content: Optional[Content] = ...
         self.identity: Union[None, Identity, User] = ...
 
     @classmethod
-    def incoming(cls, method: str, path: bytes, query: bytes, headers: List[HeaderType]) -> Request: ...
+    def incoming(
+        cls,
+        method: str,
+        path: bytes,
+        query: bytes,
+        headers: List[HeaderType]
+    ) -> "Request": ...
 
     @property
     def query(self) -> Dict[str, List[str]]: ...

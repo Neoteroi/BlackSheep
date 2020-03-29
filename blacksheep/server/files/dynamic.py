@@ -1,7 +1,7 @@
 import html
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Set
+from typing import TYPE_CHECKING
 from urllib.parse import unquote
 
 from blacksheep import HtmlContent, Response
@@ -54,7 +54,7 @@ def get_files_to_serve(
         if item.is_dir():
             if not recurse:
                 yield {
-                    'rel_path': item_path[len(root_folder)+1:],
+                    'rel_path': item_path[len(root_folder) + 1:],
                     'full_path': item_path,
                     'is_dir': True
                 }
@@ -69,18 +69,21 @@ def get_files_to_serve(
 
             if extension in extensions:
                 yield {
-                    'rel_path': item_path[len(root_folder)+1:],
+                    'rel_path': item_path[len(root_folder) + 1:],
                     'full_path': item_path,
                     'is_dir': False
                 }
 
 
 def get_files_list_html_response(template, parent_folder_path, contents):
-    info = ''
+    info_lines = []
     for item in contents:
-        full_rel_path = html.escape(os.path.join(parent_folder_path, item.get("rel_path")))
-        info += f'<li><a href="/{full_rel_path}">{full_rel_path}</a></li>'
-
+        full_rel_path = html.escape(os.path.join(parent_folder_path,
+                                                 item.get("rel_path")))
+        info_lines.append(
+            f'<li><a href="/{full_rel_path}">{full_rel_path}</a></li>'
+        )
+    info = "".join(info_lines)
     p = []
     whole_p = []
     for fragment in parent_folder_path.split('/'):
@@ -90,7 +93,12 @@ def get_files_list_html_response(template, parent_folder_path, contents):
             p.append(f'<a href="/{fragment_path}">{html.escape(fragment)}</a>')
 
     # TODO: use chunked encoding here with HTML response
-    return Response(200, content=HtmlContent(template.format_map({'path': '/'.join(p), 'info': info})))
+    return Response(
+        200,
+        content=HtmlContent(
+            template.format_map({'path': '/'.join(p), 'info': info})
+        )
+    )
 
 
 def get_files_handler(
@@ -100,7 +108,8 @@ def get_files_handler(
     cache_time,
     extensions
 ):
-    files_list_template = get_resource_file_content('fileslist.html') if discovery else None
+    files_list_template = (get_resource_file_content('fileslist.html')
+                           if discovery else None)
     source_folder_full_path = source_folder_full_path.lower()
 
     async def file_getter(request):
@@ -119,9 +128,11 @@ def get_files_handler(
 
         if os.path.isdir(resource_path):
             if discovery:
-                return get_files_list_html_response(files_list_template,
-                                                    tail.rstrip('/'),
-                                                    list(get_files_to_serve(resource_path.rstrip('/'))))
+                return get_files_list_html_response(
+                    files_list_template,
+                    tail.rstrip('/'),
+                    list(get_files_to_serve(resource_path.rstrip('/')))
+                )
             else:
                 raise NotFound()
 

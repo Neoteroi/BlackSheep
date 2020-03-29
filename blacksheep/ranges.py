@@ -56,7 +56,8 @@ class RangePart:
             ...
         if self._start is not None and self._end is not None:
             if self._start > self._end:
-                raise ValueError('The end bound must be greater than the start bound.')
+                raise ValueError(
+                    'The end bound must be greater than the start bound.')
 
     def __eq__(self, other):
         if isinstance(other, RangePart):
@@ -64,7 +65,10 @@ class RangePart:
         return NotImplemented
 
     def can_satisfy(self, size: int) -> bool:
-        """Returns a value indicating whether this range part can satisfy a given size"""
+        """
+        Returns a value indicating whether this range part can
+        satisfy a given size.
+        """
         if self._end is not None:
             return self._end <= size
         if self._start is not None:
@@ -72,24 +76,31 @@ class RangePart:
 
     @property
     def is_suffix_length(self) -> bool:
-        """Returns a value indicating whether this range part refers to a number of units at the end of the file;
-        without start byte position."""
+        """
+        Returns a value indicating whether this range part refers to a
+        number of units at the end of the file;
+        without start byte position.
+        """
         return self.start == ''
 
     @property
     def is_to_end(self):
-        """Returns a value indicating whether this range part refers to all bytes after a certain index;
-        without end byte position."""
+        """
+        Returns a value indicating whether this range part refers to all
+        bytes after a certain index; without end byte position.
+        """
         return self.end == ''
 
     def __repr__(self):
-        return f'{self._start if self._start is not None else ""}-{self._end if self._end is not None else ""}'
+        return (f'{self._start if self._start is not None else ""}'
+                f'-{self._end if self._end is not None else ""}')
 
 
 def _parse_range_value(range_value: str):
     # <range-start>-  ... from start to end
     # <range-start>-<range-end>  ... portion
-    # <range-start>-<range-end>, <range-start>-<range-end>, <range-start>-<range-end>  ... portions
+    # <range-start>-<range-end>, <range-start>-<range-end>, \
+    #   <range-start>-<range-end>  ... portions
     # -<suffix-length>  ... last n bytes
     for portion in range_value.split(','):
         # portions are expected to contain an hyphen sign
@@ -97,8 +108,10 @@ def _parse_range_value(range_value: str):
             raise InvalidRangeValue()
 
         try:
-            # NB: value error can happen both in case of a portion containing more than one hyphen (like trying to
-            # define a negative number of bytes), and in the case of value that cannot be converted to int
+            # NB: value error can happen both in case of a portion containing
+            # more than one hyphen (like trying to
+            # define a negative number of bytes), and in the case of value
+            # that cannot be converted to int
             if portion.lstrip().startswith('-'):
                 yield RangePart(None, abs(int(portion)))
             else:
@@ -130,7 +143,10 @@ class Range:
         yield from self.parts
 
     def can_satisfy(self, size: int) -> bool:
-        """Returns a value indicating whether this range can satisfy a given size"""
+        """
+        Returns a value indicating whether this range
+        can satisfy a given size.
+        """
         return all(part.can_satisfy(size) for part in self.parts)
 
     @property

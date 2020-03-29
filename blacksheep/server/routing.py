@@ -1,13 +1,21 @@
 import re
 from abc import abstractmethod
-from functools import lru_cache
-from blacksheep import HttpMethod
 from collections import defaultdict
+from functools import lru_cache
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import unquote
-from typing import Callable, Dict, Optional, List, Any
-from blacksheep.utils import ensure_bytes, ensure_str, BytesOrStr
 
-__all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate', 'RegisteredRoute', 'RoutesRegistry']
+from blacksheep import HttpMethod
+from blacksheep.utils import BytesOrStr, ensure_bytes, ensure_str
+
+__all__ = [
+    'Router',
+    'Route',
+    'RouteMatch',
+    'RouteDuplicate',
+    'RegisteredRoute',
+    'RoutesRegistry'
+]
 
 
 _route_all_rx = re.compile(b'\\*')
@@ -27,18 +35,21 @@ def _get_regex_for_pattern(pattern):
         pattern = _route_param_rx.sub(br'/(?P<\1>[^\/]+)', pattern)
 
     # NB: following code is just to throw user friendly errors;
-    # regex would fail anyway, but with a more complex message 'sre_constants.error: redefinition of group name'
+    # regex would fail anyway, but with a more complex message
+    # 'sre_constants.error: redefinition of group name'
     # we only return param names as they are useful for other things
     param_names = []
     for p in _named_group_rx.finditer(pattern):
         param_name = p.group(1)
         if param_name in param_names:
-            raise ValueError(f'cannot have multiple parameters with name: {param_name}')
+            raise ValueError(f'cannot have multiple parameters with name: '
+                             f'{param_name}')
 
         param_names.append(param_name)
 
     if len(pattern) > 1 and not pattern.endswith(b'*'):
-        # NB: the /? at the end, ensures that a route is matched both with a trailing slash or not
+        # NB: the /? at the end, ensures that a route is matched both with
+        # a trailing slash or not
         pattern = pattern + b'/?'
     return re.compile(b'^' + pattern + b'$', re.IGNORECASE), param_names
 
@@ -52,8 +63,10 @@ class RouteDuplicate(RouteException):
     def __init__(self, method, pattern, current_handler):
         method = ensure_str(method)
         pattern = ensure_str(pattern)
-        super().__init__(f'Cannot register route pattern `{pattern}` for `{method}` more than once. '
-                         f'This pattern is already registered for handler {current_handler.__qualname__}.')
+        super().__init__(f'Cannot register route pattern `{pattern}` for '
+                         f'`{method}` more than once. '
+                         f'This pattern is already registered for handler '
+                         f'{current_handler.__qualname__}.')
         self.method = method
         self.pattern = pattern
         self.current_handler = current_handler
@@ -66,8 +79,9 @@ class RouteMatch:
 
     def __init__(self, route: 'Route', values: Optional[Dict[str, bytes]]):
         self.handler = route.handler
-        self.values = {k: unquote(v.decode('utf8')) for k, v in values.items()} \
-            if values else None  # type: Optional[Dict[str, str]]
+        self.values: Optional[Dict[str, str]] = \
+            {k: unquote(v.decode('utf8')) for k, v in values.items()} \
+            if values else None
 
     def __repr__(self):
         return f'<RouteMatch {id(self)}>'
@@ -135,10 +149,13 @@ class RouterBase:
                 if fn.__name__ in {'index', 'default'}:
                     pattern = '/'
                 else:
-                    pattern = '/' + self.normalize_default_pattern_name(fn.__name__)
+                    pattern = '/' + self.normalize_default_pattern_name(
+                        fn.__name__
+                    )
 
                 # TODO: implement log here
-                # app_logger.info('Defaulting to route pattern "%s" for request handler <%s>', pattern, fn.__qualname__)
+                # app_logger.info('Defaulting to route pattern "%s" for
+                # request handler <%s>', pattern, fn.__qualname__)
             self.add(method, pattern, fn)
             return fn
         return decorator
@@ -250,7 +267,11 @@ class Router(RouterBase):
     def _check_duplicate(self, method: bytes, new_route: Route):
         if self._is_route_configured(method, new_route):
             current_route = self._map.get(method).get(new_route.full_pattern)
-            raise RouteDuplicate(method, new_route.pattern, current_route.handler)
+            raise RouteDuplicate(
+                method,
+                new_route.pattern,
+                current_route.handler
+            )
         self._set_configured_route(method, new_route)
 
     def add(self, method: str, pattern: BytesOrStr, handler: Any):
@@ -286,13 +307,15 @@ class RegisteredRoute:
         self.handler = handler
 
     def __repr__(self):
-        return f'<RegisteredRoute {self.method} "{self.pattern}" {self.handler.__name__}>'
+        return (f'<RegisteredRoute {self.method} "{self.pattern}" '
+                f'{self.handler.__name__}>')
 
 
 class RoutesRegistry(RouterBase):
-    """A registry for routes: not a full router able to get matches.
-    Unlike a router, a registry does not throw for duplicated routes; because such routes can be modified
-    when applied to an actual router.
+    """
+    A registry for routes: not a full router able to get matches.
+    Unlike a router, a registry does not throw for duplicated routes;
+    because such routes can be modified when applied to an actual router.
 
     This class is meant to enable scenarios like base pattern for controllers.
     """

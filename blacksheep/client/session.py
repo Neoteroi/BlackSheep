@@ -1,19 +1,21 @@
 import asyncio
-from urllib.parse import urlencode
 from asyncio import TimeoutError
-from typing import List, Optional, Union, Type, Any, Callable, Tuple
-from .pool import ClientConnectionPools, ClientConnection
-from .exceptions import *
-from blacksheep import (Request,
-                        Response,
-                        Content,
-                        URL,
-                        InvalidURL)
+from typing import Any, Callable, List, Optional, Tuple, Type, Union
+from urllib.parse import urlencode
+
+from blacksheep import URL, Content, InvalidURL, Request, Response
 from blacksheep.middlewares import get_middlewares_chain
+
 from .connection import ConnectionClosedError
 from .cookies import CookieJar, cookies_middleware
+from .exceptions import (CircularRedirectError,
+                         ConnectionTimeout,
+                         MaximumRedirectsExceededError,
+                         MissingLocationForRedirect,
+                         RequestTimeout,
+                         UnsupportedRedirect)
 from .logs import get_client_logging_middleware
-
+from .pool import ClientConnection, ClientConnectionPools
 
 URLType = Union[str, bytes, URL]
 Header = Tuple[bytes, bytes]
@@ -64,8 +66,12 @@ _default_pools_by_loop_id = {}
 
 
 def _get_default_pools_for_loop(loop):
-    """This function is meant to help users of the ClientSession: to prevent creating many pools,
-     decreasing performance only by instantiating several ClientSession without a specific HTTP Connections pools."""
+    """
+    This function is meant to help users of the ClientSession:
+    to prevent creating many pools, decreasing performance only by
+    instantiating several ClientSession without a specific HTTP Connections
+    pools.
+    """
     loop_id = id(loop)
     try:
         return _default_pools_by_loop_id[loop_id]
@@ -77,19 +83,21 @@ def _get_default_pools_for_loop(loop):
 
 class ClientSession:
 
-    def __init__(self,
-                 loop=None,
-                 base_url=None,
-                 ssl=None,
-                 pools=None,
-                 default_headers: Optional[List[Header]] = None,
-                 follow_redirects: bool = True,
-                 connection_timeout: float = 5.0,
-                 request_timeout: float = 60.0,
-                 maximum_redirects: int = 20,
-                 redirects_cache_type: Union[Type[RedirectsCache], Any] = None,
-                 cookie_jar: CookieJar = None,
-                 middlewares: Optional[List[Callable]] = None):
+    def __init__(
+        self,
+        loop=None,
+        base_url=None,
+        ssl=None,
+        pools=None,
+        default_headers: Optional[List[Header]] = None,
+        follow_redirects: bool = True,
+        connection_timeout: float = 5.0,
+        request_timeout: float = 60.0,
+        maximum_redirects: int = 20,
+        redirects_cache_type: Union[Type[RedirectsCache], Any] = None,
+        cookie_jar: CookieJar = None,
+        middlewares: Optional[List[Callable]] = None
+    ):
         if loop is None:
             loop = asyncio.get_event_loop()
 
@@ -118,7 +126,8 @@ class ClientSession:
         self.request_timeout = request_timeout
         self.follow_redirects = follow_redirects
         self.cookie_jar = cookie_jar
-        self._permanent_redirects_urls = redirects_cache_type() if follow_redirects else None
+        self._permanent_redirects_urls = redirects_cache_type() \
+            if follow_redirects else None
         self.non_standard_handling_of_301_302_redirect_method = True
         self.maximum_redirects = maximum_redirects
         self._handler = None
@@ -198,13 +207,16 @@ class ClientSession:
 
     @staticmethod
     def extract_redirect_location(response: Response) -> URL:
-        # if the server returned more than one value, use the first header in order
+        # if the server returned more than one value, use
+        # the first header in order
         location = response.get_first_header(b'Location')
         if not location:
             raise MissingLocationForRedirect(response)
-        
-        # if the location cannot be parsed as URL, let exception happen: this might be a redirect to a URN!!
-        # simply don't follows the redirect, and returns the response to the caller
+
+        # if the location cannot be parsed as URL, let exception happen:
+        # this might be a redirect to a URN!
+        # simply don't follows the redirect, and returns the response to
+        # the caller
         try:
             return URL(location)
         except InvalidURL:
@@ -218,22 +230,32 @@ class ClientSession:
         # https://tools.ietf.org/html/rfc7231#section-7.1.2
         return request.url.base_url().join(location)
 
-    def validate_redirect(self, redirect_url: URL, response: Response, context: ClientRequestContext):
+    def validate_redirect(
+        self,
+        redirect_url: URL,
+        response: Response,
+        context: ClientRequestContext
+    ):
         redirect_url_lower = redirect_url.value.lower()
         if redirect_url_lower in context.path:
             context.path.append(redirect_url_lower)
-
             raise CircularRedirectError(context.path, response)
 
         context.path.append(redirect_url_lower)
 
         if len(context.path) > self.maximum_redirects:
-            raise MaximumRedirectsExceededError(context.path, response, self.maximum_redirects)
+            raise MaximumRedirectsExceededError(
+                context.path,
+                response,
+                self.maximum_redirects
+            )
 
-    def update_request_for_redirect(self,
-                                    request: Request,
-                                    response: Response):
-        context = request.context  # type: ClientRequestContext
+    def update_request_for_redirect(
+        self,
+        request: Request,
+        response: Response
+    ) -> None:
+        context: ClientRequestContext = request.context
         status = response.status
 
         if status == 301 or status == 302:
@@ -259,7 +281,7 @@ class ClientSession:
 
         request.url = redirect_url
 
-    def merge_default_headers(self, request):
+    def merge_default_headers(self, request: Request) -> None:
         if not self.default_headers:
             return
 
@@ -268,8 +290,9 @@ class ClientSession:
             if header[0] not in request.headers:
                 request.headers.add(header[0], header[1])
 
-    def check_permanent_redirects(self, request):
-        if self.follow_redirects and request.url.value in self._permanent_redirects_urls:
+    def check_permanent_redirects(self, request: Request) -> None:
+        if self.follow_redirects \
+                and request.url.value in self._permanent_redirects_urls:
             request.url = self._permanent_redirects_urls[request.url.value]
 
     async def get_connection(self, url: URL) -> ClientConnection:
@@ -281,7 +304,7 @@ class ClientSession:
         except TimeoutError:
             raise ConnectionTimeout(url.base_url(), self.connection_timeout)
 
-    def get_new_context(self, request) -> ClientRequestContext:
+    def get_new_context(self, request: Request) -> ClientRequestContext:
         return ClientRequestContext(request, self.cookie_jar)
 
     def _validate_request_url(self, request: Request):
@@ -289,8 +312,11 @@ class ClientSession:
             if self.base_url:
                 request.url = URL(self._get_url_without_params(request.url))
             else:
-                raise ValueError('request.url must be a complete, absolute URL. Either provide a base_url '
-                                 'for the client, or specify a full URL for the request.')
+                raise ValueError(
+                    'request.url must be a complete, absolute URL. '
+                    'Either provide a base_url '
+                    'for the client, or specify a full URL for the request.'
+                )
 
     async def send(self, request: Request) -> Response:
         self._validate_request_url(request)
@@ -315,7 +341,8 @@ class ClientSession:
             try:
                 self.update_request_for_redirect(request, response)
             except UnsupportedRedirect:
-                # redirect not to HTTP / HTTPS: for example, it can be a redirect to a URN
+                # redirect not to HTTP / HTTPS: for example,
+                # it can be a redirect to a URN
                 return response
             return await self.send(request)
 
@@ -404,4 +431,3 @@ class ClientSession:
         return await self.send(Request('OPTIONS',
                                        self.get_url(url, params),
                                        headers).with_content(content))
-

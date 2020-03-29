@@ -77,7 +77,8 @@ class ApplicationEvent:
             await handler(self.context, *args, **keywargs)
 
     def __repr__(self):
-        return f'<ApplicationEvent [{",".join(handler.__name__ for handler in self.__handlers)}]>'
+        return f'<ApplicationEvent ' + \
+               f'[{",".join(handler.__name__ for handler in self.__handlers)}]>'
 
 
 def get_show_error_details(show_error_details):
@@ -98,8 +99,10 @@ class ApplicationStartupError(RuntimeError):
 class RequiresServiceContainerError(ApplicationStartupError):
 
     def __init__(self, details: str):
-        super().__init__(f'The application requires services to be a Container at this point of execution. '
-                         f'Details: {details}')
+        super().__init__(
+            f'The application requires services to be a Container '
+            f'at this point of execution. Details: {details}'
+        )
         self.details = details
 
 
@@ -147,32 +150,45 @@ class Application(BaseApplication):
     def default_headers(self, value):
         self._default_headers = value
 
-    def use_authentication(self, strategy: Optional[AuthenticationStrategy] = None) -> AuthenticationStrategy:
+    def use_authentication(
+        self,
+        strategy: Optional[AuthenticationStrategy] = None
+    ) -> AuthenticationStrategy:
         if self.started:
-            raise RuntimeError('The application is already running, configure authentication '
-                               'before starting the application')
+            raise RuntimeError(
+                'The application is already running, configure authentication '
+                'before starting the application'
+            )
         if not strategy:
             strategy = AuthenticationStrategy()
 
         self._authentication_strategy = strategy
         return strategy
 
-    def use_authorization(self, strategy: Optional[AuthorizationStrategy] = None) -> AuthorizationStrategy:
+    def use_authorization(
+        self,
+        strategy: Optional[AuthorizationStrategy] = None
+    ) -> AuthorizationStrategy:
         if self.started:
-            raise RuntimeError('The application is already running, configure authorization '
-                               'before starting the application')
+            raise RuntimeError(
+                'The application is already running, configure authorization '
+                'before starting the application'
+            )
 
         if not strategy:
             strategy = AuthorizationStrategy()
 
         if strategy.default_policy is None:
             # by default, a default policy is configured with no requirements,
-            # meaning that request handlers allow anonymous users, unless specified otherwise
-            # this can be modified, by adding a requirement to the default policy
+            # meaning that request handlers allow anonymous users, unless
+            # specified otherwise
+            # this can be modified, by adding a requirement to the default
+            # policy
             strategy.default_policy = Policy('default')
 
         self._authorization_strategy = strategy
-        self.exceptions_handlers[AuthenticateChallenge] = handle_authentication_challenge
+        self.exceptions_handlers[AuthenticateChallenge] = \
+            handle_authentication_challenge
         self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
         return strategy
 
@@ -209,26 +225,38 @@ class Application(BaseApplication):
             if route.handler in configured_handlers:
                 continue
 
-            route.handler = get_middlewares_chain(self.middlewares, route.handler)
+            route.handler = get_middlewares_chain(self.middlewares,
+                                                  route.handler)
 
             configured_handlers.add(route.handler)
         configured_handlers.clear()
 
     def _normalize_middlewares(self):
-        self.middlewares = [normalize_middleware(middleware, self.services) for middleware in self.middlewares]
+        self.middlewares = [normalize_middleware(middleware, self.services)
+                            for middleware in self.middlewares]
 
     def use_controllers(self):
-        # NB: controller types are collected here, and not with Controller.__subclasses__(),
-        # to avoid funny bugs in case several Application objects are defined with different controllers;
-        # this is the case for example of tests.
+        # NB: controller types are collected here, and not with
+        # Controller.__subclasses__(),
+        # to avoid funny bugs in case several Application objects are defined
+        # with different controllers; this is the case for example of tests.
 
-        # NB: this sophisticated approach, using metaclassing, dynamic attributes, and calling handlers dynamically
-        # with activated instances of controllers; still supports custom and generic decorators (*args, **kwargs);
+        # NB: this sophisticated approach, using metaclassing, dynamic
+        # attributes, and calling handlers dynamically
+        # with activated instances of controllers; still supports custom
+        # and generic decorators (*args, **kwargs);
         # as long as `functools.wraps` decorator is used in those decorators.
         self.register_controllers(self.prepare_controllers())
 
-    def get_controller_handler_pattern(self, controller_type: Type, route: RegisteredRoute) -> bytes:
-        """Returns the full pattern to be used for a route handler, defined as controller method."""
+    def get_controller_handler_pattern(
+        self,
+        controller_type: Type,
+        route: RegisteredRoute
+    ) -> bytes:
+        """
+        Returns the full pattern to be used for a route handler,
+        defined as controller method.
+        """
         base_route = getattr(controller_type, 'route', None)
 
         if base_route:
@@ -237,8 +265,12 @@ class Application(BaseApplication):
             elif isinstance(base_route, (str, bytes)):
                 value = base_route
             else:
-                raise RuntimeError(f'Invalid controller `route` attribute. Controller `{controller_type.__name__}` '
-                                   f'has an invalid route attribute: it should be callable, or str, or bytes.')
+                raise RuntimeError(
+                    f'Invalid controller `route` attribute. '
+                    f'Controller `{controller_type.__name__}` '
+                    f'has an invalid route attribute: it should '
+                    f'be callable, or str, or bytes.'
+                )
 
             if value:
                 return ensure_bytes(join_fragments(value, route.pattern))
@@ -251,7 +283,14 @@ class Application(BaseApplication):
             controller_type = getattr(handler, 'controller_type')
             controller_types.append(controller_type)
             handler.__annotations__['self'] = ControllerBinder(controller_type)
-            self.router.add(route.method, self.get_controller_handler_pattern(controller_type, route), handler)
+            self.router.add(
+                route.method,
+                self.get_controller_handler_pattern(
+                    controller_type,
+                    route
+                ),
+                handler
+            )
         return controller_types
 
     def bind_controller_type(self, controller_type: Type):
@@ -261,14 +300,19 @@ class Application(BaseApplication):
             setattr(controller_type, 'templates', templates_environment)
 
     def register_controllers(self, controller_types: List[Type]):
-        """Registers controller types as transient services in the application service container."""
+        """
+        Registers controller types as transient services
+        in the application service container.
+        """
         if not controller_types:
             return
 
         if not isinstance(self.services, Container):
-            raise RequiresServiceContainerError('When using controllers, the application.services must be '
-                                                'a service `Container` (`rodi.Container`; not a built service '
-                                                'provider).')
+            raise RequiresServiceContainerError(
+                'When using controllers, the application.services must be '
+                'a service `Container` (`rodi.Container`; not a built service '
+                'provider).'
+            )
 
         for controller_class in controller_types:
             is_abstract = inspect.isabstract(controller_class)
@@ -280,12 +324,18 @@ class Application(BaseApplication):
 
             self.bind_controller_type(controller_class)
 
-            # TODO: maybe rodi should be modified to handle the following internally;
-            # if a type does not define an __init__ method, then a fair assumption is that it can be instantiated
+            # TODO: maybe rodi should be modified to handle the following
+            # internally;
+            # if a type does not define an __init__ method, then a fair
+            # assumption is that it can be instantiated
             # by calling it;
-            # TODO: the following if statement can be removed if rodi is modified as described above.
+            # TODO: the following if statement can be removed if rodi is
+            # modified as described above.
             if getattr(controller_class, '__init__') is object.__init__:
-                self.services.add_transient_by_factory(controller_class, controller_class)
+                self.services.add_transient_by_factory(
+                    controller_class,
+                    controller_class
+                )
             else:
                 self.services.add_exact_transient(controller_class)
 
@@ -309,16 +359,25 @@ class Application(BaseApplication):
         if self._authorization_strategy:
             if not self._authentication_strategy:
                 raise AuthorizationWithoutAuthenticationError()
-            self.middlewares.insert(0, get_authorization_middleware(self._authorization_strategy))
+            self.middlewares.insert(
+                0,
+                get_authorization_middleware(self._authorization_strategy)
+            )
 
         if self._authentication_strategy:
-            self.middlewares.insert(0, get_authentication_middleware(self._authentication_strategy))
+            self.middlewares.insert(
+                0,
+                get_authentication_middleware(self._authentication_strategy)
+            )
 
         if self._use_sync_logging:
             self._configure_sync_logging()
 
         if self._default_headers:
-            self.middlewares.insert(0, get_default_headers_middleware(self._default_headers))
+            self.middlewares.insert(
+                0,
+                get_default_headers_middleware(self._default_headers)
+            )
 
         self._normalize_middlewares()
 
@@ -356,7 +415,7 @@ class Application(BaseApplication):
 
         try:
             await self.start()
-        except:
+        except:  # NOQA
             logging.exception('Startup error')
             await send({'type': 'lifespan.startup.failed'})
             return

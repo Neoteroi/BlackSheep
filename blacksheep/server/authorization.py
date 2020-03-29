@@ -1,8 +1,11 @@
 from typing import Optional, Sequence
-from blacksheep import Response, TextContent
-from guardpost.synchronous.authorization import Requirement, UnauthorizedError
-from guardpost.asynchronous.authorization import AuthorizationStrategy, AsyncRequirement, Policy
 
+from guardpost.asynchronous.authorization import (AsyncRequirement,
+                                                  AuthorizationStrategy,
+                                                  Policy)
+from guardpost.synchronous.authorization import Requirement, UnauthorizedError
+
+from blacksheep import Response, TextContent
 
 __all__ = ('auth',
            'AuthorizationStrategy',
@@ -15,13 +18,21 @@ __all__ = ('auth',
            'Policy')
 
 
-def auth(policy: Optional[str] = None, *, authentication_schemes: Optional[Sequence[str]] = None):
-    """Configures authorization for a decorated request handler, optionally with a policy.
-    If no policy is specified, the default policy of the configured AuthorizationStrategy is used.
+def auth(
+    policy: Optional[str] = None,
+    *,
+    authentication_schemes: Optional[Sequence[str]] = None
+):
+    """
+    Configures authorization for a decorated request handler,
+    optionally with a policy.
+    If no policy is specified, the default policy of the configured
+    AuthorizationStrategy is used.
 
-    :param policy: optional, name of the policy to use to achieve authorization.
-    :param authentication_schemes: optional, authentication schemes to use for this handler. If not specified, all
-    configured authentication handlers are used.
+    :param policy: optional, name of the policy to use for authorization.
+    :param authentication_schemes: optional, authentication schemes to use
+    for this handler. If not specified, all configured authentication handlers
+    are used.
     """
     def decorator(f):
         f.auth = True
@@ -32,7 +43,10 @@ def auth(policy: Optional[str] = None, *, authentication_schemes: Optional[Seque
 
 
 def allow_anonymous():
-    """Configures a decorated request handler, to be usable for all users: anonymous and authenticated users."""
+    """
+    Configures a decorated request handler, to make it usable for all users:
+    anonymous and authenticated users.
+    """
     def decorator(f):
         f.allow_anonymous = True
         return f
@@ -60,11 +74,15 @@ def get_authorization_middleware(strategy: AuthorizationStrategy):
 class AuthorizationWithoutAuthenticationError(RuntimeError):
 
     def __init__(self):
-        super().__init__('Cannot use an authorization strategy without an authentication strategy. '
-                         'Use `use_authentication` method to configure it.')
+        super().__init__(
+            'Cannot use an authorization strategy without an authentication '
+            'strategy. Use `use_authentication` method to configure it.'
+        )
 
 
-def _get_www_authenticated_header_value_from_generic_unauthorized_error(error: UnauthorizedError):
+def _get_www_authenticated_header_value_from_generic_unauthorized_error(
+    error: UnauthorizedError
+):
     parts = [error.scheme]
     if error.error:
         parts.append(', error="{}"')
@@ -78,7 +96,12 @@ def get_www_authenticated_header_from_generic_unauthorized_error(error):
 
 
 async def handle_unauthorized(app, request, http_exception: UnauthorizedError):
-    www_authenticate = get_www_authenticated_header_from_generic_unauthorized_error(http_exception)
-    return Response(401,
-                    [www_authenticate] if www_authenticate else None,
-                    content=TextContent('Unauthorized'))
+    www_authenticate = \
+        get_www_authenticated_header_from_generic_unauthorized_error(
+            http_exception
+        )
+    return Response(
+        401,
+        [www_authenticate] if www_authenticate else None,
+        content=TextContent('Unauthorized')
+    )

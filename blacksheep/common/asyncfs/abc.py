@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABC
+from typing import Optional, AsyncIterable
 
 
 class FileSystemHandler(ABC):
@@ -15,6 +16,6 @@ class FileSystemHandler(ABC):
     async def chunks(
         self,
         file_path: str,
-        chunk_size: int = 1024*64
+        chunk_size: int = 1024 * 64
     ) -> AsyncIterable[bytes]:
         ...

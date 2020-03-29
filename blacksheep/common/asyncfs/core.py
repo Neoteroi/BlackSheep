@@ -57,7 +57,7 @@ class FilesReader(PoolClient):
     async def chunks(
         self,
         file_path: str,
-        chunk_size: int = 1024*64
+        chunk_size: int = 1024 * 64
     ) -> AsyncIterable[bytes]:
         async with FileContext(file_path) as file:
             while True:

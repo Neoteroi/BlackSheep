@@ -1,9 +1,9 @@
 import logging
-from typing import Optional
-from ipaddress import ip_address
 from datetime import datetime, timedelta
-from blacksheep import Request, Cookie, URL
+from ipaddress import ip_address
+from typing import Optional, Dict, Iterable
 
+from blacksheep import URL, Cookie
 
 client_logger = logging.getLogger('blacksheep.client')
 
@@ -111,9 +111,11 @@ class CookieJar:
             return request_domain
 
         if not request_domain.endswith(cookie_domain):
-            client_logger.warning(f'A response for {request_url.value} tried to set '
-                                  f'a cookie with domain {cookie_domain}; this could '
-                                  f'be a malicious action.')
+            client_logger.warning(
+                f'A response for {request_url.value} tried to set '
+                f'a cookie with domain {cookie_domain}; this could '
+                f'be a malicious action.'
+            )
             raise InvalidCookieDomain()
 
         return cookie_domain
@@ -147,11 +149,14 @@ class CookieJar:
             return True
 
         return lower_value.startswith(lower_domain) \
-               and lower_value[len(lower_domain)] == 46 \
-               and not_ip_address(lower_value.decode())
+            and lower_value[len(lower_domain)] == 46 \
+            and not_ip_address(lower_value.decode())
 
     @staticmethod
-    def path_match(request_path: bytes, cookie_path: bytes):
+    def path_match(
+        request_path: bytes,
+        cookie_path: bytes
+    ) -> bool:
         # https://tools.ietf.org/html/rfc6265#section-5.1.4
         lower_request_path = request_path.lower()
         lower_cookie_path = cookie_path.lower()
@@ -170,11 +175,18 @@ class CookieJar:
         return False
 
     def get_cookies_for_url(self, url: URL):
-        return self.get_cookies(url.schema,
-                                self._get_url_host(url),
-                                self._get_url_path(url))
+        return self.get_cookies(
+            url.schema,
+            self._get_url_host(url),
+            self._get_url_path(url)
+        )
 
-    def _get_cookies_by_path(self, schema: bytes, path: bytes, cookies_by_path: dict):
+    def _get_cookies_by_path(
+        self,
+        schema: bytes,
+        path: bytes,
+        cookies_by_path: Dict[bytes, Cookie]
+    ) -> Iterable[Cookie]:
         for cookie_path, cookies in cookies_by_path.items():
             if CookieJar.path_match(path, cookie_path):
                 for cookie in self._check_cookies(schema, cookies):
@@ -198,14 +210,27 @@ class CookieJar:
 
             yield cookie
 
-    def get_cookies(self, schema: bytes, domain: bytes, path: bytes):
+    def get_cookies(
+        self,
+        schema: bytes,
+        domain: bytes,
+        path: bytes
+    ) -> Iterable[Cookie]:
         for cookies_domain, cookies_by_path in self._host_only_cookies.items():
             if cookies_domain == domain:
-                yield from self._get_cookies_by_path(schema, path, cookies_by_path)
+                yield from self._get_cookies_by_path(
+                    schema,
+                    path,
+                    cookies_by_path
+                )
 
         for cookies_domain, cookies_by_path in self._domain_cookies.items():
             if CookieJar.domain_match(cookies_domain, domain):
-                yield from self._get_cookies_by_path(schema, path, cookies_by_path)
+                yield from self._get_cookies_by_path(
+                    schema,
+                    path,
+                    cookies_by_path
+                )
 
     @staticmethod
     def _ensure_dict_container(container, key):
@@ -216,34 +241,65 @@ class CookieJar:
             container[key] = new_container
             return new_container
 
-    def _set_ensuring_container(self, root_container, domain, path, stored_cookie: StoredCookie):
+    def _set_ensuring_container(
+        self,
+        root_container,
+        domain,
+        path,
+        stored_cookie: StoredCookie
+    ):
         domain_container = self._ensure_dict_container(root_container, domain)
         path_container = self._ensure_dict_container(domain_container, path)
         domain_container[path] = path_container
         path_container[stored_cookie.name.lower()] = stored_cookie
 
     @staticmethod
-    def _get(container: dict, domain: bytes, path: bytes, cookie_name: bytes) -> Optional[StoredCookie]:
+    def _get(
+        container: dict,
+        domain: bytes,
+        path: bytes,
+        cookie_name: bytes
+    ) -> Optional[StoredCookie]:
         try:
             return container[domain][path][cookie_name]
         except KeyError:
             return None
 
     @staticmethod
-    def _remove(container: dict, domain: bytes, path: bytes, cookie_name: bytes) -> bool:
+    def _remove(
+        container: dict,
+        domain: bytes,
+        path: bytes,
+        cookie_name: bytes
+    ) -> bool:
         try:
             del container[domain][path][cookie_name]
         except KeyError:
             return False
         return True
 
-    def get(self, domain: bytes, path: bytes, cookie_name: bytes) -> Optional[StoredCookie]:
-        return self._get(self._host_only_cookies, domain, path, cookie_name) \
-               or self._get(self._domain_cookies, domain, path, cookie_name)
+    def get(
+        self,
+        domain: bytes,
+        path: bytes,
+        cookie_name: bytes
+    ) -> Optional[StoredCookie]:
+        return self._get(
+            self._host_only_cookies,
+            domain,
+            path,
+            cookie_name
+        ) or self._get(
+            self._domain_cookies,
+            domain,
+            path,
+            cookie_name
+        )
 
     def remove(self, domain: bytes, path: bytes, cookie_name: bytes) -> bool:
-        return self._remove(self._host_only_cookies, domain, path, cookie_name) \
-               or self._remove(self._domain_cookies, domain, path, cookie_name)
+        return self._remove(
+            self._host_only_cookies, domain, path, cookie_name
+        ) or self._remove(self._domain_cookies, domain, path, cookie_name)
 
     def add(self, request_url: URL, cookie: Cookie):
         domain = self.get_domain(request_url, cookie)
@@ -289,6 +345,9 @@ async def cookies_middleware(request, next_handler):
             try:
                 cookie_jar.add(request.url, cookie)
             except InvalidCookie as invalid_cookie_error:
-                client_logger.debug(f'Rejected cookie for {request.url}; the cookie is invalid: '
-                                    f'{str(invalid_cookie_error)}')
+                client_logger.debug(
+                    f'Rejected cookie for {request.url}; '
+                    f'the cookie is invalid: '
+                    f'{str(invalid_cookie_error)}'
+                )
     return response

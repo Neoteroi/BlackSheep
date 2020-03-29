@@ -1,9 +1,11 @@
 import logging
 from asyncio import Queue, QueueEmpty, QueueFull
 from ssl import SSLContext
-from .connection import ClientConnection, SECURE_SSLCONTEXT, INSECURE_SSLCONTEXT
+
 from blacksheep.exceptions import InvalidArgument
 
+from .connection import (INSECURE_SSLCONTEXT, SECURE_SSLCONTEXT,
+                         ClientConnection)
 
 logger = logging.getLogger('blacksheep.client')
 
@@ -28,20 +30,27 @@ class ClientConnectionPool:
                 return INSECURE_SSLCONTEXT
             if isinstance(ssl, SSLContext):
                 return ssl
-            raise InvalidArgument('Invalid ssl argument, expected one of: '
-                                  '{None, False, True, instance of ssl.SSLContext}')
+            raise InvalidArgument(
+                'Invalid ssl argument, expected one of: '
+                'None, False, True, instance of ssl.SSLContext.')
         if ssl:
-            raise InvalidArgument('SSL argument specified for non-https scheme.')
+            raise InvalidArgument(
+                'SSL argument specified for non-https scheme.'
+            )
         return None
 
     def _get_connection(self):
         # if there are no connections, let QueueEmpty exception happen
-        # if all connections are closed, remove all of them and let QueueEmpty exception happen
+        # if all connections are closed, remove all of them and let
+        # QueueEmpty exception happen
         while True:
-            connection = self._idle_connections.get_nowait()  # type: ClientConnection
+            connection: ClientConnection = self._idle_connections.get_nowait()
 
             if connection.open:
-                logger.debug(f'Reusing connection {id(connection)} to: {self.host}:{self.port}')
+                logger.debug(
+                    f'Reusing connection '
+                    f'{id(connection)} to: {self.host}:{self.port}'
+                )
                 return connection
 
     def try_return_connection(self, connection):
@@ -67,8 +76,10 @@ class ClientConnectionPool:
             self.port,
             ssl=self.ssl)
         await connection.ready.wait()
-        # NB: a newly created connection is going to be used by a request-response cycle;
-        # so we don't put it inside the pool (since it's not immediately reusable for other requests)
+        # NB: a newly created connection is going to be used by a
+        # request-response cycle;
+        # so we don't put it inside the pool (since it's not immediately
+        # reusable for other requests)
         return connection
 
     def dispose(self):
@@ -79,7 +90,10 @@ class ClientConnectionPool:
             except QueueEmpty:
                 break
             else:
-                logger.debug(f'Closing connection {id(connection)} to: {self.host}:{self.port}')
+                logger.debug(
+                    f'Closing connection '
+                    f'{id(connection)} to: {self.host}:{self.port}'
+                )
                 connection.close()
 
 
@@ -90,10 +104,11 @@ class ClientConnectionPools:
         self._pools = {}
 
     def get_pool(self, scheme, host, port, ssl):
-        assert scheme in (b'http', b'https'), 'URL schema must be http or https'
+        assert scheme in (b'http', b'https'), \
+            'URL schema must be http or https'
         if port is None or port == 0:
             port = 80 if scheme == b'http' else 443
-        
+
         key = (scheme, host, port)
         try:
             return self._pools[key]

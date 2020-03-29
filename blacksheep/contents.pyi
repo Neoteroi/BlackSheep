@@ -1,6 +1,7 @@
 import json
 import uuid
-from typing import AsyncGenerator, Any, Callable, Optional, List, Dict, Union, Tuple
+from typing import (Any, AsyncIterable, Callable, Dict, List, Optional, Tuple,
+                    Union)
 
 
 class Content:
@@ -26,7 +27,8 @@ class StreamedContent(Content):
         self.length = -1
         self.generator = data_provider
 
-    async def get_parts(self) -> AsyncGenerator[bytes]: ...
+    async def get_parts(self) -> AsyncIterable[bytes]:
+        ...
 
 
 class ASGIContent(Content):
@@ -37,11 +39,14 @@ class ASGIContent(Content):
         self.length = -1
         self.receive = receive
 
-    def dispose(self): ...
+    def dispose(self):
+        ...
 
-    async def stream(self) -> AsyncGenerator[bytes]: ...
+    async def stream(self) -> AsyncIterable[bytes]:
+        ...
 
-    async def read(self) -> bytes: ...
+    async def read(self) -> bytes:
+        ...
 
 
 class TextContent(Content):
@@ -66,8 +71,8 @@ class FormContent(Content):
 
     def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
         """
-        Creates a new instance of content with application/x-www-form-urlencoded type,
-        and bytes data serialized from the given dictionary.
+        Creates a new instance of content with application/x-www-form-urlencoded
+        type, and bytes data serialized from the given dictionary.
 
         :param data: data to be serialized.
         """
@@ -79,8 +84,8 @@ class FormPart:
     def __init__(self,
                  name: bytes,
                  data: bytes,
-                 content_type: Optional[bytes]=None,
-                 file_name: Optional[bytes]=None,
+                 content_type: Optional[bytes] = None,
+                 file_name: Optional[bytes] = None,
                  charset: Optional[bytes] = None):
         self.name = name
         self.data = data
@@ -97,12 +102,15 @@ class MultiPartFormData(Content):
     def __init__(self, parts: List[FormPart]):
         self.parts = parts
         self.boundary = b'------' + str(uuid.uuid4()).replace('-', '').encode()
-        super().__init__(b'multipart/form-data; boundary=' + self.boundary, ...)
+        super().__init__(b'multipart/form-data; boundary=' + self.boundary,
+                         ...)
 
 
 def parse_www_form(content: str) -> Dict[str, Union[str, List[str]]]:
     """Parses application/x-www-form-urlencoded content"""
 
 
-def write_www_form_urlencoded(data: Union[Dict[str, str], List[Tuple[str, str]]]) -> bytes: ...
-
+def write_www_form_urlencoded(
+    data: Union[Dict[str, str], List[Tuple[str, str]]]
+) -> bytes:
+    ...

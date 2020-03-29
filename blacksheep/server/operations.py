@@ -8,4 +8,3 @@ class OperationContext:
 
     def __init__(self):
         self.identity = None  # type: Optional[Identity]
-

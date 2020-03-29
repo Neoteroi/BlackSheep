@@ -1,27 +1,33 @@
 """
-This module implements a feature inspired by "Model Binding" in ASP.NET web framework.
-It provides a strategy to have request parameters read an injected into request handlers calls.
-This feature is also useful to generate OpenAPI Documentation (Swagger) automatically (not implemented, yet).
+This module implements a feature inspired by "Model Binding" in ASP.NET
+web framework.
+It provides a strategy to have request parameters read an injected into
+request handlers calls.
+This feature is also useful to generate OpenAPI Documentation (Swagger)
+automatically (not implemented, yet).
 
 See:
     https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
 """
 from abc import ABC, abstractmethod
 from collections.abc import Iterable as IterableAbc
-from typing import Type, TypeVar, Optional, Callable, Sequence, Union, List, Any
+from typing import (Any, Callable, List, Optional, Sequence, Type, TypeVar,
+                    Union)
 from urllib.parse import unquote
-from blacksheep import Request
-from blacksheep.exceptions import BadRequest
+
 from guardpost.authentication import Identity
 from rodi import Services
 
+from blacksheep import Request
+from blacksheep.exceptions import BadRequest
 
 T = TypeVar('T')
 TypeOrName = Union[Type, str]
 
 
 def _inspect_is_list_typing(expected_type):
-    return hasattr(expected_type, '__origin__') and expected_type.__origin__ is list
+    return hasattr(expected_type, '__origin__') \
+        and expected_type.__origin__ is list
 
 
 def _generalize_init_type_error_message(ex: TypeError) -> str:
@@ -49,7 +55,8 @@ class Binder(ABC):
         ...
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} {self.expected_type} at {id(self)}>'
+        return f'<{self.__class__.__name__} ' + \
+               f'{self.expected_type} at {id(self)}>'
 
 
 class MissingBodyError(BadRequest):
@@ -73,8 +80,12 @@ class InvalidRequestBody(BadRequest):
 class MissingConverterError(Exception):
 
     def __init__(self, expected_type, binder_type):
-        super().__init__(f'A default converter for type `{str(expected_type)}` is not configured. '
-                         f'Please define a converter method for this binder ({binder_type.__name__}).')
+        super().__init__(
+            f'A default converter for type `{str(expected_type)}` '
+            f'is not configured. '
+            f'Please define a converter method for this binder '
+            f'({binder_type.__name__}).'
+        )
 
 
 class FromBody(Binder):
@@ -93,13 +104,16 @@ class FromBody(Binder):
         super().__init__(expected_type, required, converter)
 
     @abstractmethod
-    def matches_content_type(self, request: Request) -> bool: ...
+    def matches_content_type(self, request: Request) -> bool:
+        raise NotImplementedError()
 
     @abstractmethod
-    async def read_data(self, request: Request) -> Any: ...
+    async def read_data(self, request: Request) -> Any:
+        raise NotImplementedError()
 
     async def get_value(self, request: Request) -> T:
-        if request.method not in self._excluded_methods and self.matches_content_type(request):
+        if request.method not in self._excluded_methods \
+                and self.matches_content_type(request):
             data = await self.read_data(request)
 
             if not data:
@@ -111,7 +125,9 @@ class FromBody(Binder):
             if not request.has_body():
                 raise MissingBodyError()
 
-            raise InvalidRequestBody(f'Expected payload {self.__class__.__name__}')
+            raise InvalidRequestBody(
+                f'Expected payload {self.__class__.__name__}'
+            )
 
         return None
 
@@ -135,11 +151,15 @@ class FromJson(FromBody):
 
 
 class FromForm(FromBody):
-    """Extracts a model from form content, either application/x-www-form-urlencoded, or multipart/form-data"""
+    """
+    Extracts a model from form content, either
+    application/x-www-form-urlencoded, or multipart/form-data.
+    """
 
     def matches_content_type(self, request: Request) -> bool:
-        return request.declares_content_type(b'application/x-www-form-urlencoded') or \
-               request.declares_content_type(b'multipart/form-data')
+        return request.declares_content_type(
+            b'application/x-www-form-urlencoded'
+        ) or request.declares_content_type(b'multipart/form-data')
 
     async def read_data(self, request: Request) -> Any:
         return await request.form()
@@ -154,7 +174,9 @@ def _default_bool_converter(value: str):
 
     # bad request: expected a bool value, but
     # got something different that is not handled
-    raise BadRequest(f'Expected a bool value for a parameter, but got {value}.')
+    raise BadRequest(
+        f'Expected a bool value for a parameter, but got {value}.'
+    )
 
 
 def _default_bool_list_converter(values: Sequence[str]):
@@ -172,7 +194,9 @@ def _default_simple_types_binder(expected_type: Type, values: Sequence[str]):
 
 
 class SyncBinder(Binder):
-    """Base binder class for values that can be read synchronously from requests with complete headers.
+    """
+    Base binder class for values that can be read synchronously
+    from requests with complete headers.
     Like route, query string and header parameters.
     """
 
@@ -183,7 +207,11 @@ class SyncBinder(Binder):
                  name: str = None,
                  required: bool = False,
                  converter: Optional[Callable] = None):
-        super().__init__(expected_type, required, converter or self._get_default_converter(expected_type))
+        super().__init__(
+            expected_type,
+            required,
+            converter or self._get_default_converter(expected_type)
+        )
         self.name = name
 
     def __repr__(self):
@@ -208,7 +236,8 @@ class SyncBinder(Binder):
         generic_type = self._get_type_for_generic_iterable(expected_type)
         item_type = self._generic_iterable_annotation_item_type(expected_type)
         item_converter = self._get_default_converter_single(item_type)
-        return lambda values: generic_type(item_converter(value) for value in values)
+        return lambda values: generic_type(item_converter(value)
+                                           for value in values)
 
     def _get_default_converter(self, expected_type):
         if expected_type is str:
@@ -223,7 +252,8 @@ class SyncBinder(Binder):
         if expected_type in self._simple_types:
             return lambda value: expected_type(value[0]) if value else None
 
-        if self._is_generic_iterable_annotation(expected_type) or expected_type in {list, set, tuple}:
+        if self._is_generic_iterable_annotation(expected_type) \
+                or expected_type in {list, set, tuple}:
             return self._get_default_converter_for_iterable(expected_type)
 
         raise MissingConverterError(expected_type, self.__class__)
@@ -235,14 +265,19 @@ class SyncBinder(Binder):
         origin = expected_type.__origin__
         if origin in {list, tuple, set}:
             return origin
-        # here we cannot make something perfect: if the user of the library wants something better,
-        # a converter should be specified when configuring binders; here the code defaults to list
-        # for all abstract types (typing.Sequence, Set, etc.) even though not perfect
+        # here we cannot make something perfect: if the user of the library
+        # wants something better,
+        # a converter should be specified when configuring binders; here the
+        # code defaults to list
+        # for all abstract types (typing.Sequence, Set, etc.) even though not
+        # perfect
         return list
 
     def _is_generic_iterable_annotation(self, param_type):
-        return hasattr(param_type, '__origin__') and (param_type.__origin__ in {list, tuple, set}
-                                                      or issubclass(param_type.__origin__, IterableAbc))
+        return hasattr(param_type, '__origin__') and (
+            param_type.__origin__ in {list, tuple, set}
+            or issubclass(param_type.__origin__, IterableAbc)
+        )
 
     def _generic_iterable_annotation_item_type(self, param_type):
         try:
@@ -273,7 +308,10 @@ class SyncBinder(Binder):
         try:
             value = self.converter(raw_value)
         except (ValueError, BadRequest):
-            raise BadRequest(f'Invalid value for parameter `{self.name}`; expected {self.expected_type}')
+            raise BadRequest(
+                f'Invalid value for parameter `{self.name}`; '
+                f'expected {self.expected_type}'
+            )
 
         if value is None and self.required:
             raise MissingParameterError(self.name, self.source_name)
@@ -291,7 +329,8 @@ class FromHeader(SyncBinder):
         return 'header'
 
     def get_raw_value(self, request: Request) -> Sequence[str]:
-        return [header.decode('utf8') for header in request.get_headers(self.name.encode())]
+        return [header.decode('utf8')
+                for header in request.get_headers(self.name.encode())]
 
 
 class FromQuery(SyncBinder):
@@ -323,7 +362,11 @@ class FromRoute(SyncBinder):
 
 class FromServices(Binder):
 
-    def __init__(self, service: TypeOrName, services: Optional[Services] = None):
+    def __init__(
+        self,
+        service: TypeOrName,
+        services: Optional[Services] = None
+    ):
         super().__init__(service, False, None)
         self.services = services
 
@@ -331,7 +374,8 @@ class FromServices(Binder):
         try:
             context = request.services_context
         except AttributeError:
-            # no support for scoped services (across parameters and middlewares)
+            # no support for scoped services
+            # (across parameters and middlewares)
             context = None
 
         return self.services.get(self.expected_type, context)
@@ -339,11 +383,15 @@ class FromServices(Binder):
 
 class ControllerBinder(FromServices):
     """
-    Binder used to activate an instance of Controller. This binder is applied automatically by the application
-    object at startup, as type annotation, for handlers configured on classes inheriting `blacksheep.server.Controller`.
+    Binder used to activate an instance of Controller. This binder is applied
+    automatically by the application
+    object at startup, as type annotation, for handlers configured on classes
+    inheriting `blacksheep.server.Controller`.
 
-    If used manually, it causes several controllers to be instantiated and injected into request handlers.
-    However, only the controller configured as `self` is taken into consideration for base route and callbacks.
+    If used manually, it causes several controllers to be instantiated and
+    injected into request handlers.
+    However, only the controller configured as `self` is taken into
+    consideration for base route and callbacks.
     """
 
     async def get_value(self, request: Request) -> T:

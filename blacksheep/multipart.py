@@ -3,7 +3,7 @@ from blacksheep.contents import FormPart
 
 
 def get_boundary(value: bytes):
-    return value[:value.index(b'\n')+1]
+    return value[:value.index(b'\n') + 1]
 
 
 def get_boundary_from_header(value: bytes):
@@ -19,7 +19,10 @@ def _remove_last_crlf(value: bytes):
 
 
 def split_multipart(value: bytes):
-    """Splits a whole multipart/form-data payload into single parts without boundary."""
+    """
+    Splits a whole multipart/form-data payload into single parts
+    without boundary.
+    """
     value = value.strip(b' ')
     boundary = value[:value.index(b'\n')].rstrip(b'\r')
 
@@ -31,20 +34,28 @@ def split_multipart(value: bytes):
 
 
 def split_headers(value: bytes):
-    """Splits a whole portion of multipart form data representing headers into name, value pairs"""
+    """
+    Splits a whole portion of multipart form data representing headers
+    into name, value pairs.
+    """
     #
     # Examples of whole portions:
     #
     # Content-Disposition: form-data; name="two"
-    # Content-Disposition: form-data; name="file_example"; filename="example-001.png"\r\nContent-Type: image/png
+    # Content-Disposition: form-data; name="file_example";
+    #   filename="example-001.png"\r\nContent-Type: image/png
     #
     for raw_header in value.split(b'\r\n'):
         header_name, header_value = raw_header.split(b':', 1)
         yield header_name.lower(), header_value.lstrip(b' ')
 
 
-def split_content_disposition_values(value: bytes) -> Tuple[bytes, Optional[bytes]]:
-    """Parses a single header into key, value pairs"""
+def split_content_disposition_values(
+    value: bytes
+) -> Tuple[bytes, Optional[bytes]]:
+    """
+    Parses a single header into key, value pairs.
+    """
     for part in value.split(b';'):
         if b'=' in part:
             name, value = part.split(b'=', 1)
@@ -72,10 +83,11 @@ def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
     content_disposition = headers.get(b'content-disposition')
 
     if not content_disposition:
-        # what to do? raise makes sense
-        raise Exception('Missing Content-Disposition header in multipart/form-data part.')
+        raise Exception(
+            'Missing Content-Disposition header in multipart/form-data part.')
 
-    content_disposition_values = parse_content_disposition_values(content_disposition)
+    content_disposition_values = parse_content_disposition_values(
+        content_disposition)
 
     field_name = content_disposition_values.get(b'name')
 
@@ -84,7 +96,7 @@ def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
         # https://tools.ietf.org/html/rfc7578#section-4.6
         raise CharsetPart(data)
 
-    content_type = headers.get(b'content-type', None)  # TODO: b'text/plain' default to text plain?
+    content_type = headers.get(b'content-type', None)
 
     return FormPart(field_name,
                     data,

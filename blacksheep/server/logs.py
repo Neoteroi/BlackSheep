@@ -26,13 +26,17 @@ def _get_loggers():
 
     ensure_folder(f'logs/{ts}')
 
-    access_handler = file_handler(f'logs/{ts}/{hour_ts}-blacksheep-access-{process_id}.log',
-                                  maxBytes=max_bytes,
-                                  backupCount=5)
+    access_handler = file_handler(
+        f'logs/{ts}/{hour_ts}-blacksheep-access-{process_id}.log',
+        maxBytes=max_bytes,
+        backupCount=5
+    )
 
-    app_handler = file_handler(f'logs/{ts}/{hour_ts}-blacksheep-{process_id}.log',
-                               maxBytes=max_bytes,
-                               backupCount=5)
+    app_handler = file_handler(
+        f'logs/{ts}/{hour_ts}-blacksheep-{process_id}.log',
+        maxBytes=max_bytes,
+        backupCount=5
+    )
 
     access_handler.setLevel(logging.DEBUG)
     app_handler.setLevel(logging.DEBUG)
@@ -48,7 +52,9 @@ def _get_loggers():
     app_logger.addHandler(handler)
     access_logger.addHandler(handler)
 
-    access_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+    access_handler.setFormatter(
+        logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    )
 
     return access_logger, app_logger
 
@@ -63,19 +69,24 @@ def setup_sync_logging():
     access_logger, app_logger = _get_loggers()
 
     async def logging_middleware(request, handler):
-        access_logger.debug(f'{request.method.ljust(8)} {get_logged_url(request)}')
+        access_logger.debug(
+            f'{request.method.ljust(8)} {get_logged_url(request)}')
         try:
             response = await handler(request)
         except HttpException:
             raise
         except MessageAborted:
-            app_logger.warning(f'The connection was lost or aborted while the request was being sent. '
-                               f'{request.method.ljust(8)} {get_logged_url(request)}')
+            app_logger.warning(
+                f'The connection was lost or aborted while the '
+                f'request was being sent. '
+                f'{request.method.ljust(8)} {get_logged_url(request)}')
             raise
         except Exception:
-            app_logger.exception(f'{"*" * 30}\nunhandled exception while handling: {request.method} {get_logged_url(request)}')
+            app_logger.exception(
+                f'{"*" * 30}\nunhandled exception while handling: '
+                f'{request.method} {get_logged_url(request)}'
+            )
             raise
         return response
 
     return logging_middleware, access_logger, app_logger
-

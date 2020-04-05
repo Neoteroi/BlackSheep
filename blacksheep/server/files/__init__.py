@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import AsyncIterable, Callable, Optional, Set
 
 from blacksheep import Request, Response, StreamedContent
-from blacksheep.common.asyncfs.core import FilesReader
+from blacksheep.common.asyncfs import FilesHandler
 from blacksheep.exceptions import (BadRequest, InvalidArgument,
                                    RangeNotSatisfiable)
 from blacksheep.ranges import InvalidRangeValue, Range, RangePart
@@ -18,17 +18,12 @@ def unix_timestamp_to_datetime(ts: int) -> str:
 
 
 async def get_file_chunks(
+    files_handler: FilesHandler,
     file_path: str,
     size_limit: int = 1024 * 64
 ) -> AsyncIterable[bytes]:
-    async with aiofiles.open(file_path, mode='rb') as f:
-        while True:
-            chunk = await f.read(size_limit)
-
-            if not chunk:
-                break
-
-            yield chunk
+    async for chunk in files_handler.chunks(file_path):
+        yield chunk
 
 
 def _get_content_range_value(
@@ -49,6 +44,7 @@ def _get_content_range_value(
 
 
 def get_range_file_getter(
+    files_handler: FilesHandler,
     file_path: str,
     file_size: int,
     range_option: Range,
@@ -58,7 +54,7 @@ def get_range_file_getter(
 ) -> AsyncIterable[bytes]:
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range
     async def file_chunker():
-        async with aiofiles.open(file_path, mode='rb') as file:
+        async with files_handler.open(file_path) as file:
             for part in range_option:
                 if part.start is not None and part.end is not None:
                     # return a portion between start and end indexes
@@ -113,6 +109,7 @@ def get_range_file_getter(
 
 
 def get_file_getter(
+    files_handler: FilesHandler,
     file_path: str,
     file_size: int,
     size_limit=1024 * 64
@@ -122,17 +119,17 @@ def get_file_getter(
 
     if file_size > size_limit:
         async def file_chunker():
-            async for chunk in get_file_chunks(file_path, size_limit):
+            async for chunk in get_file_chunks(files_handler,
+                                               file_path,
+                                               size_limit):
                 yield chunk
             yield b''
 
         return file_chunker
 
     async def file_getter():
-        async with aiofiles.open(file_path, mode='rb') as file:
-            data = await file.read()
-            yield data
-            yield b''
+        yield await files_handler.read(file_path)
+        yield b''
     return file_getter
 
 
@@ -240,7 +237,7 @@ class ServeFilesOptions:
         self.discovery = bool(discovery)
         self.cache_time = int(cache_time)
 
-    def get_default_extensions() -> Set[str]:
+    def get_default_extensions(self) -> Set[str]:
         """Returns a set of extensions that are served by default."""
         return {
             '.txt',
@@ -271,6 +268,7 @@ class ServeFilesOptions:
 
 
 def get_response_for_file(
+    files_handler: FilesHandler,
     request: Request,
     resource_path: str,
     cache_time: int,
@@ -333,13 +331,15 @@ def get_response_for_file(
                             _get_content_range_value(single_part, info.size)))
 
         content = StreamedContent(mime,
-                                  get_range_file_getter(resource_path,
+                                  get_range_file_getter(files_handler,
+                                                        resource_path,
                                                         info.size,
                                                         requested_range,
                                                         boundary=boundary,
                                                         file_type=file_type))
     else:
-        content = StreamedContent(mime, get_file_getter(resource_path,
+        content = StreamedContent(mime, get_file_getter(files_handler,
+                                                        resource_path,
                                                         info.size))
 
     return Response(status, headers, content)

@@ -9,6 +9,7 @@ from guardpost.authorization import Policy, UnauthorizedError
 from rodi import Container, Services
 
 from blacksheep.baseapp import BaseApplication
+from blacksheep.common.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.messages import Request, Response
 from blacksheep.middlewares import get_middlewares_chain
@@ -21,7 +22,8 @@ from blacksheep.server.authorization import (
     handle_unauthorized)
 from blacksheep.server.bindings import ControllerBinder
 from blacksheep.server.controllers import router as controllers_router
-from blacksheep.server.files.dynamic import serve_files, ServeFilesOptions
+from blacksheep.server.files.dynamic import (ServeFilesOptions,
+                                             serve_files_dynamic)
 from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.normalization import (normalize_handler,
                                              normalize_middleware)
@@ -119,7 +121,8 @@ class Application(BaseApplication):
             router = Router()
         if services is None:
             services = Container()
-        super().__init__(get_show_error_details(debug or show_error_details), router)
+        super().__init__(get_show_error_details(debug or show_error_details),
+                         router)
 
         if middlewares is None:
             middlewares = []
@@ -141,6 +144,10 @@ class Application(BaseApplication):
         self.on_stop = ApplicationEvent(self)
         self.started = False
         self.controllers_router: RoutesRegistry = controllers_router
+        self.files_handler = FilesHandler()
+
+    def use_files_handler(self, files_handler: FilesHandler):
+        self.files_handler = files_handler
 
     @property
     def default_headers(self):
@@ -386,7 +393,9 @@ class Application(BaseApplication):
 
     def apply_routes(self):
         if self._serve_files:
-            serve_files(self.router, self._serve_files)
+            serve_files_dynamic(self.router,
+                                self.files_handler,
+                                self._serve_files)
 
     def build_services(self):
         if isinstance(self.services, Container):

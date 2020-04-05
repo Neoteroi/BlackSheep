@@ -3,6 +3,7 @@ import uvicorn
 import asyncio
 from blacksheep import Request, Response, Content, Cookie
 from blacksheep.server import Application
+from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.responses import text, json, file, ContentDispositionType
 from blacksheep.server.bindings import FromQuery
 from itests.utils import CrashTest, ensure_folder
@@ -10,8 +11,7 @@ from itests.utils import CrashTest, ensure_folder
 
 app = Application(show_error_details=True)
 
-
-app.serve_files('static', discovery=True)
+app.serve_files(ServeFilesOptions('static', discovery=True))
 
 
 @app.route('/hello-world')
@@ -137,20 +137,22 @@ async def send_file_with_async_gen():
 
 
 @app.router.get('/file-response-with-generator')
-async def send_file_with_async_gen():
+async def send_file_with_async_gen_two():
 
     async def generator():
         yield b'Black Knight: None shall pass.\n'
         yield b'King Arthur: What?\n'
         yield b'Black Knight: None shall pass.\n'
         await asyncio.sleep(0.01)
-        yield b'King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.\n'
+        yield (b'King Arthur: I have no quarrel with you, good Sir Knight, '
+               b'but I must cross this bridge.\n')
         yield b'Black Knight: Then you shall die.\n'
         yield b'King Arthur: I command you, as King of the Britons, to stand aside!\n'
         await asyncio.sleep(0.01)
         yield b'Black Knight: I move for no man.\n'
         yield b'King Arthur: So be it!\n'
-        yield b'[rounds of melee, with Arthur cutting off the left arm of the black knight.]\n'
+        yield (b'[rounds of melee, with Arthur cutting off the left arm of '
+               b'the black knight.]\n')
         await asyncio.sleep(0.01)
         yield b'King Arthur: Now stand aside, worthy adversary.\n'
         yield b'Black Knight: Tis but a scratch.\n'
@@ -168,12 +170,14 @@ async def send_file_with_bytes():
         yield b'Black Knight: None shall pass.\n'
         yield b'King Arthur: What?\n'
         yield b'Black Knight: None shall pass.\n'
-        yield b'King Arthur: I have no quarrel with you, good Sir Knight, but I must cross this bridge.\n'
+        yield (b'King Arthur: I have no quarrel with you, good Sir Knight, '
+               b'but I must cross this bridge.\n')
         yield b'Black Knight: Then you shall die.\n'
         yield b'King Arthur: I command you, as King of the Britons, to stand aside!\n'
         yield b'Black Knight: I move for no man.\n'
         yield b'King Arthur: So be it!\n'
-        yield b'[rounds of melee, with Arthur cutting off the left arm of the black knight.]\n'
+        yield (b'[rounds of melee, with Arthur cutting off the left arm of '
+               b'the black knight.]\n')
         yield b'King Arthur: Now stand aside, worthy adversary.\n'
         yield b'Black Knight: Tis but a scratch.\n'
 

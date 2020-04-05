@@ -1,18 +1,16 @@
 import html
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
 from urllib.parse import unquote
 
 from blacksheep import HtmlContent, Response
+from blacksheep.common.asyncfs import FilesHandler
 from blacksheep.exceptions import InvalidArgument, NotFound
 from blacksheep.server.pathsutils import get_file_extension_from_name
 from blacksheep.server.resources import get_resource_file_content
+from blacksheep.server.routing import Route, Router
 
-from . import get_response_for_file, ServeFilesOptions
-
-if TYPE_CHECKING:
-    from blacksheep.server.routing import Route, Router
+from . import ServeFilesOptions, get_response_for_file
 
 
 def get_files_to_serve(
@@ -101,7 +99,8 @@ def get_files_list_html_response(template, parent_folder_path, contents):
     )
 
 
-def get_files_handler(
+def get_files_route_handler(
+    files_handler: FilesHandler,
     source_folder_name,
     source_folder_full_path,
     discovery,
@@ -141,19 +140,24 @@ def get_files_handler(
         if file_extension not in extensions:
             raise NotFound()
 
-        return get_response_for_file(request, resource_path, cache_time)
+        return get_response_for_file(files_handler,
+                                     request,
+                                     resource_path,
+                                     cache_time)
     return file_getter
 
 
-def serve_files(
+def serve_files_dynamic(
     router: Router,
+    files_handler: FilesHandler,
     options: ServeFilesOptions
 ):
     options.validate()
 
     route = Route(
         b'*',
-        get_files_handler(
+        get_files_route_handler(
+            files_handler,
             options.source_folder,
             os.path.abspath(options.source_folder),
             options.discovery,

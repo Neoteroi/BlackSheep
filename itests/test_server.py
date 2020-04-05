@@ -1,12 +1,15 @@
-import os
 import json
+import os
 import shutil
-from urllib.parse import unquote
 from base64 import urlsafe_b64encode
+from urllib.parse import unquote
 from uuid import uuid4
-from .server_fixtures import *
-from .utils import ensure_success, assert_files_equals
+
+import pytest
+
 from .lorem import LOREM_IPSUM
+from .server_fixtures import *  # NoQA
+from .utils import assert_files_equals, ensure_success
 
 
 def test_hello_world(session):

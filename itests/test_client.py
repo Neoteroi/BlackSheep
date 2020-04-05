@@ -1,9 +1,15 @@
 import os
 import shutil
 from uuid import uuid4
-from blacksheep import Response, JsonContent, FormContent, MultiPartFormData, FormPart
-from .client_fixtures import *
-from .utils import assert_files_equals, assert_file_content_equals, get_file_bytes
+
+import pytest
+
+from blacksheep import (FormContent, FormPart, JsonContent, MultiPartFormData,
+                        Response)
+
+from .client_fixtures import *  # NoQA
+from .utils import (assert_file_content_equals, assert_files_equals,
+                    get_file_bytes)
 
 
 def ensure_success(response: Response):
@@ -53,7 +59,10 @@ async def test_headers(session, headers):
     [(b'x-a', b'Hello'), (b'x-b', b'World'), (b'x-c', b'!!')]
 ])
 async def test_default_headers(session_alt, headers, server_host, server_port):
-    response = await session_alt.head(f'http://{server_host}:{server_port}/echo-headers', headers=headers)
+    response = await session_alt.head(
+        f'http://{server_host}:{server_port}/echo-headers',
+        headers=headers
+    )
     ensure_success(response)
 
     for key, value in session_alt.default_headers:
@@ -72,7 +81,8 @@ async def test_default_headers(session_alt, headers, server_host, server_port):
 ])
 async def test_cookies(session, cookies):
     response = await session.get('/echo-cookies', headers=[
-        (b'cookie', '; '.join([f'{name}={value}' for name, value in cookies.items()]).encode())
+        (b'cookie', '; '.join([f'{name}={value}'
+                               for name, value in cookies.items()]).encode())
     ])
     ensure_success(response)
 
@@ -143,13 +153,22 @@ async def test_post_multipart_form_with_files(session):
         FormPart(b'text1', b'text default'),
         FormPart(b'text2', 'aωb'.encode('utf8')),
         FormPart(b'file1', b'Content of a.txt.\r\n', b'text/plain', b'a.txt'),
-        FormPart(b'file2', b'<!DOCTYPE html><title>Content of a.html.</title>\r\n', b'text/html', b'a.html'),
-        FormPart(b'file3', 'aωb'.encode('utf8'), b'application/octet-stream', b'binary'),
+        FormPart(b'file2',
+                 b'<!DOCTYPE html><title>Content of a.html.</title>\r\n',
+                 b'text/html',
+                 b'a.html'),
+        FormPart(b'file3',
+                 'aωb'.encode('utf8'),
+                 b'application/octet-stream',
+                 b'binary'),
     ]))
     ensure_success(response)
 
     assert_file_content_equals('./out/a.txt', 'Content of a.txt.\n')
-    assert_file_content_equals('./out/a.html', '<!DOCTYPE html><title>Content of a.html.</title>\n')
+    assert_file_content_equals(
+        './out/a.html',
+        '<!DOCTYPE html><title>Content of a.html.</title>\n'
+    )
     assert_file_content_equals('./out/binary', 'aωb')
 
 
@@ -159,11 +178,17 @@ async def test_post_multipart_form_with_images(session):
     if os.path.exists('out'):
         shutil.rmtree('out')
 
-    # NB: Flask api to handle parts with equal name is quite uncomfortable, here for simplicity
-    # we set two parts with different names
+    # NB: Flask api to handle parts with equal name is quite uncomfortable,
+    # here for simplicity we set two parts with different names
     response = await session.post('/upload-files', MultiPartFormData([
-        FormPart(b'images1', get_file_bytes('static/pexels-photo-126407.jpeg'), b'image/jpeg', b'three.jpg'),
-        FormPart(b'images2', get_file_bytes('static/pexels-photo-923360.jpeg'), b'image/jpeg', b'four.jpg')
+        FormPart(b'images1',
+                 get_file_bytes('static/pexels-photo-126407.jpeg'),
+                 b'image/jpeg',
+                 b'three.jpg'),
+        FormPart(b'images2',
+                 get_file_bytes('static/pexels-photo-923360.jpeg'),
+                 b'image/jpeg',
+                 b'four.jpg')
     ]))
     ensure_success(response)
 

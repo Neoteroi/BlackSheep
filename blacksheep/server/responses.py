@@ -8,6 +8,7 @@ from essentials import json as JSON
 
 from blacksheep import (Content, JsonContent, Response, StreamedContent,
                         TextContent)
+from blacksheep.common.asyncfs import FilesHandler
 from blacksheep.utils import BytesOrStr
 
 MessageType = Union[None, str, Any]
@@ -200,15 +201,8 @@ FileInput = Union[Callable, str, bytes, bytearray, BytesIO]
 @lru_cache(2000)
 def _get_file_provider(file_path: str):
     async def data_provider():
-        async with aiofiles.open(file_path, mode='rb') as f:
-            while True:
-                chunk = await f.read(1024 * 64)
-
-                if not chunk:
-                    break
-
-                yield chunk
-            yield b''
+        async for chunk in FilesHandler().chunks(file_path):
+            yield chunk
     return data_provider
 
 

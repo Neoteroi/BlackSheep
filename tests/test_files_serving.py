@@ -1,6 +1,8 @@
-import pytest
 import pkg_resources
+import pytest
+
 from blacksheep import Request
+from blacksheep.common.asyncfs import FilesHandler
 from blacksheep.server.files import FileInfo, RangeNotSatisfiable
 from blacksheep.server.files.dynamic import get_response_for_file
 
@@ -11,7 +13,8 @@ def _get_file_path(file_name):
 
 def test_get_response_for_file_raise_for_file_not_found():
     with pytest.raises(FileNotFoundError):
-        get_response_for_file(Request('GET', b'/example.txt', None),
+        get_response_for_file(FilesHandler(),
+                              Request('GET', b'/example.txt', None),
                               'example.txt',
                               1200)
 
@@ -21,13 +24,15 @@ TEST_FILES = [
     _get_file_path('example.txt'),
     _get_file_path('pexels-photo-126407.jpeg')
 ]
-TEST_FILES_METHODS = [[i, 'GET'] for i in TEST_FILES] + [[i, 'HEAD'] for i in TEST_FILES]
+TEST_FILES_METHODS = [[i, 'GET'] for i in TEST_FILES] + [[i, 'HEAD']
+                                                         for i in TEST_FILES]
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('file_path', TEST_FILES)
 async def test_get_response_for_file_returns_file_contents(file_path):
-    response = get_response_for_file(Request('GET', b'/example', None),
+    response = get_response_for_file(FilesHandler(),
+                                     Request('GET', b'/example', None),
                                      file_path,
                                      1200)
 
@@ -42,8 +47,9 @@ async def test_get_response_for_file_returns_file_contents(file_path):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('file_path,method', TEST_FILES_METHODS)
-async def test_get_response_for_file_returns_headers_with_information(file_path, method):
-    response = get_response_for_file(Request(method, b'/example', None),
+async def test_get_response_for_file_returns_headers(file_path, method):
+    response = get_response_for_file(FilesHandler(),
+                                     Request(method, b'/example', None),
                                      file_path,
                                      1200)
 
@@ -69,7 +75,8 @@ async def test_get_response_for_file_returns_headers_with_information(file_path,
 async def test_get_response_for_file_returns_not_modified_handling_if_none_match_header(file_path, method):
     info = FileInfo.from_path(file_path)
 
-    response = get_response_for_file(Request(method, b'/example',
+    response = get_response_for_file(FilesHandler(),
+                                     Request(method, b'/example',
                                              [(b'If-None-Match', info.etag.encode())]),
                                      file_path,
                                      1200)
@@ -82,7 +89,8 @@ async def test_get_response_for_file_returns_not_modified_handling_if_none_match
 @pytest.mark.asyncio
 @pytest.mark.parametrize('file_path', TEST_FILES)
 async def test_get_response_for_file_with_head_method_returns_empty_body_with_info(file_path):
-    response = get_response_for_file(Request('HEAD', b'/example', None),
+    response = get_response_for_file(FilesHandler(),
+                                     Request('HEAD', b'/example', None),
                                      file_path,
                                      1200)
 
@@ -98,7 +106,8 @@ async def test_get_response_for_file_with_head_method_returns_empty_body_with_in
     1200
 ])
 async def test_get_response_for_file_returns_cache_control_header(cache_time):
-    response = get_response_for_file(Request('GET', b'/example', None),
+    response = get_response_for_file(FilesHandler(),
+                                     Request('GET', b'/example', None),
                                      TEST_FILES[0],
                                      cache_time)
 
@@ -129,7 +138,8 @@ async def test_get_response_for_file_returns_cache_control_header(cache_time):
 ])
 async def test_text_file_range_request_single_part(range_value, expected_bytes, expected_content_range):
     file_path = _get_file_path('example.txt')
-    response = get_response_for_file(Request('GET', b'/example',
+    response = get_response_for_file(FilesHandler(),
+                                     Request('GET', b'/example',
                                              [(b'Range', range_value)]),
                                      file_path,
                                      1200)
@@ -150,7 +160,8 @@ async def test_text_file_range_request_single_part(range_value, expected_bytes, 
 async def test_invalid_range_request_range_not_satisfiable(range_value):
     file_path = _get_file_path('example.txt')
     with pytest.raises(RangeNotSatisfiable):
-        get_response_for_file(Request('GET', b'/example',
+        get_response_for_file(FilesHandler(),
+                              Request('GET', b'/example',
                                       [(b'Range', range_value)]),
                               file_path,
                               1200)
@@ -187,7 +198,8 @@ async def test_invalid_range_request_range_not_satisfiable(range_value):
 ])
 async def test_text_file_range_request_multi_part(range_value, expected_bytes_lines: bytes):
     file_path = _get_file_path('example.txt')
-    response = get_response_for_file(Request('GET', b'/example',
+    response = get_response_for_file(FilesHandler(),
+                                     Request('GET', b'/example',
                                              [(b'Range', range_value)]),
                                      file_path,
                                      1200)
@@ -211,7 +223,8 @@ async def test_text_file_range_request_single_part_if_range_handling(range_value
     file_path = _get_file_path('example.txt')
     info = FileInfo.from_path(file_path)
 
-    response = get_response_for_file(Request('GET', b'/example',
+    response = get_response_for_file(FilesHandler(),
+                                     Request('GET', b'/example',
                                              [(b'Range', range_value),
                                               (b'If-Range', info.etag.encode()
                                                + (b'' if matches else b'xx'))]),

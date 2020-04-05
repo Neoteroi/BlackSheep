@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from urllib.parse import unquote
 
-from blacksheep import HtmlContent, Response
+from blacksheep import HtmlContent, Request, Response
 from blacksheep.common.asyncfs import FilesHandler
 from blacksheep.exceptions import InvalidArgument, NotFound
 from blacksheep.server.pathsutils import get_file_extension_from_name
@@ -107,18 +107,16 @@ def get_files_route_handler(
     cache_time,
     extensions
 ):
-    files_list_template = (get_resource_file_content('fileslist.html')
-                           if discovery else None)
-    source_folder_full_path = source_folder_full_path.lower()
-
-    async def file_getter(request):
+    async def file_getter(request: Request):
         tail = unquote(request.route_values.get('tail')).lstrip('/')
 
         resource_path = os.path.join(source_folder_name, tail)
 
         if '../' in tail:
             abs_path = os.path.abspath(resource_path)
-            if not str(abs_path).lower().startswith(source_folder_full_path):
+            if not str(abs_path).lower().startswith(
+                source_folder_full_path.lower()
+            ):
                 # someone is trying to read out of the static folder!
                 raise NotFound()
 
@@ -128,7 +126,7 @@ def get_files_route_handler(
         if os.path.isdir(resource_path):
             if discovery:
                 return get_files_list_html_response(
-                    files_list_template,
+                    get_resource_file_content('fileslist.html'),
                     tail.rstrip('/'),
                     list(get_files_to_serve(resource_path.rstrip('/')))
                 )

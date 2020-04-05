@@ -83,7 +83,7 @@ async def crash():
 
 
 @app_two.route('/handled-crash')
-async def crash():
+async def handled_crash():
     raise HandledException()
 
 

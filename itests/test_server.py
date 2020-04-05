@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 from .lorem import LOREM_IPSUM
+from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
 from .utils import assert_files_equals, ensure_success
 
@@ -57,7 +58,7 @@ def test_query(session, query, echoed):
         'three': 'archived'
     }),
 ])
-def test_query(session, fragment, echoed):
+def test_route(session, fragment, echoed):
     response = session.get('/echo-route/' + fragment)
     ensure_success(response)
 
@@ -163,11 +164,11 @@ def test_post_json_autobind(session, data):
     ({
         'name': 'Gorun Nova',
         'type': 'Sword'
-    },
+     },
      {
          'name': 'Gorun Nova',
          'type': 'Sword'
-    }),
+     }),
     ({
         'id': 123,
         'price': 15.15,
@@ -193,13 +194,19 @@ def test_post_multipart_form_with_files(session):
         shutil.rmtree('out')
 
     response = session.post('/upload-files', files=[
-        ('images', ('one.jpg', open('static/pexels-photo-126407.jpeg', 'rb'), 'image/jpeg')),
-        ('images', ('two.jpg', open('static/pexels-photo-923360.jpeg', 'rb'), 'image/jpeg'))
+        ('images', ('one.jpg',
+                    open(get_static_path('pexels-photo-126407.jpeg'), 'rb'),
+                    'image/jpeg')),
+        ('images', ('two.jpg',
+                    open(get_static_path('pexels-photo-923360.jpeg'), 'rb'),
+                    'image/jpeg'))
     ])
     ensure_success(response)
 
-    assert_files_equals(f'./out/one.jpg', 'static/pexels-photo-126407.jpeg')
-    assert_files_equals(f'./out/two.jpg', 'static/pexels-photo-923360.jpeg')
+    assert_files_equals(f'./out/one.jpg',
+                        get_static_path('pexels-photo-126407.jpeg'))
+    assert_files_equals(f'./out/two.jpg',
+                        get_static_path('pexels-photo-923360.jpeg'))
 
 
 def test_exception_handling_with_details(session):
@@ -253,7 +260,6 @@ if os.environ.get('SLOW_TESTS') == '1':
         assert b'content-length: 13' in value
         assert value.endswith(b'Hello, World!')
 
-
     @pytest.mark.parametrize('value', [
         LOREM_IPSUM
     ])
@@ -291,7 +297,6 @@ if os.environ.get('SLOW_TESTS') == '1':
 
         assert content_length_header in response_bytes
         assert response_bytes.endswith(value.encode('utf-8'))
-
 
     @pytest.mark.parametrize('value', [
         LOREM_IPSUM
@@ -341,7 +346,7 @@ def test_get_file(session, url_path, file_name):
         for chunk in response:
             output_file.write(chunk)
 
-    assert_files_equals('./static' + url_path, file_name)
+    assert_files_equals(get_static_path(url_path), file_name)
 
 
 def test_get_file_response_with_path(session):
@@ -352,7 +357,8 @@ def test_get_file_response_with_path(session):
         for chunk in response:
             output_file.write(chunk)
 
-    assert_files_equals('./static/pexels-photo-923360.jpeg', 'nice-cat.jpg')
+    assert_files_equals(get_static_path('pexels-photo-923360.jpeg'),
+                        'nice-cat.jpg')
 
 
 def test_get_file_response_with_generator(session):

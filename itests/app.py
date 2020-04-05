@@ -1,17 +1,30 @@
-import io
-import uvicorn
 import asyncio
-from blacksheep import Request, Response, Content, Cookie
-from blacksheep.server import Application
-from blacksheep.server.files import ServeFilesOptions
-from blacksheep.server.responses import text, json, file, ContentDispositionType
-from blacksheep.server.bindings import FromQuery
-from itests.utils import CrashTest, ensure_folder
+import io
+import os
+import pathlib
 
+import uvicorn
+
+from blacksheep import Content, Cookie, Request, Response
+from blacksheep.server import Application
+from blacksheep.server.bindings import FromQuery
+from blacksheep.server.files import ServeFilesOptions
+from blacksheep.server.responses import (ContentDispositionType, file, json,
+                                         text)
+from itests.utils import CrashTest, ensure_folder
 
 app = Application(show_error_details=True)
 
-app.serve_files(ServeFilesOptions('static', discovery=True))
+
+static_folder_path = pathlib.Path(__file__).parent.absolute() / 'static'
+
+
+def get_static_path(file_name):
+    static_folder_path = pathlib.Path(__file__).parent.absolute() / 'static'
+    return os.path.join(str(static_folder_path), file_name)
+
+
+app.serve_files(ServeFilesOptions(static_folder_path, discovery=True))
 
 
 @app.route('/hello-world')
@@ -130,7 +143,7 @@ async def echo_streamed_test(request):
 
 @app.router.get('/file-response-with-path')
 async def send_file_with_async_gen():
-    return file('static/pexels-photo-923360.jpeg',
+    return file(get_static_path('pexels-photo-923360.jpeg'),
                 'image/jpeg',
                 'nice-cat.jpg',
                 content_disposition=ContentDispositionType.INLINE)

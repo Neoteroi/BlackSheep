@@ -197,7 +197,8 @@ async def test_authentication_challenge_response():
     assert header == b'Bearer, error="Invalid access token", error_description="Access token expired"'
 
 
-def test_authorization_strategy_without_authentication_raises():
+@pytest.mark.asyncio
+async def test_authorization_strategy_without_authentication_raises():
     app = FakeApplication()
 
     app.use_authorization()

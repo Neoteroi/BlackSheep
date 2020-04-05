@@ -11,7 +11,8 @@ def _get_file_path(file_name):
     return pkg_resources.resource_filename(__name__, './files/' + file_name)
 
 
-def test_get_response_for_file_raise_for_file_not_found():
+@pytest.mark.asyncio
+async def test_get_response_for_file_raise_for_file_not_found():
     with pytest.raises(FileNotFoundError):
         get_response_for_file(FilesHandler(),
                               Request('GET', b'/example.txt', None),

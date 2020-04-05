@@ -31,7 +31,8 @@ class FakeApplication(Application):
         self.configure_middlewares()
 
 
-def test_application_supports_dynamic_attributes():
+@pytest.mark.asyncio
+async def test_application_supports_dynamic_attributes():
     app = FakeApplication()
     foo = object()
 
@@ -69,11 +70,11 @@ def get_example_scope(method: str, path: str, extra_headers=None, query: Optiona
 
 
 class MockReceive:
-    
+
     def __init__(self, messages=None):
         self.messages = messages or []
         self.index = 0
-        
+
     async def __call__(self):
         try:
             message = self.messages[self.index]

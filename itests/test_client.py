@@ -7,6 +7,7 @@ import pytest
 from blacksheep import (FormContent, FormPart, JsonContent, MultiPartFormData,
                         Response)
 
+from .client_fixtures import get_static_path
 from .client_fixtures import *  # NoQA
 from .utils import (assert_file_content_equals, assert_files_equals,
                     get_file_bytes)
@@ -178,28 +179,31 @@ async def test_post_multipart_form_with_images(session):
     if os.path.exists('out'):
         shutil.rmtree('out')
 
+    file_one_path = get_static_path('pexels-photo-126407.jpeg')
+    file_two_path = get_static_path('pexels-photo-923360.jpeg')
+
     # NB: Flask api to handle parts with equal name is quite uncomfortable,
     # here for simplicity we set two parts with different names
     response = await session.post('/upload-files', MultiPartFormData([
         FormPart(b'images1',
-                 get_file_bytes('static/pexels-photo-126407.jpeg'),
+                 get_file_bytes(file_one_path),
                  b'image/jpeg',
                  b'three.jpg'),
         FormPart(b'images2',
-                 get_file_bytes('static/pexels-photo-923360.jpeg'),
+                 get_file_bytes(file_two_path),
                  b'image/jpeg',
                  b'four.jpg')
     ]))
     ensure_success(response)
 
-    assert_files_equals(f'./out/three.jpg', 'static/pexels-photo-126407.jpeg')
-    assert_files_equals(f'./out/four.jpg', 'static/pexels-photo-923360.jpeg')
+    assert_files_equals(f'./out/three.jpg', file_one_path)
+    assert_files_equals(f'./out/four.jpg', file_two_path)
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('url_path,file_path', [
-    ('/picture.jpg', 'static/pexels-photo-126407.jpeg'),
-    ('/example.html', 'static/example.html')
+    ('/picture.jpg', get_static_path('pexels-photo-126407.jpeg')),
+    ('/example.html', get_static_path('example.html'))
 ])
 async def test_download_file(session, url_path, file_path):
     response = await session.get(url_path)

@@ -1,13 +1,18 @@
-import pytest
-from pytest import raises
-from guardpost.authentication import Identity
 from typing import Any, Optional
+
+import pytest
+from guardpost.authentication import Identity
 from guardpost.authorization import AuthorizationContext
-from .test_application import FakeApplication, get_example_scope, MockReceive, MockSend
-from blacksheep.server.authentication import AuthenticationHandler
-from blacksheep.server.authorization import auth, Policy, Requirement, AuthorizationWithoutAuthenticationError
 from guardpost.common import AuthenticatedRequirement
-from blacksheep.server.authentication import AuthenticateChallenge
+from pytest import raises
+
+from blacksheep.server.authentication import (AuthenticateChallenge,
+                                              AuthenticationHandler)
+from blacksheep.server.authorization import (
+    AuthorizationWithoutAuthenticationError, Policy, Requirement, auth)
+
+from .test_application import (FakeApplication, MockReceive, MockSend,
+                               get_example_scope)
 
 
 class MockAuthHandler(AuthenticationHandler):

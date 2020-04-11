@@ -372,7 +372,7 @@ class FromServices(Binder):
 
     async def get_value(self, request: Request) -> T:
         try:
-            context = request.services_context
+            context = request.services_context  # type: ignore
         except AttributeError:
             # no support for scoped services
             # (across parameters and middlewares)

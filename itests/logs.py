@@ -29,4 +29,3 @@ def get_logger():
     logger.addHandler(logging.StreamHandler())
 
     return logger
-

@@ -1,7 +1,7 @@
 import ntpath
 import pathlib
-from typing import Tuple
 from mimetypes import MimeTypes
+from typing import Tuple
 
 mime = MimeTypes()
 

@@ -1,7 +1,11 @@
+import asyncio
+import os
 import pathlib
+from uuid import uuid4
+
 import pytest
 
-from blacksheep.common.asyncfs import FilesHandler
+from blacksheep.common.files.asyncfs import FilesHandler
 
 
 @pytest.fixture()
@@ -15,7 +19,7 @@ def files_folder():
     'pexels-photo-126407.jpeg',
     'README.md'
 ])
-async def test_files_handler_read_file(
+async def test_read_file(
     files_folder: pathlib.Path,
     file_name: str
 ):
@@ -36,7 +40,7 @@ async def test_files_handler_read_file(
     'pexels-photo-126407.jpeg',
     'README.md'
 ])
-async def test_files_handler_read_file_with_open(
+async def test_read_file_with_open(
     files_folder: pathlib.Path,
     file_name: str
 ):
@@ -61,7 +65,7 @@ async def test_files_handler_read_file_with_open(
     ['README.md', 10, 10],
     ['README.md', 5, 15],
 ])
-async def test_files_handler_seek_and_read_chunk(
+async def test_seek_and_read_chunk(
     files_folder: pathlib.Path,
     file_name: str,
     index: int,
@@ -87,7 +91,7 @@ async def test_files_handler_seek_and_read_chunk(
     'pexels-photo-126407.jpeg',
     'README.md'
 ])
-async def test_files_handler_read_file_chunks(
+async def test_read_file_chunks(
     files_folder: pathlib.Path,
     file_name: str
 ):
@@ -113,3 +117,42 @@ async def test_files_handler_read_file_chunks(
             expected_contents += chunk
 
     assert contents == expected_contents
+
+
+@pytest.mark.asyncio
+async def test_write_file(files_folder: pathlib.Path):
+    handler = FilesHandler()
+    file_name = str(uuid4()) + '.txt'
+    full_file_path = str(files_folder / file_name)
+
+    contents = b'Lorem ipsum dolor sit'
+    await handler.write(full_file_path, contents)
+
+    with open(full_file_path, mode='rb') as f:
+        expected_contents = f.read()
+
+    assert contents == expected_contents
+    os.remove(full_file_path)
+
+
+@pytest.mark.asyncio
+async def test_write_file_with_iterable(files_folder: pathlib.Path):
+    handler = FilesHandler()
+    file_name = str(uuid4()) + '.txt'
+    full_file_path = str(files_folder / file_name)
+
+    async def provider():
+        yield b'Lorem '
+        await asyncio.sleep(0.01)
+        yield b'ipsum'
+        await asyncio.sleep(0.01)
+        yield b' dolor'
+        yield b' sit'
+
+    await handler.write(full_file_path, provider)
+
+    with open(full_file_path, mode='rb') as f:
+        expected_contents = f.read()
+
+    assert b'Lorem ipsum dolor sit' == expected_contents
+    os.remove(full_file_path)

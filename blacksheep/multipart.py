@@ -1,16 +1,17 @@
-from typing import Tuple, Optional, Generator
+from typing import Generator, Iterable, Optional, Tuple, Dict
+
 from blacksheep.contents import FormPart
 
 
-def get_boundary(value: bytes):
+def get_boundary(value: bytes) -> bytes:
     return value[:value.index(b'\n') + 1]
 
 
-def get_boundary_from_header(value: bytes):
+def get_boundary_from_header(value: bytes) -> bytes:
     return value.split(b'=', 1)[1].split(b' ', 1)[0]
 
 
-def _remove_last_crlf(value: bytes):
+def _remove_last_crlf(value: bytes) -> bytes:
     if value.endswith(b'\r\n'):
         return value[:-2]
     if value.endswith(b'\n'):
@@ -18,7 +19,7 @@ def _remove_last_crlf(value: bytes):
     return value
 
 
-def split_multipart(value: bytes):
+def split_multipart(value: bytes) -> Iterable[bytes]:
     """
     Splits a whole multipart/form-data payload into single parts
     without boundary.
@@ -33,7 +34,7 @@ def split_multipart(value: bytes):
         yield part
 
 
-def split_headers(value: bytes):
+def split_headers(value: bytes) -> Iterable[Tuple[bytes, bytes]]:
     """
     Splits a whole portion of multipart form data representing headers
     into name, value pairs.
@@ -52,7 +53,7 @@ def split_headers(value: bytes):
 
 def split_content_disposition_values(
     value: bytes
-) -> Tuple[bytes, Optional[bytes]]:
+) -> Iterable[Tuple[bytes, Optional[bytes]]]:
     """
     Parses a single header into key, value pairs.
     """
@@ -64,7 +65,9 @@ def split_content_disposition_values(
             yield b'type', part
 
 
-def parse_content_disposition_values(value: bytes):
+def parse_content_disposition_values(
+    value: bytes
+) -> Dict[bytes, Optional[bytes]]:
     return dict(split_content_disposition_values(value))
 
 

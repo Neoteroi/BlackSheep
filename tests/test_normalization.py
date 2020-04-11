@@ -458,7 +458,8 @@ async def test_middleware_normalization_no_parameters():
     normalized = normalize_middleware(middleware, services)
 
     # NB: middlewares base signature is (request, handler)
-    # since our middleware above does not handle the next request handler, it is called by the normalized method
+    # since our middleware above does not handle the next request handler,
+    # it is called by the normalized method
     result = await normalized(fake_request, fake_handler)
     assert called
     assert result == 'fake-handler-result'

@@ -8,7 +8,7 @@ from essentials import json as JSON
 
 from blacksheep import (Content, JsonContent, Response, StreamedContent,
                         TextContent)
-from blacksheep.common.asyncfs import FilesHandler
+from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.utils import BytesOrStr
 
 MessageType = Union[None, str, Any]

@@ -1,10 +1,14 @@
-import pytest
 import asyncio
-import pkg_resources
 from typing import List, Optional
+
+import pkg_resources
+import pytest
+
+from blacksheep import (HttpException, JsonContent, Request, Response,
+                        TextContent)
 from blacksheep.server import Application
-from blacksheep import Request, Response, JsonContent, HttpException, TextContent
-from blacksheep.server.bindings import FromHeader, FromQuery, FromRoute, FromJson
+from blacksheep.server.bindings import (FromHeader, FromJson, FromQuery,
+                                        FromRoute)
 from tests.utils import ensure_folder
 
 
@@ -36,12 +40,18 @@ async def test_application_supports_dynamic_attributes():
     app = FakeApplication()
     foo = object()
 
-    assert hasattr(app, 'foo') is False, 'This test makes sense if such attribute is not defined'
+    assert hasattr(app, 'foo') is False, ('This test makes sense if such '
+                                          'attribute is not defined')
     app.foo = foo
     assert app.foo is foo
 
 
-def get_example_scope(method: str, path: str, extra_headers=None, query: Optional[bytes] = b''):
+def get_example_scope(
+    method: str,
+    path: str,
+    extra_headers=None,
+    query: Optional[bytes] = b''
+):
     if '?' in path:
         raise ValueError('The path in ASGI messages does not contain query string')
     if query.startswith(b''):
@@ -59,13 +69,16 @@ def get_example_scope(method: str, path: str, extra_headers=None, query: Optiona
         'query_string': query,
         'headers': [
             (b'host', b'127.0.0.1:8000'),
-            (b'user-agent', b'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0'),
-            (b'accept', b'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'),
+            (b'user-agent', (b'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; '
+                             b'rv:63.0) Gecko/20100101 Firefox/63.0')),
+            (b'accept', (b'text/html,application/xhtml+xml,'
+                         b'application/xml;q=0.9,*/*;q=0.8')),
             (b'accept-language', b'en-US,en;q=0.5'),
             (b'accept-encoding', b'gzip, deflate'),
             (b'connection', b'keep-alive'),
             (b'upgrade-insecure-requests', b'1')
-        ] + ([tuple(header) for header in extra_headers] if extra_headers else [])
+        ] + ([tuple(header) for header in extra_headers]
+             if extra_headers else [])
     }
 
 
@@ -85,7 +98,8 @@ class MockReceive:
         return {
             'body': message,
             'type': 'http.message',
-            'more_body': False if (len(self.messages) == self.index or not message) else True
+            'more_body': False if (len(self.messages) == self.index
+                                   or not message) else True
         }
 
 
@@ -215,13 +229,16 @@ async def test_application_post_multipart_formdata():
         content
     ])
 
-    await app(get_example_scope('POST', '/files/upload',
-                                [
-                                    [b'content-length', str(len(content)).encode()],
-                                    [b'content-type', b'multipart/form-data; boundary=' + boundary]
-                                ]),
-              receive,
-              send)
+    await app(
+        get_example_scope(
+            'POST', '/files/upload',
+            [
+                [b'content-length', str(len(content)).encode()],
+                [b'content-type', b'multipart/form-data; boundary=' + boundary]
+            ]
+        ),
+        receive,
+        send)
 
     response = app.response  # type: Response
 
@@ -451,7 +468,8 @@ async def test_application_post_multipart_formdata_files_handler():
             binary = source_file.read()
             lines += [
                 boundary,
-                b'Content-Disposition: form-data; name="files[]"; filename="' + file_name.encode() + b'"',
+                b'Content-Disposition: form-data; name="files[]"; filename="'
+                + file_name.encode() + b'"',
                 b'',
                 binary,
             ]
@@ -464,13 +482,16 @@ async def test_application_post_multipart_formdata_files_handler():
         content
     ])
 
-    await app(get_example_scope('POST', '/files/upload',
-                                [
-                                    [b'content-length', str(len(content)).encode()],
-                                    [b'content-type', b'multipart/form-data; boundary=' + boundary]
-                                ]),
-              receive,
-              send)
+    await app(
+        get_example_scope(
+            'POST', '/files/upload',
+            [
+                [b'content-length', str(len(content)).encode()],
+                [b'content-type', b'multipart/form-data; boundary=' + boundary]
+            ]),
+        receive,
+        send
+    )
 
     response = app.response  # type: Response
     body = await response.text()
@@ -515,7 +536,8 @@ async def test_application_http_exception_handlers():
     assert called is True, 'Http exception handler was called'
 
     text = await response.text()
-    assert text == 'Called', 'The response is the one returned by defined http exception handler'
+    assert text == 'Called', ('The response is the one returned by '
+                              'defined http exception handler')
 
 
 @pytest.mark.asyncio
@@ -538,7 +560,8 @@ async def test_application_http_exception_handlers_called_in_application_context
 
     assert response is not None
     text = await response.text()
-    assert text == 'Called', 'The response is the one returned by defined http exception handler'
+    assert text == 'Called', ('The response is the one returned by '
+                              'defined http exception handler')
 
 
 @pytest.mark.asyncio
@@ -570,11 +593,12 @@ async def test_application_user_defined_exception_handlers():
     assert called is True, 'Http exception handler was called'
 
     text = await response.text()
-    assert text == 'Called', 'The response is the one returned by defined http exception handler'
+    assert text == 'Called', ('The response is the one returned by '
+                              'defined http exception handler')
 
 
 @pytest.mark.asyncio
-async def test_application_user_defined_exception_handlers_called_in_application_context():
+async def test_user_defined_exception_handlers_called_in_application_context():
     app = FakeApplication()
 
     class CustomException(Exception):
@@ -598,7 +622,8 @@ async def test_application_user_defined_exception_handlers_called_in_application
 
     assert response is not None
     text = await response.text()
-    assert text == 'Called', 'The response is the one returned by defined http exception handler'
+    assert text == 'Called', ('The response is the one returned by '
+                              'defined http exception handler')
 
 
 @pytest.mark.asyncio
@@ -631,7 +656,11 @@ async def test_handler_route_value_binding_single(parameter, expected_value):
     ('foo/something', 'foo', 'something'),
     ('Hello%20World!!%3B%3B/another', 'Hello World!!;;', 'another'),
 ])
-async def test_handler_route_value_binding_two(parameter, expected_a, expected_b):
+async def test_handler_route_value_binding_two(
+    parameter,
+    expected_a,
+    expected_b
+):
     app = FakeApplication()
 
     @app.router.get('/:a/:b')
@@ -639,8 +668,8 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
         assert a == expected_a
         assert b == expected_b
 
+    app.normalize_handlers()
     await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
-
     assert app.response.status == 204
 
 
@@ -737,31 +766,17 @@ async def test_handler_route_value_binding_single_float(parameter, expected_valu
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('parameter,expected_a,expected_b', [
-    ('a/b', 'a', 'b'),
-    ('foo/something', 'foo', 'something'),
-    ('Hello%20World!!%3B%3B/another', 'Hello World!!;;', 'another'),
-])
-async def test_handler_route_value_binding_two(parameter, expected_a, expected_b):
-    app = FakeApplication()
-
-    @app.router.get('/:a/:b')
-    async def home(request, a, b):
-        assert a == expected_a
-        assert b == expected_b
-
-    app.normalize_handlers()
-    await app(get_example_scope('GET', '/' + parameter), MockReceive(), MockSend())
-    assert app.response.status == 204
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize('parameter,expected_a,expected_b,expected_c', [
     ('a/1/12.50', 'a', 1, 12.50),
     ('foo/446/500', 'foo', 446, 500.0),
     ('Hello%20World!!%3B%3B/60/88.05', 'Hello World!!;;', 60, 88.05),
 ])
-async def test_handler_route_value_binding_mixed_types(parameter, expected_a, expected_b, expected_c):
+async def test_handler_route_value_binding_mixed_types(
+    parameter,
+    expected_a,
+    expected_b,
+    expected_c
+):
     app = FakeApplication()
 
     @app.router.get('/:a/:b/:c')
@@ -860,7 +875,12 @@ async def test_handler_query_value_binding_optional_list(query, expected_value):
     (b'a=foo&b=446&c=500', 'foo', 446, 500.0),
     (b'a=Hello%20World!!%3B%3B&b=60&c=88.05', 'Hello World!!;;', 60, 88.05),
 ])
-async def test_handler_query_value_binding_mixed_types(query, expected_a, expected_b, expected_c):
+async def test_handler_query_value_binding_mixed_types(
+    query,
+    expected_a,
+    expected_b,
+    expected_c
+):
     app = FakeApplication()
 
     @app.router.get('/')
@@ -948,7 +968,9 @@ async def test_handler_normalize_sync_method_from_header():
         assert xx == 'Hello World'
 
     app.normalize_handlers()
-    await app(get_example_scope('GET', '/', [(b'XX', b'Hello World')]), MockReceive(), MockSend())
+    await app(get_example_scope('GET', '/', [(b'XX', b'Hello World')]),
+              MockReceive(),
+              MockSend())
     text = await app.response.text()
     print(text)
     assert app.response.status == 204
@@ -973,7 +995,10 @@ async def test_handler_normalize_sync_method_from_query():
     [b'xx=1&xx=2', ['1', '2']],
     [b'xx=1&yy=2', ['1']]
 ])
-async def test_handler_normalize_sync_method_from_query_default_type(query, expected_values):
+async def test_handler_normalize_sync_method_from_query_default_type(
+    query,
+    expected_values
+):
     app = FakeApplication()
 
     @app.router.get('/')
@@ -1020,7 +1045,12 @@ async def test_handler_from_route(value, expected_value):
     ['en', 'dashboard', 'en', 'dashboard'],
     ['it', 'hello_world', 'it', 'hello_world'],
 ])
-async def test_handler_two_routes_parameters(value_one, value_two, expected_value_one, expected_value_two):
+async def test_handler_two_routes_parameters(
+    value_one,
+    value_two,
+    expected_value_one,
+    expected_value_two
+):
     app = FakeApplication()
 
     @app.router.get('/:culture_code/:area')
@@ -1029,7 +1059,9 @@ async def test_handler_two_routes_parameters(value_one, value_two, expected_valu
         assert area == expected_value_two
 
     app.normalize_handlers()
-    await app(get_example_scope('GET', '/' + value_one + '/' + value_two), MockReceive(), MockSend())
+    await app(get_example_scope('GET', '/' + value_one + '/' + value_two),
+              MockReceive(),
+              MockSend())
     assert app.response.status == 204
 
 

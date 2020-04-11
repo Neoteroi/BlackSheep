@@ -35,7 +35,9 @@ class MockNotAuthHandler(AuthenticationHandler):
     async def authenticate(self, context: Any) -> Optional[Identity]:
         context.identity = Identity({
             'id': '007',
-        })  # NB: an identity without authentication scheme is treated as anonymous identity
+        })
+        # NB: an identity without authentication scheme is treated
+        # as anonymous identity
         return context.identity
 
 
@@ -199,7 +201,8 @@ async def test_authentication_challenge_response():
     header = app.response.get_single_header(b'WWW-Authenticate')
 
     assert header is not None
-    assert header == b'Bearer, error="Invalid access token", error_description="Access token expired"'
+    assert header == (b'Bearer, error="Invalid access token", '
+                      b'error_description="Access token expired"')
 
 
 @pytest.mark.asyncio

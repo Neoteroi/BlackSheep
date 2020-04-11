@@ -2,7 +2,7 @@ import pkg_resources
 import pytest
 
 from blacksheep import Request
-from blacksheep.common.asyncfs import FilesHandler
+from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.server.files import FileInfo, RangeNotSatisfiable
 from blacksheep.server.files.dynamic import get_response_for_file
 

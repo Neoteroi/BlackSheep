@@ -33,7 +33,7 @@ setup(name='blacksheep',
                 'blacksheep.server.res',
                 'blacksheep.client',
                 'blacksheep.common',
-                'blacksheep.common.asyncfs'],
+                'blacksheep.common.files'],
       ext_modules=[
           Extension('blacksheep.url',
                     ['blacksheep/url.c'],

@@ -4,9 +4,9 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from blacksheep import HtmlContent, Request, Response
-from blacksheep.common.asyncfs import FilesHandler
+from blacksheep.common.files.asyncfs import FilesHandler
+from blacksheep.common.files.pathsutils import get_file_extension_from_name
 from blacksheep.exceptions import InvalidArgument, NotFound
-from blacksheep.server.pathsutils import get_file_extension_from_name
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import Route, Router
 

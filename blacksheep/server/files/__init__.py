@@ -1,29 +1,19 @@
-import os
 import uuid
 from datetime import datetime
-from email.utils import formatdate
 from pathlib import Path
 from typing import AsyncIterable, Callable, Optional, Set
 
 from blacksheep import Request, Response, StreamedContent
-from blacksheep.common.asyncfs import FilesHandler
+from blacksheep.common.files.asyncfs import FilesHandler
+from blacksheep.common.files.info import FileInfo
+from blacksheep.common.files.pathsutils import get_mime_type
 from blacksheep.exceptions import (BadRequest, InvalidArgument,
                                    RangeNotSatisfiable)
 from blacksheep.ranges import InvalidRangeValue, Range, RangePart
-from blacksheep.server.pathsutils import get_mime_type
 
 
 def unix_timestamp_to_datetime(ts: int) -> str:
     return datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
-
-
-async def get_file_chunks(
-    files_handler: FilesHandler,
-    file_path: str,
-    size_limit: int = 1024 * 64
-) -> AsyncIterable[bytes]:
-    async for chunk in files_handler.chunks(file_path):
-        yield chunk
 
 
 def _get_content_range_value(
@@ -119,11 +109,8 @@ def get_file_getter(
 
     if file_size > size_limit:
         async def file_chunker():
-            async for chunk in get_file_chunks(files_handler,
-                                               file_path,
-                                               size_limit):
+            async for chunk in files_handler.chunks(file_path, size_limit):
                 yield chunk
-            yield b''
 
         return file_chunker
 
@@ -158,42 +145,6 @@ def _get_requested_range(request) -> Optional[Range]:
             return None
 
         return value
-
-
-class FileInfo:
-
-    __slots__ = ('etag',
-                 'size',
-                 'mime',
-                 'modified_time')
-
-    def __init__(
-        self,
-        size: int,
-        etag: str,
-        mime: str,
-        modified_time: str
-    ):
-        self.size = size
-        self.etag = etag
-        self.mime = mime
-        self.modified_time = modified_time
-
-    def __repr__(self):
-        return (f'<FileInfo mime={self.mime} '
-                f'etag={self.etag} '
-                f'modified_time={self.modified_time}>')
-
-    def to_dict(self):
-        return {key: getattr(self, key, None) for key in FileInfo.__slots__}
-
-    @classmethod
-    def from_path(cls, resource_path: str):
-        stat = os.stat(resource_path)
-        return cls(stat.st_size,
-                   str(stat.st_mtime),
-                   get_mime_type(resource_path),
-                   formatdate(stat.st_mtime, usegmt=True))
 
 
 def _validate_range(requested_range: Range, file_size: int):

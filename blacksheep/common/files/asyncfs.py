@@ -1,7 +1,7 @@
 import asyncio
-from asyncio import BaseEventLoop, AbstractEventLoop
-from typing import AsyncIterable, Optional
+from asyncio import AbstractEventLoop, BaseEventLoop
 from concurrent.futures.thread import ThreadPoolExecutor
+from typing import AsyncIterable, Optional, Union
 
 
 class PoolClient:
@@ -34,11 +34,17 @@ class FileContext(PoolClient):
         super().__init__(loop)
         self._file_path = file_path
         self._file = None
-        self._mode = mode
+        self._mode = ''
+        self.mode = mode
 
     @property
     def mode(self) -> str:
-        return self.mode
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: str) -> None:
+        # TODO: validate mode
+        self._mode = value
 
     @property
     def file(self):
@@ -49,6 +55,13 @@ class FileContext(PoolClient):
 
     async def read(self, chunk_size: Optional[int] = None) -> bytes:
         return await self.run(self.file.read, chunk_size)
+
+    async def write(self, data: Union[bytes, AsyncIterable[bytes]]) -> None:
+        if isinstance(data, bytes):
+            await self.run(self.file.write, data)
+        else:
+            async for chunk in data():
+                await self.run(self.file.write, chunk)
 
     async def chunks(
         self,
@@ -63,8 +76,11 @@ class FileContext(PoolClient):
             yield chunk
         yield b''
 
+    async def open(self) -> None:
+        return await self.run(open, self._file_path, self._mode)
+
     async def __aenter__(self):
-        self._file = await self.run(open, self._file_path, self._mode)
+        self._file = await self.open()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -74,28 +90,33 @@ class FileContext(PoolClient):
             self._file = None
 
 
-class FilesHandler(PoolClient):
+class FilesHandler:
     """Provides methods to handle files asynchronously."""
 
-    def __init__(self, loop: Optional[BaseEventLoop] = None):
-        super().__init__(loop)
-
     def open(self, file_path: str, mode: str = 'rb') -> FileContext:
-        return FileContext(file_path, mode=mode, loop=self.loop)
+        return FileContext(file_path, mode=mode)
 
     async def read(
         self,
         file_path: str,
         size: Optional[int] = None
     ) -> bytes:
-        async with FileContext(file_path) as file:
+        async with self.open(file_path) as file:
             return await file.read(size)
+
+    async def write(
+        self,
+        file_path: str,
+        data: Union[bytes, AsyncIterable[bytes]]
+    ) -> None:
+        async with self.open(file_path, mode='wb') as file:
+            await file.write(data)
 
     async def chunks(
         self,
         file_path: str,
         chunk_size: int = 1024 * 64
     ) -> AsyncIterable[bytes]:
-        async with FileContext(file_path) as file:
+        async with self.open(file_path) as file:
             async for chunk in file.chunks(chunk_size):
                 yield chunk

@@ -42,7 +42,8 @@ def test_http_header_collection_instantiating_with_list_of_headers_repeated_valu
     headers = Headers(values)
 
     for input_header in values:
-        input_headers_with_same_name = [x[1] for x in values if x[0] == input_header[0]]
+        input_headers_with_same_name = [x[1] for x in values
+                                        if x[0] == input_header[0]]
 
         header = headers[input_header[0]]
         assert len(header) == len(input_headers_with_same_name)

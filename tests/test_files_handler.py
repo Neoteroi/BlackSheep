@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from blacksheep.common.files.asyncfs import FilesHandler
+from blacksheep.common.files.asyncfs import FilesHandler, FileContext
 
 
 @pytest.fixture()
@@ -29,6 +29,26 @@ async def test_read_file(
     contents = await handler.read(full_file_path)
 
     with open(full_file_path, mode='rb') as f:
+        expected_contents = f.read()
+
+    assert contents == expected_contents
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('file_name', [
+    'example.txt',
+    'README.md'
+])
+async def test_read_file_rt_mode(
+    files_folder: pathlib.Path,
+    file_name: str
+):
+    handler = FilesHandler()
+    full_file_path = str(files_folder / file_name)
+
+    contents = await handler.read(full_file_path, mode='rt')
+
+    with open(full_file_path, mode='rt') as f:
         expected_contents = f.read()
 
     assert contents == expected_contents
@@ -136,6 +156,22 @@ async def test_write_file(files_folder: pathlib.Path):
 
 
 @pytest.mark.asyncio
+async def test_write_file_text_mode(files_folder: pathlib.Path):
+    handler = FilesHandler()
+    file_name = str(uuid4()) + '.txt'
+    full_file_path = str(files_folder / file_name)
+
+    contents = 'Lorem ipsum dolor sit'
+    await handler.write(full_file_path, contents, mode='wt')
+
+    with open(full_file_path, mode='rt') as f:
+        expected_contents = f.read()
+
+    assert contents == expected_contents
+    os.remove(full_file_path)
+
+
+@pytest.mark.asyncio
 async def test_write_file_with_iterable(files_folder: pathlib.Path):
     handler = FilesHandler()
     file_name = str(uuid4()) + '.txt'
@@ -156,3 +192,23 @@ async def test_write_file_with_iterable(files_folder: pathlib.Path):
 
     assert b'Lorem ipsum dolor sit' == expected_contents
     os.remove(full_file_path)
+
+
+@pytest.mark.asyncio
+async def test_file_context_raises_for_invalid_mode():
+    handler = FilesHandler()
+
+    with pytest.raises(ValueError) as error_info:
+        async with handler.open('foo.txt', mode='xx') as file_context:
+            file_context.write('Foo')
+
+    assert 'invalid mode' in str(error_info.value)
+
+
+@pytest.mark.asyncio
+async def test_file_context_raises_if_file_is_not_open():
+    with pytest.raises(TypeError) as error_info:
+        file_context = FileContext('foo.txt')
+        await file_context.read()
+
+    assert str(error_info.value) == 'The file is not open.'

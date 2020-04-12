@@ -35,7 +35,7 @@ def get_mime_type(file_name: str) -> str:
     mime_type = mime.guess_type(file_name)[0] or DEFAULT_MIME
 
     if mime_type == DEFAULT_MIME and extension in MIME_BY_EXTENSION:
-        mime_type = MIME_BY_EXTENSION.get(extension)
+        mime_type = MIME_BY_EXTENSION.get(extension, DEFAULT_MIME)
 
     return mime_type
 

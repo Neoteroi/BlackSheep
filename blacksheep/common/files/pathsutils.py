@@ -45,6 +45,6 @@ def get_best_mime_type(file_name: str) -> Tuple[str, str]:
     mime_type = mime.guess_type(file_name)[0] or DEFAULT_MIME
 
     if mime_type == DEFAULT_MIME and extension in MIME_BY_EXTENSION:
-        mime_type = MIME_BY_EXTENSION.get(extension)
+        mime_type = MIME_BY_EXTENSION.get(extension, DEFAULT_MIME)
 
     return extension, mime_type

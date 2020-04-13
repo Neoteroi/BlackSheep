@@ -1,16 +1,26 @@
 import asyncio
 import os
 import pathlib
+import shutil
 from uuid import uuid4
 
 import pytest
 
-from blacksheep.common.files.asyncfs import FilesHandler, FileContext
+from blacksheep.common.files.asyncfs import FileContext, FilesHandler
 
 
 @pytest.fixture()
 def files_folder():
     return pathlib.Path(__file__).parent.absolute() / 'files'
+
+
+@pytest.fixture(scope='module')
+def temp_files_folder():
+    temp_folder = pathlib.Path(__file__).parent.absolute() / '.out'
+    if not temp_folder.exists():
+        os.makedirs(temp_folder)
+    yield temp_folder
+    shutil.rmtree(temp_folder)
 
 
 @pytest.mark.asyncio
@@ -140,10 +150,10 @@ async def test_read_file_chunks(
 
 
 @pytest.mark.asyncio
-async def test_write_file(files_folder: pathlib.Path):
+async def test_write_file(temp_files_folder: pathlib.Path):
     handler = FilesHandler()
     file_name = str(uuid4()) + '.txt'
-    full_file_path = str(files_folder / file_name)
+    full_file_path = str(temp_files_folder / file_name)
 
     contents = b'Lorem ipsum dolor sit'
     await handler.write(full_file_path, contents)
@@ -152,14 +162,13 @@ async def test_write_file(files_folder: pathlib.Path):
         expected_contents = f.read()
 
     assert contents == expected_contents
-    os.remove(full_file_path)
 
 
 @pytest.mark.asyncio
-async def test_write_file_text_mode(files_folder: pathlib.Path):
+async def test_write_file_text_mode(temp_files_folder: pathlib.Path):
     handler = FilesHandler()
     file_name = str(uuid4()) + '.txt'
-    full_file_path = str(files_folder / file_name)
+    full_file_path = str(temp_files_folder / file_name)
 
     contents = 'Lorem ipsum dolor sit'
     await handler.write(full_file_path, contents, mode='wt')
@@ -168,14 +177,13 @@ async def test_write_file_text_mode(files_folder: pathlib.Path):
         expected_contents = f.read()
 
     assert contents == expected_contents
-    os.remove(full_file_path)
 
 
 @pytest.mark.asyncio
-async def test_write_file_with_iterable(files_folder: pathlib.Path):
+async def test_write_file_with_iterable(temp_files_folder: pathlib.Path):
     handler = FilesHandler()
     file_name = str(uuid4()) + '.txt'
-    full_file_path = str(files_folder / file_name)
+    full_file_path = str(temp_files_folder / file_name)
 
     async def provider():
         yield b'Lorem '
@@ -191,7 +199,6 @@ async def test_write_file_with_iterable(files_folder: pathlib.Path):
         expected_contents = f.read()
 
     assert b'Lorem ipsum dolor sit' == expected_contents
-    os.remove(full_file_path)
 
 
 @pytest.mark.asyncio

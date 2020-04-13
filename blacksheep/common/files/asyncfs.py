@@ -1,7 +1,7 @@
 import asyncio
 from asyncio import AbstractEventLoop, BaseEventLoop
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import IO, AsyncIterable, Callable, Optional, Union
+from typing import IO, Any, AsyncIterable, Callable, Optional, Union
 
 BytesOrStr = Union[bytes, str]
 
@@ -20,7 +20,7 @@ class PoolClient:
     def loop(self) -> AbstractEventLoop:
         return self._loop
 
-    async def run(self, func, *args):
+    async def run(self, func, *args) -> Any:
         return await self._loop.run_in_executor(self._executor, func, *args)
 
 
@@ -77,7 +77,7 @@ class FileContext(PoolClient):
             yield chunk
         yield b''
 
-    async def open(self) -> None:
+    async def open(self) -> IO:
         return await self.run(open, self._file_path, self._mode)
 
     async def __aenter__(self):

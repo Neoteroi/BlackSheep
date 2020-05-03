@@ -113,11 +113,13 @@ def get_files_route_handler(
         resource_path = os.path.join(source_folder_name, tail)
 
         if '../' in tail:
+            # verify that a relative path doesn't go outside of the
+            # static root folder
             abs_path = os.path.abspath(resource_path)
             if not str(abs_path).lower().startswith(
                 source_folder_full_path.lower()
             ):
-                # someone is trying to read out of the static folder!
+                # outside of the static folder!
                 raise NotFound()
 
         if not os.path.exists(resource_path) or os.path.islink(resource_path):
@@ -138,10 +140,13 @@ def get_files_route_handler(
         if file_extension not in extensions:
             raise NotFound()
 
-        return get_response_for_file(files_handler,
-                                     request,
-                                     resource_path,
-                                     cache_time)
+        try:
+            return get_response_for_file(files_handler,
+                                         request,
+                                         resource_path,
+                                         cache_time)
+        except FileNotFoundError:
+            raise NotFound()
     return file_getter
 
 

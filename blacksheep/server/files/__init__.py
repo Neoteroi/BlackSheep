@@ -281,16 +281,25 @@ def get_response_for_file(
             headers.append((b'Content-Range',
                             _get_content_range_value(single_part, info.size)))
 
-        content = StreamedContent(mime,
-                                  get_range_file_getter(files_handler,
-                                                        resource_path,
-                                                        info.size,
-                                                        requested_range,
-                                                        boundary=boundary,
-                                                        file_type=file_type))
+        content = StreamedContent(
+            mime,
+            get_range_file_getter(
+                files_handler,
+                resource_path,
+                info.size,
+                requested_range,
+                boundary=boundary,
+                file_type=file_type
+            )
+        )
     else:
-        content = StreamedContent(mime, get_file_getter(files_handler,
-                                                        resource_path,
-                                                        info.size))
+        content = StreamedContent(
+            mime,
+            get_file_getter(
+                files_handler,
+                resource_path,
+                info.size
+            )
+        )
 
     return Response(status, headers, content)

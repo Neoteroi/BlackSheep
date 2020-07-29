@@ -29,7 +29,7 @@ requests==2.22.0
 rodi==1.0.8
 six==1.13.0
 urllib3==1.25.7
-uvicorn==0.11.1
+uvicorn==0.11.7
 uvloop==0.14.0
 wcwidth==0.1.7
 websockets==8.1

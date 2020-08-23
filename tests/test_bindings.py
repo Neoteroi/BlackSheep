@@ -360,7 +360,7 @@ async def test_from_query_binding_iterables(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list],]
+    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
 )
 async def test_nested_iterables_raise_missing_converter_from_header(declared_type):
     with raises(MissingConverterError):
@@ -369,7 +369,7 @@ async def test_nested_iterables_raise_missing_converter_from_header(declared_typ
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list],]
+    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
 )
 async def test_nested_iterables_raise_missing_converter_from_query(declared_type):
     with raises(MissingConverterError):
@@ -435,7 +435,7 @@ async def test_from_body_form_binding_urlencoded_keys_duplicates():
 async def test_from_body_form_binding_multipart():
 
     request = Request("POST", b"/", []).with_content(
-        MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000"),])
+        MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
     )
 
     parameter = FromForm(ExampleOne)

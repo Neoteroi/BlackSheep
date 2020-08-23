@@ -1,10 +1,6 @@
 import pytest
-from blacksheep import Request, Response, Headers, Header, TextContent, HtmlContent
-from blacksheep.client import (
-    ClientSession,
-    CircularRedirectError,
-    MaximumRedirectsExceededError,
-)
+from blacksheep import Response, TextContent
+from blacksheep.client import ClientSession
 from . import FakePools
 
 

@@ -1,5 +1,5 @@
 import pytest
-from blacksheep import Request, Response, TextContent, HtmlContent
+from blacksheep import Response, TextContent
 from blacksheep.client import ClientSession
 from . import FakePools
 

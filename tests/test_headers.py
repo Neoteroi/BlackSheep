@@ -150,7 +150,7 @@ def test_http_header_collection_get_single_raises_if_more_items_are_present():
 
 
 def test_http_header_collection_concatenation_with_list_of_headers():
-    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power"),])
+    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power")])
 
     with_addition = headers + [(b"Foo", b"foo"), (b"Ufo", b"ufo")]
 
@@ -165,7 +165,7 @@ def test_http_header_collection_concatenation_with_list_of_headers():
 
 
 def test_http_header_collection_concatenation_with_other_collection():
-    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power"),])
+    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power")])
 
     with_addition = headers + Headers([(b"Foo", b"foo"), (b"Ufo", b"ufo")])
 
@@ -180,7 +180,7 @@ def test_http_header_collection_concatenation_with_other_collection():
 
 
 def test_iadd_http_header_collection_concatenation_with_():
-    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power"),])
+    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power")])
 
     headers += (b"Foo", b"foo")
 
@@ -192,7 +192,7 @@ def test_iadd_http_header_collection_concatenation_with_():
 
 
 def test_iadd_http_header_collection_concatenation_with_list_of_headers():
-    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power"),])
+    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power")])
 
     headers += [(b"foo", b"foo"), (b"ufo", b"ufo")]
 
@@ -205,7 +205,7 @@ def test_iadd_http_header_collection_concatenation_with_list_of_headers():
 
 
 def test_iadd_http_header_collection_concatenation_with_collection_of_headers():
-    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power"),])
+    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power")])
 
     headers += Headers([(b"foo", b"foo"), (b"ufo", b"ufo")])
 
@@ -218,7 +218,7 @@ def test_iadd_http_header_collection_concatenation_with_collection_of_headers():
 
 
 def test_iadd_http_header_collection_concatenation_with_duplicate_():
-    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power"),])
+    headers = Headers([(b"Hello", b"World"), (b"Svil", b"Power")])
 
     headers += (b"Svil", b"Kitty")
     example = headers[b"Svil"]

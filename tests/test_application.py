@@ -636,7 +636,7 @@ async def test_user_defined_exception_handlers_called_in_application_context():
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_value",
-    [("a", "a"), ("foo", "foo"), ("Hello%20World!!%3B%3B", "Hello World!!;;"),],
+    [("a", "a"), ("foo", "foo"), ("Hello%20World!!%3B%3B", "Hello World!!;;")],
 )
 async def test_handler_route_value_binding_single(parameter, expected_value):
     app = FakeApplication()
@@ -680,7 +680,7 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "parameter,expected_value", [("12", 12), ("0", 0), ("16549", 16549),]
+    "parameter,expected_value", [("12", 12), ("0", 0), ("16549", 16549)]
 )
 async def test_handler_route_value_binding_single_int(parameter, expected_value):
     app = FakeApplication()
@@ -742,7 +742,7 @@ async def test_handler_route_value_binding_single_float_invalid(parameter):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "parameter,expected_value", [("12", 12.0), ("0", 0.0), ("16549.55", 16549.55),]
+    "parameter,expected_value", [("12", 12.0), ("0", 0.0), ("16549.55", 16549.55)]
 )
 async def test_handler_route_value_binding_single_float(parameter, expected_value):
     app = FakeApplication()
@@ -812,7 +812,7 @@ async def test_handler_query_value_binding_single(query, expected_value):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "query,expected_value", [(b"a=10", 10), (b"b=20", None), (b"", None),]
+    "query,expected_value", [(b"a=10", 10), (b"b=20", None), (b"", None)]
 )
 async def test_handler_query_value_binding_optional_int(query, expected_value):
     app = FakeApplication()
@@ -923,7 +923,7 @@ async def test_handler_query_value_binding_list(query, expected_value):
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value",
-    [(b"a=2", [2]), (b"a=2&a=44", [2, 44]), (b"a=1&a=5&a=18", [1, 5, 18]),],
+    [(b"a=2", [2]), (b"a=2&a=44", [2, 44]), (b"a=1&a=5&a=18", [1, 5, 18])],
 )
 async def test_handler_query_value_binding_list_of_ints(query, expected_value):
     app = FakeApplication()
@@ -1042,7 +1042,7 @@ async def test_handler_normalize_method_without_input():
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "value,expected_value",
-    [["dashboard", "dashboard"], ["hello_world", "hello_world"],],
+    [["dashboard", "dashboard"], ["hello_world", "hello_world"]],
 )
 async def test_handler_from_route(value, expected_value):
     app = FakeApplication()

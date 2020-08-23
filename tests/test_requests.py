@@ -248,7 +248,7 @@ def test_request_can_update_url(initial_url, new_url):
 
 def test_request_content_type_is_read_from_content():
     request = Request("POST", b"/", []).with_content(
-        MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000"),])
+        MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
     )
 
     assert request.content_type() == request.content.type

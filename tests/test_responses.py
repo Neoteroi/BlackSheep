@@ -1,5 +1,5 @@
 import pytest
-from blacksheep import Response, Header, Headers, Content, Cookie
+from blacksheep import Response, Content, Cookie
 from blacksheep import scribe
 
 
@@ -19,7 +19,7 @@ def test_response_supports_dynamic_attributes():
     "response,cookies,expected_result",
     [
         (
-            Response(400, [(b"Server", b"BlackSheep"),]).with_content(
+            Response(400, [(b"Server", b"BlackSheep")]).with_content(
                 Content(b"text/plain", b"Hello, World")
             ),
             [],
@@ -29,7 +29,7 @@ def test_response_supports_dynamic_attributes():
             b"content-length: 12\r\n\r\nHello, World",
         ),
         (
-            Response(400, [(b"Server", b"BlackSheep"),]).with_content(
+            Response(400, [(b"Server", b"BlackSheep")]).with_content(
                 Content(b"text/plain", b"Hello, World")
             ),
             [Cookie(b"session", b"123")],

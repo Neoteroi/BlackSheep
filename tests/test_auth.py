@@ -33,7 +33,7 @@ class MockAuthHandler(AuthenticationHandler):
 
 class MockNotAuthHandler(AuthenticationHandler):
     async def authenticate(self, context: Any) -> Optional[Identity]:
-        context.identity = Identity({"id": "007",})
+        context.identity = Identity({"id": "007"})
         # NB: an identity without authentication scheme is treated
         # as anonymous identity
         return context.identity

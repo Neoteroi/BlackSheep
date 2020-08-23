@@ -211,6 +211,18 @@ def test_datetime_from_cookie_format_2(expected_result, value):
             b"c12038089a7sdlkj1237192873",
             b"/",
         ),
+        (
+            b"1P_JAR=2020-08-23-11; expires=Tue, 22-Sep-2020 11:13:40 GMT; path=/; domain=.google.com; Secure",
+            b"1P_JAR",
+            b"2020-08-23-11",
+            b"/",
+        ),
+        (
+            b"NID=204=0K7PurlER1icDcU_vBBCFWff0gPjtSX3saNz-AXBmkjWGi7RWl_XEeV4uAUuHdX0qsAJbaAhl8E-fZTjwMlTyB9Du_bkal2PHdlnz6h0iKsBNjC5ee8JePM-0PW6hCKdyxyORH6Dzhd7kkvJBhZzk6HQz0QeP8vi9h9eDGL0RGs; expires=Mon, 22-Feb-2021 11:13:40 GMT; path=/; domain=.google.com; HttpOnly",
+            b"NID=204",
+            b"0K7PurlER1icDcU_vBBCFWff0gPjtSX3saNz-AXBmkjWGi7RWl_XEeV4uAUuHdX0qsAJbaAhl8E-fZTjwMlTyB9Du_bkal2PHdlnz6h0iKsBNjC5ee8JePM-0PW6hCKdyxyORH6Dzhd7kkvJBhZzk6HQz0QeP8vi9h9eDGL0RGs",
+            b"/",
+        ),
     ],
 )
 def test_parse_cookie_separators(value, expected_name, expected_value, expected_path):

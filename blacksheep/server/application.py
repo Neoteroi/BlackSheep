@@ -11,7 +11,7 @@ from rodi import Container, Services
 from blacksheep.baseapp import BaseApplication
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
-from blacksheep.messages import Request, Response
+from blacksheep.messages import Request
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.scribe import send_asgi_response
 from blacksheep.server.authentication import (

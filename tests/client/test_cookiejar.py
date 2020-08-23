@@ -1,23 +1,15 @@
 import pytest
 from datetime import datetime, timedelta
 from blacksheep import (
-    Request,
     Response,
-    Headers,
-    Header,
     Cookie,
     URL,
     TextContent,
     datetime_to_cookie_format,
 )
-from blacksheep.client import (
-    ClientSession,
-    CircularRedirectError,
-    MaximumRedirectsExceededError,
-)
+from blacksheep.client import ClientSession
 from blacksheep.client.cookies import (
     CookieJar,
-    InvalidCookie,
     InvalidCookieDomain,
     StoredCookie,
 )

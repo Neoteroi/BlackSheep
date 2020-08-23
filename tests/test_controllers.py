@@ -5,7 +5,7 @@ from blacksheep import Request, Response
 from blacksheep.server.responses import text
 from blacksheep.server.controllers import Controller, ApiController, RoutesRegistry
 from blacksheep.server.routing import RouteDuplicate
-from blacksheep.utils import ensure_str, join_fragments
+from blacksheep.utils import ensure_str
 from guardpost.authentication import User
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
@@ -469,7 +469,7 @@ async def test_controller_with_base_route_as_class_method_fragments():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "first_pattern,second_pattern", [("/", "/home"), (b"/", b"/home"),]
+    "first_pattern,second_pattern", [("/", "/home"), (b"/", b"/home")]
 )
 async def test_controllers_with_duplicate_routes_with_base_route_throw(
     first_pattern, second_pattern
@@ -502,7 +502,7 @@ async def test_controllers_with_duplicate_routes_with_base_route_throw(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "first_pattern,second_pattern", [("/", "/home"), (b"/", b"/home"),]
+    "first_pattern,second_pattern", [("/", "/home"), (b"/", b"/home")]
 )
 async def test_controller_with_duplicate_route_with_base_route_throw(
     first_pattern, second_pattern
@@ -626,7 +626,7 @@ async def test_api_controller_with_version():
 
 
 @pytest.mark.asyncio
-async def test_api_controller_with_version():
+async def test_api_controller_with_version_2():
     app = FakeApplication()
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get

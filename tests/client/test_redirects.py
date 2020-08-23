@@ -1,5 +1,5 @@
 import pytest
-from blacksheep import Request, Response, Headers, Header, TextContent, HtmlContent
+from blacksheep import Response, TextContent, HtmlContent
 from blacksheep.client import (
     ClientSession,
     CircularRedirectError,

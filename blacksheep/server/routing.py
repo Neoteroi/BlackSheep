@@ -1,46 +1,58 @@
 import re
 from abc import abstractmethod
-from functools import lru_cache
-from blacksheep import HttpMethod
 from collections import defaultdict
+from functools import lru_cache
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import unquote
-from typing import Callable, Dict, Optional, List, Any
-from blacksheep.utils import ensure_bytes, ensure_str, BytesOrStr
 
-__all__ = ['Router', 'Route', 'RouteMatch', 'RouteDuplicate', 'RegisteredRoute', 'RoutesRegistry']
+from blacksheep import HttpMethod
+from blacksheep.utils import BytesOrStr, ensure_bytes, ensure_str
+
+__all__ = [
+    "Router",
+    "Route",
+    "RouteMatch",
+    "RouteDuplicate",
+    "RegisteredRoute",
+    "RoutesRegistry",
+]
 
 
-_route_all_rx = re.compile(b'\\*')
-_route_param_rx = re.compile(b'/:([^/]+)')
-_named_group_rx = re.compile(b'\\?P<([^>]+)>')
-_escaped_chars = {b'.', b'[', b']', b'(', b')'}
+_route_all_rx = re.compile(b"\\*")
+_route_param_rx = re.compile(b"/:([^/]+)")
+_named_group_rx = re.compile(b"\\?P<([^>]+)>")
+_escaped_chars = {b".", b"[", b"]", b"(", b")"}
 
 
 def _get_regex_for_pattern(pattern):
 
     for c in _escaped_chars:
         if c in pattern:
-            pattern = pattern.replace(c, b'\\' + c)
-    if b'*' in pattern:
-        pattern = _route_all_rx.sub(br'(?P<tail>.+)', pattern)
-    if b'/:' in pattern:
-        pattern = _route_param_rx.sub(br'/(?P<\1>[^\/]+)', pattern)
+            pattern = pattern.replace(c, b"\\" + c)
+    if b"*" in pattern:
+        pattern = _route_all_rx.sub(br"(?P<tail>.+)", pattern)
+    if b"/:" in pattern:
+        pattern = _route_param_rx.sub(br"/(?P<\1>[^\/]+)", pattern)
 
     # NB: following code is just to throw user friendly errors;
-    # regex would fail anyway, but with a more complex message 'sre_constants.error: redefinition of group name'
+    # regex would fail anyway, but with a more complex message
+    # 'sre_constants.error: redefinition of group name'
     # we only return param names as they are useful for other things
     param_names = []
     for p in _named_group_rx.finditer(pattern):
         param_name = p.group(1)
         if param_name in param_names:
-            raise ValueError(f'cannot have multiple parameters with name: {param_name}')
+            raise ValueError(
+                f"cannot have multiple parameters with name: " f"{param_name}"
+            )
 
         param_names.append(param_name)
 
-    if len(pattern) > 1 and not pattern.endswith(b'*'):
-        # NB: the /? at the end, ensures that a route is matched both with a trailing slash or not
-        pattern = pattern + b'/?'
-    return re.compile(b'^' + pattern + b'$', re.IGNORECASE), param_names
+    if len(pattern) > 1 and not pattern.endswith(b"*"):
+        # NB: the /? at the end, ensures that a route is matched both with
+        # a trailing slash or not
+        pattern = pattern + b"/?"
+    return re.compile(b"^" + pattern + b"$", re.IGNORECASE), param_names
 
 
 class RouteException(Exception):
@@ -48,12 +60,15 @@ class RouteException(Exception):
 
 
 class RouteDuplicate(RouteException):
-
     def __init__(self, method, pattern, current_handler):
         method = ensure_str(method)
         pattern = ensure_str(pattern)
-        super().__init__(f'Cannot register route pattern `{pattern}` for `{method}` more than once. '
-                         f'This pattern is already registered for handler {current_handler.__qualname__}.')
+        super().__init__(
+            f"Cannot register route pattern `{pattern}` for "
+            f"`{method}` more than once. "
+            f"This pattern is already registered for handler "
+            f"{current_handler.__qualname__}."
+        )
         self.method = method
         self.pattern = pattern
         self.current_handler = current_handler
@@ -61,40 +76,36 @@ class RouteDuplicate(RouteException):
 
 class RouteMatch:
 
-    __slots__ = ('values',
-                 'handler')
+    __slots__ = ("values", "handler")
 
-    def __init__(self, route: 'Route', values: Optional[Dict[str, bytes]]):
+    def __init__(self, route: "Route", values: Optional[Dict[str, bytes]]):
         self.handler = route.handler
-        self.values = {k: unquote(v.decode('utf8')) for k, v in values.items()} \
-            if values else None  # type: Optional[Dict[str, str]]
+        self.values: Optional[Dict[str, str]] = {
+            k: unquote(v.decode("utf8")) for k, v in values.items()
+        } if values else None
 
     def __repr__(self):
-        return f'<RouteMatch {id(self)}>'
+        return f"<RouteMatch {id(self)}>"
 
 
 class Route:
 
-    __slots__ = ('handler',
-                 'pattern',
-                 'has_params',
-                 'param_names',
-                 '_rx')
+    __slots__ = ("handler", "pattern", "has_params", "param_names", "_rx")
 
     def __init__(self, pattern: bytes, handler: Any):
         if isinstance(pattern, str):
-            pattern = pattern.encode('utf8')
-        if pattern == b'':
-            pattern = b'/'
-        if len(pattern) > 1 and pattern.endswith(b'/'):
-            pattern = pattern.rstrip(b'/')
+            pattern = pattern.encode("utf8")
+        if pattern == b"":
+            pattern = b"/"
+        if len(pattern) > 1 and pattern.endswith(b"/"):
+            pattern = pattern.rstrip(b"/")
         pattern = pattern.lower()
         self.handler = handler
         self.pattern = pattern
-        self.has_params = b'*' in pattern or b':' in pattern
+        self.has_params = b"*" in pattern or b":" in pattern
         rx, param_names = _get_regex_for_pattern(pattern)
         self._rx = rx
-        self.param_names = [name.decode('utf8') for name in param_names]
+        self.param_names = [name.decode("utf8") for name in param_names]
 
     @property
     def full_pattern(self) -> bytes:
@@ -112,35 +123,36 @@ class Route:
         return RouteMatch(self, match.groupdict() if self.has_params else None)
 
     def __repr__(self):
-        return f'<Route {self.pattern}>'
+        return f"<Route {self.pattern}>"
 
 
 class RouterBase:
-
     @abstractmethod
     def add(self, method: str, pattern: BytesOrStr, handler: Callable):
         ...
 
     def mark_handler(self, handler: Callable):
-        setattr(handler, 'route_handler', True)
+        setattr(handler, "route_handler", True)
 
     def normalize_default_pattern_name(self, handler_name: str):
-        return handler_name.replace('_', '-')
+        return handler_name.replace("_", "-")
 
-    def get_decorator(self, method, pattern='/'):
+    def get_decorator(self, method, pattern="/"):
         def decorator(fn):
             nonlocal pattern
             if pattern is ... or pattern is None:
                 # default to something depending on decorated function's name
-                if fn.__name__ in {'index', 'default'}:
-                    pattern = '/'
+                if fn.__name__ in {"index", "default"}:
+                    pattern = "/"
                 else:
-                    pattern = '/' + self.normalize_default_pattern_name(fn.__name__)
+                    pattern = "/" + self.normalize_default_pattern_name(fn.__name__)
 
                 # TODO: implement log here
-                # app_logger.info('Defaulting to route pattern "%s" for request handler <%s>', pattern, fn.__qualname__)
+                # app_logger.info('Defaulting to route pattern "%s" for
+                # request handler <%s>', pattern, fn.__qualname__)
             self.add(method, pattern, fn)
             return fn
+
         return decorator
 
     def add_head(self, pattern, handler):
@@ -171,41 +183,39 @@ class RouterBase:
         self.add(HttpMethod.PATCH, pattern, handler)
 
     def add_any(self, pattern, handler):
-        self.add('*', pattern, handler)
+        self.add("*", pattern, handler)
 
-    def head(self, pattern='/'):
+    def head(self, pattern="/"):
         return self.get_decorator(HttpMethod.HEAD, pattern)
 
-    def get(self, pattern='/'):
+    def get(self, pattern="/"):
         return self.get_decorator(HttpMethod.GET, pattern)
 
-    def post(self, pattern='/'):
+    def post(self, pattern="/"):
         return self.get_decorator(HttpMethod.POST, pattern)
 
-    def put(self, pattern='/'):
+    def put(self, pattern="/"):
         return self.get_decorator(HttpMethod.PUT, pattern)
 
-    def delete(self, pattern='/'):
+    def delete(self, pattern="/"):
         return self.get_decorator(HttpMethod.DELETE, pattern)
 
-    def trace(self, pattern='/'):
+    def trace(self, pattern="/"):
         return self.get_decorator(HttpMethod.TRACE, pattern)
 
-    def options(self, pattern='/'):
+    def options(self, pattern="/"):
         return self.get_decorator(HttpMethod.OPTIONS, pattern)
 
-    def connect(self, pattern='/'):
+    def connect(self, pattern="/"):
         return self.get_decorator(HttpMethod.CONNECT, pattern)
 
-    def patch(self, pattern='/'):
+    def patch(self, pattern="/"):
         return self.get_decorator(HttpMethod.PATCH, pattern)
 
 
 class Router(RouterBase):
 
-    __slots__ = ('routes',
-                 '_map',
-                 '_fallback')
+    __slots__ = ("routes", "_map", "_fallback")
 
     def __init__(self):
         self._map = {}
@@ -220,9 +230,9 @@ class Router(RouterBase):
     def fallback(self, value):
         if not isinstance(value, Route):
             if callable(value):
-                self._fallback = Route(b'*', value)
+                self._fallback = Route(b"*", value)
                 return
-            raise ValueError('fallback must be a Route')
+            raise ValueError("fallback must be a Route")
         self._fallback = value
 
     def __iter__(self):
@@ -278,7 +288,7 @@ class Router(RouterBase):
 
 class RegisteredRoute:
 
-    __slots__ = ('method', 'pattern', 'handler')
+    __slots__ = ("method", "pattern", "handler")
 
     def __init__(self, method: str, pattern: BytesOrStr, handler: Callable):
         self.method = method
@@ -286,13 +296,17 @@ class RegisteredRoute:
         self.handler = handler
 
     def __repr__(self):
-        return f'<RegisteredRoute {self.method} "{self.pattern}" {self.handler.__name__}>'
+        return (
+            f'<RegisteredRoute {self.method} "{self.pattern}" '
+            f"{self.handler.__name__}>"
+        )
 
 
 class RoutesRegistry(RouterBase):
-    """A registry for routes: not a full router able to get matches.
-    Unlike a router, a registry does not throw for duplicated routes; because such routes can be modified
-    when applied to an actual router.
+    """
+    A registry for routes: not a full router able to get matches.
+    Unlike a router, a registry does not throw for duplicated routes;
+    because such routes can be modified when applied to an actual router.
 
     This class is meant to enable scenarios like base pattern for controllers.
     """
@@ -308,4 +322,4 @@ class RoutesRegistry(RouterBase):
         self.routes.append(RegisteredRoute(method, pattern, handler))
 
     def __repr__(self):
-        return f'<RoutesRegistry {self.routes}>'
+        return f"<RoutesRegistry {self.routes}>"

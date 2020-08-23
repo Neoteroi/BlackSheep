@@ -1,11 +1,13 @@
-import pytest
 import socket
+from multiprocessing import Process
+from time import sleep
+
+import pytest
 import uvicorn
+
 from .app import app
 from .app_two import app_two
 from .utils import ClientSession
-from multiprocessing import Process
-from time import sleep
 
 
 @pytest.fixture(scope='module')

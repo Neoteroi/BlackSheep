@@ -1,17 +1,24 @@
-import ssl
 import asyncio
-import httptools
-import certifi
+import ssl
 import weakref
-from blacksheep import Request, Response, Content
-from blacksheep.scribe import (is_small_request,
-                               write_small_request,
-                               write_request_without_body,
-                               write_request,
-                               request_has_body,
-                               write_request_body_only)
-from httptools import HttpParserError, HttpParserCallbackError
-SECURE_SSLCONTEXT = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=certifi.where())
+
+import certifi
+import httptools
+from httptools import HttpParserCallbackError, HttpParserError
+
+from blacksheep import Content, Response
+from blacksheep.scribe import (
+    is_small_request,
+    request_has_body,
+    write_request,
+    write_request_body_only,
+    write_request_without_body,
+    write_small_request,
+)
+
+SECURE_SSLCONTEXT = ssl.create_default_context(
+    ssl.Purpose.SERVER_AUTH, cafile=certifi.where()
+)
 SECURE_SSLCONTEXT.check_hostname = True
 
 INSECURE_SSLCONTEXT = ssl.SSLContext()
@@ -19,9 +26,8 @@ INSECURE_SSLCONTEXT.check_hostname = False
 
 
 class IncomingContent(Content):
-
     def __init__(self, content_type: bytes):
-        super().__init__(content_type, b'')
+        super().__init__(content_type, b"")
         self._body = bytearray()
         self._chunk = asyncio.Event()
         self.complete = asyncio.Event()
@@ -47,21 +53,20 @@ class IncomingContent(Content):
 
 
 class ConnectionClosedError(Exception):
-
     def __init__(self, can_retry: bool):
-        super().__init__('The connection was closed by the remote server.')
+        super().__init__("The connection was closed by the remote server.")
         self.can_retry = can_retry
 
 
 class InvalidResponseFromServer(Exception):
-
     def __init__(self, inner_exception, message=None):
-        super().__init__(message or 'The remote endpoint returned an invalid HTTP response.')
+        super().__init__(
+            message or "The remote endpoint returned an invalid HTTP response."
+        )
         self.inner_exception = inner_exception
 
 
 class UpgradeResponse:
-
     def __init__(self, response, transport):
         self.response = response
         self.transport = transport
@@ -70,24 +75,24 @@ class UpgradeResponse:
 class ClientConnection(asyncio.Protocol):
 
     __slots__ = (
-        'loop',
-        'pool',
-        'transport',
-        'open',
-        '_connection_lost',
-        'writing_paused',
-        'writable',
-        'ready',
-        'response_ready',
-        'request_timeout',
-        'headers',
-        'request',
-        'response',
-        'parser',
-        'expect_100_continue',
-        '_pending_task',
-        '_can_release',
-        '_upgraded'
+        "loop",
+        "pool",
+        "transport",
+        "open",
+        "_connection_lost",
+        "writing_paused",
+        "writable",
+        "ready",
+        "response_ready",
+        "request_timeout",
+        "headers",
+        "request",
+        "response",
+        "parser",
+        "expect_100_continue",
+        "_pending_task",
+        "_can_release",
+        "_upgraded",
     )
 
     def __init__(self, loop, pool):
@@ -152,8 +157,10 @@ class ClientConnection(asyncio.Protocol):
             #  https://tools.ietf.org/html/rfc7231#section-6.2
 
             if response.status == 101:
-                # 101 Upgrade is a final response as it's used to switch protocols with WebSockets handshake.
-                # returns the response object with status 101 and access to transport
+                # 101 Upgrade is a final response as it's used to switch
+                # protocols with WebSockets handshake.
+                # returns the response object with status 101 and access to
+                #  transport
                 self._upgraded = True
                 return UpgradeResponse(response, self.transport)
 
@@ -167,7 +174,8 @@ class ClientConnection(asyncio.Protocol):
             # await the final response
             return await self._wait_response()
 
-        if self._connection_lost:  # TODO: should also check if the response is not complete?
+        if self._connection_lost:
+            # TODO: should also check if the response is not complete?
             raise ConnectionClosedError(False)
 
         self.response_ready.clear()
@@ -176,7 +184,8 @@ class ClientConnection(asyncio.Protocol):
     async def _write_chunks(self, request, method):
         async for chunk in method(request):
             if self._can_release:
-                # the server returned a response before we ended sending the request
+                # the server returned a response before
+                #  we ended sending the request
                 return await self._wait_response()
 
             if not self.open:
@@ -191,15 +200,18 @@ class ClientConnection(asyncio.Protocol):
 
     async def send(self, request):
         if not self.open:
-            # NB: if the connection is closed here, it is always possible to try again with a new connection
-            # instead, if it happens later; we cannot retry because we started sending a request
+            # NB: if the connection is closed here, it is always possible to
+            # try again with a new connection
+            # instead, if it happens later; we cannot retry because we started
+            # sending a request
             raise ConnectionClosedError(True)
 
         self.request = request
         self._pending_task = True
 
         if request_has_body(request) and request.expect_100_continue():
-            # don't send the body immediately; instead, wait for HTTP 100 Continue interim response from server
+            # don't send the body immediately; instead, wait for HTTP 100
+            # Continue interim response from server
             self.expect_100_continue = True
             self.transport.write(write_request_without_body(request))
 
@@ -240,32 +252,33 @@ class ClientConnection(asyncio.Protocol):
 
     def on_headers_complete(self):
         status = self.parser.get_status_code()
-        self.response = Response(
-            status,
-            self.headers,
-            None
-        )
+        self.response = Response(status, self.headers, None)
         # NB: check if headers declare a content-length
         if self._has_content():
-            self.response.content = IncomingContent(self.response.get_single_header(b'content-type'))
+            self.response.content = IncomingContent(
+                self.response.get_single_header(b"content-type")
+            )
 
         self.response_ready.set()
 
     def _has_content(self):
-        content_length = self.response.get_first_header(b'content-length')
+        content_length = self.response.get_first_header(b"content-length")
 
         if content_length:
             try:
                 content_length_value = int(content_length)
             except ValueError as value_error:
                 # server returned an invalid content-length value
-                raise InvalidResponseFromServer(value_error, f'The server returned an invalid value for'
-                                                             f'the Content-Lenght header; value: {content_length}')
+                raise InvalidResponseFromServer(
+                    value_error,
+                    f"The server returned an invalid value for"
+                    f"the Content-Length header; value: {content_length}",
+                )
             return content_length_value > 0
 
-        transfer_encoding = self.response.get_first_header(b'transfer-encoding')
+        transfer_encoding = self.response.get_first_header(b"transfer-encoding")
 
-        if transfer_encoding and b'chunked' in transfer_encoding:
+        if transfer_encoding and b"chunked" in transfer_encoding:
             return True
 
         return False
@@ -275,8 +288,9 @@ class ClientConnection(asyncio.Protocol):
             self.response.content.complete.set()
 
         if self._pending_task:
-            # the server returned a response before we ended sending the request,
-            # the connection cannot be released now - this can happen for our Bad Requests
+            # the server returned a response before we ended sending the
+            # request, the connection cannot be released now - this can happen
+            # for our Bad Requests
             self._can_release = True
             self.response_ready.set()
         else:
@@ -286,8 +300,8 @@ class ClientConnection(asyncio.Protocol):
 
     def release(self):
         if not self.open or self._upgraded:
-            # if the connection was upgraded, its transport is used for web sockets,
-            # it cannot return to its pool for other cycles
+            # if the connection was upgraded, its transport is used for
+            # web sockets, it cannot return to its pool for other cycles
             return
 
         if self.parser.should_keep_alive():

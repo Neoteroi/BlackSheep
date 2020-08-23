@@ -10,7 +10,7 @@ def ensure_bytes(value: BytesOrStr):
         return value
     if isinstance(value, str):
         return value.encode()
-    raise ValueError('Expected bytes or str')
+    raise ValueError("Expected bytes or str")
 
 
 def ensure_str(value: BytesOrStr):
@@ -18,13 +18,15 @@ def ensure_str(value: BytesOrStr):
         return value
     if isinstance(value, bytes):
         return value.decode()
-    raise ValueError('Expected bytes or str')
+    raise ValueError("Expected bytes or str")
 
 
 def remove_duplicate_slashes(value: str) -> str:
-    return re.sub('/{2,}', '/', value)
+    return re.sub("/{2,}", "/", value)
 
 
 def join_fragments(*args: BytesOrStr) -> str:
     """Joins URL fragments bytes"""
-    return '/' + '/'.join(remove_duplicate_slashes(ensure_str(arg)).strip('/') for arg in args if arg)
+    return "/" + "/".join(
+        remove_duplicate_slashes(ensure_str(arg)).strip("/") for arg in args if arg
+    )

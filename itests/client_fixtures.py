@@ -1,9 +1,19 @@
-import pytest
+import os
+import pathlib
 import asyncio
-from time import sleep
 from multiprocessing import Process
+from time import sleep
+
+import pytest
+
 from blacksheep.client import ClientSession
+
 from .flask_app import app
+
+
+def get_static_path(file_name):
+    static_folder_path = pathlib.Path(__file__).parent.absolute() / 'static'
+    return os.path.join(str(static_folder_path), file_name.lstrip('/'))
 
 
 @pytest.fixture(scope='session')
@@ -26,7 +36,8 @@ def server_port():
 
 @pytest.fixture(scope='module')
 def session(server_host, server_port, event_loop):
-    session = ClientSession(loop=event_loop, base_url=f'http://{server_host}:{server_port}')
+    session = ClientSession(loop=event_loop,
+                            base_url=f'http://{server_host}:{server_port}')
     yield session
     asyncio.run(session.close())
 

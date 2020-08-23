@@ -1,30 +1,36 @@
-from typing import Optional, Dict, Tuple
-from blacksheep import Response, TextContent
+from typing import Dict, Optional, Tuple
+
+from guardpost.asynchronous.authentication import (
+    AuthenticationHandler,
+    AuthenticationStrategy,
+)
 from guardpost.authorization import AuthorizationError
-from guardpost.asynchronous.authentication import AuthenticationStrategy, AuthenticationHandler
 
+from blacksheep import Response, TextContent
 
-__all__ = ('AuthenticationStrategy',
-           'AuthenticationHandler',
-           'AuthenticateChallenge',
-           'get_authentication_middleware',
-           'handle_authentication_challenge')
+__all__ = (
+    "AuthenticationStrategy",
+    "AuthenticationHandler",
+    "AuthenticateChallenge",
+    "get_authentication_middleware",
+    "handle_authentication_challenge",
+)
 
 
 def get_authentication_middleware(strategy: AuthenticationStrategy):
     async def authentication_middleware(request, handler):
-        await strategy.authenticate(request, getattr(handler, 'auth_schemes', None))
+        await strategy.authenticate(request, getattr(handler, "auth_schemes", None))
         return await handler(request)
+
     return authentication_middleware
 
 
 class AuthenticateChallenge(AuthorizationError):
-    header_name = b'WWW-Authenticate'
+    header_name = b"WWW-Authenticate"
 
-    def __init__(self,
-                 scheme: str,
-                 realm: Optional[str],
-                 parameters: Optional[Dict[str, str]]):
+    def __init__(
+        self, scheme: str, realm: Optional[str], parameters: Optional[Dict[str, str]]
+    ):
         self.scheme = scheme
         self.realm = realm
         self.parameters = parameters
@@ -38,17 +44,22 @@ class AuthenticateChallenge(AuthorizationError):
             parts.extend(f' realm="{self.realm}"'.encode())
 
         if self.parameters:
-            parts.extend(b', ')
-            parts.extend(b', '.join([f'{key}="{value}"'.encode() for key, value in self.parameters.items()]))
+            parts.extend(b", ")
+            parts.extend(
+                b", ".join(
+                    [
+                        f'{key}="{value}"'.encode()
+                        for key, value in self.parameters.items()
+                    ]
+                )
+            )
         return bytes(parts)
 
     def get_header(self) -> Tuple[bytes, bytes]:
         return self.header_name, self._get_header_value()
 
 
-async def handle_authentication_challenge(app,
-                                          request,
-                                          exception: AuthenticateChallenge):
-    return Response(401,
-                    [exception.get_header()],
-                    content=TextContent('Unauthorized'))
+async def handle_authentication_challenge(
+    app, request, exception: AuthenticateChallenge
+):
+    return Response(401, [exception.get_header()], content=TextContent("Unauthorized"))

@@ -3,31 +3,31 @@ from blacksheep import HttpMethod
 from blacksheep.server.routing import Router, Route, RouteDuplicate
 
 
-FAKE = b'FAKE'
+FAKE = b"FAKE"
 
 MATCHING_ROUTES = [
-    ('head', b'', b'/'),
-    ('get', b'', b'/'),
-    ('head', b'/', b'/'),
-    ('get', b'/', b'/'),
-    ('get', b'/:a', b'/foo'),
-    ('get', b'/foo', b'/foo'),
-    ('get', b'/foo', b'/Foo'),
-    ('get', b'/:a/:b', b'/foo/oof'),
-    ('post', b'/', b'/'),
-    ('post', b'/:id', b'/123'),
-    ('put', b'/', b'/'),
-    ('delete', b'/', b'/'),
+    ("head", b"", b"/"),
+    ("get", b"", b"/"),
+    ("head", b"/", b"/"),
+    ("get", b"/", b"/"),
+    ("get", b"/:a", b"/foo"),
+    ("get", b"/foo", b"/foo"),
+    ("get", b"/foo", b"/Foo"),
+    ("get", b"/:a/:b", b"/foo/oof"),
+    ("post", b"/", b"/"),
+    ("post", b"/:id", b"/123"),
+    ("put", b"/", b"/"),
+    ("delete", b"/", b"/"),
 ]
 
 NON_MATCHING_ROUTE = [
-    ('head', b'/', b'/foo'),
-    ('get', b'/', b'/foo'),
-    ('post', b'/', b'/foo'),
-    ('post', b'/foo', b'/123'),
-    ('put', b'/a/b/c/d', b'/a/b/c/'),
-    ('put', b'/a/b/c/d', b'/a/b/c/d/e'),
-    ('delete', b'/', b'/a'),
+    ("head", b"/", b"/foo"),
+    ("get", b"/", b"/foo"),
+    ("post", b"/", b"/foo"),
+    ("post", b"/foo", b"/123"),
+    ("put", b"/a/b/c/d", b"/a/b/c/"),
+    ("put", b"/a/b/c/d", b"/a/b/c/d/e"),
+    ("delete", b"/", b"/a"),
 ]
 
 
@@ -36,19 +36,21 @@ def mock_handler():
 
 
 class MockHandler:
-
     def __init__(self, request_handler, auth_handler):
         self.request_handler = request_handler
         self.auth_handler = auth_handler
 
 
-@pytest.mark.parametrize('pattern,url,expected_values', [
-    (b'/foo/:id', b'/foo/123', {'id': '123'}),
-    (b'/foo/:id/ufo/:b', b'/foo/223/ufo/a13', {'id': '223', 'b': 'a13'}),
-    (b'/foo/:id/ufo/:b', b'/Foo/223/Ufo/a13', {'id': '223', 'b': 'a13'}),
-    (b'/:a', b'/Something', {'a': 'Something'}),
-    (b'/alive', b'/alive', None)
-])
+@pytest.mark.parametrize(
+    "pattern,url,expected_values",
+    [
+        (b"/foo/:id", b"/foo/123", {"id": "123"}),
+        (b"/foo/:id/ufo/:b", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
+        (b"/foo/:id/ufo/:b", b"/Foo/223/Ufo/a13", {"id": "223", "b": "a13"}),
+        (b"/:a", b"/Something", {"a": "Something"}),
+        (b"/alive", b"/alive", None),
+    ],
+)
 def test_route_good_matches(pattern, url, expected_values):
     route = Route(pattern, mock_handler)
     match = route.match(url)
@@ -57,11 +59,14 @@ def test_route_good_matches(pattern, url, expected_values):
     assert match.values == expected_values
 
 
-@pytest.mark.parametrize('pattern,url', [
-    (b'/foo/:id', b'/fo/123'),
-    (b'/foo/:id/ufo/:b', b'/foo/223/uof/a13'),
-    (b'/:a', b'/'),
-])
+@pytest.mark.parametrize(
+    "pattern,url",
+    [
+        (b"/foo/:id", b"/fo/123"),
+        (b"/foo/:id/ufo/:b", b"/foo/223/uof/a13"),
+        (b"/:a", b"/"),
+    ],
+)
 def test_route_bad_matches(pattern, url):
     route = Route(pattern, mock_handler)
     match = route.match(url)
@@ -69,18 +74,13 @@ def test_route_bad_matches(pattern, url):
     assert match is None
 
 
-@pytest.mark.parametrize('pattern', [
-    b'/:a/:a',
-    b'/foo/:a/ufo/:a',
-    b'/:foo/a/:foo'
-])
+@pytest.mark.parametrize("pattern", [b"/:a/:a", b"/foo/:a/ufo/:a", b"/:foo/a/:foo"])
 def test_invalid_route_repeated_group_name(pattern):
     with pytest.raises(ValueError):
         Route(pattern, mock_handler)
 
 
 def test_route_handler_can_be_anything():
-
     def request_handler():
         pass
 
@@ -89,15 +89,15 @@ def test_route_handler_can_be_anything():
 
     handler = MockHandler(request_handler, auth_handler)
 
-    route = Route(b'/', handler)
-    match = route.match(b'/')
+    route = Route(b"/", handler)
+    match = route.match(b"/")
 
     assert match is not None
     assert match.handler.request_handler is request_handler
     assert match.handler.auth_handler is auth_handler
 
 
-@pytest.mark.parametrize('method,pattern,url', MATCHING_ROUTES)
+@pytest.mark.parametrize("method,pattern,url", MATCHING_ROUTES)
 def test_router_add_method(method, pattern, url):
     router = Router()
     router.add(method, pattern, mock_handler)
@@ -111,7 +111,7 @@ def test_router_add_method(method, pattern, url):
     assert route is None
 
 
-@pytest.mark.parametrize('method,pattern,url', NON_MATCHING_ROUTE)
+@pytest.mark.parametrize("method,pattern,url", NON_MATCHING_ROUTE)
 def test_router_not_matching_routes(method, pattern, url):
     router = Router()
     router.add(method, pattern, mock_handler)
@@ -119,14 +119,14 @@ def test_router_not_matching_routes(method, pattern, url):
     assert route is None
 
 
-@pytest.mark.parametrize('method,pattern,url', MATCHING_ROUTES)
+@pytest.mark.parametrize("method,pattern,url", MATCHING_ROUTES)
 def test_router_add_shortcuts(method, pattern, url):
     router = Router()
 
-    fn = getattr(router, f'add_{method}')
+    fn = getattr(router, f"add_{method}")
 
     def home():
-        return 'Hello, World'
+        return "Hello, World"
 
     fn(pattern, home)
 
@@ -136,13 +136,13 @@ def test_router_add_shortcuts(method, pattern, url):
     assert route.handler is home
 
     value = route.handler()
-    assert value == 'Hello, World'
+    assert value == "Hello, World"
 
     route = router.get_match(FAKE, url)
     assert route is None
 
 
-@pytest.mark.parametrize('decorator,pattern,url', MATCHING_ROUTES)
+@pytest.mark.parametrize("decorator,pattern,url", MATCHING_ROUTES)
 def test_router_decorator(decorator, pattern, url):
     router = Router()
 
@@ -150,7 +150,7 @@ def test_router_decorator(decorator, pattern, url):
 
     @method(pattern)
     def home():
-        return 'Hello, World'
+        return "Hello, World"
 
     route = router.get_match(decorator.upper(), url)
 
@@ -158,7 +158,7 @@ def test_router_decorator(decorator, pattern, url):
     assert route.handler is home
 
     value = route.handler()
-    assert value == 'Hello, World'
+    assert value == "Hello, World"
 
     route = router.get_match(FAKE, url)
     assert route is None
@@ -167,115 +167,125 @@ def test_router_decorator(decorator, pattern, url):
 def test_router_match_any_by_extension():
     router = Router()
 
-    def a(): ...
+    def a():
+        ...
 
-    def b(): ...
+    def b():
+        ...
 
-    router.add_get(b'/a/*.js', a)
-    router.add_get(b'/b/*.css', b)
+    router.add_get(b"/a/*.js", a)
+    router.add_get(b"/b/*.css", b)
 
-    m = router.get_match(HttpMethod.GET, b'/a/anything/really')
+    m = router.get_match(HttpMethod.GET, b"/a/anything/really")
     assert m is None
 
-    m = router.get_match(HttpMethod.GET, b'/a/anything/really.js')
+    m = router.get_match(HttpMethod.GET, b"/a/anything/really.js")
     assert m is not None
     assert m.handler is a
-    assert m.values.get('tail') == 'anything/really'
+    assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HttpMethod.GET, b'/b/anything/really.css')
+    m = router.get_match(HttpMethod.GET, b"/b/anything/really.css")
     assert m is not None
     assert m.handler is b
-    assert m.values.get('tail') == 'anything/really'
+    assert m.values.get("tail") == "anything/really"
 
 
 def test_router_match_any_below():
     router = Router()
 
-    def a(): ...
+    def a():
+        ...
 
-    def b(): ...
+    def b():
+        ...
 
-    def c(): ...
+    def c():
+        ...
 
-    def d(): ...
+    def d():
+        ...
 
-    router.add_get(b'/a/*', a)
-    router.add_get(b'/b/*', b)
-    router.add_get(b'/c/*', c)
-    router.add_get(b'/d/*', d)
+    router.add_get(b"/a/*", a)
+    router.add_get(b"/b/*", b)
+    router.add_get(b"/c/*", c)
+    router.add_get(b"/d/*", d)
 
-    m = router.get_match(HttpMethod.GET, b'/a')
+    m = router.get_match(HttpMethod.GET, b"/a")
     assert m is None
 
-    m = router.get_match(HttpMethod.GET, b'/a/anything/really')
+    m = router.get_match(HttpMethod.GET, b"/a/anything/really")
     assert m is not None
     assert m.handler is a
-    assert m.values.get('tail') == 'anything/really'
+    assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HttpMethod.GET, b'/b/anything/really')
+    m = router.get_match(HttpMethod.GET, b"/b/anything/really")
     assert m is not None
     assert m.handler is b
-    assert m.values.get('tail') == 'anything/really'
+    assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HttpMethod.GET, b'/c/anything/really')
+    m = router.get_match(HttpMethod.GET, b"/c/anything/really")
     assert m is not None
     assert m.handler is c
-    assert m.values.get('tail') == 'anything/really'
+    assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HttpMethod.GET, b'/d/anything/really')
+    m = router.get_match(HttpMethod.GET, b"/d/anything/really")
     assert m is not None
     assert m.handler is d
-    assert m.values.get('tail') == 'anything/really'
+    assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HttpMethod.POST, b'/a/anything/really')
+    m = router.get_match(HttpMethod.POST, b"/a/anything/really")
     assert m is None
 
-    m = router.get_match(HttpMethod.POST, b'/b/anything/really')
+    m = router.get_match(HttpMethod.POST, b"/b/anything/really")
     assert m is None
 
-    m = router.get_match(HttpMethod.POST, b'/c/anything/really')
+    m = router.get_match(HttpMethod.POST, b"/c/anything/really")
     assert m is None
 
-    m = router.get_match(HttpMethod.POST, b'/d/anything/really')
+    m = router.get_match(HttpMethod.POST, b"/d/anything/really")
     assert m is None
 
 
 def test_router_match_among_many():
     router = Router()
 
-    def home(): ...
+    def home():
+        ...
 
-    def get_foo(): ...
+    def get_foo():
+        ...
 
-    def create_foo(): ...
+    def create_foo():
+        ...
 
-    def delete_foo(): ...
+    def delete_foo():
+        ...
 
-    router.add_get(b'/', home)
-    router.add_get(b'/foo', get_foo)
-    router.add_post(b'/foo', create_foo)
-    router.add_delete(b'/foo', delete_foo)
+    router.add_get(b"/", home)
+    router.add_get(b"/foo", get_foo)
+    router.add_post(b"/foo", create_foo)
+    router.add_delete(b"/foo", delete_foo)
 
-    m = router.get_match(HttpMethod.GET, b'/')
+    m = router.get_match(HttpMethod.GET, b"/")
 
     assert m is not None
     assert m.handler is home
 
-    m = router.get_match(HttpMethod.POST, b'/')
+    m = router.get_match(HttpMethod.POST, b"/")
 
     assert m is None
 
-    m = router.get_match(HttpMethod.GET, b'/foo')
+    m = router.get_match(HttpMethod.GET, b"/foo")
 
     assert m is not None
     assert m.handler is get_foo
 
-    m = router.get_match(HttpMethod.POST, b'/foo')
+    m = router.get_match(HttpMethod.POST, b"/foo")
 
     assert m is not None
     assert m.handler is create_foo
 
-    m = router.get_match(HttpMethod.DELETE, b'/foo')
+    m = router.get_match(HttpMethod.DELETE, b"/foo")
 
     assert m is not None
     assert m.handler is delete_foo
@@ -284,24 +294,26 @@ def test_router_match_among_many():
 def test_router_match_with_trailing_slash():
     router = Router()
 
-    def get_foo(): ...
+    def get_foo():
+        ...
 
-    def create_foo(): ...
+    def create_foo():
+        ...
 
-    router.add_get(b'/foo', get_foo)
-    router.add_post(b'/foo', create_foo)
+    router.add_get(b"/foo", get_foo)
+    router.add_post(b"/foo", create_foo)
 
-    m = router.get_match(HttpMethod.GET, b'/foo/')
+    m = router.get_match(HttpMethod.GET, b"/foo/")
 
     assert m is not None
     assert m.handler is get_foo
 
-    m = router.get_match(HttpMethod.POST, b'/foo/')
+    m = router.get_match(HttpMethod.POST, b"/foo/")
 
     assert m is not None
     assert m.handler is create_foo
 
-    m = router.get_match(HttpMethod.POST, b'/foo//')
+    m = router.get_match(HttpMethod.POST, b"/foo//")
 
     assert m is None
 
@@ -314,33 +326,38 @@ def test_fallback_route():
 
     router.fallback = not_found_handler
 
-    m = router.get_match(HttpMethod.POST, b'/')
+    m = router.get_match(HttpMethod.POST, b"/")
 
     assert m is not None
     assert m.handler is not_found_handler
 
 
-@pytest.mark.parametrize('first_route,second_route', [
-    ('/', '/'),
-    (b'/', b'/'),
-    (b'/', '/'),
-    ('/', b'/'),
-    ('/home/', '/home'),
-    (b'/home/', b'/home'),
-    ('/home', '/home/'),
-    (b'/home', b'/home/'),
-    ('/home', '/home//'),
-    (b'/home', b'/home//'),
-    ('/hello/world', '/hello/world/'),
-    (b'/hello/world', b'/hello/world//'),
-    ('/a/b', '/a/b')
-])
+@pytest.mark.parametrize(
+    "first_route,second_route",
+    [
+        ("/", "/"),
+        (b"/", b"/"),
+        (b"/", "/"),
+        ("/", b"/"),
+        ("/home/", "/home"),
+        (b"/home/", b"/home"),
+        ("/home", "/home/"),
+        (b"/home", b"/home/"),
+        ("/home", "/home//"),
+        (b"/home", b"/home//"),
+        ("/hello/world", "/hello/world/"),
+        (b"/hello/world", b"/hello/world//"),
+        ("/a/b", "/a/b"),
+    ],
+)
 def test_duplicate_pattern_raises(first_route, second_route):
     router = Router()
 
-    def home(): ...
+    def home():
+        ...
 
-    def another(): ...
+    def another():
+        ...
 
     router.add_get(first_route, home)
 
@@ -351,35 +368,39 @@ def test_duplicate_pattern_raises(first_route, second_route):
 def test_duplicate_pattern_star_raises():
     router = Router()
 
-    def home(): ...
+    def home():
+        ...
 
-    def another(): ...
+    def another():
+        ...
 
-    router.add_get(b'*', home)
+    router.add_get(b"*", home)
 
     with pytest.raises(RouteDuplicate):
-        router.add_get(b'*', another)
+        router.add_get(b"*", another)
 
 
 def test_automatic_pattern_with_ellipsis():
     router = Router()
 
     @router.get(...)
-    def home(): ...
+    def home():
+        ...
 
     @router.get(...)
-    def another(): ...
+    def another():
+        ...
 
-    match = router.get_match('GET', '/')
+    match = router.get_match("GET", "/")
 
     assert match is None
 
-    match = router.get_match('GET', '/home')
+    match = router.get_match("GET", "/home")
 
     assert match is not None
     assert match.handler is home
 
-    match = router.get_match('GET', '/another')
+    match = router.get_match("GET", "/another")
 
     assert match is not None
     assert match.handler is another
@@ -389,13 +410,14 @@ def test_automatic_pattern_with_ellipsis_name_normalization():
     router = Router()
 
     @router.get(...)
-    def hello_world(): ...
+    def hello_world():
+        ...
 
-    match = router.get_match('GET', '/hello_world')
+    match = router.get_match("GET", "/hello_world")
 
     assert match is None
 
-    match = router.get_match('GET', '/hello-world')
+    match = router.get_match("GET", "/hello-world")
 
     assert match is not None
     assert match.handler is hello_world
@@ -405,9 +427,10 @@ def test_automatic_pattern_with_ellipsis_index_name():
     router = Router()
 
     @router.get(...)
-    def index(): ...
+    def index():
+        ...
 
-    match = router.get_match('GET', '/')
+    match = router.get_match("GET", "/")
 
     assert match is not None
     assert match.handler is index

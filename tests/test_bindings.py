@@ -2,37 +2,36 @@ import pytest
 from pytest import raises
 from typing import List, Sequence, Set, Tuple
 from blacksheep import Request, JsonContent, FormContent, MultiPartFormData, FormPart
-from blacksheep.server.bindings import (FromJson,
-                                        FromForm,
-                                        FromHeader,
-                                        FromQuery,
-                                        FromRoute,
-                                        FromServices,
-                                        InvalidRequestBody,
-                                        MissingConverterError,
-                                        BadRequest,
-                                        IdentityBinder)
+from blacksheep.server.bindings import (
+    FromJson,
+    FromForm,
+    FromHeader,
+    FromQuery,
+    FromRoute,
+    FromServices,
+    InvalidRequestBody,
+    MissingConverterError,
+    BadRequest,
+    IdentityBinder,
+)
 
 
-JsonContentType = (b'Content-Type', b'application/json')
+JsonContentType = (b"Content-Type", b"application/json")
 
 
 class ExampleOne:
-
     def __init__(self, a, b):
         self.a = a
         self.b = int(b)
 
 
 class ExampleTwo:
-
     def __init__(self, a, b, **kwargs):
         self.a = a
         self.b = b
 
 
 class ExampleThree:
-
     def __init__(self, a: str, b: List[str]):
         self.a = a
         self.b = b
@@ -41,69 +40,70 @@ class ExampleThree:
 @pytest.mark.asyncio
 async def test_from_body_json_binding():
 
-    request = Request('POST', b'/', [
-        JsonContentType
-    ]).with_content(JsonContent({
-        'a': 'world',
-        'b': 9000
-    }))
+    request = Request("POST", b"/", [JsonContentType]).with_content(
+        JsonContent({"a": "world", "b": 9000})
+    )
 
     parameter = FromJson(ExampleOne)
 
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleOne)
-    assert value.a == 'world'
+    assert value.a == "world"
     assert value.b == 9000
 
 
 @pytest.mark.asyncio
 async def test_from_body_json_binding_extra_parameters_strategy():
 
-    request = Request('POST', b'/', [
-        JsonContentType
-    ]).with_content(JsonContent({
-        'a': 'world',
-        'b': 9000,
-        'c': 'This is an extra parameter, accepted by constructor explicitly'
-    }))
+    request = Request("POST", b"/", [JsonContentType]).with_content(
+        JsonContent(
+            {
+                "a": "world",
+                "b": 9000,
+                "c": "This is an extra parameter, accepted by constructor explicitly",
+            }
+        )
+    )
 
     parameter = FromJson(ExampleTwo)
 
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleTwo)
-    assert value.a == 'world'
+    assert value.a == "world"
     assert value.b == 9000
 
 
 @pytest.mark.asyncio
 async def test_from_body_json_with_converter():
 
-    request = Request('POST', b'/', [
-        JsonContentType
-    ]).with_content(JsonContent({
-        'a': 'world',
-        'b': 9000,
-        'c': 'This is an extra parameter, accepted by constructor explicitly'
-    }))
+    request = Request("POST", b"/", [JsonContentType]).with_content(
+        JsonContent(
+            {
+                "a": "world",
+                "b": 9000,
+                "c": "This is an extra parameter, accepted by constructor explicitly",
+            }
+        )
+    )
 
     def convert(data):
-        return ExampleOne(data.get('a'), data.get('b'))
+        return ExampleOne(data.get("a"), data.get("b"))
 
     parameter = FromJson(ExampleOne, converter=convert)
 
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleOne)
-    assert value.a == 'world'
+    assert value.a == "world"
     assert value.b == 9000
 
 
 @pytest.mark.asyncio
 async def test_from_body_json_binding_request_missing_content_type():
 
-    request = Request('POST', b'/', [])
+    request = Request("POST", b"/", [])
 
     parameter = FromJson(ExampleOne)
 
@@ -115,12 +115,9 @@ async def test_from_body_json_binding_request_missing_content_type():
 @pytest.mark.asyncio
 async def test_from_body_json_binding_invalid_input():
 
-    request = Request('POST', b'/', [
-        JsonContentType
-    ]).with_content(JsonContent({
-        'c': 1,
-        'd': 2
-    }))
+    request = Request("POST", b"/", [JsonContentType]).with_content(
+        JsonContent({"c": 1, "d": 2})
+    )
 
     parameter = FromJson(ExampleOne)
 
@@ -129,23 +126,26 @@ async def test_from_body_json_binding_invalid_input():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('expected_type,header_value,expected_value', [
-    [str, b'Foo', 'Foo'],
-    [str, b'foo', 'foo'],
-    [str, b'\xc5\x81ukasz', 'Łukasz'],
-    [str, b'Hello%20World%21%3F', 'Hello World!?'],
-    [int, b'1', 1],
-    [int, b'10', 10],
-    [float, b'1.5', 1.5],
-    [float, b'1241.5', 1241.5],
-    [bool, b'1', True],
-    [bool, b'0', False]
-])
+@pytest.mark.parametrize(
+    "expected_type,header_value,expected_value",
+    [
+        [str, b"Foo", "Foo"],
+        [str, b"foo", "foo"],
+        [str, b"\xc5\x81ukasz", "Łukasz"],
+        [str, b"Hello%20World%21%3F", "Hello World!?"],
+        [int, b"1", 1],
+        [int, b"10", 10],
+        [float, b"1.5", 1.5],
+        [float, b"1241.5", 1241.5],
+        [bool, b"1", True],
+        [bool, b"0", False],
+    ],
+)
 async def test_from_header_binding(expected_type, header_value, expected_value):
 
-    request = Request('GET', b'/', [(b'X-Foo', header_value)])
+    request = Request("GET", b"/", [(b"X-Foo", header_value)])
 
-    parameter = FromHeader(expected_type, 'X-Foo')
+    parameter = FromHeader(expected_type, "X-Foo")
 
     value = await parameter.get_value(request)
 
@@ -154,22 +154,25 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('expected_type,query_value,expected_value', [
-    [str, b'Foo', 'Foo'],
-    [str, b'foo', 'foo'],
-    [str, b'Hello%20World%21%3F', 'Hello World!?'],
-    [int, b'1', 1],
-    [int, b'10', 10],
-    [float, b'1.5', 1.5],
-    [float, b'1241.5', 1241.5],
-    [bool, b'1', True],
-    [bool, b'0', False]
-])
+@pytest.mark.parametrize(
+    "expected_type,query_value,expected_value",
+    [
+        [str, b"Foo", "Foo"],
+        [str, b"foo", "foo"],
+        [str, b"Hello%20World%21%3F", "Hello World!?"],
+        [int, b"1", 1],
+        [int, b"10", 10],
+        [float, b"1.5", 1.5],
+        [float, b"1241.5", 1241.5],
+        [bool, b"1", True],
+        [bool, b"0", False],
+    ],
+)
 async def test_from_query_binding(expected_type, query_value, expected_value):
 
-    request = Request('GET', b'/?foo=' + query_value, None)
+    request = Request("GET", b"/?foo=" + query_value, None)
 
-    parameter = FromQuery(expected_type, 'foo')
+    parameter = FromQuery(expected_type, "foo")
 
     value = await parameter.get_value(request)
 
@@ -178,25 +181,26 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('expected_type,route_value,expected_value', [
-    [str, 'Foo', 'Foo'],
-    [str, 'foo', 'foo'],
-    [str, 'Hello%20World%21%3F', 'Hello World!?'],
-    [int, '1', 1],
-    [int, '10', 10],
-    [float, '1.5', 1.5],
-    [float, '1241.5', 1241.5],
-    [bool, '1', True],
-    [bool, '0', False]
-])
+@pytest.mark.parametrize(
+    "expected_type,route_value,expected_value",
+    [
+        [str, "Foo", "Foo"],
+        [str, "foo", "foo"],
+        [str, "Hello%20World%21%3F", "Hello World!?"],
+        [int, "1", 1],
+        [int, "10", 10],
+        [float, "1.5", 1.5],
+        [float, "1241.5", 1241.5],
+        [bool, "1", True],
+        [bool, "0", False],
+    ],
+)
 async def test_from_route_binding(expected_type, route_value, expected_value):
 
-    request = Request('GET', b'/', None)
-    request.route_values = {
-        'name': route_value
-    }
+    request = Request("GET", b"/", None)
+    request.route_values = {"name": route_value}
 
-    parameter = FromRoute(expected_type, 'name')
+    parameter = FromRoute(expected_type, "name")
 
     value = await parameter.get_value(request)
 
@@ -205,52 +209,47 @@ async def test_from_route_binding(expected_type, route_value, expected_value):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('binder_type', [
-    FromHeader,
-    FromQuery,
-    FromRoute
-])
+@pytest.mark.parametrize("binder_type", [FromHeader, FromQuery, FromRoute])
 async def test_raises_for_missing_default_converter(binder_type):
 
     with raises(MissingConverterError):
-        binder_type('example', ExampleOne)
+        binder_type("example", ExampleOne)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('expected_type,invalid_value', [
-    [int, 'x'],
-    [int, ''],
-    [float, 'x'],
-    [float, ''],
-    [bool, 'x'],
-    [bool, 'yes']
-])
+@pytest.mark.parametrize(
+    "expected_type,invalid_value",
+    [[int, "x"], [int, ""], [float, "x"], [float, ""], [bool, "x"], [bool, "yes"]],
+)
 async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_value):
 
-    request = Request('GET', b'/', None)
-    request.route_values = {
-        'name': invalid_value
-    }
+    request = Request("GET", b"/", None)
+    request.route_values = {"name": invalid_value}
 
-    parameter = FromRoute(expected_type, 'name')
+    parameter = FromRoute(expected_type, "name")
 
     with raises(BadRequest):
         await parameter.get_value(request)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('expected_type,invalid_value', [
-    [int, b'x'],
-    [int, b''],
-    [float, b'x'],
-    [float, b''],
-    [bool, b'x'],
-    [bool, b'yes']
-])
-async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_value: bytes):
-    request = Request('GET', b'/?foo=' + invalid_value, None)
+@pytest.mark.parametrize(
+    "expected_type,invalid_value",
+    [
+        [int, b"x"],
+        [int, b""],
+        [float, b"x"],
+        [float, b""],
+        [bool, b"x"],
+        [bool, b"yes"],
+    ],
+)
+async def test_from_query_raises_for_invalid_parameter(
+    expected_type, invalid_value: bytes
+):
+    request = Request("GET", b"/?foo=" + invalid_value, None)
 
-    parameter = FromQuery(expected_type, 'foo', required=True)
+    parameter = FromQuery(expected_type, "foo", required=True)
 
     with raises(BadRequest):
         await parameter.get_value(request)
@@ -258,12 +257,10 @@ async def test_from_query_raises_for_invalid_parameter(expected_type, invalid_va
 
 @pytest.mark.asyncio
 async def test_from_services():
-    request = Request('GET', b'/', [])
+    request = Request("GET", b"/", [])
 
     service_instance = ExampleOne(1, 2)
-    services = {
-        ExampleOne: service_instance
-    }
+    services = {ExampleOne: service_instance}
 
     parameter = FromServices(ExampleOne, services)
     value = await parameter.get_value(request)
@@ -272,19 +269,32 @@ async def test_from_services():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('declared_type,expected_type,header_values,expected_values', [
-    [List[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
-    [Tuple[str], tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
-    [Set[str], set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
-    [Sequence[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
-])
-async def test_from_header_binding_iterables(declared_type, expected_type, header_values, expected_values):
+@pytest.mark.parametrize(
+    "declared_type,expected_type,header_values,expected_values",
+    [
+        [List[str], list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
+        [
+            Tuple[str],
+            tuple,
+            [b"Lorem", b"ipsum", b"dolor"],
+            ("Lorem", "ipsum", "dolor"),
+        ],
+        [Set[str], set, [b"Lorem", b"ipsum", b"dolor"], {"Lorem", "ipsum", "dolor"}],
+        [
+            Sequence[str],
+            list,
+            [b"Lorem", b"ipsum", b"dolor"],
+            ["Lorem", "ipsum", "dolor"],
+        ],
+    ],
+)
+async def test_from_header_binding_iterables(
+    declared_type, expected_type, header_values, expected_values
+):
 
-    request = Request('GET', b'/', [
-        (b'X-Foo', value) for value in header_values
-    ])
+    request = Request("GET", b"/", [(b"X-Foo", value) for value in header_values])
 
-    parameter = FromHeader(declared_type, 'X-Foo')
+    parameter = FromHeader(declared_type, "X-Foo")
 
     value = await parameter.get_value(request)
 
@@ -293,39 +303,54 @@ async def test_from_header_binding_iterables(declared_type, expected_type, heade
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('declared_type,expected_type,query_values,expected_values', [
-    [list, list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
-    [tuple, tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
-    [set, set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
-    [List, list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
-    [Tuple, tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
-    [Set, set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
-    [List[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
-    [Tuple[str], tuple, [b'Lorem', b'ipsum', b'dolor'], ('Lorem', 'ipsum', 'dolor')],
-    [Set[str], set, [b'Lorem', b'ipsum', b'dolor'], {'Lorem', 'ipsum', 'dolor'}],
-    [Sequence[str], list, [b'Lorem', b'ipsum', b'dolor'], ['Lorem', 'ipsum', 'dolor']],
-    [List[int], list, [b'10'], [10]],
-    [List[int], list, [b'0', b'1', b'0'], [0, 1, 0]],
-    [List[int], list, [b'0', b'1', b'0', b'2'], [0, 1, 0, 2]],
-    [List[bool], list, [b'1'], [True]],
-    [List[bool], list, [b'0', b'1', b'0'], [False, True, False]],
-    [List[bool], list, [b'0', b'1', b'0', b'true'], [False, True, False, True]],
-    [List[float], list, [b'10.2'], [10.2]],
-    [List[float], list, [b'0.3', b'1', b'0'], [0.3, 1.0, 0]],
-    [List[float], list, [b'0.5', b'1', b'0', b'2'], [0.5, 1.0, 0, 2.0]],
-    [Tuple[float], tuple, [b'10.2'], (10.2,)],
-    [Tuple[float], tuple, [b'0.3', b'1', b'0'], (0.3, 1.0, 0)],
-    [Tuple[float], tuple, [b'0.5', b'1', b'0', b'2'], (0.5, 1.0, 0, 2.0)],
-    [Set[int], set, [b'10'], {10}],
-    [Set[int], set, [b'0', b'1', b'0'], {0, 1, 0}],
-    [Set[int], set, [b'0', b'1', b'0', b'2'], {0, 1, 0, 2}],
-])
-async def test_from_query_binding_iterables(declared_type, expected_type, query_values, expected_values):
-    qs = b'&foo='.join([value for value in query_values])
+@pytest.mark.parametrize(
+    "declared_type,expected_type,query_values,expected_values",
+    [
+        [list, list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
+        [tuple, tuple, [b"Lorem", b"ipsum", b"dolor"], ("Lorem", "ipsum", "dolor")],
+        [set, set, [b"Lorem", b"ipsum", b"dolor"], {"Lorem", "ipsum", "dolor"}],
+        [List, list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
+        [Tuple, tuple, [b"Lorem", b"ipsum", b"dolor"], ("Lorem", "ipsum", "dolor")],
+        [Set, set, [b"Lorem", b"ipsum", b"dolor"], {"Lorem", "ipsum", "dolor"}],
+        [List[str], list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
+        [
+            Tuple[str],
+            tuple,
+            [b"Lorem", b"ipsum", b"dolor"],
+            ("Lorem", "ipsum", "dolor"),
+        ],
+        [Set[str], set, [b"Lorem", b"ipsum", b"dolor"], {"Lorem", "ipsum", "dolor"}],
+        [
+            Sequence[str],
+            list,
+            [b"Lorem", b"ipsum", b"dolor"],
+            ["Lorem", "ipsum", "dolor"],
+        ],
+        [List[int], list, [b"10"], [10]],
+        [List[int], list, [b"0", b"1", b"0"], [0, 1, 0]],
+        [List[int], list, [b"0", b"1", b"0", b"2"], [0, 1, 0, 2]],
+        [List[bool], list, [b"1"], [True]],
+        [List[bool], list, [b"0", b"1", b"0"], [False, True, False]],
+        [List[bool], list, [b"0", b"1", b"0", b"true"], [False, True, False, True]],
+        [List[float], list, [b"10.2"], [10.2]],
+        [List[float], list, [b"0.3", b"1", b"0"], [0.3, 1.0, 0]],
+        [List[float], list, [b"0.5", b"1", b"0", b"2"], [0.5, 1.0, 0, 2.0]],
+        [Tuple[float], tuple, [b"10.2"], (10.2,)],
+        [Tuple[float], tuple, [b"0.3", b"1", b"0"], (0.3, 1.0, 0)],
+        [Tuple[float], tuple, [b"0.5", b"1", b"0", b"2"], (0.5, 1.0, 0, 2.0)],
+        [Set[int], set, [b"10"], {10}],
+        [Set[int], set, [b"0", b"1", b"0"], {0, 1, 0}],
+        [Set[int], set, [b"0", b"1", b"0", b"2"], {0, 1, 0, 2}],
+    ],
+)
+async def test_from_query_binding_iterables(
+    declared_type, expected_type, query_values, expected_values
+):
+    qs = b"&foo=".join([value for value in query_values])
 
-    request = Request('GET', b'/?foo=' + qs, None)
+    request = Request("GET", b"/?foo=" + qs, None)
 
-    parameter = FromQuery(declared_type, 'foo')
+    parameter = FromQuery(declared_type, "foo")
 
     values = await parameter.get_value(request)
 
@@ -334,30 +359,26 @@ async def test_from_query_binding_iterables(declared_type, expected_type, query_
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('declared_type', [
-    List[List[str]],
-    Tuple[Tuple[str]],
-    List[list],
-])
+@pytest.mark.parametrize(
+    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
+)
 async def test_nested_iterables_raise_missing_converter_from_header(declared_type):
     with raises(MissingConverterError):
         FromHeader(declared_type)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('declared_type', [
-    List[List[str]],
-    Tuple[Tuple[str]],
-    List[list],
-])
+@pytest.mark.parametrize(
+    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
+)
 async def test_nested_iterables_raise_missing_converter_from_query(declared_type):
     with raises(MissingConverterError):
-        FromQuery('example', declared_type)
+        FromQuery("example", declared_type)
 
 
 @pytest.mark.asyncio
 async def test_identity_binder_identity_not_set():
-    request = Request('GET', b'/', None)
+    request = Request("GET", b"/", None)
 
     parameter = IdentityBinder()
 
@@ -368,7 +389,7 @@ async def test_identity_binder_identity_not_set():
 
 @pytest.mark.asyncio
 async def test_identity_binder():
-    request = Request('GET', b'/', None)
+    request = Request("GET", b"/", None)
     request.identity = object()
 
     parameter = IdentityBinder()
@@ -381,69 +402,68 @@ async def test_identity_binder():
 @pytest.mark.asyncio
 async def test_from_body_form_binding_urlencoded():
 
-    request = Request('POST', b'/', []).with_content(FormContent({
-        'a': 'world',
-        'b': 9000
-    }))
+    request = Request("POST", b"/", []).with_content(
+        FormContent({"a": "world", "b": 9000})
+    )
 
     parameter = FromForm(ExampleOne)
 
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleOne)
-    assert value.a == 'world'
+    assert value.a == "world"
     assert value.b == 9000
 
 
 @pytest.mark.asyncio
 async def test_from_body_form_binding_urlencoded_keys_duplicates():
 
-    request = Request('POST', b'/', []).with_content(FormContent([
-        ('a', 'world'),
-        ('b', 'one'),
-        ('b', 'two'),
-        ('b', 'three')
-    ]))
+    request = Request("POST", b"/", []).with_content(
+        FormContent([("a", "world"), ("b", "one"), ("b", "two"), ("b", "three")])
+    )
 
     parameter = FromForm(ExampleThree)
 
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleThree)
-    assert value.a == 'world'
-    assert value.b == ['one', 'two', 'three']
+    assert value.a == "world"
+    assert value.b == ["one", "two", "three"]
 
 
 @pytest.mark.asyncio
 async def test_from_body_form_binding_multipart():
 
-    request = Request('POST', b'/', []).with_content(MultiPartFormData([
-        FormPart(b'a', b'world'),
-        FormPart(b'b', b'9000'),
-    ]))
+    request = Request("POST", b"/", []).with_content(
+        MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
+    )
 
     parameter = FromForm(ExampleOne)
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleOne)
-    assert value.a == 'world'
+    assert value.a == "world"
     assert value.b == 9000
 
 
 @pytest.mark.asyncio
 async def test_from_body_form_binding_multipart_keys_duplicates():
 
-    request = Request('POST', b'/', []).with_content(MultiPartFormData([
-        FormPart(b'a', b'world'),
-        FormPart(b'b', b'one'),
-        FormPart(b'b', b'two'),
-        FormPart(b'b', b'three')
-    ]))
+    request = Request("POST", b"/", []).with_content(
+        MultiPartFormData(
+            [
+                FormPart(b"a", b"world"),
+                FormPart(b"b", b"one"),
+                FormPart(b"b", b"two"),
+                FormPart(b"b", b"three"),
+            ]
+        )
+    )
 
     parameter = FromForm(ExampleThree)
 
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleThree)
-    assert value.a == 'world'
-    assert value.b == ['one', 'two', 'three']
+    assert value.a == "world"
+    assert value.b == ["one", "two", "three"]

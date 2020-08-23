@@ -12,3 +12,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced [`aiofiles`](https://github.com/Tinche/aiofiles) with dedicated file handling
 - Improved code quality
 - Improved code for integration tests
+- Fixes bug [#37](https://github.com/RobertoPrevato/BlackSheep/issues/37)

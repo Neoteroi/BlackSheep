@@ -3,33 +3,34 @@ from typing import Sequence
 from blacksheep.utils import join_fragments, ensure_bytes, ensure_str, BytesOrStr
 
 
-@pytest.mark.parametrize('fragments,expected_value', [
-    [['a'], '/a'],
-    [['a', 'b', 'c', 'd'], '/a/b/c/d'],
-    [['a', None, 'b', 'c', '', 'd'], '/a/b/c/d'],
-    [[b'a', b'b', b'c', b'd'], '/a/b/c/d'],
-    [[b'a', 'b', 'c', b'd'], '/a/b/c/d'],
-    [['hello/world', 'today'], '/hello/world/today'],
-    [[b'hello/world', b'today'], '/hello/world/today'],
-    [['//hello///world', '/today/'], '/hello/world/today'],
-])
+@pytest.mark.parametrize(
+    "fragments,expected_value",
+    [
+        [["a"], "/a"],
+        [["a", "b", "c", "d"], "/a/b/c/d"],
+        [["a", None, "b", "c", "", "d"], "/a/b/c/d"],
+        [[b"a", b"b", b"c", b"d"], "/a/b/c/d"],
+        [[b"a", "b", "c", b"d"], "/a/b/c/d"],
+        [["hello/world", "today"], "/hello/world/today"],
+        [[b"hello/world", b"today"], "/hello/world/today"],
+        [["//hello///world", "/today/"], "/hello/world/today"],
+    ],
+)
 def test_join_url_fragments(fragments: Sequence[BytesOrStr], expected_value: str):
     joined = join_fragments(*fragments)
     assert joined == expected_value
 
 
-@pytest.mark.parametrize('value,expected_result', [
-    ('hello', b'hello'),
-    (b'hello', b'hello')
-])
+@pytest.mark.parametrize(
+    "value,expected_result", [("hello", b"hello"), (b"hello", b"hello")]
+)
 def test_ensure_bytes(value, expected_result):
     assert ensure_bytes(value) == expected_result
 
 
-@pytest.mark.parametrize('value,expected_result', [
-    ('hello', 'hello'),
-    (b'hello', 'hello')
-])
+@pytest.mark.parametrize(
+    "value,expected_result", [("hello", "hello"), (b"hello", "hello")]
+)
 def test_ensure_str(value, expected_result):
     assert ensure_str(value) == expected_result
 

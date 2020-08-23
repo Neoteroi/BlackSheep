@@ -7,15 +7,21 @@ from .test_application import FakeApplication, get_example_scope, MockSend, Mock
 
 def get_app(enable_async):
     app = FakeApplication()
-    render = use_templates(app, loader=PackageLoader('tests.testapp', 'templates'), enable_async=enable_async)
+    render = use_templates(
+        app,
+        loader=PackageLoader("tests.testapp", "templates"),
+        enable_async=enable_async,
+    )
     return app, render
 
 
 @pytest.fixture()
 def home_model():
-    return {'title': 'Example',
-            'heading': 'Hello World!',
-            'paragraph': 'Lorem ipsum dolor sit amet'}
+    return {
+        "title": "Example",
+        "heading": "Hello World!",
+        "paragraph": "Lorem ipsum dolor sit amet",
+    }
 
 
 @pytest.fixture()
@@ -33,10 +39,10 @@ def specific_text():
 </html>"""
 
 
-async def _home_scenario(app: FakeApplication, url='/', expected_text=None):
+async def _home_scenario(app: FakeApplication, url="/", expected_text=None):
     app.build_services()
     app.normalize_handlers()
-    await app(get_example_scope('GET', url), MockReceive(), MockSend())
+    await app(get_example_scope("GET", url), MockReceive(), MockSend())
     text = await app.response.text()
 
     if expected_text is None:
@@ -60,9 +66,10 @@ async def _home_scenario(app: FakeApplication, url='/', expected_text=None):
 async def test_jinja_async_mode(home_model):
     app, render = get_app(True)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home():
-        return await render('home', home_model)
+        return await render("home", home_model)
+
     await _home_scenario(app)
 
 
@@ -70,9 +77,10 @@ async def test_jinja_async_mode(home_model):
 async def test_jinja_async_mode_named_parameters(home_model):
     app, render = get_app(True)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home():
-        return await render('home', **home_model)
+        return await render("home", **home_model)
+
     await _home_scenario(app)
 
 
@@ -80,9 +88,10 @@ async def test_jinja_async_mode_named_parameters(home_model):
 async def test_jinja_sync_mode(home_model):
     app, render = get_app(False)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home():
-        return render('home', home_model)
+        return render("home", home_model)
+
     await _home_scenario(app)
 
 
@@ -90,9 +99,10 @@ async def test_jinja_sync_mode(home_model):
 async def test_jinja_sync_mode_named_parameters(home_model):
     app, render = get_app(False)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home():
-        return render('home', **home_model)
+        return render("home", **home_model)
+
     await _home_scenario(app)
 
 
@@ -100,9 +110,10 @@ async def test_jinja_sync_mode_named_parameters(home_model):
 async def test_jinja_async_mode_with_verbose_method(home_model):
     app, _ = get_app(True)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home(jinja):
-        return await view_async(jinja, 'home', home_model)
+        return await view_async(jinja, "home", home_model)
+
     await _home_scenario(app)
 
 
@@ -110,9 +121,10 @@ async def test_jinja_async_mode_with_verbose_method(home_model):
 async def test_jinja_sync_mode_with_verbose_method(home_model):
     app, _ = get_app(False)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home(jinja):
-        return view(jinja, 'home', home_model)
+        return view(jinja, "home", home_model)
+
     await _home_scenario(app)
 
 
@@ -120,9 +132,10 @@ async def test_jinja_sync_mode_with_verbose_method(home_model):
 async def test_jinja_async_mode_with_verbose_method_named_parameters(home_model):
     app, _ = get_app(True)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home(jinja):
-        return await view_async(jinja, 'home', **home_model)
+        return await view_async(jinja, "home", **home_model)
+
     await _home_scenario(app)
 
 
@@ -130,9 +143,10 @@ async def test_jinja_async_mode_with_verbose_method_named_parameters(home_model)
 async def test_jinja_sync_mode_with_verbose_method_named_parameters(home_model):
     app, _ = get_app(False)
 
-    @app.router.get(b'/')
+    @app.router.get(b"/")
     async def home(jinja):
-        return view(jinja, 'home', **home_model)
+        return view(jinja, "home", **home_model)
+
     await _home_scenario(app)
 
 
@@ -144,7 +158,6 @@ async def test_controller_conventional_view_name(home_model):
 
     # noinspection PyUnusedLocal
     class Lorem(Controller):
-
         @get()
         def index(self):
             return self.view(model=home_model)
@@ -162,7 +175,6 @@ async def test_controller_conventional_view_name_async(home_model):
 
     # noinspection PyUnusedLocal
     class Lorem(Controller):
-
         @get()
         async def index(self):
             return await self.view_async(model=home_model)
@@ -179,10 +191,9 @@ async def test_controller_specific_view_name(home_model, specific_text):
 
     # noinspection PyUnusedLocal
     class Lorem(Controller):
-
         @get()
         def index(self):
-            return self.view('specific', home_model)
+            return self.view("specific", home_model)
 
     app.setup_controllers()
 
@@ -197,10 +208,9 @@ async def test_controller_specific_view_name_async(home_model, specific_text):
 
     # noinspection PyUnusedLocal
     class Lorem(Controller):
-
         @get()
         async def index(self):
-            return await self.view_async('specific', model=home_model)
+            return await self.view_async("specific", model=home_model)
 
     app.setup_controllers()
     await _home_scenario(app, expected_text=specific_text)
@@ -214,14 +224,13 @@ async def test_controller_conventional_view_name_no_model(home_model):
 
     # noinspection PyUnusedLocal
     class Lorem(Controller):
-
         @get(...)
         def nomodel(self):
             return self.view()
 
     app.setup_controllers()
 
-    await _home_scenario(app, '/nomodel')
+    await _home_scenario(app, "/nomodel")
 
 
 @pytest.mark.asyncio
@@ -232,7 +241,6 @@ async def test_controller_conventional_view_name_sub_function(home_model):
 
     # noinspection PyUnusedLocal
     class Lorem(Controller):
-
         def ufo(self, model):
             return self.foo(model)
 
@@ -259,7 +267,6 @@ async def test_controller_conventional_view_name_extraneous_function(home_model)
 
     # noinspection PyUnusedLocal
     class Lorem(Controller):
-
         def ufo(self, model):
             return self.foo(model)
 

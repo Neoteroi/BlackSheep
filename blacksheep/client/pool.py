@@ -4,14 +4,12 @@ from ssl import SSLContext
 
 from blacksheep.exceptions import InvalidArgument
 
-from .connection import (INSECURE_SSLCONTEXT, SECURE_SSLCONTEXT,
-                         ClientConnection)
+from .connection import INSECURE_SSLCONTEXT, SECURE_SSLCONTEXT, ClientConnection
 
-logger = logging.getLogger('blacksheep.client')
+logger = logging.getLogger("blacksheep.client")
 
 
 class ClientConnectionPool:
-
     def __init__(self, loop, scheme, host, port, ssl=None, max_size=0):
         self.loop = loop
         self.scheme = scheme
@@ -23,7 +21,7 @@ class ClientConnectionPool:
         self.disposed = False
 
     def _ssl_option(self, ssl):
-        if self.scheme == b'https':
+        if self.scheme == b"https":
             if ssl is None:
                 return SECURE_SSLCONTEXT
             if ssl is False:
@@ -31,12 +29,11 @@ class ClientConnectionPool:
             if isinstance(ssl, SSLContext):
                 return ssl
             raise InvalidArgument(
-                'Invalid ssl argument, expected one of: '
-                'None, False, True, instance of ssl.SSLContext.')
-        if ssl:
-            raise InvalidArgument(
-                'SSL argument specified for non-https scheme.'
+                "Invalid ssl argument, expected one of: "
+                "None, False, True, instance of ssl.SSLContext."
             )
+        if ssl:
+            raise InvalidArgument("SSL argument specified for non-https scheme.")
         return None
 
     def _get_connection(self):
@@ -48,8 +45,8 @@ class ClientConnectionPool:
 
             if connection.open:
                 logger.debug(
-                    f'Reusing connection '
-                    f'{id(connection)} to: {self.host}:{self.port}'
+                    f"Reusing connection "
+                    f"{id(connection)} to: {self.host}:{self.port}"
                 )
                 return connection
 
@@ -69,12 +66,13 @@ class ClientConnectionPool:
             return await self.create_connection()
 
     async def create_connection(self):
-        logger.debug(f'Creating connection to: {self.host}:{self.port}')
+        logger.debug(f"Creating connection to: {self.host}:{self.port}")
         transport, connection = await self.loop.create_connection(
             lambda: ClientConnection(self.loop, self),
             self.host,
             self.port,
-            ssl=self.ssl)
+            ssl=self.ssl,
+        )
         await connection.ready.wait()
         # NB: a newly created connection is going to be used by a
         # request-response cycle;
@@ -91,23 +89,21 @@ class ClientConnectionPool:
                 break
             else:
                 logger.debug(
-                    f'Closing connection '
-                    f'{id(connection)} to: {self.host}:{self.port}'
+                    f"Closing connection "
+                    f"{id(connection)} to: {self.host}:{self.port}"
                 )
                 connection.close()
 
 
 class ClientConnectionPools:
-
     def __init__(self, loop):
         self.loop = loop
         self._pools = {}
 
     def get_pool(self, scheme, host, port, ssl):
-        assert scheme in (b'http', b'https'), \
-            'URL schema must be http or https'
+        assert scheme in (b"http", b"https"), "URL schema must be http or https"
         if port is None or port == 0:
-            port = 80 if scheme == b'http' else 443
+            port = 80 if scheme == b"http" else 443
 
         key = (scheme, host, port)
         try:

@@ -4,6 +4,7 @@ from blacksheep.normalization import copy_special_attributes
 def middleware_partial(handler, next_handler):
     async def middleware_wrapper(request):
         return await handler(request, next_handler)
+
     return middleware_wrapper
 
 

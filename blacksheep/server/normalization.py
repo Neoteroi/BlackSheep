@@ -7,9 +7,18 @@ from guardpost.authentication import Identity, User
 
 from blacksheep.normalization import copy_special_attributes
 
-from .bindings import (Binder, ControllerBinder, ExactBinder, FromBody,
-                       FromJson, FromQuery, FromRoute, FromServices,
-                       IdentityBinder, RequestBinder)
+from .bindings import (
+    Binder,
+    ControllerBinder,
+    ExactBinder,
+    FromBody,
+    FromJson,
+    FromQuery,
+    FromRoute,
+    FromServices,
+    IdentityBinder,
+    RequestBinder,
+)
 
 _next_handler_binder = object()
 
@@ -19,43 +28,39 @@ class NormalizationError(Exception):
 
 
 class UnsupportedSignatureError(NormalizationError):
-
     def __init__(self, method):
         super().__init__(
-            f'Cannot normalize method `{method.__qualname__}` because its '
-            f'signature contains *args or *kwargs parameters. '
-            f'If you use a decorator, please use `functools.@wraps` '
-            f'with your wrapper, to fix this error.'
+            f"Cannot normalize method `{method.__qualname__}` because its "
+            f"signature contains *args or *kwargs parameters. "
+            f"If you use a decorator, please use `functools.@wraps` "
+            f"with your wrapper, to fix this error."
         )
 
 
 class MultipleFromBodyBinders(NormalizationError):
-
     def __init__(self, method, first_match, new_match):
         super().__init__(
-            f'Cannot use more than one `FromBody` binder for the same method '
-            f'({method.__qualname__}). The first match was: {first_match}, '
-            f'a second one {new_match}.'
+            f"Cannot use more than one `FromBody` binder for the same method "
+            f"({method.__qualname__}). The first match was: {first_match}, "
+            f"a second one {new_match}."
         )
 
 
 class AmbiguousMethodSignatureError(NormalizationError):
-
     def __init__(self, method):
         super().__init__(
-            f'Cannot normalize method `{method.__qualname__}` due to its '
-            f'ambiguous signature. '
-            f'Please specify exact binders for its arguments.'
+            f"Cannot normalize method `{method.__qualname__}` due to its "
+            f"ambiguous signature. "
+            f"Please specify exact binders for its arguments."
         )
 
 
 class RouteBinderMismatch(NormalizationError):
-
     def __init__(self, parameter_name, route):
         super().__init__(
-            f'The parameter {parameter_name} for method '
-            f'{route.handler.__name__} is bound to route path, '
-            f'but the route doesn`t contain a parameter with matching name.'
+            f"The parameter {parameter_name} for method "
+            f"{route.handler.__name__} is bound to route path, "
+            f"but the route doesn`t contain a parameter with matching name."
         )
 
 
@@ -73,11 +78,7 @@ def get_from_body_parameter(method) -> FromBody:
             if from_body_parameter is None:
                 from_body_parameter = parameter.annotation
             else:
-                raise MultipleFromBodyBinders(
-                    method,
-                    from_body_parameter,
-                    parameter
-                )
+                raise MultipleFromBodyBinders(method, from_body_parameter, parameter)
 
     return from_body_parameter
 
@@ -120,14 +121,14 @@ def _check_union(parameter, annotation, method):
     the request object.
     """
 
-    if hasattr(annotation, '__origin__') and annotation.__origin__ is Union:
+    if hasattr(annotation, "__origin__") and annotation.__origin__ is Union:
         # support only Union[None, Type] - that is equivalent of Optional[Type]
         if type(None) not in annotation.__args__ or len(annotation.__args__) > 2:
             raise NormalizationError(
                 f'Unsupported parameter type "{parameter.name}" '
                 f'for method "{method.__name__}"; '
-                f'only Optional types are supported for automatic binding. '
-                f'Read the desired value from the request itself.'
+                f"only Optional types are supported for automatic binding. "
+                f"Read the desired value from the request itself."
             )
 
         for possible_type in annotation.__args__:
@@ -138,11 +139,7 @@ def _check_union(parameter, annotation, method):
 
 
 def _get_parameter_binder_without_annotation(
-    parameter,
-    services,
-    route,
-    method,
-    name: str
+    parameter, services, route, method, name: str
 ) -> Binder:
     if route:
         # 1. does route contain a parameter with matching name?
@@ -155,7 +152,7 @@ def _get_parameter_binder_without_annotation(
 
     # 3. does it use a specific name?
     # (convention over configuration for common scenarios);
-    if name == 'user' or name == 'identity':
+    if name == "user" or name == "identity":
         return IdentityBinder()
 
     # 4. default to query parameter
@@ -165,26 +162,21 @@ def _get_parameter_binder_without_annotation(
 def get_parameter_binder(parameter, services, route, method) -> Binder:
     name = parameter.name
 
-    if name == 'request':
+    if name == "request":
         return RequestBinder()
 
-    if name == 'services':
+    if name == "services":
         return ExactBinder(services)
 
     original_annotation = parameter.annotation
 
     if original_annotation is _empty:
         return _get_parameter_binder_without_annotation(
-            parameter,
-            services,
-            route,
-            method,
-            name
+            parameter, services, route, method, name
         )
 
     # unwrap the Optional[] annotation, if present:
-    is_optional, annotation = _check_union(
-        parameter, original_annotation, method)
+    is_optional, annotation = _check_union(parameter, original_annotation, method)
 
     # 1. is the type annotation already a binder?
     if isinstance(annotation, Binder):
@@ -194,8 +186,10 @@ def get_parameter_binder(parameter, services, route, method) -> Binder:
             annotation.name = name
 
         if route:
-            if isinstance(annotation, FromRoute) \
-                    and annotation.name not in route.param_names:
+            if (
+                isinstance(annotation, FromRoute)
+                and annotation.name not in route.param_names
+            ):
                 raise RouteBinderMismatch(annotation.name, route)
 
         if isinstance(annotation, FromServices):
@@ -233,7 +227,7 @@ def _get_binders_for_method(method, services, route):
 
     binders = []
     for parameter_name, parameter in parameters.items():
-        if not route and parameter_name in {'handler', 'next_handler'}:
+        if not route and parameter_name in {"handler", "next_handler"}:
             binders.append(_next_handler_binder)
             continue
 
@@ -282,6 +276,7 @@ def _get_sync_wrapper_for_controller(binders, method):
         response = method(*values)
         await controller.on_response(response)
         return response
+
     return handler
 
 
@@ -312,7 +307,8 @@ def get_sync_wrapper(services, route, method, params, params_len):
 
         return handler
 
-    if params_len == 1 and 'request' in params:
+    if params_len == 1 and "request" in params:
+
         async def handler(request):
             return method(request)
 
@@ -329,6 +325,7 @@ def get_sync_wrapper(services, route, method, params, params_len):
         for binder in binders:
             values.append(await binder.get_value(request))
         return method(*values)
+
     return handler
 
 
@@ -340,7 +337,7 @@ def get_async_wrapper(services, route, method, params, params_len):
 
         return handler
 
-    if params_len == 1 and 'request' in params:
+    if params_len == 1 and "request" in params:
         # no need to wrap the request handler
         return method
 
@@ -355,6 +352,7 @@ def get_async_wrapper(services, route, method, params, params_len):
         for binder in binders:
             values.append(await binder.get_value(request))
         return await method(*values)
+
     return handler
 
 
@@ -365,25 +363,13 @@ def normalize_handler(route, services):
     params = sig.parameters
     params_len = len(params)
 
-    if any(str(param).startswith('*') for param in params.values()):
+    if any(str(param).startswith("*") for param in params.values()):
         raise UnsupportedSignatureError(method)
 
     if inspect.iscoroutinefunction(method):
-        normalized = get_async_wrapper(
-            services,
-            route,
-            method,
-            params,
-            params_len
-        )
+        normalized = get_async_wrapper(services, route, method, params, params_len)
     else:
-        normalized = get_sync_wrapper(
-            services,
-            route,
-            method,
-            params,
-            params_len
-        )
+        normalized = get_sync_wrapper(services, route, method, params, params_len)
 
     if normalized is not method:
         copy_special_attributes(method, normalized)
@@ -400,8 +386,7 @@ def _is_basic_middleware_signature(parameters):
 
     first_one = values[0]
     second_one = values[1]
-    if first_one.name == 'request' and second_one.name in {'handler',
-                                                           'next_handler'}:
+    if first_one.name == "request" and second_one.name in {"handler", "next_handler"}:
         return True
     return False
 
@@ -440,6 +425,6 @@ def normalize_middleware(middleware, services):
     if inspect.iscoroutinefunction(middleware):
         normalized = _get_middleware_async_binder(middleware, services)
     else:
-        raise ValueError('Middlewares must be asynchronous functions')
+        raise ValueError("Middlewares must be asynchronous functions")
 
     return normalized

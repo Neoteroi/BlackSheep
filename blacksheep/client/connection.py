@@ -7,12 +7,18 @@ import httptools
 from httptools import HttpParserCallbackError, HttpParserError
 
 from blacksheep import Content, Response
-from blacksheep.scribe import (is_small_request, request_has_body,
-                               write_request, write_request_body_only,
-                               write_request_without_body, write_small_request)
+from blacksheep.scribe import (
+    is_small_request,
+    request_has_body,
+    write_request,
+    write_request_body_only,
+    write_request_without_body,
+    write_small_request,
+)
 
-SECURE_SSLCONTEXT = ssl.create_default_context(ssl.Purpose.SERVER_AUTH,
-                                               cafile=certifi.where())
+SECURE_SSLCONTEXT = ssl.create_default_context(
+    ssl.Purpose.SERVER_AUTH, cafile=certifi.where()
+)
 SECURE_SSLCONTEXT.check_hostname = True
 
 INSECURE_SSLCONTEXT = ssl.SSLContext()
@@ -20,9 +26,8 @@ INSECURE_SSLCONTEXT.check_hostname = False
 
 
 class IncomingContent(Content):
-
     def __init__(self, content_type: bytes):
-        super().__init__(content_type, b'')
+        super().__init__(content_type, b"")
         self._body = bytearray()
         self._chunk = asyncio.Event()
         self.complete = asyncio.Event()
@@ -48,23 +53,20 @@ class IncomingContent(Content):
 
 
 class ConnectionClosedError(Exception):
-
     def __init__(self, can_retry: bool):
-        super().__init__('The connection was closed by the remote server.')
+        super().__init__("The connection was closed by the remote server.")
         self.can_retry = can_retry
 
 
 class InvalidResponseFromServer(Exception):
-
     def __init__(self, inner_exception, message=None):
         super().__init__(
-            message or 'The remote endpoint returned an invalid HTTP response.'
+            message or "The remote endpoint returned an invalid HTTP response."
         )
         self.inner_exception = inner_exception
 
 
 class UpgradeResponse:
-
     def __init__(self, response, transport):
         self.response = response
         self.transport = transport
@@ -73,24 +75,24 @@ class UpgradeResponse:
 class ClientConnection(asyncio.Protocol):
 
     __slots__ = (
-        'loop',
-        'pool',
-        'transport',
-        'open',
-        '_connection_lost',
-        'writing_paused',
-        'writable',
-        'ready',
-        'response_ready',
-        'request_timeout',
-        'headers',
-        'request',
-        'response',
-        'parser',
-        'expect_100_continue',
-        '_pending_task',
-        '_can_release',
-        '_upgraded'
+        "loop",
+        "pool",
+        "transport",
+        "open",
+        "_connection_lost",
+        "writing_paused",
+        "writable",
+        "ready",
+        "response_ready",
+        "request_timeout",
+        "headers",
+        "request",
+        "response",
+        "parser",
+        "expect_100_continue",
+        "_pending_task",
+        "_can_release",
+        "_upgraded",
     )
 
     def __init__(self, loop, pool):
@@ -250,21 +252,17 @@ class ClientConnection(asyncio.Protocol):
 
     def on_headers_complete(self):
         status = self.parser.get_status_code()
-        self.response = Response(
-            status,
-            self.headers,
-            None
-        )
+        self.response = Response(status, self.headers, None)
         # NB: check if headers declare a content-length
         if self._has_content():
             self.response.content = IncomingContent(
-                self.response.get_single_header(b'content-type')
+                self.response.get_single_header(b"content-type")
             )
 
         self.response_ready.set()
 
     def _has_content(self):
-        content_length = self.response.get_first_header(b'content-length')
+        content_length = self.response.get_first_header(b"content-length")
 
         if content_length:
             try:
@@ -273,16 +271,14 @@ class ClientConnection(asyncio.Protocol):
                 # server returned an invalid content-length value
                 raise InvalidResponseFromServer(
                     value_error,
-                    f'The server returned an invalid value for'
-                    f'the Content-Length header; value: {content_length}'
+                    f"The server returned an invalid value for"
+                    f"the Content-Length header; value: {content_length}",
                 )
             return content_length_value > 0
 
-        transfer_encoding = self.response.get_first_header(
-            b'transfer-encoding'
-        )
+        transfer_encoding = self.response.get_first_header(b"transfer-encoding")
 
-        if transfer_encoding and b'chunked' in transfer_encoding:
+        if transfer_encoding and b"chunked" in transfer_encoding:
             return True
 
         return False

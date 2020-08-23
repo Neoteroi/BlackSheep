@@ -4,17 +4,33 @@ from typing import Any, Optional
 from essentials import json as JSON
 
 from blacksheep import Request, Response
-from blacksheep.server.responses import (MessageType, accepted, bad_request,
-                                         created, forbidden, json,
-                                         moved_permanently, no_content,
-                                         not_found, not_modified,
-                                         permanent_redirect, pretty_json,
-                                         redirect, see_other, status_code,
-                                         temporary_redirect, text,
-                                         unauthorized)
+from blacksheep.server.responses import (
+    MessageType,
+    accepted,
+    bad_request,
+    created,
+    forbidden,
+    json,
+    moved_permanently,
+    no_content,
+    not_found,
+    not_modified,
+    permanent_redirect,
+    pretty_json,
+    redirect,
+    see_other,
+    status_code,
+    temporary_redirect,
+    text,
+    unauthorized,
+)
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.templating import (Environment, MissingJinjaModuleError,
-                                          view, view_async)
+from blacksheep.server.templating import (
+    Environment,
+    MissingJinjaModuleError,
+    view,
+    view_async,
+)
 from blacksheep.utils import BytesOrStr, join_fragments
 
 
@@ -43,24 +59,22 @@ else:
 
 
 class CannotDetermineDefaultViewNameError(RuntimeError):
-
     def __init__(self):
         super().__init__(
-            'Cannot determine the default view name to be used '
-            'for the calling function. '
-            'Modify your Controller `view()` function call to specify the name'
-            ' of the view to be used.'
+            "Cannot determine the default view name to be used "
+            "for the calling function. "
+            "Modify your Controller `view()` function call to specify the name"
+            " of the view to be used."
         )
 
 
 class ControllerMeta(type):
-
     def __init__(cls, name, bases, attr_dict):
         super().__init__(name, bases, attr_dict)
 
         for value in attr_dict.values():
-            if hasattr(value, 'route_handler'):
-                setattr(value, 'controller_type', cls)
+            if hasattr(value, "route_handler"):
+                setattr(value, "controller_type", cls)
 
 
 class Controller(metaclass=ControllerMeta):
@@ -105,11 +119,7 @@ class Controller(metaclass=ControllerMeta):
         Callback called on every response returned using controller's methods.
         """
 
-    def status_code(
-        self,
-        status: int = 200,
-        message: MessageType = None
-    ) -> Response:
+    def status_code(self, status: int = 200, message: MessageType = None) -> Response:
         """
         Returns a plain response with given status, with optional message;
         sent as plain text or JSON.
@@ -151,11 +161,7 @@ class Controller(metaclass=ControllerMeta):
         return json(status, data, dumps)
 
     def pretty_json(
-        self,
-        data: Any,
-        status: int = 200,
-        dumps=JSON.dumps,
-        indent: int = 4
+        self, data: Any, status: int = 200, dumps=JSON.dumps, indent: int = 4
     ) -> Response:
         """
         Returns a response with indented application/json content,
@@ -163,11 +169,7 @@ class Controller(metaclass=ControllerMeta):
         """
         return pretty_json(data, status, dumps, indent)
 
-    def text(
-        self,
-        value: str,
-        status: int = 200
-    ) -> Response:
+    def text(self, value: str, status: int = 200) -> Response:
         """
         Returns a response with text/plain content,
         and given status (default HTTP 200 OK).
@@ -307,11 +309,9 @@ class Controller(metaclass=ControllerMeta):
         Therefore, a Home(Controller) will look for templates inside
         /views/home/ folder.
         """
-        return f'{self.class_name()}/{name}'
+        return f"{self.class_name()}/{name}"
 
-    def view(self,
-             name: Optional[str] = None,
-             model: Optional[Any] = None) -> Response:
+    def view(self, name: Optional[str] = None, model: Optional[Any] = None) -> Response:
         """
         Returns a view rendered synchronously.
 
@@ -327,9 +327,9 @@ class Controller(metaclass=ControllerMeta):
             return view(self.templates, self.full_view_name(name), **model)
         return view(self.templates, self.full_view_name(name))
 
-    async def view_async(self,
-                         name: Optional[str] = None,
-                         model: Optional[Any] = None) -> Response:
+    async def view_async(
+        self, name: Optional[str] = None, model: Optional[Any] = None
+    ) -> Response:
         """
         Returns a view rendered asynchronously.
 
@@ -347,7 +347,6 @@ class Controller(metaclass=ControllerMeta):
 
 
 class ApiController(Controller):
-
     @classmethod
     def version(cls) -> Optional[str]:
         """
@@ -370,17 +369,15 @@ class ApiController(Controller):
     @classmethod
     def route(cls) -> Optional[str]:
         cls_name = cls.class_name()
-        cls_version = cls.version() or ''
+        cls_version = cls.version() or ""
         if cls_version and cls_name.endswith(cls_version.lower()):
-            cls_name = cls_name[:-len(cls_version)]
-        return join_fragments('api', cls_version, cls_name)
+            cls_name = cls_name[: -len(cls_version)]
+        return join_fragments("api", cls_version, cls_name)
 
 
 if Environment is ...:
     # Jinja2 is not a required dependency;
     # the Environment is configured as Ellipsis
     # Replace view functions with functions raising user-friendly exceptions
-    setattr(Controller,
-            'view', MissingJinjaModuleError.replace_function())
-    setattr(Controller,
-            'view_async', MissingJinjaModuleError.replace_function(True))
+    setattr(Controller, "view", MissingJinjaModuleError.replace_function())
+    setattr(Controller, "view_async", MissingJinjaModuleError.replace_function(True))

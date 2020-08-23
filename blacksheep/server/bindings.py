@@ -11,8 +11,7 @@ See:
 """
 from abc import ABC, abstractmethod
 from collections.abc import Iterable as IterableAbc
-from typing import (Any, Callable, List, Optional, Sequence, Type, TypeVar,
-                    Union)
+from typing import Any, Callable, List, Optional, Sequence, Type, TypeVar, Union
 from urllib.parse import unquote
 
 from guardpost.authentication import Identity
@@ -21,30 +20,32 @@ from rodi import Services
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
 
-T = TypeVar('T')
+T = TypeVar("T")
 TypeOrName = Union[Type, str]
 
 
 def _inspect_is_list_typing(expected_type):
-    return hasattr(expected_type, '__origin__') \
-        and expected_type.__origin__ is list
+    return hasattr(expected_type, "__origin__") and expected_type.__origin__ is list
 
 
 def _generalize_init_type_error_message(ex: TypeError) -> str:
-    return str(ex)\
-        .replace('__init__() ', '')\
-        .replace('keyword argument', 'parameter') \
-        .replace('keyword arguments', 'parameters') \
-        .replace('positional arguments', 'parameters')\
-        .replace('positional argument', 'parameter')
+    return (
+        str(ex)
+        .replace("__init__() ", "")
+        .replace("keyword argument", "parameter")
+        .replace("keyword arguments", "parameters")
+        .replace("positional arguments", "parameters")
+        .replace("positional argument", "parameter")
+    )
 
 
 class Binder(ABC):
-
-    def __init__(self,
-                 expected_type: T,
-                 required: bool = True,
-                 converter: Optional[Callable] = None):
+    def __init__(
+        self,
+        expected_type: T,
+        required: bool = True,
+        converter: Optional[Callable] = None,
+    ):
         self.expected_type = expected_type
         self.required = required
         self.converter = converter
@@ -55,50 +56,48 @@ class Binder(ABC):
         ...
 
     def __repr__(self):
-        return f'<{self.__class__.__name__} ' + \
-               f'{self.expected_type} at {id(self)}>'
+        return f"<{self.__class__.__name__} " + f"{self.expected_type} at {id(self)}>"
 
 
 class MissingBodyError(BadRequest):
-
     def __init__(self):
-        super().__init__('Missing body payload')
+        super().__init__("Missing body payload")
 
 
 class MissingParameterError(BadRequest):
-
     def __init__(self, name: str, source: str):
-        super().__init__(f'Missing parameter `{name}` from {source}')
+        super().__init__(f"Missing parameter `{name}` from {source}")
 
 
 class InvalidRequestBody(BadRequest):
-
-    def __init__(self, description: Optional[str] = 'Invalid body payload'):
+    def __init__(self, description: Optional[str] = "Invalid body payload"):
         super().__init__(description)
 
 
 class MissingConverterError(Exception):
-
     def __init__(self, expected_type, binder_type):
         super().__init__(
-            f'A default converter for type `{str(expected_type)}` '
-            f'is not configured. '
-            f'Please define a converter method for this binder '
-            f'({binder_type.__name__}).'
+            f"A default converter for type `{str(expected_type)}` "
+            f"is not configured. "
+            f"Please define a converter method for this binder "
+            f"({binder_type.__name__})."
         )
 
 
 class FromBody(Binder):
-    _excluded_methods = {'GET', 'HEAD', 'TRACE'}
+    _excluded_methods = {"GET", "HEAD", "TRACE"}
 
-    def __init__(self,
-                 expected_type: T,
-                 required: bool = False,
-                 converter: Optional[Callable] = None
-                 ):
+    def __init__(
+        self,
+        expected_type: T,
+        required: bool = False,
+        converter: Optional[Callable] = None,
+    ):
         if not converter:
+
             def default_converter(data):
                 return expected_type(**data)
+
             converter = default_converter
 
         super().__init__(expected_type, required, converter)
@@ -112,8 +111,9 @@ class FromBody(Binder):
         raise NotImplementedError()
 
     async def get_value(self, request: Request) -> T:
-        if request.method not in self._excluded_methods \
-                and self.matches_content_type(request):
+        if request.method not in self._excluded_methods and self.matches_content_type(
+            request
+        ):
             data = await self.read_data(request)
 
             if not data:
@@ -125,9 +125,7 @@ class FromBody(Binder):
             if not request.has_body():
                 raise MissingBodyError()
 
-            raise InvalidRequestBody(
-                f'Expected payload {self.__class__.__name__}'
-            )
+            raise InvalidRequestBody(f"Expected payload {self.__class__.__name__}")
 
         return None
 
@@ -158,25 +156,23 @@ class FromForm(FromBody):
 
     def matches_content_type(self, request: Request) -> bool:
         return request.declares_content_type(
-            b'application/x-www-form-urlencoded'
-        ) or request.declares_content_type(b'multipart/form-data')
+            b"application/x-www-form-urlencoded"
+        ) or request.declares_content_type(b"multipart/form-data")
 
     async def read_data(self, request: Request) -> Any:
         return await request.form()
 
 
 def _default_bool_converter(value: str):
-    if value in {'1', 'true'}:
+    if value in {"1", "true"}:
         return True
 
-    if value in {'0', 'false'}:
+    if value in {"0", "false"}:
         return False
 
     # bad request: expected a bool value, but
     # got something different that is not handled
-    raise BadRequest(
-        f'Expected a bool value for a parameter, but got {value}.'
-    )
+    raise BadRequest(f"Expected a bool value for a parameter, but got {value}.")
 
 
 def _default_bool_list_converter(values: Sequence[str]):
@@ -202,15 +198,17 @@ class SyncBinder(Binder):
 
     _simple_types = {int, float, bool}
 
-    def __init__(self,
-                 expected_type: T = List[str],
-                 name: str = None,
-                 required: bool = False,
-                 converter: Optional[Callable] = None):
+    def __init__(
+        self,
+        expected_type: T = List[str],
+        name: str = None,
+        required: bool = False,
+        converter: Optional[Callable] = None,
+    ):
         super().__init__(
             expected_type,
             required,
-            converter or self._get_default_converter(expected_type)
+            converter or self._get_default_converter(expected_type),
         )
         self.name = name
 
@@ -236,8 +234,7 @@ class SyncBinder(Binder):
         generic_type = self._get_type_for_generic_iterable(expected_type)
         item_type = self._generic_iterable_annotation_item_type(expected_type)
         item_converter = self._get_default_converter_single(item_type)
-        return lambda values: generic_type(item_converter(value)
-                                           for value in values)
+        return lambda values: generic_type(item_converter(value) for value in values)
 
     def _get_default_converter(self, expected_type):
         if expected_type is str:
@@ -252,8 +249,11 @@ class SyncBinder(Binder):
         if expected_type in self._simple_types:
             return lambda value: expected_type(value[0]) if value else None
 
-        if self._is_generic_iterable_annotation(expected_type) \
-                or expected_type in {list, set, tuple}:
+        if self._is_generic_iterable_annotation(expected_type) or expected_type in {
+            list,
+            set,
+            tuple,
+        }:
             return self._get_default_converter_for_iterable(expected_type)
 
         raise MissingConverterError(expected_type, self.__class__)
@@ -274,7 +274,7 @@ class SyncBinder(Binder):
         return list
 
     def _is_generic_iterable_annotation(self, param_type):
-        return hasattr(param_type, '__origin__') and (
+        return hasattr(param_type, "__origin__") and (
             param_type.__origin__ in {list, tuple, set}
             or issubclass(param_type.__origin__, IterableAbc)
         )
@@ -309,8 +309,8 @@ class SyncBinder(Binder):
             value = self.converter(raw_value)
         except (ValueError, BadRequest):
             raise BadRequest(
-                f'Invalid value for parameter `{self.name}`; '
-                f'expected {self.expected_type}'
+                f"Invalid value for parameter `{self.name}`; "
+                f"expected {self.expected_type}"
             )
 
         if value is None and self.required:
@@ -323,50 +323,45 @@ class SyncBinder(Binder):
 
 
 class FromHeader(SyncBinder):
-
     @property
     def source_name(self) -> str:
-        return 'header'
+        return "header"
 
     def get_raw_value(self, request: Request) -> Sequence[str]:
-        return [header.decode('utf8')
-                for header in request.get_headers(self.name.encode())]
+        return [
+            header.decode("utf8") for header in request.get_headers(self.name.encode())
+        ]
 
 
 class FromQuery(SyncBinder):
-
     @property
     def source_name(self) -> str:
-        return 'query'
+        return "query"
 
     def get_raw_value(self, request: Request) -> Sequence[str]:
         return [value for value in request.query.get(self.name, [])]
 
 
 class FromRoute(SyncBinder):
-
-    def __init__(self,
-                 expected_type: T = str,
-                 name: str = None,
-                 required: bool = False,
-                 converter: Optional[Callable] = None):
+    def __init__(
+        self,
+        expected_type: T = str,
+        name: str = None,
+        required: bool = False,
+        converter: Optional[Callable] = None,
+    ):
         super().__init__(expected_type, name, required, converter)
 
     def get_raw_value(self, request: Request) -> Sequence[str]:
-        return [request.route_values.get(self.name, '')]
+        return [request.route_values.get(self.name, "")]
 
     @property
     def source_name(self) -> str:
-        return 'route'
+        return "route"
 
 
 class FromServices(Binder):
-
-    def __init__(
-        self,
-        service: TypeOrName,
-        services: Optional[Services] = None
-    ):
+    def __init__(self, service: TypeOrName, services: Optional[Services] = None):
         super().__init__(service, False, None)
         self.services = services
 
@@ -399,7 +394,6 @@ class ControllerBinder(FromServices):
 
 
 class RequestBinder(Binder):
-
     def __init__(self):
         super().__init__(Request)
 
@@ -408,7 +402,6 @@ class RequestBinder(Binder):
 
 
 class RequestPropertyBinder(Binder):
-
     def __init__(self, property_name: str, expected_type: Type = Any):
         super().__init__(expected_type)
         self.property_name = property_name
@@ -418,16 +411,14 @@ class RequestPropertyBinder(Binder):
 
 
 class IdentityBinder(RequestPropertyBinder):
-
     def __init__(self):
-        super().__init__('identity', Identity)
+        super().__init__("identity", Identity)
 
 
 User = IdentityBinder
 
 
 class ExactBinder(Binder):
-
     def __init__(self, exact_object):
         super().__init__(object)
         self.exact_object = exact_object

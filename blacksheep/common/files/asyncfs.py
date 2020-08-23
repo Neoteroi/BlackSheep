@@ -7,11 +7,10 @@ BytesOrStr = Union[bytes, str]
 
 
 class PoolClient:
-
     def __init__(
         self,
         loop: Optional[BaseEventLoop] = None,
-        executor: Optional[ThreadPoolExecutor] = None
+        executor: Optional[ThreadPoolExecutor] = None,
     ):
         self._loop = loop or asyncio.get_event_loop()
         self._executor = executor
@@ -25,13 +24,8 @@ class PoolClient:
 
 
 class FileContext(PoolClient):
-
     def __init__(
-        self,
-        file_path: str,
-        *,
-        loop: Optional[BaseEventLoop] = None,
-        mode: str = 'rb'
+        self, file_path: str, *, loop: Optional[BaseEventLoop] = None, mode: str = "rb"
     ):
         super().__init__(loop)
         self._file_path = file_path
@@ -45,7 +39,7 @@ class FileContext(PoolClient):
     @property
     def file(self) -> IO:
         if self._file is None:
-            raise TypeError('The file is not open.')
+            raise TypeError("The file is not open.")
         return self._file
 
     async def seek(self, offset: int, whence: int = 0) -> None:
@@ -55,8 +49,7 @@ class FileContext(PoolClient):
         return await self.run(self.file.read, chunk_size)
 
     async def write(
-        self,
-        data: Union[BytesOrStr, Callable[[], AsyncIterable[BytesOrStr]]]
+        self, data: Union[BytesOrStr, Callable[[], AsyncIterable[BytesOrStr]]]
     ) -> None:
         if isinstance(data, bytes) or isinstance(data, str):
             await self.run(self.file.write, data)
@@ -64,10 +57,7 @@ class FileContext(PoolClient):
             async for chunk in data():
                 await self.run(self.file.write, chunk)
 
-    async def chunks(
-        self,
-        chunk_size: int = 1024 * 64
-    ) -> AsyncIterable[BytesOrStr]:
+    async def chunks(self, chunk_size: int = 1024 * 64) -> AsyncIterable[BytesOrStr]:
         while True:
             chunk = await self.run(self.file.read, chunk_size)
 
@@ -75,7 +65,7 @@ class FileContext(PoolClient):
                 break
 
             yield chunk
-        yield b''
+        yield b""
 
     async def open(self) -> IO:
         return await self.run(open, self._file_path, self._mode)
@@ -94,14 +84,11 @@ class FileContext(PoolClient):
 class FilesHandler:
     """Provides methods to handle files asynchronously."""
 
-    def open(self, file_path: str, mode: str = 'rb') -> FileContext:
+    def open(self, file_path: str, mode: str = "rb") -> FileContext:
         return FileContext(file_path, mode=mode)
 
     async def read(
-        self,
-        file_path: str,
-        size: Optional[int] = None,
-        mode: str = 'rb'
+        self, file_path: str, size: Optional[int] = None, mode: str = "rb"
     ) -> BytesOrStr:
         async with self.open(file_path, mode=mode) as file:
             return await file.read(size)
@@ -110,15 +97,13 @@ class FilesHandler:
         self,
         file_path: str,
         data: Union[BytesOrStr, Callable[[], AsyncIterable[BytesOrStr]]],
-        mode: str = 'wb'
+        mode: str = "wb",
     ) -> None:
         async with self.open(file_path, mode=mode) as file:
             await file.write(data)
 
     async def chunks(
-        self,
-        file_path: str,
-        chunk_size: int = 1024 * 64
+        self, file_path: str, chunk_size: int = 1024 * 64
     ) -> AsyncIterable[BytesOrStr]:
         async with self.open(file_path) as file:
             async for chunk in file.chunks(chunk_size):

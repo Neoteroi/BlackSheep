@@ -5,21 +5,21 @@ from typing import Tuple
 mime = MimeTypes()
 
 
-DEFAULT_MIME = 'application/octet-stream'
+DEFAULT_MIME = "application/octet-stream"
 
 MIME_BY_EXTENSION = {
-    '.ogg': 'audio/ogg',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.woff2': 'font/woff2'
+    ".ogg": "audio/ogg",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".woff2": "font/woff2",
 }
 
 
 def get_file_extension_from_name(name: str) -> str:
     if not name:
-        return ''
-    return name[name.rfind('.'):].lower()
+        return ""
+    return name[name.rfind(".") :].lower()
 
 
 def get_file_name_from_path(full_path: str) -> str:

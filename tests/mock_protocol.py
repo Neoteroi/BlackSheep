@@ -2,13 +2,11 @@ import asyncio
 
 
 class MockContext:
-
     def __init__(self):
         self.connections = []
 
 
 class MockProtocol(asyncio.Protocol):
-
     def __init__(self, context: MockContext):
         self.context = context
         context.connections.append(self)

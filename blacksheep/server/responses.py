@@ -6,8 +6,7 @@ from typing import Any, Callable, Union
 
 from essentials import json as JSON
 
-from blacksheep import (Content, JsonContent, Response, StreamedContent,
-                        TextContent)
+from blacksheep import Content, JsonContent, Response, StreamedContent, TextContent
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.utils import BytesOrStr
 
@@ -15,8 +14,8 @@ MessageType = Union[None, str, Any]
 
 
 class ContentDispositionType(Enum):
-    INLINE = 'inline'
-    ATTACHMENT = 'attachment'
+    INLINE = "inline"
+    ATTACHMENT = "attachment"
 
 
 def _ensure_bytes(value: BytesOrStr):
@@ -24,7 +23,7 @@ def _ensure_bytes(value: BytesOrStr):
         return value.encode()
     if isinstance(value, bytes):
         return value
-    raise ValueError('Input value must be bytes or str')
+    raise ValueError("Input value must be bytes or str")
 
 
 def status_code(status: int = 200, message: MessageType = None):
@@ -53,9 +52,11 @@ def created(location: BytesOrStr, value: Any = None):
     Returns an HTTP 201 Created response, to the given location
     and with optional JSON content.
     """
-    return Response(201,
-                    [(b'Location', _ensure_bytes(location))],
-                    JsonContent(value) if value else None)
+    return Response(
+        201,
+        [(b"Location", _ensure_bytes(location))],
+        JsonContent(value) if value else None,
+    )
 
 
 def accepted(message: MessageType = None):
@@ -116,7 +117,7 @@ def moved_permanently(location: BytesOrStr):
     """
     Returns an HTTP 301 Moved Permanently response, to the given location.
     """
-    return Response(301, [(b'Location', _ensure_bytes(location))])
+    return Response(301, [(b"Location", _ensure_bytes(location))])
 
 
 def redirect(location: BytesOrStr):
@@ -124,28 +125,28 @@ def redirect(location: BytesOrStr):
     Returns an HTTP 302 Found response (commonly called redirect),
     to the given location.
     """
-    return Response(302, [(b'Location', _ensure_bytes(location))])
+    return Response(302, [(b"Location", _ensure_bytes(location))])
 
 
 def see_other(location: BytesOrStr):
     """
     Returns an HTTP 303 See Other response, to the given location.
     """
-    return Response(303, [(b'Location', _ensure_bytes(location))])
+    return Response(303, [(b"Location", _ensure_bytes(location))])
 
 
 def temporary_redirect(location: BytesOrStr):
     """
     Returns an HTTP 307 Temporary Redirect response, to the given location.
     """
-    return Response(307, [(b'Location', _ensure_bytes(location))])
+    return Response(307, [(b"Location", _ensure_bytes(location))])
 
 
 def permanent_redirect(location: BytesOrStr):
     """
     Returns an HTTP 308 Permanent Redirect response, to the given location.
     """
-    return Response(308, [(b'Location', _ensure_bytes(location))])
+    return Response(308, [(b"Location", _ensure_bytes(location))])
 
 
 def text(value: str, status: int = 200):
@@ -153,9 +154,9 @@ def text(value: str, status: int = 200):
     Returns a response with text/plain content,
     and given status (default HTTP 200 OK).
     """
-    return Response(status, None,
-                    Content(b'text/plain; charset=utf-8',
-                            value.encode('utf8')))
+    return Response(
+        status, None, Content(b"text/plain; charset=utf-8", value.encode("utf8"))
+    )
 
 
 def html(value: str, status: int = 200):
@@ -163,9 +164,9 @@ def html(value: str, status: int = 200):
     Returns a response with text/html content,
     and given status (default HTTP 200 OK).
     """
-    return Response(status, None,
-                    Content(b'text/html; charset=utf-8',
-                            value.encode('utf8')))
+    return Response(
+        status, None, Content(b"text/html; charset=utf-8", value.encode("utf8"))
+    )
 
 
 def json(data: Any, status: int = 200, dumps=JSON.dumps):
@@ -173,26 +174,23 @@ def json(data: Any, status: int = 200, dumps=JSON.dumps):
     Returns a response with application/json content,
     and given status (default HTTP 200 OK).
     """
-    return Response(status,
-                    None,
-                    Content(b'application/json',
-                            dumps(data, separators=(',', ':')).encode('utf8')))
+    return Response(
+        status,
+        None,
+        Content(b"application/json", dumps(data, separators=(",", ":")).encode("utf8")),
+    )
 
 
-def pretty_json(
-    data: Any,
-    status: int = 200,
-    dumps=JSON.dumps,
-    indent: int = 4
-):
+def pretty_json(data: Any, status: int = 200, dumps=JSON.dumps, indent: int = 4):
     """
     Returns a response with indented application/json content,
     and given status (default HTTP 200 OK).
     """
-    return Response(status,
-                    None,
-                    Content(b'application/json',
-                            dumps(data, indent=indent).encode('utf8')))
+    return Response(
+        status,
+        None,
+        Content(b"application/json", dumps(data, indent=indent).encode("utf8")),
+    )
 
 
 FileInput = Union[Callable, str, bytes, bytearray, BytesIO]
@@ -203,21 +201,27 @@ def _get_file_provider(file_path: str):
     async def data_provider():
         async for chunk in FilesHandler().chunks(file_path):
             yield chunk
+
     return data_provider
 
 
-def _file(value: FileInput,
-          content_type: BytesOrStr,
-          content_disposition_type: ContentDispositionType,
-          file_name: str = None):
+def _file(
+    value: FileInput,
+    content_type: BytesOrStr,
+    content_disposition_type: ContentDispositionType,
+    file_name: str = None,
+):
     if file_name:
         exact_file_name = ntpath.basename(file_name)
         if not exact_file_name:
-            raise ValueError('Invalid file name: it should be an exact '
-                             'file name without path, for example: "foo.txt"')
+            raise ValueError(
+                "Invalid file name: it should be an exact "
+                'file name without path, for example: "foo.txt"'
+            )
 
-        content_disposition_value = \
+        content_disposition_value = (
             f'{content_disposition_type.value}; filename="{exact_file_name}"'
+        )
     else:
         content_disposition_value = content_disposition_type.value
 
@@ -227,6 +231,7 @@ def _file(value: FileInput,
         # value is treated as a path
         content = StreamedContent(content_type, _get_file_provider(value))
     elif isinstance(value, BytesIO):
+
         async def data_provider():
             while True:
                 chunk = value.read(1024 * 64)
@@ -235,7 +240,7 @@ def _file(value: FileInput,
                     break
 
                 yield chunk
-            yield b''
+            yield b""
 
         content = StreamedContent(content_type, data_provider)
     elif callable(value):
@@ -243,7 +248,7 @@ def _file(value: FileInput,
         async def data_provider():
             async for chunk in value():
                 yield chunk
-            yield b''
+            yield b""
 
         content = StreamedContent(content_type, data_provider)
     elif isinstance(value, bytes):
@@ -251,18 +256,17 @@ def _file(value: FileInput,
     elif isinstance(value, bytearray):
         content = Content(content_type, bytes(value))
     else:
-        raise ValueError('Invalid value, expected one of: Callable, str, '
-                         'bytes, bytearray, io.BytesIO')
+        raise ValueError(
+            "Invalid value, expected one of: Callable, str, "
+            "bytes, bytearray, io.BytesIO"
+        )
 
-    return Response(200, [(b'Content-Disposition',
-                           content_disposition_value.encode())], content)
+    return Response(
+        200, [(b"Content-Disposition", content_disposition_value.encode())], content
+    )
 
 
-def inline_file(
-    value: FileInput,
-    content_type: BytesOrStr,
-    file_name: str = None
-):
+def inline_file(value: FileInput, content_type: BytesOrStr, file_name: str = None):
     """
     Returns a binary file response with given content type and optional file
     name, for inline use (default HTTP 200 OK). This method supports both call
@@ -279,7 +283,7 @@ def file(
     value: FileInput,
     content_type: BytesOrStr,
     file_name: str = None,
-    content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT  # NOQA
+    content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,  # NOQA
 ):
     """
     Returns a binary file response with given content type and optional

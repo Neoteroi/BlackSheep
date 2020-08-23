@@ -84,25 +84,35 @@ cdef class Cookie:
         return f'<Cookie {self.name.decode()}: {self.value.decode()}>'
 
 
-cpdef Cookie parse_cookie(bytes value):
+cdef tuple split_value(bytes raw_value, bytes separator):
+    cdef int rindex = raw_value.rindex(separator)
+    if rindex == -1:
+        # this is the situation of flags, e.g. httponly and secure
+        return b"", raw_value
+    return raw_value[:rindex], raw_value[rindex+1:]
+
+
+cpdef Cookie parse_cookie(bytes raw_value):
+    cdef bytes value = b''
     cdef bytes eq, expires, domain, path, part, max_age, k, v, lower_k, lower_part
     cdef bint http_only, secure
     cdef bytes same_site
     cdef list parts
     eq = b'='
-    parts = value.split(b'; ')
+    parts = raw_value.split(b'; ')
     if len(parts) == 0:
+        # only name=value pair
         try:
-            name, value = value.split(eq)
+            name, value = split_value(raw_value, eq)
         except ValueError as unpack_error:
             raise ValueError(f'Invalid name=value fragment: {parts[0]}')
         else:
             return Cookie(name, value)
     if len(parts) == 1:
         # some set a cookie with a separator without space
-        parts = value.split(b';')
+        parts = raw_value.split(b';')
     try:
-        name, value = parts[0].split(eq)
+        name, value = split_value(parts[0], eq)
     except ValueError as unpack_error:
         raise ValueError(f'Invalid name=value fragment: {parts[0]}')
 
@@ -119,7 +129,7 @@ cpdef Cookie parse_cookie(bytes value):
 
     for part in parts:
         if eq in part:
-            k, v = part.split(eq)
+            k, v = split_value(part, eq)
             lower_k = k.lower()
             if lower_k == b'expires':
                 expires = v

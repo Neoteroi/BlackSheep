@@ -1,4 +1,4 @@
-def copy_special_attributes(source_method, wrapper):
+def copy_special_attributes(source_method, wrapper) -> None:
     for name in {
         "auth",
         "auth_policy",

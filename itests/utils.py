@@ -10,7 +10,6 @@ logger = get_logger()
 
 
 class ClientSession(requests.Session):
-
     def __init__(self, base_url):
         self.base_url = base_url
         super().__init__()
@@ -20,9 +19,8 @@ class ClientSession(requests.Session):
 
 
 class CrashTest(Exception):
-
     def __init__(self):
-        super().__init__('Crash Test!')
+        super().__init__("Crash Test!")
 
 
 def ensure_success(response):
@@ -48,7 +46,7 @@ def ensure_folder(path):
 
 
 def assert_files_equals(path_one, path_two):
-    with open(path_one, mode='rb') as one, open(path_two, mode='rb') as two:
+    with open(path_one, mode="rb") as one, open(path_two, mode="rb") as two:
         chunk_one = one.read(1024)
         chunk_two = two.read(1024)
 
@@ -56,11 +54,11 @@ def assert_files_equals(path_one, path_two):
 
 
 def assert_file_content_equals(file_path, content):
-    with open(file_path, mode='rt', encoding='utf8') as file:
+    with open(file_path, mode="rt", encoding="utf8") as file:
         file_contents = file.read()
         assert file_contents == content
 
 
 def get_file_bytes(file_path):
-    with open(file_path, mode='rb') as file:
+    with open(file_path, mode="rb") as file:
         return file.read()

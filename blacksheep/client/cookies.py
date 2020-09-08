@@ -171,6 +171,7 @@ class CookieJar:
         return False
 
     def get_cookies_for_url(self, url: URL):
+        assert url.schema is not None
         return self.get_cookies(
             url.schema, self._get_url_host(url), self._get_url_path(url)
         )

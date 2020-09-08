@@ -2,7 +2,7 @@ import re
 from abc import abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, AnyStr
 from urllib.parse import unquote
 
 from blacksheep import HttpMethod
@@ -80,9 +80,11 @@ class RouteMatch:
 
     def __init__(self, route: "Route", values: Optional[Dict[str, bytes]]):
         self.handler = route.handler
-        self.values: Optional[Dict[str, str]] = {
-            k: unquote(v.decode("utf8")) for k, v in values.items()
-        } if values else None
+        self.values: Optional[Dict[str, str]] = (
+            {k: unquote(v.decode("utf8")) for k, v in values.items()}
+            if values
+            else None
+        )
 
     def __repr__(self):
         return f"<RouteMatch {id(self)}>"
@@ -92,7 +94,7 @@ class Route:
 
     __slots__ = ("handler", "pattern", "has_params", "param_names", "_rx")
 
-    def __init__(self, pattern: bytes, handler: Any):
+    def __init__(self, pattern: AnyStr, handler: Any):
         if isinstance(pattern, str):
             pattern = pattern.encode("utf8")
         if pattern == b"":
@@ -220,7 +222,7 @@ class Router(RouterBase):
     def __init__(self):
         self._map = {}
         self._fallback = None
-        self.routes = defaultdict(list)
+        self.routes: Dict[bytes, List[Route]] = defaultdict(list)
 
     @property
     def fallback(self):
@@ -265,17 +267,31 @@ class Router(RouterBase):
 
     def add(self, method: str, pattern: BytesOrStr, handler: Any):
         self.mark_handler(handler)
-        method = ensure_bytes(method)
+        method_name = ensure_bytes(method)
         pattern = ensure_bytes(pattern)
         new_route = Route(pattern, handler)
-        self._check_duplicate(method, new_route)
-        self.add_route(method, new_route)
+        self._check_duplicate(method_name, new_route)
+        self.add_route(method_name, new_route)
 
     def add_route(self, method: BytesOrStr, route: Route):
         self.routes[ensure_bytes(method)].append(route)
 
+    def sort_routes(self):
+        """
+        Sorts the current routes in order of dynamic parameters ascending.
+        The catch-all route is always placed to the end.
+        """
+        current_routes = self.routes.copy()
+
+        for method in current_routes.keys():
+            current_routes[method].sort(key=lambda route: len(route.param_names))
+
+            current_routes[method].sort(key=lambda route: b"*" == route.pattern)
+
+        self.routes = current_routes
+
     @lru_cache(maxsize=1200)
-    def get_match(self, method: BytesOrStr, value: BytesOrStr) -> RouteMatch:
+    def get_match(self, method: BytesOrStr, value: BytesOrStr) -> Optional[RouteMatch]:
         method = ensure_bytes(method)
         value = ensure_bytes(value)
 
@@ -283,7 +299,10 @@ class Router(RouterBase):
             match = route.match(value)
             if match:
                 return match
-        return RouteMatch(self._fallback, None) if self.fallback else None
+        if self._fallback is None:
+            return None
+
+        return RouteMatch(self._fallback, None)
 
 
 class RegisteredRoute:
@@ -312,7 +331,7 @@ class RoutesRegistry(RouterBase):
     """
 
     def __init__(self):
-        self.routes = []  # type: List[RegisteredRoute]
+        self.routes: List[RegisteredRoute] = []
 
     def __iter__(self):
         yield from self.routes

@@ -24,7 +24,7 @@ from blacksheep.server.authorization import (
     get_authorization_middleware,
     handle_unauthorized,
 )
-from blacksheep.server.bindings import ControllerBinder
+from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.files.dynamic import ServeFilesOptions, serve_files_dynamic
 from blacksheep.server.logs import setup_sync_logging
@@ -280,7 +280,7 @@ class Application(BaseApplication):
 
             if value:
                 return ensure_bytes(join_fragments(value, route.pattern))
-        return route.pattern
+        return ensure_bytes(route.pattern)
 
     def prepare_controllers(self) -> List[Type]:
         controller_types = []
@@ -288,7 +288,7 @@ class Application(BaseApplication):
             handler = route.handler
             controller_type = getattr(handler, "controller_type")
             controller_types.append(controller_type)
-            handler.__annotations__["self"] = ControllerBinder(controller_type)
+            handler.__annotations__["self"] = ControllerParameter[controller_type]
             self.router.add(
                 route.method,
                 self.get_controller_handler_pattern(controller_type, route),
@@ -343,6 +343,8 @@ class Application(BaseApplication):
 
     def normalize_handlers(self):
         configured_handlers = set()
+
+        self.router.sort_routes()
 
         for route in self.router:
             if route.handler in configured_handlers:
@@ -441,5 +443,5 @@ class Application(BaseApplication):
         response = await self.handle(request)
         await send_asgi_response(response, send)
 
-        request.scope = None
+        request.scope = None  # type: ignore
         request.content.dispose()

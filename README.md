@@ -22,9 +22,9 @@ from blacksheep.server.responses import text
 
 app = Application()
 
-@app.route('/')
+@app.route("/")
 async def home(request):
-    return text(f'Hello, World! {datetime.utcnow().isoformat()}')
+    return text(f"Hello, World! {datetime.utcnow().isoformat()}")
 
 ```
 
@@ -54,30 +54,71 @@ To run for production, refer to the documentation of the chosen ASGI server (i.e
 
 ## Automatic bindings and dependency injection
 BlackSheep supports automatic binding of values for request handlers, by type annotation or by conventions. See [more here](https://github.com/RobertoPrevato/BlackSheep/wiki/Model-binding).
-```python
-from blacksheep.server.bindings import (FromJson,
-                                        FromHeader,
-                                        FromQuery,
-                                        FromRoute,
-                                        FromServices)
 
-@app.router.put(b'/:d')
-async def example(a: FromQuery(List[str]),
-                  b: FromServices(Dog),
-                  c: FromJson(Cat),
-                  d: FromRoute(),
-                  e: FromHeader(name='X-Example')):
+```python
+from blacksheep.server.bindings import (
+    FromJson,
+    FromHeader,
+    FromQuery,
+    FromRoute,
+    FromServices
+)
+
+@app.router.put("/:d")
+async def example(
+    a: FromQuery[List[str]],
+    b: FromServices[Dog],
+    c: FromJson[Cat],
+    d: FromRoute[str],
+    e: FromHeader[str]
+):
+    # a is read from query string parameters "a"
+    # b is obtained from app services (DI)
+    # c is read from request content parsed as JSON
+    # d from the route parameter with matching name
+    # e from a request header with name "e" or "E"
     ...
 
 
-@app.router.get(b'/:culture_code/:area')
+@app.router.get("/:culture_code/:area")
 async def home(request, culture_code, area):
-    return text(f'Request for: {culture_code} {area}')
+    # in this example, both parameters are obtained from routes with
+    # matching names
+    return text(f"Request for: {culture_code} {area}")
+
+
+@app.router.get("/api/products")
+def get_products(
+    page: int = 1,
+    size: int = 30,
+    search: str = "",
+):
+    # this example illustrates support for implicit query parameters with
+    # default values
+    # since the source of page, size, and search is not specified and no
+    # route parameter matches their name, they are obtained from query string
+    ...
+
+
+@app.router.get("/api/products2")
+def get_products2(
+    page: FromQuery[int] = FromQuery(1),
+    size: FromQuery[int] = FromQuery(30),
+    search: FromQuery[str] = FromQuery(""),
+):
+    # this example illustrates support for explicit query parameters with
+    # default values
+    # in this case, parameters are explicitly read from query string
+    ...
+
 ```
-It also supports dependency injection, provided by [rodi](https://github.com/RobertoPrevato/rodi), a library from the same author, supporting `singleton`, `scoped`, and `transient` life style for activated services.
+It also supports dependency injection, provided by [rodi](https://github.com/RobertoPrevato/rodi),
+a library from the same author, supporting `singleton`, `scoped`, and `transient` life style for activated services.
 
 ## Strategies to handle authentication and authorization
-BlackSheep implements strategies to handle authentication and authorization, using [GuardPost](https://github.com/RobertoPrevato/GuardPost), a library from the same author.
+BlackSheep implements strategies to handle authentication and authorization,
+using [GuardPost](https://github.com/RobertoPrevato/GuardPost), a library from
+the same author.
 
 ```python
 app.use_authentication()\
@@ -88,14 +129,14 @@ app.use_authorization()\
     .add(AdminsPolicy())
 
 
-@auth('admin')
-@app.router.get(b'/')
+@auth("admin")
+@app.router.get("/")
 async def only_for_admins():
     ...
 
 
 @auth()
-@app.router.get(b'/')
+@app.router.get("/")
 async def only_for_authenticated_users():
     ...
 ```
@@ -136,7 +177,7 @@ from blacksheep.client import ClientSession
 
 async def client_example(loop):
     async with ClientSession() as client:
-        response = await client.get('https://docs.python.org/3/')
+        response = await client.get("https://docs.python.org/3/")
 
         assert response is not None
         text = await response.text()

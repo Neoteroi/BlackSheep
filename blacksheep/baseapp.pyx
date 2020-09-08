@@ -14,7 +14,7 @@ async def handle_not_found(app, Request request, HttpException http_exception):
 
 
 async def handle_bad_request(app, Request request, HttpException http_exception):
-    return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
+    return Response(400, content=TextContent(f'Bad Request. {str(http_exception)}'))
 
 
 async def common_http_exception_handler(app, Request request, HttpException http_exception):

@@ -84,7 +84,7 @@ class Controller(metaclass=ControllerMeta):
     """
     Templates environment: this class property is configured automatically
     by the application object at startup,
-    because controllers activated by an application, need to use the same
+    because controllers activated by an application need to use the same
     templating engine of the application.
 
     Templates are available only if the application uses templating -

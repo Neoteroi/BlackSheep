@@ -11,7 +11,7 @@ COMPILE_ARGS = ["-O3"]
 
 setup(
     name="blacksheep",
-    version="0.2.3",
+    version="0.2.4",
     description="Fast web framework and HTTP client for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -84,6 +84,7 @@ setup(
         "guardpost~=0.0.5",
         "rodi~=1.0.8",
         "essentials~=1.1.3",
+        "typing_extensions; python_version < '3.8'",
     ],
     include_package_data=True,
     zip_safe=False,

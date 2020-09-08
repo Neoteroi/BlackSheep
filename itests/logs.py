@@ -11,7 +11,7 @@ def get_logger():
     if logger is not None:
         return logger
 
-    logger = logging.getLogger('itests')
+    logger = logging.getLogger("itests")
 
     logger.setLevel(logging.INFO)
 
@@ -19,9 +19,7 @@ def get_logger():
 
     file_handler = logging.handlers.RotatingFileHandler
 
-    handler = file_handler(f'integration_tests.log',
-                           maxBytes=max_bytes,
-                           backupCount=5)
+    handler = file_handler(f"integration_tests.log", maxBytes=max_bytes, backupCount=5)
 
     handler.setLevel(logging.DEBUG)
 

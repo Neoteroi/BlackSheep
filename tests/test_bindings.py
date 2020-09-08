@@ -1,20 +1,25 @@
+from typing import List, Sequence, Set, Tuple
+from guardpost.authentication import Identity
+
 import pytest
 from pytest import raises
-from typing import List, Sequence, Set, Tuple
-from blacksheep import Request, JsonContent, FormContent, MultiPartFormData, FormPart
-from blacksheep.server.bindings import (
-    FromJson,
-    FromForm,
-    FromHeader,
-    FromQuery,
-    FromRoute,
-    FromServices,
-    InvalidRequestBody,
-    MissingConverterError,
-    BadRequest,
-    IdentityBinder,
-)
+from uuid import UUID
 
+from rodi import Container
+
+from blacksheep import FormContent, FormPart, JsonContent, MultiPartFormData, Request
+from blacksheep.server.bindings import (
+    BadRequest,
+    FormBinder,
+    HeaderBinder,
+    IdentityBinder,
+    InvalidRequestBody,
+    JsonBinder,
+    MissingConverterError,
+    QueryBinder,
+    RouteBinder,
+    ServiceBinder,
+)
 
 JsonContentType = (b"Content-Type", b"application/json")
 
@@ -44,7 +49,7 @@ async def test_from_body_json_binding():
         JsonContent({"a": "world", "b": 9000})
     )
 
-    parameter = FromJson(ExampleOne)
+    parameter = JsonBinder(ExampleOne)
 
     value = await parameter.get_value(request)
 
@@ -66,7 +71,7 @@ async def test_from_body_json_binding_extra_parameters_strategy():
         )
     )
 
-    parameter = FromJson(ExampleTwo)
+    parameter = JsonBinder(ExampleTwo)
 
     value = await parameter.get_value(request)
 
@@ -91,7 +96,7 @@ async def test_from_body_json_with_converter():
     def convert(data):
         return ExampleOne(data.get("a"), data.get("b"))
 
-    parameter = FromJson(ExampleOne, converter=convert)
+    parameter = JsonBinder(ExampleOne, converter=convert)
 
     value = await parameter.get_value(request)
 
@@ -105,7 +110,7 @@ async def test_from_body_json_binding_request_missing_content_type():
 
     request = Request("POST", b"/", [])
 
-    parameter = FromJson(ExampleOne)
+    parameter = JsonBinder(ExampleOne)
 
     value = await parameter.get_value(request)
 
@@ -119,7 +124,7 @@ async def test_from_body_json_binding_invalid_input():
         JsonContent({"c": 1, "d": 2})
     )
 
-    parameter = FromJson(ExampleOne)
+    parameter = JsonBinder(ExampleOne)
 
     with raises(InvalidRequestBody):
         await parameter.get_value(request)
@@ -142,10 +147,36 @@ async def test_from_body_json_binding_invalid_input():
     ],
 )
 async def test_from_header_binding(expected_type, header_value, expected_value):
-
     request = Request("GET", b"/", [(b"X-Foo", header_value)])
 
-    parameter = FromHeader(expected_type, "X-Foo")
+    parameter = HeaderBinder(expected_type, "X-Foo")
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value == expected_value
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "expected_type,header_value,expected_value",
+    [
+        [str, b"Foo", "Foo"],
+        [str, b"foo", "foo"],
+        [str, b"\xc5\x81ukasz", "Łukasz"],
+        [str, b"Hello%20World%21%3F", "Hello World!?"],
+        [int, b"1", 1],
+        [int, b"10", 10],
+        [float, b"1.5", 1.5],
+        [float, b"1241.5", 1241.5],
+        [bool, b"1", True],
+        [bool, b"0", False],
+    ],
+)
+async def test_from_header_binding_name_ci(expected_type, header_value, expected_value):
+    request = Request("GET", b"/", [(b"X-Foo", header_value)])
+
+    parameter = HeaderBinder(expected_type, "x-foo")
 
     value = await parameter.get_value(request)
 
@@ -169,10 +200,9 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
     ],
 )
 async def test_from_query_binding(expected_type, query_value, expected_value):
-
     request = Request("GET", b"/?foo=" + query_value, None)
 
-    parameter = FromQuery(expected_type, "foo")
+    parameter = QueryBinder(expected_type, "foo")
 
     value = await parameter.get_value(request)
 
@@ -193,14 +223,18 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
         [float, "1241.5", 1241.5],
         [bool, "1", True],
         [bool, "0", False],
+        [
+            UUID,
+            "b0c1f822-b63c-475e-9f2e-b6406bafcc2b",
+            UUID("b0c1f822-b63c-475e-9f2e-b6406bafcc2b"),
+        ],
     ],
 )
 async def test_from_route_binding(expected_type, route_value, expected_value):
-
     request = Request("GET", b"/", None)
     request.route_values = {"name": route_value}
 
-    parameter = FromRoute(expected_type, "name")
+    parameter = RouteBinder(expected_type, "name")
 
     value = await parameter.get_value(request)
 
@@ -209,9 +243,8 @@ async def test_from_route_binding(expected_type, route_value, expected_value):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("binder_type", [FromHeader, FromQuery, FromRoute])
+@pytest.mark.parametrize("binder_type", [HeaderBinder, QueryBinder, RouteBinder])
 async def test_raises_for_missing_default_converter(binder_type):
-
     with raises(MissingConverterError):
         binder_type("example", ExampleOne)
 
@@ -222,11 +255,10 @@ async def test_raises_for_missing_default_converter(binder_type):
     [[int, "x"], [int, ""], [float, "x"], [float, ""], [bool, "x"], [bool, "yes"]],
 )
 async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_value):
-
     request = Request("GET", b"/", None)
     request.route_values = {"name": invalid_value}
 
-    parameter = FromRoute(expected_type, "name")
+    parameter = RouteBinder(expected_type, "name")
 
     with raises(BadRequest):
         await parameter.get_value(request)
@@ -249,7 +281,7 @@ async def test_from_query_raises_for_invalid_parameter(
 ):
     request = Request("GET", b"/?foo=" + invalid_value, None)
 
-    parameter = FromQuery(expected_type, "foo", required=True)
+    parameter = QueryBinder(expected_type, "foo", required=True)
 
     with raises(BadRequest):
         await parameter.get_value(request)
@@ -260,9 +292,10 @@ async def test_from_services():
     request = Request("GET", b"/", [])
 
     service_instance = ExampleOne(1, 2)
-    services = {ExampleOne: service_instance}
+    container = Container()
+    container.add_instance(service_instance)
 
-    parameter = FromServices(ExampleOne, services)
+    parameter = ServiceBinder(ExampleOne, "service", False, container.build_provider())
     value = await parameter.get_value(request)
 
     assert value is service_instance
@@ -291,10 +324,9 @@ async def test_from_services():
 async def test_from_header_binding_iterables(
     declared_type, expected_type, header_values, expected_values
 ):
-
     request = Request("GET", b"/", [(b"X-Foo", value) for value in header_values])
 
-    parameter = FromHeader(declared_type, "X-Foo")
+    parameter = HeaderBinder(declared_type, "X-Foo")
 
     value = await parameter.get_value(request)
 
@@ -341,6 +373,20 @@ async def test_from_header_binding_iterables(
         [Set[int], set, [b"10"], {10}],
         [Set[int], set, [b"0", b"1", b"0"], {0, 1, 0}],
         [Set[int], set, [b"0", b"1", b"0", b"2"], {0, 1, 0, 2}],
+        [
+            List[UUID],
+            list,
+            [
+                b"de18d268-f5c5-42db-89b2-c61bbfe96e65",
+                b"d5fd0cde-4ad6-4b61-a5b1-5b8e6d48cebe",
+                b"00000000-0000-0000-0000-000000000000",
+            ],
+            [
+                UUID("de18d268-f5c5-42db-89b2-c61bbfe96e65"),
+                UUID("d5fd0cde-4ad6-4b61-a5b1-5b8e6d48cebe"),
+                UUID("00000000-0000-0000-0000-000000000000"),
+            ],
+        ],
     ],
 )
 async def test_from_query_binding_iterables(
@@ -350,7 +396,7 @@ async def test_from_query_binding_iterables(
 
     request = Request("GET", b"/?foo=" + qs, None)
 
-    parameter = FromQuery(declared_type, "foo")
+    parameter = QueryBinder(declared_type, "foo")
 
     values = await parameter.get_value(request)
 
@@ -364,7 +410,7 @@ async def test_from_query_binding_iterables(
 )
 async def test_nested_iterables_raise_missing_converter_from_header(declared_type):
     with raises(MissingConverterError):
-        FromHeader(declared_type)
+        HeaderBinder(declared_type)
 
 
 @pytest.mark.asyncio
@@ -373,14 +419,14 @@ async def test_nested_iterables_raise_missing_converter_from_header(declared_typ
 )
 async def test_nested_iterables_raise_missing_converter_from_query(declared_type):
     with raises(MissingConverterError):
-        FromQuery("example", declared_type)
+        QueryBinder("example", declared_type)
 
 
 @pytest.mark.asyncio
 async def test_identity_binder_identity_not_set():
     request = Request("GET", b"/", None)
 
-    parameter = IdentityBinder()
+    parameter = IdentityBinder(Identity)
 
     value = await parameter.get_value(request)
 
@@ -390,9 +436,9 @@ async def test_identity_binder_identity_not_set():
 @pytest.mark.asyncio
 async def test_identity_binder():
     request = Request("GET", b"/", None)
-    request.identity = object()
+    request.identity = Identity({})
 
-    parameter = IdentityBinder()
+    parameter = IdentityBinder(Identity)
 
     value = await parameter.get_value(request)
 
@@ -406,7 +452,7 @@ async def test_from_body_form_binding_urlencoded():
         FormContent({"a": "world", "b": 9000})
     )
 
-    parameter = FromForm(ExampleOne)
+    parameter = FormBinder(ExampleOne)
 
     value = await parameter.get_value(request)
 
@@ -422,7 +468,7 @@ async def test_from_body_form_binding_urlencoded_keys_duplicates():
         FormContent([("a", "world"), ("b", "one"), ("b", "two"), ("b", "three")])
     )
 
-    parameter = FromForm(ExampleThree)
+    parameter = FormBinder(ExampleThree)
 
     value = await parameter.get_value(request)
 
@@ -438,7 +484,7 @@ async def test_from_body_form_binding_multipart():
         MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
     )
 
-    parameter = FromForm(ExampleOne)
+    parameter = FormBinder(ExampleOne)
     value = await parameter.get_value(request)
 
     assert isinstance(value, ExampleOne)
@@ -460,7 +506,7 @@ async def test_from_body_form_binding_multipart_keys_duplicates():
         )
     )
 
-    parameter = FromForm(ExampleThree)
+    parameter = FormBinder(ExampleThree)
 
     value = await parameter.get_value(request)
 

@@ -1,18 +1,34 @@
 import asyncio
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+import json
 from typing import List, Optional
+from uuid import UUID, uuid4
+from guardpost.asynchronous.authentication import AuthenticationHandler
+from guardpost.authentication import Identity, User
 
 import pkg_resources
 import pytest
 
 from blacksheep import HttpException, JsonContent, Request, Response, TextContent
 from blacksheep.server import Application
-from blacksheep.server.bindings import FromHeader, FromJson, FromQuery, FromRoute
+from blacksheep.server.bindings import (
+    ClientInfo,
+    FromHeader,
+    FromJson,
+    FromQuery,
+    FromRoute,
+    FromServices,
+    RequestUser,
+    ServerInfo,
+)
+from blacksheep.server.responses import text
+from rodi import Container
 from tests.utils import ensure_folder
 
 
 class FakeApplication(Application):
-    def __init__(self, *args):
-        super().__init__(show_error_details=True, *args)
+    def __init__(self, *args, **kwargs):
+        super().__init__(show_error_details=True, *args, **kwargs)
         self.request = None
         self.response = None
 
@@ -37,11 +53,11 @@ async def test_application_supports_dynamic_attributes():
     app = FakeApplication()
     foo = object()
 
-    assert hasattr(app, "foo") is False, (
-        "This test makes sense if such " "attribute is not defined"
-    )
-    app.foo = foo
-    assert app.foo is foo
+    assert (
+        hasattr(app, "foo") is False
+    ), "This test makes sense if such attribute is not defined"
+    app.foo = foo  # type: ignore
+    assert app.foo is foo  # type: ignore
 
 
 def get_example_scope(
@@ -78,7 +94,7 @@ def get_example_scope(
                     b"application/xml;q=0.9,*/*;q=0.8"
                 ),
             ),
-            (b"accept-language", b"en-US,en;q=0.5"),
+            (b"accept-language", b"en-US,en;q=0.9,it-IT;q=0.8,it;q=0.7"),
             (b"accept-encoding", b"gzip, deflate"),
             (b"connection", b"keep-alive"),
             (b"upgrade-insecure-requests", b"1"),
@@ -133,7 +149,8 @@ async def test_application_get_handler():
 
     await app(get_example_scope("GET", "/"), receive, send)
 
-    request = app.request  # type: Request
+    assert app.request is not None
+    request: Request = app.request
 
     assert request is not None
 
@@ -246,7 +263,8 @@ async def test_application_post_multipart_formdata():
         send,
     )
 
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
 
     data = await response.text()
 
@@ -328,7 +346,8 @@ async def test_application_middlewares_two():
 
     await app(get_example_scope("GET", "/"), receive, send)
 
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
 
     assert response is not None
     assert response.status == 200
@@ -377,7 +396,9 @@ async def test_application_middlewares_three():
     receive = MockReceive([])
 
     await app(get_example_scope("GET", "/"), receive, send)
-    response = app.response  # type: Response
+
+    assert app.response is not None
+    response: Response = app.response
 
     assert response is not None
     assert response.status == 200
@@ -425,7 +446,9 @@ async def test_application_middlewares_skip_handler():
 
     await app(get_example_scope("GET", "/"), receive, send)
 
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
+
     assert response is not None
     assert response.status == 403
     assert calls == [1, 3, 6, 4, 2]
@@ -496,7 +519,9 @@ async def test_application_post_multipart_formdata_files_handler():
         send,
     )
 
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
+
     body = await response.text()
     assert response.status == 200, body
 
@@ -533,7 +558,8 @@ async def test_application_http_exception_handlers():
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
 
     assert response is not None
     assert called is True, "Http exception handler was called"
@@ -560,7 +586,8 @@ async def test_application_http_exception_handlers_called_in_application_context
         raise HttpException(519)
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
 
     assert response is not None
     text = await response.text()
@@ -592,7 +619,8 @@ async def test_application_user_defined_exception_handlers():
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
 
     assert response is not None
     assert called is True, "Http exception handler was called"
@@ -610,7 +638,9 @@ async def test_user_defined_exception_handlers_called_in_application_context():
     class CustomException(Exception):
         pass
 
-    async def exception_handler(self, request, exc: CustomException):
+    async def exception_handler(
+        self: Application, request: Request, exc: CustomException
+    ) -> Response:
         nonlocal app
         assert self is app
         assert isinstance(exc, CustomException)
@@ -624,7 +654,8 @@ async def test_user_defined_exception_handlers_called_in_application_context():
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
-    response = app.response  # type: Response
+    assert app.response is not None
+    response: Response = app.response
 
     assert response is not None
     text = await response.text()
@@ -950,7 +981,7 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_value)
     app = FakeApplication()
 
     @app.router.get("/")
-    async def home(request, a: List[float]):
+    async def home(a: List[float]):
         assert a == expected_value
 
     app.normalize_handlers()
@@ -976,8 +1007,8 @@ async def test_handler_normalize_sync_method_from_header():
     app = FakeApplication()
 
     @app.router.get("/")
-    def home(request, xx: FromHeader(str)):
-        assert xx == "Hello World"
+    def home(request, xx: FromHeader[str]):
+        assert xx.value == "Hello World"
 
     app.normalize_handlers()
     await app(
@@ -985,8 +1016,26 @@ async def test_handler_normalize_sync_method_from_header():
         MockReceive(),
         MockSend(),
     )
-    text = await app.response.text()
-    print(text)
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_sync_method_from_header_name_compatible():
+    app = FakeApplication()
+
+    class AcceptLanguageHeader(FromHeader[str]):
+        name = "accept-language"
+
+    @app.router.get("/")
+    def home(accept_language: AcceptLanguageHeader):
+        assert accept_language.value == "en-US,en;q=0.9,it-IT;q=0.8,it;q=0.7"
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope("GET", "/", []),
+        MockReceive(),
+        MockSend(),
+    )
     assert app.response.status == 204
 
 
@@ -995,11 +1044,235 @@ async def test_handler_normalize_sync_method_from_query():
     app = FakeApplication()
 
     @app.router.get("/")
-    def home(request, xx: FromQuery(int)):
-        assert xx == 20
+    def home(xx: FromQuery[int]):
+        assert xx.value == 20
 
     app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=b"xx=20"), MockReceive(), MockSend())
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_sync_method_from_query_implicit_default():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    def get_products(
+        page: int = 1,
+        size: int = 30,
+        search: str = "",
+    ):
+        return text(f"Page: {page}; size: {size}; search: {search}")
+
+    app.normalize_handlers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 1; size: 30; search: "
+
+    await app(get_example_scope("GET", "/", query=b"page=2"), MockReceive(), MockSend())
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 2; size: 30; search: "
+
+    await app(
+        get_example_scope("GET", "/", query=b"page=2&size=50"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 2; size: 50; search: "
+
+    await app(
+        get_example_scope("GET", "/", query=b"page=2&size=50&search=foo"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 2; size: 50; search: foo"
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_sync_method_from_query_default():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    def get_products(
+        page: FromQuery[int] = FromQuery(1),
+        size: FromQuery[int] = FromQuery(30),
+        search: FromQuery[str] = FromQuery(""),
+    ):
+        return text(f"Page: {page.value}; size: {size.value}; search: {search.value}")
+
+    app.normalize_handlers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 1; size: 30; search: "
+
+    await app(get_example_scope("GET", "/", query=b"page=2"), MockReceive(), MockSend())
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 2; size: 30; search: "
+
+    await app(
+        get_example_scope("GET", "/", query=b"page=2&size=50"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 2; size: 50; search: "
+
+    await app(
+        get_example_scope("GET", "/", query=b"page=2&size=50&search=foo"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == "Page: 2; size: 50; search: foo"
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_list_sync_method_from_query_default():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    def example(
+        a: FromQuery[List[int]] = FromQuery([1, 2, 3]),
+        b: FromQuery[List[int]] = FromQuery([4, 5, 6]),
+        c: FromQuery[List[str]] = FromQuery(["x"]),
+    ):
+        return text(f"A: {a.value}; B: {b.value}; C: {c.value}")
+
+    app.normalize_handlers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == f"A: {[1, 2, 3]}; B: {[4, 5, 6]}; C: {['x']}"
+
+    await app(get_example_scope("GET", "/", query=b"a=1349"), MockReceive(), MockSend())
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == f"A: {[1349]}; B: {[4, 5, 6]}; C: {['x']}"
+
+    await app(
+        get_example_scope("GET", "/", query=b"a=1349&c=Hello&a=55"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == f"A: {[1349, 55]}; B: {[4, 5, 6]}; C: {['Hello']}"
+
+    await app(
+        get_example_scope("GET", "/", query=b"a=1349&c=Hello&a=55&b=10"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    content = await response.text()
+
+    assert response.status == 200
+    assert content == f"A: {[1349, 55]}; B: {[10]}; C: {['Hello']}"
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_sync_method_from_query_optional():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    def home(xx: FromQuery[Optional[int]], yy: FromQuery[Optional[int]]):
+        assert xx.value is None
+        assert yy.value == 20
+
+    app.normalize_handlers()
+    await app(get_example_scope("GET", "/", query=b"yy=20"), MockReceive(), MockSend())
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_optional_binder():
+    app = FakeApplication()
+
+    @app.router.get("/1")
+    def home1(xx: Optional[FromQuery[int]], yy: Optional[FromQuery[int]]):
+        assert xx is None
+        assert yy.value == 20
+
+    @app.router.get("/2")
+    def home2(xx: Optional[FromQuery[int]]):
+        assert xx is not None
+        assert xx.value == 10
+
+    @app.router.get("/3")
+    def home3(xx: Optional[FromQuery[Optional[int]]]):
+        assert xx is not None
+        assert xx.value == 10
+
+    app.normalize_handlers()
+    await app(get_example_scope("GET", "/1", query=b"yy=20"), MockReceive(), MockSend())
+    assert app.response.status == 204
+
+    await app(get_example_scope("GET", "/2", query=b"xx=10"), MockReceive(), MockSend())
+    assert app.response.status == 204
+
+    await app(get_example_scope("GET", "/3", query=b"xx=10"), MockReceive(), MockSend())
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_normalize_sync_method_from_query_optional_list():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    def home(xx: FromQuery[Optional[List[int]]], yy: FromQuery[Optional[List[int]]]):
+        assert xx.value is None
+        assert yy.value == [20, 55, 64]
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope("GET", "/", query=b"yy=20&yy=55&yy=64"),
+        MockReceive(),
+        MockSend(),
+    )
     assert app.response.status == 204
 
 
@@ -1018,8 +1291,8 @@ async def test_handler_normalize_sync_method_from_query_default_type(
     app = FakeApplication()
 
     @app.router.get("/")
-    def home(request, xx: FromQuery()):
-        assert xx == expected_values
+    def home(request, xx: FromQuery):
+        assert xx.value == expected_values
 
     app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
@@ -1048,8 +1321,8 @@ async def test_handler_from_route(value, expected_value):
     app = FakeApplication()
 
     @app.router.get("/:area")
-    async def home(request, area: FromRoute(str)):
-        assert area == expected_value
+    async def home(request, area: FromRoute[str]):
+        assert area.value == expected_value
 
     app.normalize_handlers()
     await app(get_example_scope("GET", "/" + value), MockReceive(), MockSend())
@@ -1065,12 +1338,39 @@ async def test_handler_from_route(value, expected_value):
     ],
 )
 async def test_handler_two_routes_parameters(
-    value_one, value_two, expected_value_one, expected_value_two
+    value_one: str, value_two: str, expected_value_one: str, expected_value_two: str
 ):
     app = FakeApplication()
 
     @app.router.get("/:culture_code/:area")
-    async def home(request, culture_code: FromRoute(), area: FromRoute()):
+    async def home(culture_code: FromRoute[str], area: FromRoute[str]):
+        assert culture_code.value == expected_value_one
+        assert area.value == expected_value_two
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope("GET", "/" + value_one + "/" + value_two),
+        MockReceive(),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "value_one,value_two,expected_value_one,expected_value_two",
+    [
+        ["en", "dashboard", "en", "dashboard"],
+        ["it", "hello_world", "it", "hello_world"],
+    ],
+)
+async def test_handler_two_routes_parameters_implicit(
+    value_one: str, value_two: str, expected_value_one: str, expected_value_two: str
+):
+    app = FakeApplication()
+
+    @app.router.get("/:culture_code/:area")
+    async def home(culture_code, area):
         assert culture_code == expected_value_one
         assert area == expected_value_two
 
@@ -1095,11 +1395,63 @@ async def test_handler_from_json_parameter():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(request, item: FromJson(Item)):
+    async def home(item: FromJson[Item]):
         assert item is not None
-        assert item.a == "Hello"
-        assert item.b == "World"
-        assert item.c == 10
+        value = item.value
+        assert value.a == "Hello"
+        assert value.b == "World"
+        assert value.c == 10
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_default():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Item] = FromJson(Item("One", "Two", 3))):
+        assert item is not None
+        value = item.value
+        assert value.a == "One"
+        assert value.b == "Two"
+        assert value.c == 3
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_default_override():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Item] = FromJson(Item("One", "Two", 3))):
+        assert item is not None
+        value = item.value
+        assert value.a == "Hello"
+        assert value.b == "World"
+        assert value.c == 10
 
     app.normalize_handlers()
     await app(
@@ -1119,7 +1471,7 @@ async def test_handler_from_json_parameter_implicit():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(request, item: Item):
+    async def home(item: Item):
         assert item is not None
         assert item.a == "Hello"
         assert item.b == "World"
@@ -1139,12 +1491,36 @@ async def test_handler_from_json_parameter_implicit():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_wrong_method_json_parameter_gets_null():
+async def test_handler_from_json_parameter_implicit_default():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: Item = Item(1, 2, 3)):
+        assert item is not None
+        assert item.a == 1
+        assert item.b == 2
+        assert item.c == 3
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional():
     app = FakeApplication()
 
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
-    async def home(request, item: FromJson(Item)):
-        assert item is None
+    async def home(item: FromJson[Optional[Item]]):
+        assert item.value is None
 
     app.normalize_handlers()
 
@@ -1159,3 +1535,746 @@ async def test_handler_from_wrong_method_json_parameter_gets_null():
     )
 
     assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
+    app = FakeApplication()
+
+    @app.router.get("/")  # <--- NB: wrong http method for posting payloads
+    async def home(request, item: FromJson[Item]):
+        assert item.value is None
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+
+    # 400 because the annotation FromJson[Item] makes the item REQUIRED;
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert content == "Bad Request: Expected request content"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameter_one,parameter_two",
+    [
+        [str, "Hello", "World"],
+        [int, "1349", "164"],
+        [float, "1.2", "13.3"],
+        [bool, True, False],
+        [
+            UUID,
+            "54b2587a-0afc-40ec-a03d-13223d4bb04d",
+            "8ffd8e17-1a38-462f-ba71-3d92e52edf1f",
+        ],
+    ],
+)
+async def test_valid_query_parameter(parameter_type, parameter_one, parameter_two):
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(foo: FromQuery[parameter_type]):
+        assert isinstance(foo.value, parameter_type)
+        return text(f"Got: {foo.value}")
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [], query=f"foo={parameter_one}".encode()),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {parameter_one}"
+
+    await app(
+        get_example_scope(
+            "GET", "/", [], query=f"foo={parameter_one}&foo={parameter_two}".encode()
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {parameter_one}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameter_one,parameter_two",
+    [
+        [str, "Hello", "World"],
+        [int, "1349", "164"],
+        [float, "1.2", "13.3"],
+        [bool, True, False],
+        [
+            UUID,
+            "54b2587a-0afc-40ec-a03d-13223d4bb04d",
+            "8ffd8e17-1a38-462f-ba71-3d92e52edf1f",
+        ],
+    ],
+)
+async def test_valid_query_parameter_implicit(
+    parameter_type, parameter_one, parameter_two
+):
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(request, foo: parameter_type):
+        assert isinstance(foo, parameter_type)
+        return text(f"Got: {foo}")
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [], query=f"foo={parameter_one}".encode()),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {parameter_one}"
+
+    await app(
+        get_example_scope(
+            "GET", "/", [], query=f"foo={parameter_one}&foo={parameter_two}".encode()
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {parameter_one}"
+
+
+@pytest.mark.asyncio
+async def test_valid_query_parameter_list_of_int():
+    app = FakeApplication()
+    expected_values_1 = [1349]
+    expected_values_2 = [1349, 164]
+
+    @app.router.get("/")
+    async def home(foo: FromQuery[List[int]]):
+        return text(f"Got: {foo.value}")
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=1349"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {expected_values_1}"
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=1349&foo=164"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {expected_values_2}"
+
+
+@pytest.mark.asyncio
+async def test_invalid_query_parameter_int():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(request, foo: FromQuery[int]):
+        ...
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert content == "Bad Request: Missing query parameter `foo`"
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=xxx"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert (
+        content == "Bad Request: Invalid value ['xxx'] for parameter `foo`; "
+        "expected a valid int."
+    )
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=xxx&foo=yyy"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert (
+        content == "Bad Request: Invalid value ['xxx', 'yyy'] for parameter `foo`; "
+        "expected a valid int."
+    )
+
+
+@pytest.mark.asyncio
+async def test_invalid_query_parameter_float():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(request, foo: FromQuery[float]):
+        ...
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert content == "Bad Request: Missing query parameter `foo`"
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=xxx"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert (
+        content == "Bad Request: Invalid value ['xxx'] for parameter `foo`; "
+        "expected a valid float."
+    )
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=xxx&foo=yyy"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert (
+        content == "Bad Request: Invalid value ['xxx', 'yyy'] for parameter `foo`; "
+        "expected a valid float."
+    )
+
+
+@pytest.mark.asyncio
+async def test_invalid_query_parameter_bool():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(request, foo: FromQuery[bool]):
+        ...
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert content == "Bad Request: Missing query parameter `foo`"
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=xxx"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert (
+        content == "Bad Request: Invalid value ['xxx'] for parameter `foo`; "
+        "expected a valid bool."
+    )
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=xxx&foo=yyy"),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert (
+        content == "Bad Request: Invalid value ['xxx', 'yyy'] for parameter `foo`; "
+        "expected a valid bool."
+    )
+
+
+@pytest.mark.asyncio
+async def test_invalid_query_parameter_uuid():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(request, foo: FromQuery[UUID]):
+        return text(f"Got: {foo.value}")
+
+    value_1 = "99cb720c-26f2-43dd-89ea-"
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [], query=b"foo=" + str(value_1).encode()),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert content == (
+        f"Bad Request: Invalid value ['{value_1}'] for "
+        "parameter `foo`; expected a valid UUID."
+    )
+
+
+@pytest.mark.asyncio
+async def test_valid_route_parameter_uuid():
+    app = FakeApplication()
+
+    @app.router.get("/:foo")
+    async def home(request, foo: FromRoute[UUID]):
+        return text(f"Got: {foo.value}")
+
+    value_1 = uuid4()
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/" + str(value_1), []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {value_1}"
+
+
+@pytest.mark.asyncio
+async def test_valid_route_parameter_uuid_2():
+    app = FakeApplication()
+
+    @app.router.get("/:a_id/:b_id")
+    async def home(request, a_id: FromRoute[UUID], b_id: FromRoute[UUID]):
+        return text(f"Got: {a_id.value} and {b_id.value}")
+
+    value_1 = uuid4()
+    value_2 = uuid4()
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", f"/{value_1}/{value_2}", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {value_1} and {value_2}"
+
+
+@pytest.mark.asyncio
+async def test_valid_header_parameter_uuid_list():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(request, x_foo: FromHeader[List[UUID]]):
+        return text(f"Got: {x_foo.value}")
+
+    value_1 = uuid4()
+    value_2 = uuid4()
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope(
+            "GET",
+            f"/",
+            [(b"x_foo", str(value_1).encode()), (b"x_foo", str(value_2).encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {[value_1, value_2]}"
+
+
+@pytest.mark.asyncio
+async def test_invalid_route_parameter_uuid():
+    app = FakeApplication()
+
+    @app.router.get("/:document_id")
+    async def home(request, document_id: FromRoute[UUID]):
+        return text(f"Got: {document_id.value}")
+
+    value_1 = "abc"
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/" + str(value_1), []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert content == (
+        f"Bad Request: Invalid value ['{value_1}'] for "
+        "parameter `document_id`; expected a valid UUID."
+    )
+
+
+@pytest.mark.asyncio
+async def test_valid_route_parameter_uuid_implicit():
+    app = FakeApplication()
+
+    @app.router.get("/:foo")
+    async def home(request, foo: UUID):
+        return text(f"Got: {foo}")
+
+    value_1 = uuid4()
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/" + str(value_1), []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == f"Got: {value_1}"
+
+
+@pytest.mark.asyncio
+async def test_route_resolution_order():
+    app = FakeApplication()
+
+    @app.router.get("/:id")
+    async def example_a():
+        return text("A")
+
+    @app.router.get("/exact")
+    async def example_b():
+        return text("B")
+
+    @app.router.get("/:foo/:ufo")
+    async def example_c():
+        return text("C")
+
+    @app.router.get("/:foo/exact")
+    async def example_d():
+        return text("D")
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/exact", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == "B"
+
+    await app(
+        get_example_scope("GET", "/aaa/exact", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == "D"
+
+    await app(
+        get_example_scope("GET", "/aaa/exact/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == "D"
+
+    await app(
+        get_example_scope("GET", "/aaa/bbb", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == "C"
+
+
+@pytest.mark.asyncio
+async def test_client_server_info_bindings():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(client: ClientInfo, server: ServerInfo):
+        return text(f"Client: {client.value}; Server: {server.value}")
+
+    app.normalize_handlers()
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == (
+        f"Client: {tuple(scope.get('client', ''))}; "
+        f"Server: {tuple(scope.get('server', ''))}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_service_bindings():
+    container = Container()
+
+    class B:
+        def __init__(self) -> None:
+            self.foo = "foo"
+
+    class A:
+        def __init__(self, b: B) -> None:
+            self.dep = b
+
+    container.add_exact_scoped(A)
+    container.add_exact_scoped(B)
+
+    app = FakeApplication(services=container)
+
+    @app.router.get("/explicit")
+    async def explicit(a: FromServices[A]):
+        assert isinstance(a.value, A)
+        assert isinstance(a.value.dep, B)
+        assert a.value.dep.foo == "foo"
+        return text("OK")
+
+    @app.router.get("/implicit")
+    async def implicit(a: A):
+        assert isinstance(a, A)
+        assert isinstance(a.dep, B)
+        assert a.dep.foo == "foo"
+        return text("OK")
+
+    app.build_services()
+    app.normalize_handlers()
+
+    for path in {"/explicit", "/implicit"}:
+        scope = get_example_scope("GET", path, [])
+        await app(
+            scope,
+            MockReceive(),
+            MockSend(),
+        )
+
+        content = await app.response.text()
+        assert content == "OK"
+        assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_service_bindings_default():
+    # Extremely unlikely, but still supported if the user defines a default service
+    container = Container()
+
+    class B:
+        def __init__(self) -> None:
+            self.foo = "foo"
+
+    class A:
+        def __init__(self, b: B) -> None:
+            self.dep = b
+
+    app = FakeApplication(services=container)
+
+    @app.router.get("/explicit")
+    async def explicit(a: FromServices[A] = FromServices(A(B()))):
+        assert isinstance(a.value, A)
+        assert isinstance(a.value.dep, B)
+        assert a.value.dep.foo == "foo"
+        return text("OK")
+
+    @app.router.get("/implicit")
+    async def implicit(a: A = A(B())):
+        assert isinstance(a, A)
+        assert isinstance(a.dep, B)
+        assert a.dep.foo == "foo"
+        return text("OK")
+
+    app.build_services()
+    app.normalize_handlers()
+
+    for path in {"/explicit", "/implicit"}:
+        scope = get_example_scope("GET", path, [])
+        await app(
+            scope,
+            MockReceive(),
+            MockSend(),
+        )
+
+        content = await app.response.text()
+        assert content == "OK"
+        assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_service_bindings_default_override():
+    # Extremely unlikely, but still supported if the user defines a default service
+    container = Container()
+
+    class B:
+        def __init__(self, value: str) -> None:
+            self.foo = value
+
+    class A:
+        def __init__(self, b: B) -> None:
+            self.dep = b
+
+    # Note: the registered service is used instead of the default function argument
+    container.add_instance(A(B("ufo")))
+    container.add_instance(B("oof"))
+
+    app = FakeApplication(services=container)
+
+    @app.router.get("/explicit")
+    async def explicit(a: FromServices[A] = FromServices(A(B("foo")))):
+        assert isinstance(a.value, A)
+        assert isinstance(a.value.dep, B)
+        assert a.value.dep.foo == "ufo"
+        return text("OK")
+
+    @app.router.get("/implicit")
+    async def implicit(a: A = A(B("foo"))):
+        assert isinstance(a, A)
+        assert isinstance(a.dep, B)
+        assert a.dep.foo == "ufo"
+        return text("OK")
+
+    app.build_services()
+    app.normalize_handlers()
+
+    for path in {"/explicit", "/implicit"}:
+        scope = get_example_scope("GET", path, [])
+        await app(
+            scope,
+            MockReceive(),
+            MockSend(),
+        )
+
+        content = await app.response.text()
+        assert content == "OK"
+        assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_user_binding():
+    app = FakeApplication()
+
+    class MockAuthHandler(AuthenticationHandler):
+        async def authenticate(self, context):
+            header_value = context.get_first_header(b"Authorization")
+            if header_value:
+                data = json.loads(urlsafe_b64decode(header_value).decode("utf8"))
+                context.identity = Identity(data, "TEST")
+            else:
+                context.identity = None
+            return context.identity
+
+    app.use_authentication().add(MockAuthHandler())
+
+    @app.router.get("/example-1")
+    async def example(user: RequestUser):
+        assert user.value is not None
+        assert user.value.authentication_mode == "TEST"
+        return text(f"User name: {user.value.claims['name']}")
+
+    @app.router.get("/example-2")
+    async def example_2(user: User):
+        assert user is not None
+        assert user.authentication_mode == "TEST"
+        return text(f"User name: {user.claims['name']}")
+
+    @app.router.get("/example-3")
+    async def example_3(user: Identity):
+        assert user is not None
+        assert user.authentication_mode == "TEST"
+        return text(f"User name: {user.claims['name']}")
+
+    await app.start()
+
+    claims = {"id": "001", "name": "Charlie Brown", "role": "user"}
+
+    for path in ["/example-1", "/example-2", "/example-3"]:
+        scope = get_example_scope(
+            "GET",
+            path,
+            [(b"Authorization", urlsafe_b64encode(json.dumps(claims).encode("utf8")))],
+        )
+        await app(
+            scope,
+            MockReceive(),
+            MockSend(),
+        )
+
+        content = await app.response.text()
+        assert app.response.status == 200
+        assert content == "User name: Charlie Brown"

@@ -1,23 +1,27 @@
 import inspect
 from functools import wraps
-from inspect import Signature, _empty
-from typing import List, Sequence, Set, Tuple, Union
+from inspect import Signature, _empty  # type: ignore
+from typing import Any, List, Sequence, Set, Type, Tuple, TypeVar, Union
+from uuid import UUID
 
 from guardpost.authentication import Identity, User
 
 from blacksheep.normalization import copy_special_attributes
 
 from .bindings import (
+    empty,
     Binder,
+    BodyBinder,
+    BoundValue,
     ControllerBinder,
     ExactBinder,
-    FromBody,
-    FromJson,
-    FromQuery,
-    FromRoute,
-    FromServices,
     IdentityBinder,
     RequestBinder,
+    QueryBinder,
+    JsonBinder,
+    RouteBinder,
+    ServiceBinder,
+    get_binder_by_type,
 )
 
 _next_handler_binder = object()
@@ -37,10 +41,10 @@ class UnsupportedSignatureError(NormalizationError):
         )
 
 
-class MultipleFromBodyBinders(NormalizationError):
+class MultipleFromBodyParameters(NormalizationError):
     def __init__(self, method, first_match, new_match):
         super().__init__(
-            f"Cannot use more than one `FromBody` binder for the same method "
+            f"Cannot use more than one `FromBody` parameters for the same method "
             f"({method.__qualname__}). The first match was: {first_match}, "
             f"a second one {new_match}."
         )
@@ -64,26 +68,7 @@ class RouteBinderMismatch(NormalizationError):
         )
 
 
-def get_from_body_parameter(method) -> FromBody:
-    """
-    Extracts a single FromBody parameter from the given signature,
-    throwing exception if more than one is defined.
-    """
-    sig = Signature.from_callable(method)
-
-    from_body_parameter = None
-
-    for name, parameter in sig.parameters.items():
-        if isinstance(parameter.annotation, FromBody):
-            if from_body_parameter is None:
-                from_body_parameter = parameter.annotation
-            else:
-                raise MultipleFromBodyBinders(method, from_body_parameter, parameter)
-
-    return from_body_parameter
-
-
-_simple_types_handled_with_query = {
+_types_handled_with_query = {
     str,
     int,
     float,
@@ -107,6 +92,10 @@ _simple_types_handled_with_query = {
     Tuple[int],
     Tuple[float],
     Tuple[bool],
+    UUID,
+    List[UUID],
+    Set[UUID],
+    Tuple[UUID],
 }
 
 
@@ -144,22 +133,51 @@ def _get_parameter_binder_without_annotation(
     if route:
         # 1. does route contain a parameter with matching name?
         if name in route.param_names:
-            return FromRoute(str, name)
+            return RouteBinder(str, name, True)
 
     # 2. do services contain a service with matching name?
     if name in services:
-        return FromServices(name, services)
+        return ServiceBinder(name, name, True, services)
 
-    # 3. does it use a specific name?
-    # (convention over configuration for common scenarios);
-    if name == "user" or name == "identity":
-        return IdentityBinder()
-
-    # 4. default to query parameter
-    return FromQuery(List[str], name)
+    # 3. default to query parameter
+    return QueryBinder(List[str], name, True)
 
 
-def get_parameter_binder(parameter, services, route, method) -> Binder:
+def _is_bound_value_annotation(annotation) -> bool:
+    if inspect.isclass(annotation) and issubclass(annotation, BoundValue):
+        return True
+    return "__origin__" in annotation.__dict__ and issubclass(
+        annotation.__dict__["__origin__"], BoundValue
+    )
+
+
+def _get_raw_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
+    if hasattr(bound_type, "__args__"):
+        return bound_type.__args__[0]  # type: ignore
+
+    # the type can be a subclass of a type specifying the annotation
+    if hasattr(bound_type, "__orig_bases__"):
+        for subtype in bound_type.__orig_bases__:  # type: ignore
+            if hasattr(subtype, "__args__"):
+                return subtype.__args__[0]  # type: ignore
+    return str
+
+
+def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
+    value_type = _get_raw_bound_value_type(bound_type)
+
+    if isinstance(value_type, TypeVar):
+        # The user of the API did not specify a value type,
+        # for example:
+        #   def foo(x: FromQuery): ...
+        return List[str]
+
+    return value_type
+
+
+def _get_parameter_binder(
+    parameter: inspect.Parameter, services, route, method
+) -> Binder:
     name = parameter.name
 
     if name == "request":
@@ -176,54 +194,76 @@ def get_parameter_binder(parameter, services, route, method) -> Binder:
         )
 
     # unwrap the Optional[] annotation, if present:
-    is_optional, annotation = _check_union(parameter, original_annotation, method)
+    is_root_optional, annotation = _check_union(parameter, original_annotation, method)
 
-    # 1. is the type annotation already a binder?
-    if isinstance(annotation, Binder):
+    # 1. is the type annotation of BoundValue[T] type?
+    if _is_bound_value_annotation(annotation):
+        binder_type = get_binder_by_type(annotation)
+        expected_type = _get_bound_value_type(annotation)
 
-        if not annotation.name:
-            # force name == parameter name
-            annotation.name = name
+        is_optional, expected_type = _check_union(parameter, expected_type, method)
+
+        parameter_name = annotation.name or name
+
+        binder = binder_type(expected_type, parameter_name, False)
+        binder.required = not is_optional
+
+        if is_root_optional:
+            binder.root_required = False
 
         if route:
             if (
-                isinstance(annotation, FromRoute)
-                and annotation.name not in route.param_names
+                isinstance(binder, RouteBinder)
+                and parameter_name not in route.param_names
             ):
-                raise RouteBinderMismatch(annotation.name, route)
+                raise RouteBinderMismatch(parameter_name, route)
 
-        if isinstance(annotation, FromServices):
-            annotation.services = services
+        if isinstance(binder, ServiceBinder):
+            binder.services = services
 
-        return annotation
+        return binder
 
     # 2A. do services contain a service with matching name?
     if name in services:
-        return FromServices(name, services)
+        return ServiceBinder(name, name, True, services)
 
     # 2B. do services contain a service with matching type?
     if annotation in services:
-        return FromServices(annotation, services)
+        return ServiceBinder(annotation, annotation.__class__.__name__, True, services)
 
     # 3. does route contain a parameter with matching name?
     if route and name in route.param_names:
-        return FromRoute(annotation, name)
+        return RouteBinder(annotation, name, True)
 
     # 4. is simple type?
-    if annotation in _simple_types_handled_with_query:
-        return FromQuery(annotation, name, required=not is_optional)
+    if annotation in _types_handled_with_query:
+        return QueryBinder(annotation, name, True, required=not is_root_optional)
 
+    # 5. is request user?
     if annotation is User or annotation is Identity:
-        return IdentityBinder()
+        return IdentityBinder(
+            annotation, name, implicit=True, required=not is_root_optional
+        )
 
-    # 5. from json body (last default)
-    return FromJson(annotation, required=not is_optional)
+    # 6. from json body (last default)
+    return JsonBinder(annotation, name, True, required=not is_root_optional)
 
 
-def _get_binders_for_method(method, services, route):
+def get_parameter_binder(
+    parameter: inspect.Parameter, services, route, method
+) -> Binder:
+    binder = _get_parameter_binder(parameter, services, route, method)
+    if parameter.default is _empty:
+        binder.default = empty
+    else:
+        binder.default = parameter.default
+    return binder
+
+
+def _get_binders_for_function(method, services, route) -> List[Binder]:
     signature = Signature.from_callable(method)
     parameters = signature.parameters
-    from_body_binder = None
+    body_binder = None
 
     binders = []
     for parameter_name, parameter in parameters.items():
@@ -232,25 +272,26 @@ def _get_binders_for_method(method, services, route):
             continue
 
         binder = get_parameter_binder(parameter, services, route, method)
-        if isinstance(binder, FromBody):
-            if from_body_binder is None:
-                from_body_binder = binder
+        if isinstance(binder, BodyBinder):
+            if body_binder is None:
+                body_binder = binder
             else:
                 raise AmbiguousMethodSignatureError(method)
         binders.append(binder)
+
     return binders
 
 
-def get_binders(route, services):
+def get_binders(route, services) -> Sequence[Binder]:
     """
     Returns a list of binders to extract parameters
     for a request handler.
     """
-    return _get_binders_for_method(route.handler, services, route)
+    return _get_binders_for_function(route.handler, services, route)
 
 
 def get_binders_for_middleware(method, services):
-    return _get_binders_for_method(method, services, None)
+    return _get_binders_for_function(method, services, None)
 
 
 def _copy_name_and_docstring(source_method, wrapper):
@@ -261,7 +302,7 @@ def _copy_name_and_docstring(source_method, wrapper):
         pass
 
 
-def _get_sync_wrapper_for_controller(binders, method):
+def _get_sync_wrapper_for_controller(binders: Sequence[Binder], method):
     @wraps(method)
     async def handler(request):
         values = []
@@ -271,7 +312,7 @@ def _get_sync_wrapper_for_controller(binders, method):
         values.append(controller)
 
         for binder in binders[1:]:
-            values.append(await binder.get_value(request))
+            values.append(await binder.get_parameter(request))
 
         response = method(*values)
         await controller.on_response(response)
@@ -280,7 +321,7 @@ def _get_sync_wrapper_for_controller(binders, method):
     return handler
 
 
-def _get_async_wrapper_for_controller(binders, method):
+def _get_async_wrapper_for_controller(binders: Sequence[Binder], method):
     @wraps(method)
     async def handler(request):
         values = []
@@ -290,7 +331,7 @@ def _get_async_wrapper_for_controller(binders, method):
         values.append(controller)
 
         for binder in binders[1:]:
-            values.append(await binder.get_value(request))
+            values.append(await binder.get_parameter(request))
 
         response = await method(*values)
         await controller.on_response(response)
@@ -323,7 +364,7 @@ def get_sync_wrapper(services, route, method, params, params_len):
     async def handler(request):
         values = []
         for binder in binders:
-            values.append(await binder.get_value(request))
+            values.append(await binder.get_parameter(request))
         return method(*values)
 
     return handler
@@ -350,7 +391,7 @@ def get_async_wrapper(services, route, method, params, params_len):
     async def handler(request):
         values = []
         for binder in binders:
-            values.append(await binder.get_value(request))
+            values.append(await binder.get_parameter(request))
         return await method(*values)
 
     return handler
@@ -400,7 +441,7 @@ def _get_middleware_async_binder(method, services):
             if binder is _next_handler_binder:
                 values.append(next_handler)
             else:
-                values.append(await binder.get_value(request))
+                values.append(await binder.get_parameter(request))
 
         if _next_handler_binder in binders:
             # middleware that can continue the chain: control is left to it;

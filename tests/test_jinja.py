@@ -156,7 +156,6 @@ async def test_controller_conventional_view_name(home_model):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Lorem(Controller):
         @get()
         def index(self):
@@ -173,7 +172,6 @@ async def test_controller_conventional_view_name_async(home_model):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Lorem(Controller):
         @get()
         async def index(self):
@@ -189,7 +187,6 @@ async def test_controller_specific_view_name(home_model, specific_text):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Lorem(Controller):
         @get()
         def index(self):
@@ -206,7 +203,6 @@ async def test_controller_specific_view_name_async(home_model, specific_text):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Lorem(Controller):
         @get()
         async def index(self):
@@ -222,7 +218,6 @@ async def test_controller_conventional_view_name_no_model(home_model):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Lorem(Controller):
         @get(...)
         def nomodel(self):
@@ -239,7 +234,6 @@ async def test_controller_conventional_view_name_sub_function(home_model):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Lorem(Controller):
         def ufo(self, model):
             return self.foo(model)
@@ -265,7 +259,6 @@ async def test_controller_conventional_view_name_extraneous_function(home_model)
     def extraneous(controller, model):
         return controller.view(model=model)
 
-    # noinspection PyUnusedLocal
     class Lorem(Controller):
         def ufo(self, model):
             return self.foo(model)

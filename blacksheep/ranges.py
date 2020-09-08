@@ -1,4 +1,4 @@
-from typing import Sequence, Optional, List
+from typing import Sequence, Optional, List, Union
 from .utils import BytesOrStr, ensure_str
 
 
@@ -8,12 +8,13 @@ class InvalidRangeValue(ValueError):
 
 
 RangeValueType = Optional[int]
+RangeInputValueType = Union[None, str, int]
 
 
 class RangePart:
     __slots__ = ("_start", "_end")
 
-    def __init__(self, start: RangeValueType, end: RangeValueType):
+    def __init__(self, start: RangeInputValueType, end: RangeInputValueType):
         self._start = None
         self._end = None
         self.start = start
@@ -28,16 +29,16 @@ class RangePart:
         return self._end
 
     @start.setter
-    def start(self, value: RangeValueType):
+    def start(self, value: RangeInputValueType):
         self._start = self._parse_value(value)
         self._validate_values()
 
     @end.setter
-    def end(self, value: RangeValueType):
+    def end(self, value: RangeInputValueType):
         self._end = self._parse_value(value)
         self._validate_values()
 
-    def _parse_value(self, value: RangeValueType):
+    def _parse_value(self, value: RangeInputValueType) -> RangeValueType:
         if value:
             return int(value)
         return None
@@ -71,6 +72,7 @@ class RangePart:
             return self._end <= size
         if self._start is not None:
             return self._start <= size
+        raise TypeError("Expected either an end or a start")
 
     @property
     def is_suffix_length(self) -> bool:
@@ -126,10 +128,10 @@ class Range:
     __slots__ = ("_unit", "_parts")
 
     def __init__(self, unit: str, parts: Sequence[RangePart]):
-        self._unit = None
-        self._parts = None
+        self._unit: str
+        self._parts: List[RangePart]
         self.unit = unit
-        self.parts = list(parts)
+        self.parts = parts
 
     def __repr__(self):
         return f'<Range {self.unit}={", ".join(map(repr, self.parts))}>'
@@ -150,11 +152,11 @@ class Range:
         return all(part.can_satisfy(size) for part in self.parts)
 
     @property
-    def unit(self) -> bytes:
+    def unit(self) -> str:
         return self._unit
 
     @unit.setter
-    def unit(self, value):
+    def unit(self, value: str):
         self._unit = value
 
     @property
@@ -166,8 +168,8 @@ class Range:
         return self._parts
 
     @parts.setter
-    def parts(self, value):
-        self._parts = value
+    def parts(self, value: Sequence[RangePart]):
+        self._parts = list(value)
 
     @classmethod
     def parse(cls, value: BytesOrStr):

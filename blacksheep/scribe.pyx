@@ -18,7 +18,7 @@ cdef bytes write_header(tuple header):
 cdef bytes write_headers(list headers):
     cdef tuple header
     cdef bytearray value
-    
+
     value = bytearray()
     for header in headers:
         value.extend(write_header(header))
@@ -134,7 +134,7 @@ cdef bytes write_cookies_for_request(dict cookies):
 
     for name, value in cookies.items():
         parts.append(name + b'=' + value)
-    
+
     return b'; '.join(parts)
 
 
@@ -176,7 +176,7 @@ cpdef bytes write_request_without_body(Request request):
     data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
 
     ensure_host_header(request)
-    
+
     extend_data_with_headers(request.__headers, data)
     data.extend(b'\r\n')
     return bytes(data)
@@ -185,7 +185,7 @@ cpdef bytes write_request_without_body(Request request):
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
     data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
-    
+
     ensure_host_header(request)
     set_headers_for_content(request)
 
@@ -323,7 +323,7 @@ async def write_response_content(Response response):
 async def send_asgi_response(Response response, object send):
     cdef bytes chunk
     cdef Content content = response.content
-    
+
     set_headers_for_response_content(response)
 
     await send({

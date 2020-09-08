@@ -131,10 +131,7 @@ def test_post_json(session, data):
 
 @pytest.mark.parametrize(
     "data",
-    [
-        {"name": "Gorun Nova", "power": 9000},
-        {"name": "Hello World", "power": 15.80}
-    ],
+    [{"name": "Gorun Nova", "power": 9000}, {"name": "Hello World", "power": 15.80}],
 )
 def test_post_json_autobind(session, data):
     response = session.post("/echo-posted-json-autobind", json=data)
@@ -420,10 +417,7 @@ def test_xml_files_are_not_served(session):
 
 @pytest.mark.parametrize(
     "claims,expected_status",
-    [
-        (None, 401),
-        ({"id": "001", "name": "Charlie Brown"}, 204)
-    ],
+    [(None, 401), ({"id": "001", "name": "Charlie Brown"}, 204)],
 )
 def test_requires_authenticated_user(session_two, claims, expected_status):
     headers = (

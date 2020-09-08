@@ -3,17 +3,23 @@ from pytest import raises
 from typing import List, Sequence, Optional
 from blacksheep import Request
 from blacksheep.server.routing import Route
-from blacksheep.server.bindings import FromHeader, IdentityBinder
+from blacksheep.server.bindings import (
+    FromHeader,
+    FromQuery,
+    FromJson,
+    FromRoute,
+    FromServices,
+    HeaderBinder,
+    IdentityBinder,
+    JsonBinder,
+    QueryBinder,
+    RouteBinder,
+    ServiceBinder,
+)
 from blacksheep.server.normalization import (
-    get_from_body_parameter,
     AmbiguousMethodSignatureError,
     RouteBinderMismatch,
     get_binders,
-    MultipleFromBodyBinders,
-    FromJson,
-    FromQuery,
-    FromRoute,
-    FromServices,
     RequestBinder,
     ExactBinder,
     normalize_handler,
@@ -35,56 +41,32 @@ class Dog(Pet):
     ...
 
 
-def valid_method_one(a: FromJson(Cat)):
-    print(a)
+def valid_method_one(a: FromJson[Cat]):
+    ...
 
 
-def valid_method_two(a: FromJson(Cat), b: str):
-    print(a, b)
+def valid_method_two(a: FromJson[Cat], b: str):
+    ...
 
 
-def valid_method_three(b: str, a: FromJson(Cat)):
-    print(b, a)
+def valid_method_three(b: str, a: FromJson[Cat]):
+    ...
 
 
-def valid_method_four(a: FromJson(Dog)):
-    print(a)
+def valid_method_four(a: FromJson[Dog]):
+    ...
 
 
-def invalid_method_one(a: FromJson(Cat), b: FromJson(Cat)):
-    print(a, b)
+def invalid_method_one(a: FromJson[Cat], b: FromJson[Cat]):
+    ...
 
 
-def invalid_method_two(a: FromJson(Cat), b: FromJson(Dog)):
-    print(a, b)
+def invalid_method_two(a: FromJson[Cat], b: FromJson[Dog]):
+    ...
 
 
-def invalid_method_three(a: FromJson(Cat), b: FromJson(Dog), c: FromJson(Dog)):
+def invalid_method_three(a: FromJson[Cat], b: FromJson[Dog], c: FromJson[Dog]):
     print(a, b, c)
-
-
-@pytest.mark.parametrize(
-    "valid_method,expected_type",
-    [
-        [valid_method_one, Cat],
-        [valid_method_two, Cat],
-        [valid_method_three, Cat],
-        [valid_method_four, Dog],
-    ],
-)
-def test_get_body_parameter_valid_method(valid_method, expected_type):
-    from_body_param = get_from_body_parameter(valid_method)
-
-    assert from_body_param.expected_type is expected_type
-
-
-@pytest.mark.parametrize(
-    "invalid_method", [invalid_method_one, invalid_method_two, invalid_method_three]
-)
-def test_get_body_parameter_invalid_method(invalid_method):
-
-    with raises(MultipleFromBodyBinders):
-        get_from_body_parameter(invalid_method)
 
 
 def test_parameters_get_binders_default_query():
@@ -93,19 +75,10 @@ def test_parameters_get_binders_default_query():
 
     binders = get_binders(Route(b"/", handler), {})
 
-    assert all(isinstance(binder, FromQuery) for binder in binders)
-    assert binders[0].name == "a"
-    assert binders[1].name == "b"
-    assert binders[2].name == "c"
-
-
-def test_identity_binder_by_param_name_user():
-    async def handler(user):
-        ...
-
-    binders = get_binders(Route(b"/", handler), {})
-
-    assert isinstance(binders[0], IdentityBinder)
+    assert all(isinstance(binder, QueryBinder) for binder in binders)
+    assert binders[0].parameter_name == "a"
+    assert binders[1].parameter_name == "b"
+    assert binders[2].parameter_name == "c"
 
 
 @pytest.mark.parametrize(
@@ -122,25 +95,16 @@ def test_identity_binder_by_param_type(annotation_type):
     assert isinstance(binders[0], IdentityBinder)
 
 
-def test_identity_binder_by_param_name_identity():
-    async def handler(identity):
-        ...
-
-    binders = get_binders(Route(b"/", handler), {})
-
-    assert isinstance(binders[0], IdentityBinder)
-
-
 def test_parameters_get_binders_from_route():
     def handler(a, b, c):
         ...
 
     binders = get_binders(Route(b"/:a/:b/:c", handler), {})
 
-    assert all(isinstance(binder, FromRoute) for binder in binders)
-    assert binders[0].name == "a"
-    assert binders[1].name == "b"
-    assert binders[2].name == "c"
+    assert all(isinstance(binder, RouteBinder) for binder in binders)
+    assert binders[0].parameter_name == "a"
+    assert binders[1].parameter_name == "b"
+    assert binders[2].parameter_name == "c"
 
 
 def test_parameters_get_binders_from_services_by_name():
@@ -151,7 +115,7 @@ def test_parameters_get_binders_from_services_by_name():
         Route(b"/", handler), {"a": object(), "b": object(), "c": object()}
     )
 
-    assert all(isinstance(binder, FromServices) for binder in binders)
+    assert all(isinstance(binder, ServiceBinder) for binder in binders)
     assert binders[0].expected_type == "a"
     assert binders[1].expected_type == "b"
     assert binders[2].expected_type == "c"
@@ -165,7 +129,7 @@ def test_parameters_get_binders_from_services_by_type():
         Route(b"/", handler), {str: object(), int: object(), Cat: object()}
     )
 
-    assert all(isinstance(binder, FromServices) for binder in binders)
+    assert all(isinstance(binder, ServiceBinder) for binder in binders)
     assert binders[0].expected_type is str
     assert binders[1].expected_type is int
     assert binders[2].expected_type is Cat
@@ -179,7 +143,7 @@ def test_parameters_get_binders_from_body():
     assert len(binders) == 1
     binder = binders[0]
 
-    assert isinstance(binder, FromJson)
+    assert isinstance(binder, JsonBinder)
     assert binder.expected_type is Cat
     assert binder.required is True
 
@@ -192,7 +156,7 @@ def test_parameters_get_binders_from_body_optional():
     assert len(binders) == 1
     binder = binders[0]
 
-    assert isinstance(binder, FromJson)
+    assert isinstance(binder, JsonBinder)
     assert binder.expected_type is Cat
     assert binder.required is False
 
@@ -203,12 +167,12 @@ def test_parameters_get_binders_simple_types_default_from_query():
 
     binders = get_binders(Route(b"/", handler), {})
 
-    assert all(isinstance(binder, FromQuery) for binder in binders)
-    assert binders[0].name == "a"
+    assert all(isinstance(binder, QueryBinder) for binder in binders)
+    assert binders[0].parameter_name == "a"
     assert binders[0].expected_type == str
-    assert binders[1].name == "b"
+    assert binders[1].parameter_name == "b"
     assert binders[1].expected_type == int
-    assert binders[2].name == "c"
+    assert binders[2].parameter_name == "c"
     assert binders[2].expected_type == bool
 
 
@@ -218,12 +182,12 @@ def test_parameters_get_binders_list_types_default_from_query():
 
     binders = get_binders(Route(b"/", handler), {})
 
-    assert all(isinstance(binder, FromQuery) for binder in binders)
-    assert binders[0].name == "a"
+    assert all(isinstance(binder, QueryBinder) for binder in binders)
+    assert binders[0].parameter_name == "a"
     assert binders[0].expected_type == List[str]
-    assert binders[1].name == "b"
+    assert binders[1].parameter_name == "b"
     assert binders[1].expected_type == List[int]
-    assert binders[2].name == "c"
+    assert binders[2].parameter_name == "c"
     assert binders[2].expected_type == List[bool]
 
 
@@ -233,9 +197,9 @@ def test_parameters_get_binders_list_types_default_from_query_optional():
 
     binders = get_binders(Route(b"/", handler), {})
 
-    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert all(binder.required is False for binder in binders)
-    assert binders[0].name == "a"
+    assert binders[0].parameter_name == "a"
     assert binders[0].expected_type == List[str]
 
 
@@ -245,7 +209,7 @@ def test_parameters_get_binders_list_types_default_from_query_required():
 
     binders = get_binders(Route(b"/", handler), {})
 
-    assert all(isinstance(binder, FromQuery) for binder in binders)
+    assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert all(binder.required for binder in binders)
 
 
@@ -255,12 +219,12 @@ def test_parameters_get_binders_sequence_types_default_from_query():
 
     binders = get_binders(Route(b"/", handler), {})
 
-    assert all(isinstance(binder, FromQuery) for binder in binders)
-    assert binders[0].name == "a"
+    assert all(isinstance(binder, QueryBinder) for binder in binders)
+    assert binders[0].parameter_name == "a"
     assert binders[0].expected_type == Sequence[str]
-    assert binders[1].name == "b"
+    assert binders[1].parameter_name == "b"
     assert binders[1].expected_type == Sequence[int]
-    assert binders[2].name == "c"
+    assert binders[2].parameter_name == "c"
     assert binders[2].expected_type == Sequence[bool]
 
 
@@ -274,56 +238,125 @@ def test_throw_for_ambiguous_binder_multiple_from_body():
 
 def test_combination_of_sources():
     def handler(
-        a: FromQuery(List[str]),
-        b: FromServices(Dog),
-        c: FromJson(Cat),
-        d: FromRoute(),
-        e: FromHeader(),
+        a: FromQuery[List[str]],
+        b: FromServices[Dog],
+        c: FromJson[Cat],
+        d: FromRoute[str],
+        e: FromHeader[str],
     ):
         ...
 
     binders = get_binders(Route(b"/:d", handler), {Dog: Dog("Snoopy")})
 
-    assert isinstance(binders[0], FromQuery)
-    assert isinstance(binders[1], FromServices)
-    assert isinstance(binders[2], FromJson)
-    assert isinstance(binders[3], FromRoute)
-    assert isinstance(binders[4], FromHeader)
-    assert binders[0].name == "a"
-    assert binders[1].name == "b"
-    assert binders[2].name == "c"
-    assert binders[3].name == "d"
-    assert binders[4].name == "e"
+    assert isinstance(binders[0], QueryBinder)
+    assert isinstance(binders[1], ServiceBinder)
+    assert isinstance(binders[2], JsonBinder)
+    assert isinstance(binders[3], RouteBinder)
+    assert isinstance(binders[4], HeaderBinder)
+    assert binders[0].parameter_name == "a"
+    assert binders[1].parameter_name == "b"
+    assert binders[2].parameter_name == "c"
+    assert binders[3].parameter_name == "d"
+    assert binders[4].parameter_name == "e"
 
 
 def test_from_query_specific_name():
-    def handler(a: FromQuery(str, "example")):
+    class FromExampleQuery(FromQuery[str]):
+        name = "example"
+
+    def handler(a: FromExampleQuery):
         ...
 
     binders = get_binders(Route(b"/", handler), {})
+    binder = binders[0]
 
-    assert isinstance(binders[0], FromQuery)
-    assert binders[0].expected_type is str
-    assert binders[0].name == "example"
+    assert isinstance(binder, QueryBinder)
+    assert binder.expected_type is str
+    assert binder.required is True
+    assert binder.parameter_name == "example"
+
+
+def test_from_query_unspecified_type():
+    def handler(a: FromQuery):
+        ...
+
+    binders = get_binders(Route(b"/", handler), {})
+    binder = binders[0]
+
+    assert isinstance(binder, QueryBinder)
+    assert binder.expected_type is List[str]
+    assert binder.required is True
+    assert binder.parameter_name == "a"
+
+
+def test_from_query_optional_type():
+    def handler(a: FromQuery[Optional[str]]):
+        ...
+
+    binders = get_binders(Route(b"/", handler), {})
+    binder = binders[0]
+
+    assert isinstance(binder, QueryBinder)
+    assert binder.expected_type is str
+    assert binder.required is False
+    assert binder.parameter_name == "a"
+
+
+def test_from_query_optional_list_type():
+    def handler(a: FromQuery[Optional[List[str]]]):
+        ...
+
+    binders = get_binders(Route(b"/", handler), {})
+    binder = binders[0]
+
+    assert isinstance(binder, QueryBinder)
+    assert binder.expected_type is List[str]
+    assert binder.required is False
+    assert binder.parameter_name == "a"
 
 
 def test_from_header_specific_name():
-    def handler(a: FromHeader(str, "example")):
+    class FromExampleHeader(FromHeader[str]):
+        name = "example"
+
+    def handler(a: FromExampleHeader):
         ...
 
     binders = get_binders(Route(b"/", handler), {})
 
-    assert isinstance(binders[0], FromHeader)
+    assert isinstance(binders[0], HeaderBinder)
     assert binders[0].expected_type is str
-    assert binders[0].name == "example"
+    assert binders[0].parameter_name == "example"
+
+
+def test_from_header_accept_language_example():
+    class AcceptLanguageHeader(FromHeader[str]):
+        name = "accept-language"
+
+    def handler(a: AcceptLanguageHeader):
+        ...
+
+    binders = get_binders(Route(b"/", handler), {})
+
+    assert isinstance(binders[0], HeaderBinder)
+    assert binders[0].expected_type is str
+    assert binders[0].parameter_name == "accept-language"
 
 
 def test_raises_for_route_mismatch():
-    def handler(a: FromRoute(str, "missing_name")):
+    def handler(a: FromRoute[str]):
         ...
 
     with raises(RouteBinderMismatch):
         get_binders(Route(b"/", handler), {})
+
+
+def test_raises_for_route_mismatch_2():
+    def handler(a: FromRoute[str]):
+        ...
+
+    with raises(RouteBinderMismatch):
+        get_binders(Route(b"/:b", handler), {})
 
 
 def test_request_binding():
@@ -378,7 +411,7 @@ async def test_middleware_normalization():
     normalized = normalize_middleware(middleware, services)
 
     # NB: middlewares base signature is (request, handler)
-    result = await normalized(fake_request, fake_handler)
+    result = await normalized(fake_request, fake_handler)  # type: ignore
     assert result == "fake-handler-result"
 
 
@@ -387,16 +420,16 @@ async def test_middleware_query_normalization():
     services = {"context": object()}
     fake_request = Request("GET", b"/?example=Lorem", None)
 
-    async def middleware(request, handler, example: FromQuery(str)):
+    async def middleware(request, handler, example: FromQuery[str]):
         assert request is fake_request
         assert handler is fake_handler
-        assert example == "Lorem"
+        assert example.value == "Lorem"
         return await handler(request)
 
     normalized = normalize_middleware(middleware, services)
 
     # NB: middlewares base signature is (request, handler)
-    result = await normalized(fake_request, fake_handler)
+    result = await normalized(fake_request, fake_handler)  # type: ignore
     assert result == "fake-handler-result"
 
 
@@ -405,16 +438,16 @@ async def test_middleware_header_normalization():
     services = {"context": object()}
     fake_request = Request("GET", b"/", [(b"example", b"Lorem")])
 
-    async def middleware(request, handler, example: FromHeader(str)):
+    async def middleware(request, handler, example: FromHeader[str]):
         assert request is fake_request
         assert handler is fake_handler
-        assert example == "Lorem"
+        assert example.value == "Lorem"
         return await handler(request)
 
     normalized = normalize_middleware(middleware, services)
 
     # NB: middlewares base signature is (request, handler)
-    result = await normalized(fake_request, fake_handler)
+    result = await normalized(fake_request, fake_handler)  # type: ignore
     assert result == "fake-handler-result"
 
 
@@ -434,7 +467,7 @@ async def test_middleware_normalization_no_parameters():
     # NB: middlewares base signature is (request, handler)
     # since our middleware above does not handle the next request handler,
     # it is called by the normalized method
-    result = await normalized(fake_request, fake_handler)
+    result = await normalized(fake_request, fake_handler)  # type: ignore
     assert called
     assert result == "fake-handler-result"
 

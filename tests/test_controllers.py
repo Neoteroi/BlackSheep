@@ -30,7 +30,6 @@ async def test_handler_through_controller():
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         def greet(self):
             return "Hello World"
@@ -65,7 +64,6 @@ async def test_handler_through_controller_owned_text_method():
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         def greet(self):
             return "Hello World"
@@ -102,7 +100,6 @@ async def test_controller_supports_on_request():
 
     k = 0
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         def greet(self):
             return "Hello World"
@@ -145,7 +142,6 @@ async def test_controller_supports_on_response():
 
     k = 0
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         def greet(self):
             return "Hello World"
@@ -189,7 +185,6 @@ async def test_handler_through_controller_supports_generic_decorator():
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         def greet(self):
             return "Hello World"
@@ -219,7 +214,6 @@ async def test_controller_with_dependency(value):
         def __init__(self, greetings: str):
             self.greetings = greetings
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         def __init__(self, settings: Settings):
             assert isinstance(settings, Settings)
@@ -253,7 +247,6 @@ async def test_many_controllers(value):
         def __init__(self, greetings: str):
             self.greetings = greetings
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         def __init__(self, settings: Settings):
             self.settings = settings
@@ -265,7 +258,6 @@ async def test_many_controllers(value):
         async def index(self, request: Request):
             return text(self.greet())
 
-    # noinspection PyUnusedLocal
     class Foo(Controller):
         @get("/foo")
         async def foo(self, request: Request):
@@ -303,13 +295,11 @@ async def test_controllers_with_duplicate_routes_throw(first_pattern, second_pat
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class A(Controller):
         @get(first_pattern)
         async def index(self, request: Request):
             ...
 
-    # noinspection PyUnusedLocal
     class B(Controller):
         @get(second_pattern)
         async def index(self, request: Request):
@@ -334,7 +324,6 @@ async def test_controller_on_request_setting_identity():
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
         async def on_request(self, request: Request):
             request.identity = User({"id": "001", "name": "Charlie Brown"}, "JWTBearer")
@@ -359,7 +348,6 @@ async def test_controller_with_base_route_as_string_attribute():
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
-    # noinspection PyUnusedLocal
     class Home(Controller):
 
         route = "/home"
@@ -398,7 +386,6 @@ async def test_controller_with_base_route_as_class_method():
         def route(cls):
             return cls.__name__.lower()
 
-    # noinspection PyUnusedLocal
     class Home(Api):
         def greet(self):
             return "Hello World"
@@ -408,7 +395,6 @@ async def test_controller_with_base_route_as_class_method():
             assert isinstance(self, Home)
             return text(self.greet())
 
-    # noinspection PyUnusedLocal
     class Health(Api):
         @get()
         def alive(self):
@@ -438,7 +424,6 @@ async def test_controller_with_base_route_as_class_method_fragments():
         def route(cls):
             return "/api/" + cls.__name__.lower()
 
-    # noinspection PyUnusedLocal
     class Home(Api):
         def greet(self):
             return "Hello World"
@@ -448,7 +433,6 @@ async def test_controller_with_base_route_as_class_method_fragments():
             assert isinstance(self, Home)
             return text(self.greet())
 
-    # noinspection PyUnusedLocal
     class Health(Api):
         @get()
         def alive(self):
@@ -481,7 +465,6 @@ async def test_controllers_with_duplicate_routes_with_base_route_throw(
     # NB: this test creates ambiguity between the full route of a controller handler,
     # and another handler
 
-    # noinspection PyUnusedLocal
     class A(Controller):
 
         route = "home"
@@ -490,7 +473,6 @@ async def test_controllers_with_duplicate_routes_with_base_route_throw(
         async def index(self, request: Request):
             ...
 
-    # noinspection PyUnusedLocal
     class B(Controller):
         @get(second_pattern)
         async def index(self, request: Request):
@@ -514,7 +496,6 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
     # NB: this test creates ambiguity between the full route of a controller handler,
     # and another handler
 
-    # noinspection PyUnusedLocal
     class A(Controller):
 
         route = "home"
@@ -540,7 +521,6 @@ async def test_api_controller_without_version():
     delete = app.controllers_router.delete
     patch = app.controllers_router.patch
 
-    # noinspection PyUnusedLocal
     class Cat(ApiController):
         @get(":cat_id")
         def get_cat(self, cat_id: str):
@@ -585,7 +565,6 @@ async def test_api_controller_with_version():
     delete = app.controllers_router.delete
     patch = app.controllers_router.patch
 
-    # noinspection PyUnusedLocal
     class Cat(ApiController):
         @classmethod
         def version(cls) -> Optional[str]:
@@ -634,7 +613,6 @@ async def test_api_controller_with_version_2():
     delete = app.controllers_router.delete
     patch = app.controllers_router.patch
 
-    # noinspection PyUnusedLocal
     class CatV1(ApiController):
         @classmethod
         def version(cls) -> Optional[str]:
@@ -656,7 +634,6 @@ async def test_api_controller_with_version_2():
         def delete_cat(self):
             return text("4")
 
-    # noinspection PyUnusedLocal
     class CatV2(ApiController):
         @classmethod
         def version(cls) -> Optional[str]:

@@ -14,8 +14,8 @@ def test_request_supports_dynamic_attributes():
     assert (
         hasattr(request, "foo") is False
     ), "This test makes sense if such attribute is not defined"
-    request.foo = foo
-    assert request.foo is foo
+    request.foo = foo  # type: ignore
+    assert request.foo is foo  # type: ignore
 
 
 @pytest.mark.asyncio
@@ -159,8 +159,6 @@ def test_cookie_parsing_duplicated_cookie_header_value():
         b"/",
         [(b"Cookie", b"ai=something; hello=world; foo=Hello%20World%3B; hello=kitty;")],
     )
-
-    print(request.cookies)
 
     assert request.cookies == {
         "ai": "something",

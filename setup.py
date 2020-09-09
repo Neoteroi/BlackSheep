@@ -78,7 +78,7 @@ setup(
         ),
     ],
     install_requires=[
-        "httptools~=0.0.13",
+        "httptools==0.1.*",
         "certifi",
         "cchardet~=2.1.5",
         "guardpost~=0.0.5",

@@ -22,3 +22,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds more tests for binders
 - Sorts route handlers at application start
 - Improves `pyi` and type annotations using recommendations from [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance)
+- Upgrades to `httptools 0.1.*` to match the version used in recent versions of `uvicorn`

@@ -1,4 +1,5 @@
 import httptools
+from httptools.parser import errors
 
 
 cdef class InvalidURL(Exception):
@@ -14,7 +15,7 @@ cdef class URL:
 
         try:
             parsed = httptools.parse_url(value)
-        except httptools.parser.errors.HttpParserInvalidURLError:
+        except errors.HttpParserInvalidURLError:
             raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()})')
         schema = parsed.schema
         if schema and schema != b'https' and schema != b'http':

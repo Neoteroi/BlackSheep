@@ -3,15 +3,8 @@ from blacksheep.url import URL, InvalidURL
 
 
 def test_empty_url():
-    url = URL(b"")
-
-    assert url.path is None
-    assert url.schema is None
-    assert url.host is None
-    assert url.port == 0
-    assert url.query is None
-    assert url.fragment is None
-    assert url.is_absolute is False
+    with pytest.raises(InvalidURL):
+        URL(b"")
 
 
 def test_absolute_url():
@@ -39,13 +32,13 @@ def test_relative_url():
 
 
 def test_equality():
-    assert URL(b"") == URL(b"")
+    assert URL(b"/") == URL(b"/")
     assert URL(b"/api/cats") == URL(b"/api/cats")
     assert URL(b"/api/cats") != URL(b"/api/cat/001")
 
 
 def test_concatenation():
-    assert URL(b"") + URL(b"") == URL(b"")
+    assert URL(b"/") + URL(b"/") == URL(b"/")
     assert URL(b"https://world-cats.eu") + URL(b"/api/cats") == URL(
         b"https://world-cats.eu/api/cats"
     )

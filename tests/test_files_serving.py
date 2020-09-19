@@ -1,14 +1,46 @@
+from asyncio import AbstractEventLoop
+from blacksheep.ranges import Range, RangePart
+from blacksheep.exceptions import BadRequest, InvalidArgument
+from pathlib import Path
+from typing import List
+
 import pkg_resources
 import pytest
+from essentials.folders import get_file_extension
 
 from blacksheep import Request
-from blacksheep.common.files.asyncfs import FilesHandler
-from blacksheep.server.files import FileInfo, RangeNotSatisfiable
+from blacksheep.common.files.asyncfs import FileContext, FilesHandler
+from blacksheep.server.files import (
+    FileInfo,
+    RangeNotSatisfiable,
+    ServeFilesOptions,
+    get_range_file_getter,
+    _get_requested_range,
+)
 from blacksheep.server.files.dynamic import get_response_for_file
+from tests.test_application import (
+    FakeApplication,
+    MockReceive,
+    MockSend,
+    get_example_scope,
+)
 
 
-def _get_file_path(file_name):
-    return pkg_resources.resource_filename(__name__, "./files/" + file_name)
+def get_folder_path(folder_name: str) -> str:
+    return pkg_resources.resource_filename(__name__, f"./{folder_name}")
+
+
+def get_file_path(file_name, folder_name: str = "files") -> str:
+    return pkg_resources.resource_filename(__name__, f"./{folder_name}/{file_name}")
+
+
+files2_index_path = get_file_path("index.html", "files2")
+
+
+@pytest.fixture(scope="module")
+def files2_index_contents():
+    with open(files2_index_path, mode="rb") as actual_file:
+        return actual_file.read()
 
 
 @pytest.mark.asyncio
@@ -20,9 +52,9 @@ async def test_get_response_for_file_raise_for_file_not_found():
 
 
 TEST_FILES = [
-    _get_file_path("lorem-ipsum.txt"),
-    _get_file_path("example.txt"),
-    _get_file_path("pexels-photo-126407.jpeg"),
+    get_file_path("lorem-ipsum.txt"),
+    get_file_path("example.txt"),
+    get_file_path("pexels-photo-126407.jpeg"),
 ]
 TEST_FILES_METHODS = [[i, "GET"] for i in TEST_FILES] + [
     [i, "HEAD"] for i in TEST_FILES
@@ -151,7 +183,7 @@ async def test_get_response_for_file_returns_cache_control_header(cache_time):
 async def test_text_file_range_request_single_part(
     range_value, expected_bytes, expected_content_range
 ):
-    file_path = _get_file_path("example.txt")
+    file_path = get_file_path("example.txt")
     response = get_response_for_file(
         FilesHandler(),
         Request("GET", b"/example", [(b"Range", range_value)]),
@@ -176,7 +208,7 @@ async def test_text_file_range_request_single_part(
     ],
 )
 async def test_invalid_range_request_range_not_satisfiable(range_value):
-    file_path = _get_file_path("example.txt")
+    file_path = get_file_path("example.txt")
     with pytest.raises(RangeNotSatisfiable):
         get_response_for_file(
             FilesHandler(),
@@ -225,9 +257,9 @@ async def test_invalid_range_request_range_not_satisfiable(range_value):
     ],
 )
 async def test_text_file_range_request_multi_part(
-    range_value, expected_bytes_lines: bytes
+    range_value: bytes, expected_bytes_lines: List[bytes]
 ):
-    file_path = _get_file_path("example.txt")
+    file_path = get_file_path("example.txt")
     response = get_response_for_file(
         FilesHandler(),
         Request("GET", b"/example", [(b"Range", range_value)]),
@@ -258,7 +290,7 @@ async def test_text_file_range_request_multi_part(
 async def test_text_file_range_request_single_part_if_range_handling(
     range_value, matches
 ):
-    file_path = _get_file_path("example.txt")
+    file_path = get_file_path("example.txt")
     info = FileInfo.from_path(file_path)
 
     response = get_response_for_file(
@@ -284,3 +316,403 @@ async def test_text_file_range_request_single_part_if_range_handling(
 
         with open(file_path, mode="rb") as actual_file:
             assert body == actual_file.read()
+
+
+@pytest.mark.asyncio
+async def test_serve_files_no_discovery():
+    app = FakeApplication()
+
+    # Note the folder files3 does not contain an index.html page
+    app.serve_files(ServeFilesOptions(get_folder_path("files3")))
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 404
+
+
+@pytest.mark.asyncio
+async def test_serve_files_fallback_document(files2_index_contents: bytes):
+    """Feature used to serve SPAs that use HTML5 History API"""
+    app = FakeApplication()
+
+    app.serve_files(
+        ServeFilesOptions(get_folder_path("files2"), fallback_document="index.html")
+    )
+
+    await app.start()
+
+    for path in {"/", "/one", "/one/two", "/one/two/anything.txt"}:
+        scope = get_example_scope("GET", path, [])
+        await app(
+            scope,
+            MockReceive(),
+            MockSend(),
+        )
+
+        response = app.response
+        assert response.status == 200
+        assert await response.read() == files2_index_contents
+
+
+@pytest.mark.asyncio
+async def test_serve_files_serves_index_html_by_default(files2_index_contents):
+    app = FakeApplication()
+
+    app.serve_files(ServeFilesOptions(get_folder_path("files2")))
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert files2_index_contents == await response.read()
+
+
+@pytest.mark.asyncio
+async def test_serve_files_can_disable_index_html_by_default():
+    app = FakeApplication()
+
+    app.serve_files(ServeFilesOptions(get_folder_path("files2"), index_document=None))
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 404
+
+
+@pytest.mark.asyncio
+async def test_serve_files_custom_index_page():
+    app = FakeApplication()
+
+    # Note the folder files3 does not contain an index.html page
+    app.serve_files(
+        ServeFilesOptions(get_folder_path("files3"), index_document="lorem-ipsum.txt")
+    )
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    with open(get_file_path("lorem-ipsum.txt", "files3"), mode="rt") as actual_file:
+        content = actual_file.read()
+        assert content == await response.text()
+
+
+@pytest.mark.asyncio
+async def test_cannot_serve_files_outside_static_folder():
+    app = FakeApplication()
+
+    folder_path = get_folder_path("files")
+    options = ServeFilesOptions(folder_path, discovery=True, extensions={".py"})
+    app.serve_files(options)
+
+    await app.start()
+
+    scope = get_example_scope("GET", "../test_files_serving.py", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 404
+
+
+@pytest.mark.asyncio
+async def test_can_serve_files_with_relative_paths(files2_index_contents):
+    app = FakeApplication()
+    folder_path = get_folder_path("files2")
+    options = ServeFilesOptions(folder_path, discovery=True)
+    app.serve_files(options)
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/styles/../index.html", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.read()
+    assert body == files2_index_contents
+
+    scope = get_example_scope("GET", "/styles/fonts/../../index.html", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.read()
+    assert body == files2_index_contents
+
+    scope = get_example_scope("GET", "/styles/../does-not-exist.html", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 404
+
+
+@pytest.mark.parametrize("folder_name", ["files", "files2"])
+@pytest.mark.asyncio
+async def test_serve_files_discovery(folder_name: str):
+    app = FakeApplication()
+
+    folder_path = get_folder_path(folder_name)
+    options = ServeFilesOptions(folder_path, discovery=True)
+    app.serve_files(options)
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.text()
+
+    folder = Path(folder_path)
+    for item in folder.iterdir():
+        if item.is_dir():
+            assert f"/{item.name}" in body
+            continue
+
+        file_extension = get_file_extension(str(item))
+        if file_extension in options.extensions:
+            assert f"/{item.name}" in body
+        else:
+            assert item.name not in body
+
+
+@pytest.mark.asyncio
+async def test_serve_files_discovery_subfolder():
+    app = FakeApplication()
+
+    folder_path = get_folder_path("files2")
+    app.serve_files(ServeFilesOptions(folder_path, discovery=True))
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/scripts", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.text()
+
+    folder = Path(folder_path) / "scripts"
+    for item in folder.iterdir():
+        assert f"/{item.name}" in body
+
+
+@pytest.mark.asyncio
+async def test_serve_files_with_custom_files_handler():
+    app = FakeApplication()
+    file_path = files2_index_path
+
+    with open(file_path, mode="rt") as actual_file:
+        expected_body = actual_file.read()
+
+    class CustomFilesHandler(FilesHandler):
+        def __init__(self) -> None:
+            self.calls = []
+
+        def open(self, file_path: str, mode: str = "rb") -> FileContext:
+            self.calls.append(file_path)
+            return super().open(file_path, mode)
+
+    app.files_handler = CustomFilesHandler()
+
+    folder_path = get_folder_path("files2")
+    app.serve_files(ServeFilesOptions(folder_path, discovery=True))
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/index.html", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.text()
+    assert body == expected_body
+
+    assert app.files_handler.calls[0] == file_path
+
+
+def test_file_context_mode_property():
+    handler = FilesHandler()
+    file_path = files2_index_path
+    context = handler.open(file_path)
+    assert context.mode == "rb"
+    assert context.loop is not None
+    assert isinstance(context.loop, AbstractEventLoop)
+
+
+@pytest.mark.asyncio
+async def test_serve_files_multiple_folders(files2_index_contents):
+    app = FakeApplication()
+
+    files1 = get_folder_path("files")
+    files2 = get_folder_path("files2")
+    app.serve_files(ServeFilesOptions(files1, discovery=True, root_path="one"))
+    app.serve_files(ServeFilesOptions(files2, discovery=True, root_path="two"))
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 404
+
+    scope = get_example_scope("GET", "/example.txt", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 404
+
+    scope = get_example_scope("GET", "/one/example.txt", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.read()
+
+    with open(get_file_path("example.txt"), mode="rb") as actual_file:
+        assert body == actual_file.read()
+
+    scope = get_example_scope("GET", "/two/styles/main.css", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.read()
+
+    with open(get_file_path("styles/main.css", "files2"), mode="rb") as actual_file:
+        assert body == actual_file.read()
+
+    scope = get_example_scope("GET", "/two/index.html", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    body = await response.read()
+    assert body == files2_index_contents
+
+
+def test_serve_file_options_raise_for_invalid_path():
+
+    with pytest.raises(InvalidArgument):
+        ServeFilesOptions("./not-existing").validate()
+
+    with pytest.raises(InvalidArgument):
+        ServeFilesOptions(files2_index_path).validate()
+
+
+def test_get_requested_range_raises_for_invalid_range():
+    request = Request("GET", b"/foo", [(b"range", b"XXXXXXXXXXXX")])
+
+    with pytest.raises(BadRequest):
+        _get_requested_range(request)
+
+
+@pytest.mark.asyncio
+async def test_get_range_file_getter_raises_for_invalid():
+    getter = get_range_file_getter(
+        FilesHandler(), files2_index_path, 100, Range("bytes", [RangePart(None, None)])
+    )
+
+    with pytest.raises(BadRequest):
+        async for chunk in getter():
+            ...
+
+
+def test_range_with_unknown_unit_is_ignored():
+    request = Request(
+        "GET", b"/foo", [(b"Range", b"peanuts=200-1000, 2000-6576, 19000- ")]
+    )
+
+    assert _get_requested_range(request) is None
+
+
+def test_file_info():
+    info = FileInfo.from_path(files2_index_path)
+
+    assert info.mime == "text/html"
+    data = info.to_dict()
+
+    assert data["size"] == info.size
+    assert data["etag"] == info.etag
+    assert data["mime"] == info.mime
+    assert data["modified_time"] == info.modified_time
+
+    assert info.mime in repr(info)

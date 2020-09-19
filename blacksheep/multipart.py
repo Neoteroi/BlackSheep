@@ -3,10 +3,6 @@ from typing import Generator, Iterable, Optional, Tuple, Dict
 from blacksheep.contents import FormPart
 
 
-def get_boundary(value: bytes) -> bytes:
-    return value[: value.index(b"\n") + 1]
-
-
 def get_boundary_from_header(value: bytes) -> bytes:
     return value.split(b"=", 1)[1].split(b" ", 1)[0]
 
@@ -83,7 +79,7 @@ def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
     content_disposition = headers.get(b"content-disposition")
 
     if not content_disposition:
-        raise Exception(
+        raise ValueError(
             "Missing Content-Disposition header in multipart/form-data part."
         )
 
@@ -99,7 +95,7 @@ def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
     content_type = headers.get(b"content-type", None)
 
     return FormPart(
-        field_name,
+        field_name or b"",
         data,
         content_type,
         content_disposition_values.get(b"filename"),

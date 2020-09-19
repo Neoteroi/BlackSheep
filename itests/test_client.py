@@ -19,11 +19,20 @@ def ensure_success(response: Response):
 
 @pytest.mark.asyncio
 async def test_get_plain_text(session, event_loop):
-    response = await session.get("/hello-world")
-    ensure_success(response)
+    for i in range(5):
+        response = await session.get("/hello-world")
+        ensure_success(response)
+        text = await response.text()
+        assert text == "Hello, World!"
 
-    text = await response.text()
-    assert text == "Hello, World!"
+
+@pytest.mark.asyncio
+async def test_get_wikipedia_home(session):
+    for _ in range(2):
+        response = await session.get("https://www.wikipedia.org")
+        ensure_success(response)
+        text = await response.text()
+        assert "Wikipedia" in text
 
 
 @pytest.mark.asyncio

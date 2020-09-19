@@ -45,7 +45,9 @@ class MockHandler:
     "pattern,url,expected_values",
     [
         (b"/foo/:id", b"/foo/123", {"id": "123"}),
+        ("/foo/:id", b"/foo/123", {"id": "123"}),
         (b"/foo/:id/ufo/:b", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
+        ("/foo/:id/ufo/:b", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
         (b"/foo/:id/ufo/:b", b"/Foo/223/Ufo/a13", {"id": "223", "b": "a13"}),
         (b"/:a", b"/Something", {"a": "Something"}),
         (b"/alive", b"/alive", None),
@@ -173,8 +175,8 @@ def test_router_match_any_by_extension():
     def b():
         ...
 
-    router.add_get(b"/a/*.js", a)
-    router.add_get(b"/b/*.css", b)
+    router.add_get("/a/*.js", a)
+    router.add_get("/b/*.css", b)
 
     m = router.get_match(HttpMethod.GET, b"/a/anything/really")
     assert m is None
@@ -205,13 +207,20 @@ def test_router_match_any_below():
     def d():
         ...
 
-    router.add_get(b"/a/*", a)
-    router.add_get(b"/b/*", b)
-    router.add_get(b"/c/*", c)
-    router.add_get(b"/d/*", d)
+    router.add_get("/a/*", a)
+    router.add_get("/b/*", b)
+    router.add_get("/c/*", c)
+    router.add_get("/d/*", d)
 
     m = router.get_match(HttpMethod.GET, b"/a")
-    assert m is None
+    assert m is not None
+    assert m.handler is a
+    assert m.values.get("tail") == ""
+
+    m = router.get_match(HttpMethod.GET, b"/a/")
+    assert m is not None
+    assert m.handler is a
+    assert m.values.get("tail") == ""
 
     m = router.get_match(HttpMethod.GET, b"/a/anything/really")
     assert m is not None
@@ -252,41 +261,139 @@ def test_router_match_among_many():
     def home():
         ...
 
+    def home_verbose():
+        ...
+
+    def home_options():
+        ...
+
+    def home_connect():
+        ...
+
     def get_foo():
         ...
 
     def create_foo():
         ...
 
+    def patch_foo():
+        ...
+
     def delete_foo():
         ...
 
-    router.add_get(b"/", home)
-    router.add_get(b"/foo", get_foo)
-    router.add_post(b"/foo", create_foo)
-    router.add_delete(b"/foo", delete_foo)
+    router.add_trace("/", home_verbose)
+    router.add_options("/", home_options)
+    router.add_connect("/", home_connect)
+    router.add_get("/", home)
+    router.add_get("/foo", get_foo)
+    router.add_patch("/foo", patch_foo)
+    router.add_post("/foo", create_foo)
+    router.add_delete("/foo", delete_foo)
 
     m = router.get_match(HttpMethod.GET, b"/")
-
     assert m is not None
     assert m.handler is home
 
-    m = router.get_match(HttpMethod.POST, b"/")
+    m = router.get_match(HttpMethod.TRACE, b"/")
+    assert m is not None
+    assert m.handler is home_verbose
 
+    m = router.get_match(HttpMethod.CONNECT, b"/")
+    assert m is not None
+    assert m.handler is home_connect
+
+    m = router.get_match(HttpMethod.OPTIONS, b"/")
+    assert m is not None
+    assert m.handler is home_options
+
+    m = router.get_match(HttpMethod.POST, b"/")
     assert m is None
 
     m = router.get_match(HttpMethod.GET, b"/foo")
-
     assert m is not None
     assert m.handler is get_foo
 
     m = router.get_match(HttpMethod.POST, b"/foo")
-
     assert m is not None
     assert m.handler is create_foo
 
-    m = router.get_match(HttpMethod.DELETE, b"/foo")
+    m = router.get_match(HttpMethod.PATCH, b"/foo")
+    assert m is not None
+    assert m.handler is patch_foo
 
+    m = router.get_match(HttpMethod.DELETE, b"/foo")
+    assert m is not None
+    assert m.handler is delete_foo
+
+
+def test_router_match_among_many_decorators():
+    router = Router()
+
+    @router.get("/")
+    def home():
+        ...
+
+    @router.trace("/")
+    def home_verbose():
+        ...
+
+    @router.options("/")
+    def home_options():
+        ...
+
+    @router.connect("/")
+    def home_connect():
+        ...
+
+    @router.get("/foo")
+    def get_foo():
+        ...
+
+    @router.post("/foo")
+    def create_foo():
+        ...
+
+    @router.patch("/foo")
+    def patch_foo():
+        ...
+
+    @router.delete("/foo")
+    def delete_foo():
+        ...
+
+    m = router.get_match(HttpMethod.GET, b"/")
+    assert m is not None
+    assert m.handler is home
+
+    m = router.get_match(HttpMethod.TRACE, b"/")
+    assert m is not None
+    assert m.handler is home_verbose
+
+    m = router.get_match(HttpMethod.CONNECT, b"/")
+    assert m is not None
+    assert m.handler is home_connect
+
+    m = router.get_match(HttpMethod.OPTIONS, b"/")
+    assert m is not None
+    assert m.handler is home_options
+
+    m = router.get_match(HttpMethod.POST, b"/")
+    assert m is None
+
+    m = router.get_match(HttpMethod.GET, b"/foo")
+    assert m is not None
+    assert m.handler is get_foo
+
+    m = router.get_match(HttpMethod.POST, b"/foo")
+    assert m is not None
+    assert m.handler is create_foo
+
+    m = router.get_match(HttpMethod.PATCH, b"/foo")
+    assert m is not None
+    assert m.handler is patch_foo
+
+    m = router.get_match(HttpMethod.DELETE, b"/foo")
     assert m is not None
     assert m.handler is delete_foo
 
@@ -300,8 +407,8 @@ def test_router_match_with_trailing_slash():
     def create_foo():
         ...
 
-    router.add_get(b"/foo", get_foo)
-    router.add_post(b"/foo", create_foo)
+    router.add_get("/foo", get_foo)
+    router.add_post("/foo", create_foo)
 
     m = router.get_match(HttpMethod.GET, b"/foo/")
 
@@ -325,11 +432,35 @@ def test_fallback_route():
         pass
 
     router.fallback = not_found_handler
+    assert isinstance(router.fallback, Route)
+    assert router.fallback.handler is not_found_handler
 
     m = router.get_match(HttpMethod.POST, b"/")
 
     assert m is not None
     assert m.handler is not_found_handler
+
+
+def test_fallback_route_must_be_callable_or_route():
+    router = Router()
+
+    def not_found_handler():
+        pass
+
+    router.fallback = Route("*", not_found_handler)
+    router.fallback = not_found_handler
+
+    class Example:
+        def __call__(self):
+            pass
+
+    router.fallback = Example()
+
+    with pytest.raises(ValueError):
+        router.fallback = False
+
+    with pytest.raises(ValueError):
+        router.fallback = "Something"
 
 
 @pytest.mark.parametrize(
@@ -374,10 +505,20 @@ def test_duplicate_pattern_star_raises():
     def another():
         ...
 
-    router.add_get(b"*", home)
+    router.add_get("*", home)
 
     with pytest.raises(RouteDuplicate):
-        router.add_get(b"*", another)
+        router.add_get("*", another)
+
+
+def test_more_than_one_star_raises():
+    router = Router()
+
+    def home():
+        ...
+
+    with pytest.raises(ValueError):
+        router.add_get("*/*", home)
 
 
 def test_automatic_pattern_with_ellipsis():
@@ -392,7 +533,6 @@ def test_automatic_pattern_with_ellipsis():
         ...
 
     match = router.get_match("GET", "/")
-
     assert match is None
 
     match = router.get_match("GET", "/home")
@@ -434,3 +574,40 @@ def test_automatic_pattern_with_ellipsis_index_name():
 
     assert match is not None
     assert match.handler is index
+
+
+def test_router_iterable():
+    router = Router()
+
+    @router.get("/")
+    def home():
+        ...
+
+    @router.trace("/")
+    def home_verbose():
+        ...
+
+    @router.options("/")
+    def home_options():
+        ...
+
+    routes = list(router)
+    assert len(routes) == 3
+
+    handlers = {home, home_verbose, home_options}
+
+    for route in routes:
+        assert route.handler in handlers
+
+    def fallback():
+        ...
+
+    router.fallback = fallback
+
+    routes = list(router)
+    assert len(routes) == 4
+
+    handlers = {home, home_verbose, home_options, fallback}
+
+    for route in routes:
+        assert route.handler in handlers

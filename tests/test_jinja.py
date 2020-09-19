@@ -1,8 +1,12 @@
+from rodi import Services
+from blacksheep.server import Application
 import pytest
 from jinja2 import PackageLoader
-from blacksheep.server.templating import use_templates, view, view_async
+
 from blacksheep.server.controllers import Controller, RoutesRegistry
-from .test_application import FakeApplication, get_example_scope, MockSend, MockReceive
+from blacksheep.server.templating import use_templates, view, view_async, template_name
+
+from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
 
 def get_app(enable_async):
@@ -31,6 +35,19 @@ def specific_text():
 <head>
     <meta charset="UTF-8">
     <title>Specific Example</title>
+</head>
+<body>
+    <h1>Hello World!</h1>
+    <p>Lorem ipsum dolor sit amet</p>
+</body>
+</html>"""
+
+
+nomodel_text = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Example</title>
 </head>
 <body>
     <h1>Hello World!</h1>
@@ -213,6 +230,21 @@ async def test_controller_specific_view_name_async(home_model, specific_text):
 
 
 @pytest.mark.asyncio
+async def test_controller_specific_view_name_async_no_model():
+    app, _ = get_app(True)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Lorem(Controller):
+        @get()
+        async def index(self):
+            return await self.view_async("nomodel")
+
+    app.setup_controllers()
+    await _home_scenario(app, expected_text=nomodel_text)
+
+
+@pytest.mark.asyncio
 async def test_controller_conventional_view_name_no_model(home_model):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -225,7 +257,7 @@ async def test_controller_conventional_view_name_no_model(home_model):
 
     app.setup_controllers()
 
-    await _home_scenario(app, "/nomodel")
+    await _home_scenario(app, "/nomodel", expected_text=nomodel_text)
 
 
 @pytest.mark.asyncio
@@ -273,3 +305,35 @@ async def test_controller_conventional_view_name_extraneous_function(home_model)
     app.setup_controllers()
 
     await _home_scenario(app)
+
+
+@pytest.mark.parametrize(
+    "value,expected_name",
+    [
+        ("index", "index.html"),
+        ("index.html", "index.html"),
+        ("default", "default.html"),
+    ],
+)
+def test_template_name(value, expected_name):
+    assert template_name(value) == expected_name
+
+
+def test_application_use_templates_with_services():
+    app = Application(services=Services())
+
+    use_templates(
+        app, loader=PackageLoader("tests.testapp", "templates"), enable_async=False
+    )
+
+    assert isinstance(app.services, Services)
+    assert app.services["jinja_environment"] is not None
+
+
+def test_use_templates_throws_for_invalid_services():
+    app = Application(services={})  # type: ignore
+
+    with pytest.raises(RuntimeError):
+        use_templates(
+            app, loader=PackageLoader("tests.testapp", "templates"), enable_async=False
+        )

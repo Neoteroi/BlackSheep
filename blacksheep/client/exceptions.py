@@ -16,12 +16,6 @@ class MissingLocationForRedirect(InvalidResponseException):
         )
 
 
-class RequestException(Exception):
-    def __init__(self, message, allow_retry):
-        super().__init__(message)
-        self.can_retry = allow_retry
-
-
 class ConnectionTimeout(TimeoutError):
     def __init__(self, url: URL, timeout: float):
         super().__init__(
@@ -64,3 +58,6 @@ class UnsupportedRedirect(Exception):
     we don't follow the redirect and return the response with location: the
     caller can handle it.
     """
+
+    def __init__(self, redirect_url: bytes) -> None:
+        self.redirect_url = redirect_url

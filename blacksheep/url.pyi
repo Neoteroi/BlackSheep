@@ -1,24 +1,23 @@
-from typing import Union, Optional
+from typing import Any, Optional, Union
 
 
 class InvalidURL(Exception):
-    def __init__(self, message: str):
+    def __init__(self, message: str) -> None:
         ...
 
 
 class URL:
-    def __init__(self, value: bytes):
-        self.value: bytes
-        self.schema: Optional[bytes]
-        self.host: Optional[bytes]
-        self.port: int
-        self.path: bytes
-        self.query: bytes
-        self.fragment: Optional[bytes]
-        self.is_absolute: bool
+    value: bytes
+    schema: Optional[bytes]
+    host: Optional[bytes]
+    port: int
+    path: bytes
+    query: bytes
+    fragment: Optional[bytes]
+    is_absolute: Any
 
-    def __repr__(self):
-        return f"<URL {self.value}>"
+    def __init__(self, value: bytes) -> None:
+        ...
 
     def join(self, other: "URL") -> "URL":
         ...
@@ -26,7 +25,7 @@ class URL:
     def base_url(self) -> "URL":
         ...
 
-    def __add__(self, other: Union[bytes, "URL"]):
+    def __add__(self, other: Union[bytes, "URL"]) -> "URL":
         ...
 
     def __eq__(self, other: object) -> bool:

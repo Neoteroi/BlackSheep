@@ -29,16 +29,8 @@ steps:
   displayName: 'Compile Cython extensions'
 
 - bash: |
-    pytest --doctest-modules --junitxml=junit/test-results.xml
+    pytest --doctest-modules --junitxml=junit/test-results.xml --cov-report html --cov=blacksheep
   displayName: 'tests'
-  workingDirectory: tests
-  continueOnError: true
-
-- bash: |
-   pytest --doctest-modules --junitxml=junit/test-results.xml
-  workingDirectory: itests
-  displayName: 'integration tests'
-  continueOnError: true
 
 - bash: |
     if [ -f "build_info.txt" ]; then rm build_info.txt; fi

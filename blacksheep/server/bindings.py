@@ -159,7 +159,7 @@ class RequestUser(BoundValue[Identity]):
 class Binder(metaclass=BinderMeta):
     handle: ClassVar[Type[BoundValue]]
     _implicit: bool
-    default: Optional[T]
+    default: Any
 
     def __init__(
         self,
@@ -220,9 +220,6 @@ class Binder(metaclass=BinderMeta):
     @abstractmethod
     async def get_value(self, request: Request) -> Optional[T]:
         """Gets a value from the given request object."""
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} " + f"{self.expected_type} at {id(self)}>"
 
 
 def get_binder_by_type(bound_value_type: Type[BoundValue]) -> Type[Binder]:
@@ -395,9 +392,6 @@ class SyncBinder(Binder):
             converter=converter or self._get_default_converter(expected_type),
         )
 
-    def __repr__(self):
-        return f'<{self.__class__.__name__} "{self.parameter_name}" at {id(self)}>'
-
     def _get_default_converter_single(self, expected_type):
         if expected_type is str:
             return lambda value: unquote(value) if value else None
@@ -406,7 +400,9 @@ class SyncBinder(Binder):
             return _default_bool_converter
 
         if expected_type is bytes:
-            return lambda value: value if value else None
+            # note: the code is optimized for strings here, not bytes
+            # since most of times the user will want to handle strings
+            return lambda value: value.encode("utf8") if value else None
 
         if expected_type in self._simple_types:
             return lambda value: expected_type(value) if value else None
@@ -430,7 +426,7 @@ class SyncBinder(Binder):
             return _default_bool_list_converter
 
         if expected_type is bytes:
-            return lambda value: value[0] if value else None
+            return lambda value: value[0].encode("utf8") if value else None
 
         if expected_type in self._simple_types:
             return lambda value: expected_type(value[0]) if value else None
@@ -479,12 +475,12 @@ class SyncBinder(Binder):
 
     @abstractmethod
     def get_raw_value(self, request: Request) -> Sequence[str]:
-        pass
+        """Reads a set of values from request information as strings."""
 
     @property
     @abstractmethod
     def source_name(self) -> str:
-        pass
+        """Gets a name that describe the source of values for this SyncBinder."""
 
     _empty_iterables = [list(), set(), tuple()]
 
@@ -614,15 +610,6 @@ class RequestBinder(Binder):
 
     async def get_value(self, request: Request) -> Optional[T]:
         return request
-
-
-class RequestPropertyBinder(Binder):
-    def __init__(self, property_name: str, expected_type: Type = Any):
-        super().__init__(expected_type, property_name, implicit=True)
-        self.property_name = property_name
-
-    async def get_value(self, request: Request) -> Optional[T]:
-        return getattr(request, self.property_name, None)
 
 
 class IdentityBinder(Binder):

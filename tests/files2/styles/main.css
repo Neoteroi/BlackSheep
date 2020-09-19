@@ -1,0 +1,12 @@
+body {
+  background-color: #fff;
+}
+
+p:before {
+  display: inline-block;
+  content: "🍎";
+}
+
+.øø {
+  font-weight: bold;
+}

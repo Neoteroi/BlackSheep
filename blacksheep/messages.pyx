@@ -140,7 +140,7 @@ cdef class Message:
         body = await self.read()
 
         if body is None:
-            return None
+            return ""
         try:
             return body.decode(self.charset)
         except UnicodeDecodeError:

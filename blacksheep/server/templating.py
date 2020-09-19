@@ -1,18 +1,9 @@
-from rodi import Container, Services
 from functools import lru_cache
-from blacksheep import Response, Content
-from blacksheep.utils.imports import OptionalModuleNotFoundError
 
-try:
-    from jinja2 import Environment, Template, PackageLoader, select_autoescape
-except ModuleNotFoundError:
-    # Jinja2 is not a required dependency
-    Environment, Template, PackageLoader, select_autoescape = [... for _ in range(4)]
+from jinja2 import Environment, PackageLoader, Template, select_autoescape
+from rodi import Container, Services
 
-
-class MissingJinjaModuleError(OptionalModuleNotFoundError):
-    def __init__(self):
-        super().__init__("Jinja2")
+from blacksheep import Content, Response
 
 
 @lru_cache(1200)
@@ -110,11 +101,3 @@ async def view_async(jinja_environment: Environment, name: str, *args, **kwargs)
             jinja_environment.get_template(template_name(name)), *args, **kwargs
         )
     )
-
-
-if Environment is ...:
-    # NOQA below, because the redefinition is done intentionally and to
-    # improve the programmers' experience
-    use_templates = MissingJinjaModuleError.replace_function()  # NOQA
-    view = MissingJinjaModuleError.replace_function()  # NOQA
-    view_async = MissingJinjaModuleError.replace_function(True)  # NOQA

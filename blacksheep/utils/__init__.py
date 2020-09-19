@@ -1,11 +1,8 @@
 import re
-from typing import Union
+from typing import AnyStr
 
 
-BytesOrStr = Union[bytes, str]
-
-
-def ensure_bytes(value: BytesOrStr):
+def ensure_bytes(value: AnyStr) -> bytes:
     if isinstance(value, bytes):
         return value
     if isinstance(value, str):
@@ -13,7 +10,7 @@ def ensure_bytes(value: BytesOrStr):
     raise ValueError("Expected bytes or str")
 
 
-def ensure_str(value: BytesOrStr):
+def ensure_str(value: AnyStr) -> str:
     if isinstance(value, str):
         return value
     if isinstance(value, bytes):
@@ -25,7 +22,7 @@ def remove_duplicate_slashes(value: str) -> str:
     return re.sub("/{2,}", "/", value)
 
 
-def join_fragments(*args: BytesOrStr) -> str:
+def join_fragments(*args: AnyStr) -> str:
     """Joins URL fragments bytes"""
     return "/" + "/".join(
         remove_duplicate_slashes(ensure_str(arg)).strip("/") for arg in args if arg

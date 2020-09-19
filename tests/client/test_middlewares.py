@@ -28,6 +28,33 @@ async def test_single_middleware():
         text = await response.text()
         assert text == "Hello, World!"
 
+        assert len(client.middlewares) == 2
+
+
+@pytest.mark.asyncio
+async def test_falsy_middleware():
+    fake_pools = FakePools([Response(200, None, TextContent("Hello, World!"))])
+
+    steps = []
+
+    async def middleware_one(request, next_handler):
+        steps.append(1)
+        response = await next_handler(request)
+        steps.append(2)
+        return response
+
+    async with ClientSession(
+        base_url=b"http://localhost:8080",
+        pools=fake_pools,
+        middlewares=[middleware_one, None, False],  # type: ignore
+    ) as client:
+        response = await client.get(b"/")
+
+        assert steps == [1, 2]
+        assert response.status == 200
+        text = await response.text()
+        assert text == "Hello, World!"
+
 
 @pytest.mark.asyncio
 async def test_multiple_middleware():

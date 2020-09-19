@@ -1,7 +1,15 @@
-import inspect
 import logging
-import os
-from typing import Callable, List, Optional, Type, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    Sequence,
+)
 
 from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
@@ -11,7 +19,7 @@ from rodi import Container, Services
 from blacksheep.baseapp import BaseApplication
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
-from blacksheep.messages import Request
+from blacksheep.messages import Request, Response
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.scribe import send_asgi_response
 from blacksheep.server.authentication import (
@@ -27,7 +35,6 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.files.dynamic import ServeFilesOptions, serve_files_dynamic
-from blacksheep.server.logs import setup_sync_logging
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
@@ -35,65 +42,49 @@ from blacksheep.utils import ensure_bytes, join_fragments
 
 ServicesType = Union[Services, Container]
 
-server_logger = logging.getLogger("blacksheep.server")
-
 __all__ = ("Application",)
 
 
-def get_default_headers_middleware(headers):
-    async def default_headers_middleware(request, handler):
+def get_default_headers_middleware(
+    headers: Sequence[Tuple[str, str]],
+) -> Callable[..., Awaitable[Response]]:
+    raw_headers = tuple((name.encode(), value.encode()) for name, value in headers)
+
+    async def default_headers_middleware(
+        request: Request, handler: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         response = await handler(request)
-        for header in headers:
-            response.headers.add(header)
+        for name, value in raw_headers:
+            response.add_header(name, value)
         return response
 
     return default_headers_middleware
 
 
 class Resources:
-    def __init__(self, error_page_html):
+    def __init__(self, error_page_html: str):
         self.error_page_html = error_page_html
 
 
 class ApplicationEvent:
-    def __init__(self, context):
-        self.__handlers = []
+    def __init__(self, context: Any) -> None:
+        self.__handlers: List[Callable[..., Any]] = []
         self.context = context
 
-    def __iadd__(self, handler):
+    def __iadd__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
         self.__handlers.append(handler)
         return self
 
-    def __isub__(self, handler):
+    def __isub__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
         self.__handlers.remove(handler)
         return self
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__handlers)
 
-    def append(self, handler):
-        self.__handlers.append(handler)
-
-    async def fire(self, *args, **keywargs):
+    async def fire(self, *args: Any, **keywargs: Any) -> None:
         for handler in self.__handlers:
             await handler(self.context, *args, **keywargs)
-
-    def __repr__(self):
-        return (
-            f"<ApplicationEvent "
-            + f'[{",".join(handler.__name__ for handler in self.__handlers)}]>'
-        )
-
-
-def get_show_error_details(show_error_details):
-    if show_error_details:
-        return True
-
-    show_error_details = os.environ.get("BLACKSHEEP_SHOW_ERROR_DETAILS")
-
-    if show_error_details and show_error_details not in ("0", "false"):
-        return True
-    return False
 
 
 class ApplicationStartupError(RuntimeError):
@@ -112,8 +103,8 @@ class RequiresServiceContainerError(ApplicationStartupError):
 class Application(BaseApplication):
     def __init__(
         self,
+        *,
         router: Optional[Router] = None,
-        middlewares: Optional[List[Callable]] = None,
         resources: Optional[Resources] = None,
         services: Optional[ServicesType] = None,
         debug: bool = False,
@@ -123,22 +114,18 @@ class Application(BaseApplication):
             router = Router()
         if services is None:
             services = Container()
-        super().__init__(get_show_error_details(debug or show_error_details), router)
+        super().__init__(show_error_details, router)
 
-        if middlewares is None:
-            middlewares = []
         if resources is None:
             resources = Resources(get_resource_file_content("error.html"))
         self.services: ServicesType = services
         self.debug = debug
-        self.middlewares = middlewares
+        self.middlewares: List[Callable[..., Awaitable[Response]]] = []
         self.access_logger = None
         self.logger = None
         self._default_headers = None
-        self._use_sync_logging = False
         self._middlewares_configured = False
         self.resources = resources
-        self._serve_files: Optional[ServeFilesOptions] = None
         self._authentication_strategy: Optional[AuthenticationStrategy] = None
         self._authorization_strategy: Optional[AuthorizationStrategy] = None
         self.on_start = ApplicationEvent(self)
@@ -147,16 +134,13 @@ class Application(BaseApplication):
         self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
 
-    def use_files_handler(self, files_handler: FilesHandler):
-        self.files_handler = files_handler
-
     @property
-    def default_headers(self):
+    def default_headers(self) -> Optional[Tuple[Tuple[str, str], ...]]:
         return self._default_headers
 
     @default_headers.setter
-    def default_headers(self, value):
-        self._default_headers = value
+    def default_headers(self, value: Optional[Tuple[Tuple[str, str], ...]]) -> None:
+        self._default_headers = tuple(value) if value else None
 
     def use_authentication(
         self, strategy: Optional[AuthenticationStrategy] = None
@@ -199,7 +183,9 @@ class Application(BaseApplication):
         self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
         return strategy
 
-    def route(self, pattern, methods=None):
+    def route(
+        self, pattern: str, methods: Optional[Sequence[str]] = None
+    ) -> Callable[..., Any]:
         if methods is None:
             methods = ["GET"]
 
@@ -210,36 +196,16 @@ class Application(BaseApplication):
 
         return decorator
 
-    def set_default_headers(self, headers):
-        self._default_headers = headers
-
-    def use_sync_logging(self):
-        self._use_sync_logging = True
-
     def serve_files(self, options: ServeFilesOptions):
-        self._serve_files = options
-
-    def _configure_sync_logging(self):
-        logging_middleware, access_logger, app_logger = setup_sync_logging()
-        self.logger = app_logger
-        self.access_logger = (access_logger,)
-        self.middlewares.insert(0, logging_middleware)
+        serve_files_dynamic(self.router, self.files_handler, options)
 
     def _apply_middlewares_in_routes(self):
-        configured_handlers = set()
-
         for route in self.router:
-            if route.handler in configured_handlers:
-                continue
-
             route.handler = get_middlewares_chain(self.middlewares, route.handler)
-
-            configured_handlers.add(route.handler)
-        configured_handlers.clear()
 
     def _normalize_middlewares(self):
         self.middlewares = [
-            normalize_middleware(middleware, self.services)
+            normalize_middleware(middleware, self.services)  # type: ignore
             for middleware in self.middlewares
         ]
 
@@ -249,7 +215,7 @@ class Application(BaseApplication):
         # to avoid funny bugs in case several Application objects are defined
         # with different controllers; this is the case for example of tests.
 
-        # NB: this sophisticated approach, using metaclassing, dynamic
+        # This sophisticated approach, using metaclassing, dynamic
         # attributes, and calling handlers dynamically
         # with activated instances of controllers; still supports custom
         # and generic decorators (*args, **kwargs);
@@ -265,7 +231,7 @@ class Application(BaseApplication):
         """
         base_route = getattr(controller_type, "route", None)
 
-        if base_route:
+        if base_route is not None:
             if callable(base_route):
                 value = base_route()
             elif isinstance(base_route, (str, bytes)):
@@ -318,10 +284,6 @@ class Application(BaseApplication):
             )
 
         for controller_class in controller_types:
-            is_abstract = inspect.isabstract(controller_class)
-            if is_abstract:
-                continue
-
             if controller_class in self.services:
                 continue
 
@@ -351,7 +313,6 @@ class Application(BaseApplication):
                 continue
 
             route.handler = normalize_handler(route, self.services)
-
             configured_handlers.add(route.handler)
         configured_handlers.clear()
 
@@ -372,9 +333,6 @@ class Application(BaseApplication):
                 0, get_authentication_middleware(self._authentication_strategy)
             )
 
-        if self._use_sync_logging:
-            self._configure_sync_logging()
-
         if self._default_headers:
             self.middlewares.insert(
                 0, get_default_headers_middleware(self._default_headers)
@@ -384,10 +342,6 @@ class Application(BaseApplication):
 
         if self.middlewares:
             self._apply_middlewares_in_routes()
-
-    def apply_routes(self):
-        if self._serve_files:
-            serve_files_dynamic(self.router, self.files_handler, self._serve_files)
 
     def build_services(self):
         if isinstance(self.services, Container):
@@ -403,12 +357,12 @@ class Application(BaseApplication):
 
         self.use_controllers()
         self.build_services()
-        self.apply_routes()
         self.normalize_handlers()
         self.configure_middlewares()
 
     async def stop(self):
         await self.on_stop.fire()
+        self.started = False
 
     async def _handle_lifespan(self, receive, send):
         message = await receive()

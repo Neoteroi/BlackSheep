@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Any, Awaitable, Callable, Optional, Sequence, Tuple
 
 from guardpost.asynchronous.authorization import (
     AsyncRequirement,
@@ -7,7 +7,7 @@ from guardpost.asynchronous.authorization import (
 )
 from guardpost.synchronous.authorization import Requirement, UnauthorizedError
 
-from blacksheep import Response, TextContent
+from blacksheep import Request, Response, TextContent
 
 __all__ = (
     "auth",
@@ -26,7 +26,7 @@ def auth(
     policy: Optional[str] = None,
     *,
     authentication_schemes: Optional[Sequence[str]] = None
-):
+) -> Callable[..., Any]:
     """
     Configures authorization for a decorated request handler,
     optionally with a policy.
@@ -48,7 +48,7 @@ def auth(
     return decorator
 
 
-def allow_anonymous():
+def allow_anonymous() -> Callable[..., Any]:
     """
     Configures a decorated request handler, to make it usable for all users:
     anonymous and authenticated users.
@@ -61,7 +61,9 @@ def allow_anonymous():
     return decorator
 
 
-def get_authorization_middleware(strategy: AuthorizationStrategy):
+def get_authorization_middleware(
+    strategy: AuthorizationStrategy,
+) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     async def authorization_middleware(request, handler):
         identity = request.identity
 
@@ -88,22 +90,18 @@ class AuthorizationWithoutAuthenticationError(RuntimeError):
         )
 
 
-def _get_www_authenticated_header_value_from_generic_unauthorized_error(
+def get_www_authenticated_header_from_generic_unauthorized_error(
     error: UnauthorizedError,
-):
-    parts = [error.scheme]
-    if error.error:
-        parts.append(', error="{}"')
-
-
-def get_www_authenticated_header_from_generic_unauthorized_error(error):
+) -> Optional[Tuple[bytes, bytes]]:
     if not error.scheme:
         return None
 
-    return b"WWW-Authenticate", error.scheme.decode()
+    return b"WWW-Authenticate", error.scheme.encode()
 
 
-async def handle_unauthorized(app, request, http_exception: UnauthorizedError):
+async def handle_unauthorized(
+    app: Any, request: Request, http_exception: UnauthorizedError
+) -> Response:
     www_authenticate = get_www_authenticated_header_from_generic_unauthorized_error(
         http_exception
     )

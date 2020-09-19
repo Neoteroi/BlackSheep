@@ -1,6 +1,6 @@
 import pytest
 from typing import List
-from blacksheep import StreamedContent
+from blacksheep import JsonContent, Request, StreamedContent
 from blacksheep.multipart import (
     parse_multipart,
     parse_content_disposition_values,
@@ -14,7 +14,7 @@ from blacksheep.contents import (
     TextContent,
     HtmlContent,
 )
-from blacksheep.scribe import write_chunks
+from blacksheep.scribe import write_chunks, write_request_body_only
 
 
 @pytest.mark.asyncio
@@ -284,3 +284,40 @@ def test_text_content_type():
 def test_text_content_data(text):
     content = TextContent(text)
     assert content.body == text.encode("utf8")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "req,expected_chunks",
+    [
+        (
+            Request(
+                "POST",
+                b"/",
+                headers=[
+                    (b"content-type", b"application/json"),
+                    (b"expect", b"100-continue"),
+                ],
+            ).with_content(JsonContent({"id": "1", "name": "foo"})),
+            [b'{"id": "1", "name": "foo"}'],
+        ),
+        (
+            Request(
+                "POST",
+                b"/",
+                headers=[
+                    (b"content-type", b"text/plain"),
+                    (b"expect", b"100-continue"),
+                ],
+            ).with_content(TextContent("Hello World")),
+            [b"Hello World"],
+        ),
+    ],
+)
+async def test_write_request_body_only(req: Request, expected_chunks: List[bytes]):
+    received_chunks = []
+
+    async for chunk in write_request_body_only(req):
+        received_chunks.append(chunk)
+
+    assert received_chunks == expected_chunks

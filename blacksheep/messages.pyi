@@ -27,16 +27,16 @@ class Message:
     def get_single_header(self, key: bytes) -> bytes:
         ...
 
-    def remove_header(self, key: bytes):
+    def remove_header(self, key: bytes) -> None:
         ...
 
     def has_header(self, key: bytes) -> bool:
         ...
 
-    def add_header(self, name: bytes, value: bytes):
+    def add_header(self, name: bytes, value: bytes) -> None:
         ...
 
-    def set_header(self, key: bytes, value: bytes):
+    def set_header(self, key: bytes, value: bytes) -> None:
         ...
 
     async def read(self) -> Optional[bytes]:
@@ -100,7 +100,7 @@ def method_without_body(method: str) -> bool:
 
 
 class Request(Message):
-    def __init__(self, method: str, url: bytes, headers: Optional[List[HeaderType]]):
+    def __init__(self, method: str, url: bytes, headers: Optional[List[HeaderType]]) -> None:
         self.method: str = ...
         self._url: URL = ...
         self.route_values: Optional[Dict[str, str]] = ...
@@ -123,11 +123,11 @@ class Request(Message):
         ...
 
     @url.setter
-    def url(self, value: Union[URL, bytes, str]):
+    def url(self, value: Union[URL, bytes, str]) -> None:
         ...
 
-    def __repr__(self):
-        return f"<Request {self.method} {self.url.value.decode()}>"
+    def __repr__(self) -> str:
+        ...
 
     @property
     def cookies(self) -> Cookies:
@@ -139,10 +139,10 @@ class Request(Message):
     def get_cookie(self, name: bytes) -> Optional[Cookie]:
         ...
 
-    def set_cookie(self, cookie: Cookie):
+    def set_cookie(self, cookie: Cookie) -> None:
         ...
 
-    def set_cookies(self, cookies: List[Cookie]):
+    def set_cookies(self, cookies: List[Cookie]) -> None:
         ...
 
     @property
@@ -166,13 +166,13 @@ class Response(Message):
         status: int,
         headers: Optional[List[HeaderType]] = None,
         content: Optional[Content] = None,
-    ):
+    ) -> None:
         self.__headers = headers or []
         self.status = status
         self.content = content
 
-    def __repr__(self):
-        return f"<Response {self.status}>"
+    def __repr__(self) -> str:
+        ...
 
     @property
     def cookies(self) -> Cookies:
@@ -188,16 +188,16 @@ class Response(Message):
     def get_cookie(self, name: bytes) -> Optional[Cookie]:
         ...
 
-    def set_cookie(self, cookie: Cookie):
+    def set_cookie(self, cookie: Cookie) -> None:
         ...
 
-    def set_cookies(self, cookies: List[Cookie]):
+    def set_cookies(self, cookies: List[Cookie]) -> None:
         ...
 
-    def unset_cookie(self, name: bytes):
+    def unset_cookie(self, name: bytes) -> None:
         ...
 
-    def remove_cookie(self, name: bytes):
+    def remove_cookie(self, name: bytes) -> None:
         ...
 
     def is_redirect(self) -> bool:

@@ -1,8 +1,16 @@
 import pytest
-from blacksheep.multipart import parse_multipart, FormPart
+
+from blacksheep.multipart import (
+    FormPart,
+    parse_multipart,
+    parse_part,
+    _remove_last_crlf,
+)
+
 from .examples.multipart import (
     FIELDS_THREE_VALUES,
     FIELDS_WITH_CARRIAGE_RETURNS,
+    FIELDS_WITH_CARRIAGE_RETURNS_AND_DEFAULT_CHARSET,
     FIELDS_WITH_SMALL_PICTURE,
 )
 
@@ -34,6 +42,24 @@ from .examples.multipart import (
                     ),
                 ),
                 FormPart(b"Submit", b"Submit"),
+            ],
+        ],
+        [
+            FIELDS_WITH_CARRIAGE_RETURNS_AND_DEFAULT_CHARSET,
+            [
+                FormPart(b"one", b"AA"),
+                FormPart(b"two", b"CC", charset=b"iso-8859-1"),
+                FormPart(b"two", b"DD", charset=b"iso-8859-1"),
+                FormPart(
+                    b"description",
+                    "Hello\r\n\r\nThis contains øø\r\n\r\nCarriage returns".encode(
+                        "iso-8859-1"
+                    ),
+                    charset=b"iso-8859-1",
+                ),
+                FormPart(
+                    b"album", "ØØ Void".encode("iso-8859-1"), charset=b"iso-8859-1"
+                ),
             ],
         ],
         [
@@ -86,3 +112,25 @@ from .examples.multipart import (
 def test_function(value: bytes, expected_value):
     values = list(parse_multipart(value))
     assert values == expected_value
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (b"example", b"example"),
+        (b"example\r\n", b"example"),
+        (b"example\n", b"example"),
+        (b"example\r\n\r\n", b"example\r\n"),
+        (b"example\n\n", b"example\n"),
+    ],
+)
+def test_remove_last_crlf(input, output):
+    assert _remove_last_crlf(input) == output
+
+
+def test_parse_part_raises_for_missing_content_disposition():
+    with pytest.raises(ValueError):
+        parse_part(
+            b'X-Content: form-data; name="one"\r\n\r\naaa',
+            None,
+        )

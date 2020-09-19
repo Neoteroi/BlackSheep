@@ -1,4 +1,4 @@
-[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI-v2?branchName=master)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=32) [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/) [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/)
+[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI-v2?branchName=master)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=32) [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/) [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![Test coverage](https://img.shields.io/azure-devops/coverage/robertoprevato/BlackSheep/32.svg)](https://dev.azure.com/robertoprevato/BlackSheep/_build?definitionId=32)
 
 # BlackSheep
 BlackSheep is an asynchronous web framework to build event based, non-blocking Python web applications.
@@ -151,7 +151,7 @@ async def only_for_authenticated_users():
 ## Web framework features
 * [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
 * [Routing](https://github.com/RobertoPrevato/BlackSheep/wiki/Routing)
-* [Request handlers defined as functions, or class methods](https://github.com/RobertoPrevato/BlackSheep/wiki/Defining-request-handlers)
+* [Request handlers can be defined as functions, or class methods](https://github.com/RobertoPrevato/BlackSheep/wiki/Defining-request-handlers)
 * [Middlewares](https://github.com/RobertoPrevato/BlackSheep/wiki/Middlewares)
 * [Built-in support for dependency injection](https://github.com/RobertoPrevato/BlackSheep/wiki/Dependency-injection)
 * [Support for automatic binding of route and query parameters to request handlers methods calls](https://github.com/RobertoPrevato/BlackSheep/wiki/Handlers-normalization#route-parameters)
@@ -161,6 +161,7 @@ async def only_for_authenticated_users():
 * [Chunked encoding](https://github.com/RobertoPrevato/BlackSheep/wiki/Chunked-encoding) through generators (yield syntax)
 * [Serving static files](https://github.com/RobertoPrevato/BlackSheep/wiki/Serving-static-files)
 * [Integration with Jinja2](https://github.com/RobertoPrevato/BlackSheep/wiki/Jinja2)
+* [Support for serving SPAs that use HTML5 History API for client side routing](https://github.com/RobertoPrevato/BlackSheep/wiki/How-to-serve-SPAs-that-use-HTML5-History-API)
 
 ## Client features
 * [HTTP connection pooling](https://github.com/RobertoPrevato/BlackSheep/wiki/Connection-pooling)

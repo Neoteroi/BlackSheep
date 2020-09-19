@@ -110,6 +110,8 @@ cdef class HtmlContent(Content):
         super().__init__(b'text/html; charset=utf-8', html.encode('utf8'))
 
 
+# TODO: the default dumps function should include separators;
+# this is not an issue if higher level functions are used
 cdef class JsonContent(Content):
 
     def __init__(self, object data, dumps=json.dumps):
@@ -191,9 +193,9 @@ cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
         values = data
     else:
         values = data.items()
-    
+
     cdef list contents = []
-    
+
     for key, value in values:
         if isinstance(value, MutableSequence):
             for item in value:

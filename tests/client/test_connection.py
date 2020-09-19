@@ -1,5 +1,5 @@
 import asyncio
-from asyncio import exceptions
+from asyncio import TimeoutError
 from typing import AsyncIterable, List
 
 from httptools.parser.errors import HttpParserCallbackError, HttpParserError
@@ -155,7 +155,7 @@ async def test_connection_handle_expect_100_continue_and_1xx(
 
     try:
         await asyncio.wait_for(connection.send(request), 0.01)
-    except exceptions.TimeoutError:
+    except TimeoutError:
         pass
 
     # The first message must include only headers without body,
@@ -293,7 +293,7 @@ async def test_on_writing_paused_awaits(connection):
 
     try:
         await asyncio.wait_for(connection.send(request), 0.1)
-    except exceptions.TimeoutError:
+    except TimeoutError:
         pass
 
     assert connection.writing_paused is True

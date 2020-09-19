@@ -1,12 +1,13 @@
 import asyncio
 import ssl
+from typing import Optional
 import weakref
 
 import certifi
 import httptools
 from httptools import HttpParserCallbackError, HttpParserError
 
-from blacksheep import Content, Response
+from blacksheep import Content, Request, Response
 from blacksheep.scribe import (
     is_small_request,
     request_has_body,
@@ -66,7 +67,13 @@ class InvalidResponseFromServer(Exception):
         self.inner_exception = inner_exception
 
 
-class UpgradeResponse:
+class UpgradeResponse(Exception):
+    """
+    Exception used to communicate an upgrade response (HTTP 101) to the calling code.
+    The exception is used to expose the response and transport object, so the caller
+    can handle the upgrade response.
+    """
+
     def __init__(self, response, transport):
         self.response = response
         self.transport = transport
@@ -95,7 +102,7 @@ class ClientConnection(asyncio.Protocol):
         "_upgraded",
     )
 
-    def __init__(self, loop, pool):
+    def __init__(self, loop, pool) -> None:
         self.loop = loop
         self.pool = weakref.ref(pool)
         self.transport = None
@@ -109,41 +116,41 @@ class ClientConnection(asyncio.Protocol):
         self.request_timeout = 20
         self.headers = []
         self.response = None
-        self.parser = httptools.HttpResponseParser(self)
+        self.parser = httptools.HttpResponseParser(self)  # type: ignore
         self._connection_lost = False
         self._pending_task = None
         self._can_release = False
         self._upgraded = False
 
-    def reset(self):
+    def reset(self) -> None:
         self.headers = []
         self.request = None
         self.response = None
         self.writing_paused = False
         self.writable.set()
         self.expect_100_continue = False
-        self.parser = httptools.HttpResponseParser(self)
+        self.parser = httptools.HttpResponseParser(self)  # type: ignore
         self._connection_lost = False
         self._pending_task = None
         self._can_release = False
         self._upgraded = False
 
-    def pause_writing(self):
+    def pause_writing(self) -> None:
         super().pause_writing()
         self.writing_paused = True
         self.writable.clear()
 
-    def resume_writing(self):
+    def resume_writing(self) -> None:
         super().resume_writing()
         self.writing_paused = False
         self.writable.set()
 
-    def connection_made(self, transport):
+    def connection_made(self, transport) -> None:
         self.transport = transport
         self.open = True
         self.ready.set()
 
-    async def _wait_response(self):
+    async def _wait_response(self) -> Response:
         await self.response_ready.wait()
 
         self._pending_task = False
@@ -151,6 +158,7 @@ class ClientConnection(asyncio.Protocol):
             self.loop.call_soon(self.release)
 
         response = self.response
+        assert response is not None
 
         if 99 < response.status < 200:
             # Handle 1xx informational
@@ -159,12 +167,13 @@ class ClientConnection(asyncio.Protocol):
             if response.status == 101:
                 # 101 Upgrade is a final response as it's used to switch
                 # protocols with WebSockets handshake.
-                # returns the response object with status 101 and access to
-                #  transport
+                # returns the response object with status 101 and access to the
+                # transport
                 self._upgraded = True
-                return UpgradeResponse(response, self.transport)
+                raise UpgradeResponse(response, self.transport)
 
             if response.status == 100 and self.expect_100_continue:
+                assert self.request is not None
                 await self._send_body(self.request)
 
             # ignore;
@@ -174,18 +183,15 @@ class ClientConnection(asyncio.Protocol):
             # await the final response
             return await self._wait_response()
 
-        if self._connection_lost:
-            # TODO: should also check if the response is not complete?
-            raise ConnectionClosedError(False)
-
         self.response_ready.clear()
         return response
 
-    async def _write_chunks(self, request, method):
+    async def _write_chunks(self, request, method) -> Optional[Response]:
         async for chunk in method(request):
             if self._can_release:
                 # the server returned a response before
-                #  we ended sending the request
+                # we ended sending the request: can happen for a bad request or
+                # unauthorized while posting a big enough body
                 return await self._wait_response()
 
             if not self.open:
@@ -195,10 +201,10 @@ class ClientConnection(asyncio.Protocol):
                 await self.writable.wait()
             self.transport.write(chunk)
 
-    async def _send_body(self, request):
+    async def _send_body(self, request: Request) -> None:
         await self._write_chunks(request, write_request_body_only)
 
-    async def send(self, request):
+    async def send(self, request: Request) -> Response:
         if not self.open:
             # NB: if the connection is closed here, it is always possible to
             # try again with a new connection
@@ -220,26 +226,32 @@ class ClientConnection(asyncio.Protocol):
         if is_small_request(request):
             self.transport.write(write_small_request(request))
         else:
-            await self._write_chunks(request, write_request)
+            response = await self._write_chunks(request, write_request)
+
+            if response is not None:
+                # this happens if the server sent a response before we completed
+                # sending a body
+                return response
 
         return await self._wait_response()
 
-    def close(self):
+    def close(self) -> None:
         if self.open:
             self.open = False
             if self.transport:
                 self.transport.close()
 
-    def data_received(self, data):
+    def data_received(self, data: bytes) -> None:
         try:
             self.parser.feed_data(data)
         except HttpParserCallbackError:
             self.close()
             raise
         except HttpParserError as pex:
+            self.close()
             raise InvalidResponseFromServer(pex)
 
-    def connection_lost(self, exc):
+    def connection_lost(self, exc) -> None:
         self._connection_lost = True
         self.ready.clear()
         self.open = False
@@ -250,7 +262,7 @@ class ClientConnection(asyncio.Protocol):
     def on_header(self, name, value):
         self.headers.append((name, value))
 
-    def on_headers_complete(self):
+    def on_headers_complete(self) -> None:
         status = self.parser.get_status_code()
         self.response = Response(status, self.headers, None)
         # NB: check if headers declare a content-length
@@ -258,10 +270,9 @@ class ClientConnection(asyncio.Protocol):
             self.response.content = IncomingContent(
                 self.response.get_single_header(b"content-type")
             )
-
         self.response_ready.set()
 
-    def _has_content(self):
+    def _has_content(self) -> bool:
         content_length = self.response.get_first_header(b"content-length")
 
         if content_length:
@@ -283,13 +294,13 @@ class ClientConnection(asyncio.Protocol):
 
         return False
 
-    def on_message_complete(self):
+    def on_message_complete(self) -> None:
         if self.response and self.response.content:
             self.response.content.complete.set()
 
         if self._pending_task:
             # the server returned a response before we ended sending the
-            # request, the connection cannot be released now - this can happen
+            # request, the connection can be released now - this can happen
             # for our Bad Requests
             self._can_release = True
             self.response_ready.set()
@@ -298,7 +309,7 @@ class ClientConnection(asyncio.Protocol):
             # the connection can be returned to its pool
             self.loop.call_soon(self.release)
 
-    def release(self):
+    def release(self) -> None:
         if not self.open or self._upgraded:
             # if the connection was upgraded, its transport is used for
             # web sockets, it cannot return to its pool for other cycles
@@ -313,5 +324,5 @@ class ClientConnection(asyncio.Protocol):
         else:
             self.close()
 
-    def on_body(self, value: bytes):
+    def on_body(self, value: bytes) -> None:
         self.response.content.extend_body(value)

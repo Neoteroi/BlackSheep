@@ -1,5 +1,5 @@
 from typing import Sequence, Optional, List, Union
-from .utils import BytesOrStr, ensure_str
+from .utils import AnyStr, ensure_str
 
 
 class InvalidRangeValue(ValueError):
@@ -52,8 +52,6 @@ class RangePart:
     def _validate_values(self):
         self._validate_value(self._start)
         self._validate_value(self._end)
-        if self._start is None and self._end is None:
-            ...
         if self._start is not None and self._end is not None:
             if self._start > self._end:
                 raise ValueError("The end bound must be greater than the start bound.")
@@ -81,7 +79,7 @@ class RangePart:
         number of units at the end of the file;
         without start byte position.
         """
-        return self.start == ""
+        return self.start is None or self.start == ""
 
     @property
     def is_to_end(self):
@@ -89,7 +87,7 @@ class RangePart:
         Returns a value indicating whether this range part refers to all
         bytes after a certain index; without end byte position.
         """
-        return self.end == ""
+        return self.end is None or self.end == ""
 
     def __repr__(self):
         return (
@@ -172,7 +170,7 @@ class Range:
         self._parts = list(value)
 
     @classmethod
-    def parse(cls, value: BytesOrStr):
+    def parse(cls, value: AnyStr):
         value = ensure_str(value)
 
         # an equal sign is expected in Range value;

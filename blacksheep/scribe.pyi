@@ -1,3 +1,4 @@
+from blacksheep.cookies import Cookie
 from typing import AsyncIterable, Callable
 from blacksheep.messages import Request, Response
 from blacksheep.contents import Content
@@ -36,4 +37,8 @@ async def write_request(request: Request) -> AsyncIterable[bytes]:
 
 
 async def write_request_body_only(request: Request) -> AsyncIterable[bytes]:
+    ...
+
+
+def write_response_cookie(cookie: Cookie) -> bytes:
     ...

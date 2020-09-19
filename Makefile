@@ -67,3 +67,11 @@ init:
 
 test-v:
 	pytest -v
+
+
+test-cov-unit:
+	pytest --cov-report html --cov=blacksheep tests
+
+
+test-cov:
+	pytest --cov-report html --cov=blacksheep

@@ -1,13 +1,15 @@
 import asyncio
-from base64 import urlsafe_b64decode, urlsafe_b64encode
 import json
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from dataclasses import dataclass
 from typing import List, Optional
 from uuid import UUID, uuid4
-from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity, User
 
 import pkg_resources
 import pytest
+from guardpost.asynchronous.authentication import AuthenticationHandler
+from guardpost.authentication import Identity, User
+from rodi import Container
 
 from blacksheep import HttpException, JsonContent, Request, Response, TextContent
 from blacksheep.server import Application
@@ -21,8 +23,8 @@ from blacksheep.server.bindings import (
     RequestUser,
     ServerInfo,
 )
+from blacksheep.server.di import dependency_injection_middleware
 from blacksheep.server.responses import text
-from rodi import Container
 from tests.utils import ensure_folder
 
 
@@ -103,6 +105,11 @@ def get_example_scope(
     }
 
 
+class MockMessage:
+    def __init__(self, value):
+        self.value = value
+
+
 class MockReceive:
     def __init__(self, messages=None):
         self.messages = messages or []
@@ -113,6 +120,8 @@ class MockReceive:
             message = self.messages[self.index]
         except IndexError:
             message = b""
+        if isinstance(message, MockMessage):
+            return message.value
         self.index += 1
         await asyncio.sleep(0)
         return {
@@ -162,7 +171,7 @@ async def test_application_get_handler():
 async def test_application_post_multipart_formdata():
     app = FakeApplication()
 
-    @app.router.post(b"/files/upload")
+    @app.router.post("/files/upload")
     async def upload_files(request):
         data = await request.multipart()
         assert data is not None
@@ -278,7 +287,7 @@ async def test_application_post_handler():
 
     called_times = 0
 
-    @app.router.post(b"/api/cat")
+    @app.router.post("/api/cat")
     async def create_cat(request):
         nonlocal called_times
         called_times += 1
@@ -352,6 +361,51 @@ async def test_application_middlewares_two():
     assert response is not None
     assert response.status == 200
     assert calls == [1, 3, 5, 4, 2]
+
+
+@pytest.mark.asyncio
+async def test_application_middlewares_are_applied_only_once():
+    """
+    This test checks that the same request handled bound to several routes
+    is normalized only once with middlewares, and that more calls to
+    configure_middlewares don't apply several times the chain of middlewares.
+    """
+    app = FakeApplication()
+
+    calls = []
+
+    async def example(request: Request):
+        nonlocal calls
+        calls.append(2)
+        return None
+
+    app.router.add_get("/", example)
+    app.router.add_head("/", example)
+
+    async def middleware(request, handler):
+        nonlocal calls
+        calls.append(1)
+        response = await handler(request)
+        return response
+
+    app.middlewares.append(middleware)
+
+    for method, _ in {("GET", 1), ("GET", 2), ("HEAD", 1), ("HEAD", 2)}:
+        app.configure_middlewares()
+
+        send = MockSend()
+        receive = MockReceive([])
+
+        await app(get_example_scope(method, "/"), receive, send)
+
+        assert app.response is not None
+        response: Response = app.response
+
+        assert response is not None
+        assert response.status == 204
+        assert calls == [1, 2]
+
+        calls.clear()
 
 
 @pytest.mark.asyncio
@@ -461,7 +515,7 @@ async def test_application_post_multipart_formdata_files_handler():
     ensure_folder("out")
     ensure_folder("tests/out")
 
-    @app.router.post(b"/files/upload")
+    @app.router.post("/files/upload")
     async def upload_files(request):
         files = await request.files("files[]")
 
@@ -1215,6 +1269,19 @@ async def test_handler_normalize_list_sync_method_from_query_default():
 
 
 @pytest.mark.asyncio
+async def test_handler_normalize_sync_method_without_arguments():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    def home():
+        return
+
+    app.normalize_handlers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_query_optional():
     app = FakeApplication()
 
@@ -1416,6 +1483,35 @@ async def test_handler_from_json_parameter():
 
 
 @pytest.mark.asyncio
+async def test_handler_from_json_dataclass():
+    app = FakeApplication()
+
+    @dataclass
+    class Foo:
+        foo: str
+        ufo: bool
+
+    @app.router.post("/")
+    async def home(item: FromJson[Foo]):
+        assert item is not None
+        value = item.value
+        assert value.foo == "Hello"
+        assert value.ufo is True
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"foo":"Hello","ufo":true}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
 async def test_handler_from_json_parameter_default():
     app = FakeApplication()
 
@@ -1570,6 +1666,7 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
         [str, "Hello", "World"],
         [int, "1349", "164"],
         [float, "1.2", "13.3"],
+        [bytes, b"example", b"example"],
         [bool, True, False],
         [
             UUID,
@@ -1584,9 +1681,17 @@ async def test_valid_query_parameter(parameter_type, parameter_one, parameter_tw
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         assert isinstance(foo.value, parameter_type)
+        if isinstance(foo.value, bytes):
+            return text(f"Got: {foo.value.decode('utf8')}")
         return text(f"Got: {foo.value}")
 
     app.normalize_handlers()
+
+    # f strings handle bytes creating string representations:
+    if isinstance(parameter_one, bytes):
+        parameter_one = parameter_one.decode("utf8")
+    if isinstance(parameter_two, bytes):
+        parameter_two = parameter_two.decode("utf8")
 
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter_one}".encode()),
@@ -2132,6 +2237,78 @@ async def test_service_bindings():
 
 
 @pytest.mark.asyncio
+async def test_di_middleware_enables_scoped_services_in_handle_signature():
+    container = Container()
+
+    class OperationContext:
+        def __init__(self) -> None:
+            self.trace_id = uuid4()
+
+    container.add_exact_scoped(OperationContext)
+
+    first_operation: Optional[OperationContext] = None
+
+    app = FakeApplication(services=container)
+    app.middlewares.append(dependency_injection_middleware)
+
+    @app.router.get("/")
+    async def home(a: OperationContext, b: OperationContext):
+        assert a is b
+        nonlocal first_operation
+        if first_operation is None:
+            first_operation = a
+        else:
+            assert first_operation is not a
+
+        return text("OK")
+
+    await app.start()
+
+    for _ in range(2):
+        scope = get_example_scope("GET", "/", [])
+        await app(
+            scope,
+            MockReceive(),
+            MockSend(),
+        )
+
+        content = await app.response.text()
+        assert content == "OK"
+        assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signature():
+    container = Container()
+
+    class OperationContext:
+        def __init__(self) -> None:
+            self.trace_id = uuid4()
+
+    container.add_exact_scoped(OperationContext)
+    app = FakeApplication(services=container)
+
+    @app.router.get("/")
+    async def home(a: OperationContext, b: OperationContext):
+        assert a is not b
+        return text("OK")
+
+    await app.start()
+
+    for _ in range(2):
+        scope = get_example_scope("GET", "/", [])
+        await app(
+            scope,
+            MockReceive(),
+            MockSend(),
+        )
+
+        content = await app.response.text()
+        assert content == "OK"
+        assert app.response.status == 200
+
+
+@pytest.mark.asyncio
 async def test_service_bindings_default():
     # Extremely unlikely, but still supported if the user defines a default service
     container = Container()
@@ -2278,3 +2455,235 @@ async def test_user_binding():
         content = await app.response.text()
         assert app.response.status == 200
         assert content == "User name: Charlie Brown"
+
+
+@pytest.mark.asyncio
+async def test_use_auth_raises_if_app_is_already_started():
+    app = FakeApplication()
+
+    class MockAuthHandler(AuthenticationHandler):
+        async def authenticate(self, context):
+            header_value = context.get_first_header(b"Authorization")
+            if header_value:
+                data = json.loads(urlsafe_b64decode(header_value).decode("utf8"))
+                context.identity = Identity(data, "TEST")
+            else:
+                context.identity = None
+            return context.identity
+
+    await app.start()
+
+    with pytest.raises(RuntimeError):
+        app.use_authentication()
+
+    with pytest.raises(RuntimeError):
+        app.use_authorization()
+
+
+@pytest.mark.asyncio
+async def test_default_headers():
+    app = FakeApplication()
+    app.default_headers = (("Example", "Foo"),)
+
+    assert app.default_headers == (("Example", "Foo"),)
+
+    @app.route("/")
+    async def home():
+        return text("Hello World")
+
+    await app.start()
+
+    await app(
+        get_example_scope("GET", f"/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert response.headers.get_first(b"Example") == b"Foo"
+
+
+@pytest.mark.asyncio
+async def test_start_stop_events():
+    app = FakeApplication()
+
+    on_start_called = False
+    on_stop_called = False
+
+    async def before_start(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_start_called
+        on_start_called = True
+
+    async def on_stop(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_stop_called
+        on_stop_called = True
+
+    app.on_start += before_start
+    app.on_stop += on_stop
+
+    await app.start()
+
+    assert on_start_called is True
+    assert on_stop_called is False
+
+    await app.stop()
+
+    assert on_start_called is True
+    assert on_stop_called is True
+
+
+@pytest.mark.asyncio
+async def test_start_stop_multiple_events():
+    app = FakeApplication()
+
+    on_start_count = 0
+    on_stop_count = 0
+
+    async def before_start_1(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    async def before_start_2(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    async def before_start_3(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    async def on_stop_1(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_stop_count
+        on_stop_count += 1
+
+    async def on_stop_2(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_stop_count
+        on_stop_count += 1
+
+    app.on_start += before_start_1
+    app.on_start += before_start_2
+    app.on_start += before_start_3
+    app.on_stop += on_stop_1
+    app.on_stop += on_stop_2
+
+    await app.start()
+
+    assert on_start_count == 3
+    assert on_stop_count == 0
+
+    await app.stop()
+
+    assert on_start_count == 3
+    assert on_stop_count == 2
+
+
+@pytest.mark.asyncio
+async def test_start_stop_remove_event_handlers():
+    app = FakeApplication()
+
+    on_start_count = 0
+    on_stop_count = 0
+
+    async def before_start_1(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    async def before_start_2(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    async def on_stop_1(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_stop_count
+        on_stop_count += 1
+
+    async def on_stop_2(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_stop_count
+        on_stop_count += 1
+
+    app.on_start += before_start_1
+    app.on_start += before_start_2
+    app.on_stop += on_stop_1
+    app.on_stop += on_stop_2
+
+    app.on_start -= before_start_2
+    app.on_stop -= on_stop_2
+
+    await app.start()
+
+    assert on_start_count == 1
+    assert on_stop_count == 0
+
+    await app.stop()
+
+    assert on_start_count == 1
+    assert on_stop_count == 1
+
+
+@pytest.mark.asyncio
+async def test_start_runs_once():
+    app = FakeApplication()
+
+    on_start_count = 0
+
+    async def before_start(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    app.on_start += before_start
+
+    await app.start()
+
+    assert on_start_count == 1
+
+    await app.start()
+    await app.start()
+
+    assert on_start_count == 1
+
+
+@pytest.mark.asyncio
+async def test_handles_on_start_error_asgi_lifespan():
+    app = FakeApplication()
+
+    async def before_start(application: Application) -> None:
+        raise RuntimeError("Crash!")
+
+    app.on_start += before_start
+
+    mock_receive = MockReceive(
+        [
+            MockMessage({"type": "lifespan.startup"}),
+            MockMessage({"type": "lifespan.shutdown"}),
+        ]
+    )
+    mock_send = MockSend()
+
+    await app(
+        {"type": "lifespan", "message": "lifespan.startup"}, mock_receive, mock_send
+    )
+
+    assert mock_send.messages[0] == {"type": "lifespan.startup.failed"}

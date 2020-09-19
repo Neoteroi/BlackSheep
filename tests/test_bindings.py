@@ -1,4 +1,4 @@
-from typing import List, Sequence, Set, Tuple
+from typing import Any, List, Optional, Sequence, Set, Tuple, Type
 from guardpost.authentication import Identity
 
 import pytest
@@ -10,15 +10,23 @@ from rodi import Container
 from blacksheep import FormContent, FormPart, JsonContent, MultiPartFormData, Request
 from blacksheep.server.bindings import (
     BadRequest,
+    Binder,
+    BinderAlreadyDefinedException,
+    BinderNotRegisteredForValueType,
+    BodyBinder,
+    BoundValue,
     FormBinder,
     HeaderBinder,
     IdentityBinder,
     InvalidRequestBody,
     JsonBinder,
+    MissingBodyError,
     MissingConverterError,
     QueryBinder,
     RouteBinder,
     ServiceBinder,
+    SyncBinder,
+    get_binder_by_type,
 )
 
 JsonContentType = (b"Content-Type", b"application/json")
@@ -361,6 +369,7 @@ async def test_from_header_binding_iterables(
         [List[int], list, [b"10"], [10]],
         [List[int], list, [b"0", b"1", b"0"], [0, 1, 0]],
         [List[int], list, [b"0", b"1", b"0", b"2"], [0, 1, 0, 2]],
+        [List[bytes], list, [b"0", b"1", b"0", b"2"], [b"0", b"1", b"0", b"2"]],
         [List[bool], list, [b"1"], [True]],
         [List[bool], list, [b"0", b"1", b"0"], [False, True, False]],
         [List[bool], list, [b"0", b"1", b"0", b"true"], [False, True, False, True]],
@@ -513,3 +522,114 @@ async def test_from_body_form_binding_multipart_keys_duplicates():
     assert isinstance(value, ExampleThree)
     assert value.a == "world"
     assert value.b == ["one", "two", "three"]
+
+
+@pytest.mark.asyncio
+async def test_custom_bound_value_and_binder():
+    class FromMethod(BoundValue[str]):
+        pass
+
+    class MethodBinder(Binder):
+        handle = FromMethod
+
+        async def get_value(self, request: Request) -> Optional[str]:
+            return request.method
+
+    parameter = MethodBinder(str)
+
+    for method in {"GET", "POST", "TRACE"}:
+        value = await parameter.get_value(Request(method, b"/", []))
+        assert value == method
+
+
+@pytest.mark.asyncio
+async def test_custom_bound_value_fails_for_missing_binder():
+    class FromSomething(BoundValue[str]):
+        pass
+
+    def faulty(example: FromSomething):
+        pass
+
+    with pytest.raises(BinderNotRegisteredForValueType):
+        get_binder_by_type(FromSomething)
+
+
+@pytest.mark.asyncio
+async def test_raises_for_duplicate_binders():
+    class FromMethod(BoundValue[str]):
+        pass
+
+    class MethodBinder(Binder):
+        handle = FromMethod
+
+        async def get_value(self, request: Request) -> Optional[str]:
+            return request.method
+
+    with pytest.raises(BinderAlreadyDefinedException):
+
+        class MethodBinder2(Binder):
+            handle = FromMethod
+
+            async def get_value(self, request: Request) -> Optional[str]:
+                return request.method
+
+
+@pytest.mark.parametrize(
+    "binder_type,expected_source_name",
+    [(RouteBinder, "route"), (QueryBinder, "query"), (HeaderBinder, "header")],
+)
+def test_sync_binder_source_name(
+    binder_type: Type[SyncBinder], expected_source_name: str
+):
+    binder = binder_type(str)
+    assert binder.source_name == expected_source_name
+
+
+@pytest.mark.asyncio
+async def test_body_binder_throws_for_abstract_methods():
+    body_binder = BodyBinder(dict)
+
+    with pytest.raises(NotImplementedError):
+        body_binder.matches_content_type(Request("HEAD", b"/", []))
+
+    with pytest.raises(NotImplementedError):
+        await body_binder.read_data(Request("HEAD", b"/", []))
+
+
+@pytest.mark.asyncio
+async def test_body_binder_throws_bad_request_for_missing_body():
+    class CustomBodyBinder(BodyBinder):
+        def matches_content_type(self, request: Request) -> bool:
+            return True
+
+        async def read_data(self, request: Request) -> Any:
+            return None
+
+    body_binder = CustomBodyBinder(dict)
+
+    with pytest.raises(MissingBodyError):
+        await body_binder.get_value(
+            Request("POST", b"/", [(b"content-type", b"application/json")])
+        )
+
+    body_binder = JsonBinder(dict, required=True)
+
+    with pytest.raises(MissingBodyError):
+        await body_binder.get_value(Request("POST", b"/", []))
+
+
+@pytest.mark.asyncio
+async def test_body_binder_throws_bad_request_for_value_error():
+    body_binder = JsonBinder(dict, required=True)
+
+    def example_converter(value):
+        raise ValueError("Invalid value")
+
+    body_binder.converter = example_converter
+
+    with pytest.raises(InvalidRequestBody):
+        await body_binder.get_value(
+            Request(
+                "POST", b"/", [(b"content-type", b"application/json")]
+            ).with_content(JsonContent({"id": "1", "name": "foo"}))
+        )

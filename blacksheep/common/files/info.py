@@ -1,7 +1,7 @@
 import os
 from email.utils import formatdate
 
-from .pathsutils import get_mime_type
+from .pathsutils import get_mime_type_from_name
 
 
 class FileInfo:
@@ -30,6 +30,6 @@ class FileInfo:
         return cls(
             stat.st_size,
             str(stat.st_mtime),
-            get_mime_type(resource_path),
+            get_mime_type_from_name(resource_path),
             formatdate(stat.st_mtime, usegmt=True),
         )

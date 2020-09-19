@@ -1,8 +1,10 @@
+from tests.test_files_serving import get_folder_path
+from blacksheep.server.files import ServeFilesOptions
 from typing import Any, Optional
 
 import pytest
 from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext
+from guardpost.authorization import AuthorizationContext, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from pytest import raises
 
@@ -14,7 +16,9 @@ from blacksheep.server.authorization import (
     AuthorizationWithoutAuthenticationError,
     Policy,
     Requirement,
+    allow_anonymous,
     auth,
+    get_www_authenticated_header_from_generic_unauthorized_error,
 )
 
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
@@ -72,7 +76,7 @@ async def test_authentication_sets_identity_in_request():
 
     identity = None
 
-    @app.router.get(b"/")
+    @app.router.get("/")
     async def home(request):
         nonlocal identity
         identity = request.identity
@@ -97,7 +101,7 @@ async def test_authorization_unauthorized_error():
     app.use_authorization().add(AdminsPolicy())
 
     @auth("admin")
-    @app.router.get(b"/")
+    @app.router.get("/")
     async def home():
         return None
 
@@ -118,7 +122,7 @@ async def test_authorization_policy_success():
     app.use_authorization().add(AdminsPolicy())
 
     @auth("admin")
-    @app.router.get(b"/")
+    @app.router.get("/")
     async def home():
         return None
 
@@ -136,7 +140,7 @@ async def test_authorization_default_allows_anonymous():
 
     app.use_authorization().add(AdminsPolicy())
 
-    @app.router.get(b"/")
+    @app.router.get("/")
     async def home():
         return None
 
@@ -156,7 +160,7 @@ async def test_authorization_supports_default_require_authenticated():
         AdminsPolicy()
     ).default_policy += AuthenticatedRequirement()
 
-    @app.router.get(b"/")
+    @app.router.get("/")
     async def home():
         return None
 
@@ -164,6 +168,138 @@ async def test_authorization_supports_default_require_authenticated():
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
+
+
+@pytest.mark.asyncio
+async def test_static_files_allow_anonymous_by_default():
+    app = FakeApplication()
+
+    app.use_authentication().add(MockNotAuthHandler())
+
+    app.use_authorization().add(
+        AdminsPolicy()
+    ).default_policy += AuthenticatedRequirement()
+
+    @app.router.get("/")
+    async def home():
+        return None
+
+    app.serve_files(ServeFilesOptions(get_folder_path("files")))
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 401
+
+    await app(get_example_scope("GET", "/lorem-ipsum.txt"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert content == "Lorem ipsum dolor sit amet\n"
+
+
+@pytest.mark.asyncio
+async def test_static_files_support_authentication():
+    app = FakeApplication()
+
+    app.use_authentication().add(MockNotAuthHandler())
+
+    app.use_authorization().add(
+        AdminsPolicy()
+    ).default_policy += AuthenticatedRequirement()
+
+    @app.router.get("/")
+    async def home():
+        return None
+
+    app.serve_files(ServeFilesOptions(get_folder_path("files"), allow_anonymous=False))
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 401
+
+    await app(get_example_scope("GET", "/lorem-ipsum.txt"), MockReceive(), MockSend())
+
+    assert app.response.status == 401
+
+
+@pytest.mark.asyncio
+async def test_static_files_support_authentication_by_route():
+    app = FakeApplication()
+
+    app.use_authentication().add(MockNotAuthHandler())
+
+    app.use_authorization().add(
+        AdminsPolicy()
+    ).default_policy += AuthenticatedRequirement()
+
+    @app.router.get("/")
+    async def home():
+        return None
+
+    app.serve_files(ServeFilesOptions(get_folder_path("files"), allow_anonymous=False))
+    app.serve_files(
+        ServeFilesOptions(
+            get_folder_path("files2"), allow_anonymous=True, root_path="/login"
+        )
+    )
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 401
+
+    await app(get_example_scope("GET", "/lorem-ipsum.txt"), MockReceive(), MockSend())
+
+    assert app.response.status == 401
+
+    await app(get_example_scope("GET", "/login/index.html"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    content = await app.response.text()
+    assert (
+        content
+        == """<!DOCTYPE html>
+<html>
+  <head>
+    <title>Example.</title>
+    <link rel="stylesheet" type="text/css" href="/styles/main.css" />
+  </head>
+  <body>
+    <h1>Lorem ipsum</h1>
+    <p>Dolor sit amet.</p>
+    <script src="/scripts/main.js"></script>
+  </body>
+</html>
+"""
+    )
+
+
+@pytest.mark.asyncio
+async def test_authorization_supports_allow_anonymous():
+    from blacksheep.server.responses import text
+
+    app = FakeApplication()
+
+    app.use_authentication().add(MockNotAuthHandler())
+
+    app.use_authorization().add(
+        AdminsPolicy()
+    ).default_policy += AuthenticatedRequirement()
+
+    @allow_anonymous()
+    @app.router.get("/")
+    async def home():
+        return text("Hi There!")
+
+    app.prepare()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
 
 
 @pytest.mark.asyncio
@@ -176,7 +312,7 @@ async def test_authentication_challenge_response():
         AdminsPolicy()
     ).default_policy += AuthenticatedRequirement()
 
-    @app.router.get(b"/")
+    @app.router.get("/")
     async def home():
         return None
 
@@ -229,3 +365,25 @@ def test_authentication_challenge_error(scheme, realm, parameters, expected_valu
     header = error.get_header()
     assert header[0] == b"WWW-Authenticate"
     assert header[1] == expected_value
+
+
+@pytest.mark.parametrize(
+    "exc,expected_value",
+    [
+        (UnauthorizedError(None, [], scheme="AAD"), b"AAD"),
+        (UnauthorizedError(None, [], scheme="example"), b"example"),
+        (
+            UnauthorizedError(None, [], scheme="Something-Something"),
+            b"Something-Something",
+        ),
+    ],
+)
+def test_get_www_authenticated_header_from_generic_unauthorized_error(
+    exc, expected_value
+):
+    header = get_www_authenticated_header_from_generic_unauthorized_error(exc)
+
+    assert header is not None
+    name, value = header
+    assert name == b"WWW-Authenticate"
+    assert value == expected_value

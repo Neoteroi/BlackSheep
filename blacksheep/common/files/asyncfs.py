@@ -1,9 +1,7 @@
 import asyncio
 from asyncio import AbstractEventLoop, BaseEventLoop
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import IO, Any, AsyncIterable, Callable, Optional, Union
-
-BytesOrStr = Union[bytes, str]
+from typing import IO, Any, AsyncIterable, Callable, Optional, Union, AnyStr
 
 
 class PoolClient:
@@ -49,7 +47,7 @@ class FileContext(PoolClient):
         return await self.run(self.file.read, chunk_size)
 
     async def write(
-        self, data: Union[BytesOrStr, Callable[[], AsyncIterable[BytesOrStr]]]
+        self, data: Union[AnyStr, Callable[[], AsyncIterable[AnyStr]]]
     ) -> None:
         if isinstance(data, bytes) or isinstance(data, str):
             await self.run(self.file.write, data)
@@ -57,7 +55,7 @@ class FileContext(PoolClient):
             async for chunk in data():
                 await self.run(self.file.write, chunk)
 
-    async def chunks(self, chunk_size: int = 1024 * 64) -> AsyncIterable[BytesOrStr]:
+    async def chunks(self, chunk_size: int = 1024 * 64) -> AsyncIterable[AnyStr]:
         while True:
             chunk = await self.run(self.file.read, chunk_size)
 
@@ -89,14 +87,14 @@ class FilesHandler:
 
     async def read(
         self, file_path: str, size: Optional[int] = None, mode: str = "rb"
-    ) -> BytesOrStr:
+    ) -> AnyStr:
         async with self.open(file_path, mode=mode) as file:
             return await file.read(size)
 
     async def write(
         self,
         file_path: str,
-        data: Union[BytesOrStr, Callable[[], AsyncIterable[BytesOrStr]]],
+        data: Union[AnyStr, Callable[[], AsyncIterable[AnyStr]]],
         mode: str = "wb",
     ) -> None:
         async with self.open(file_path, mode=mode) as file:
@@ -104,7 +102,7 @@ class FilesHandler:
 
     async def chunks(
         self, file_path: str, chunk_size: int = 1024 * 64
-    ) -> AsyncIterable[BytesOrStr]:
+    ) -> AsyncIterable[AnyStr]:
         async with self.open(file_path) as file:
             async for chunk in file.chunks(chunk_size):
                 yield chunk

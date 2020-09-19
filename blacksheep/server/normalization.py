@@ -1,26 +1,42 @@
 import inspect
 from functools import wraps
-from inspect import Signature, _empty  # type: ignore
-from typing import Any, List, Sequence, Set, Type, Tuple, TypeVar, Union
+from inspect import Signature, _ParameterKind, _empty  # type: ignore
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID
 
 from guardpost.authentication import Identity, User
+from rodi import Services
 
+from blacksheep import Request, Response
 from blacksheep.normalization import copy_special_attributes
+from blacksheep.server.routing import Route
 
 from .bindings import (
-    empty,
     Binder,
     BodyBinder,
     BoundValue,
     ControllerBinder,
     ExactBinder,
     IdentityBinder,
-    RequestBinder,
-    QueryBinder,
     JsonBinder,
+    QueryBinder,
+    RequestBinder,
     RouteBinder,
     ServiceBinder,
+    empty,
     get_binder_by_type,
 )
 
@@ -35,18 +51,9 @@ class UnsupportedSignatureError(NormalizationError):
     def __init__(self, method):
         super().__init__(
             f"Cannot normalize method `{method.__qualname__}` because its "
-            f"signature contains *args or *kwargs parameters. "
+            f"signature contains *args, or *kwargs, or keyword only parameters. "
             f"If you use a decorator, please use `functools.@wraps` "
             f"with your wrapper, to fix this error."
-        )
-
-
-class MultipleFromBodyParameters(NormalizationError):
-    def __init__(self, method, first_match, new_match):
-        super().__init__(
-            f"Cannot use more than one `FromBody` parameters for the same method "
-            f"({method.__qualname__}). The first match was: {first_match}, "
-            f"a second one {new_match}."
         )
 
 
@@ -99,7 +106,9 @@ _types_handled_with_query = {
 }
 
 
-def _check_union(parameter, annotation, method):
+def _check_union(
+    parameter: inspect.Parameter, annotation: Any, method: Callable[..., Any]
+) -> Tuple[bool, Any]:
     """
     Checks if the given annotation is Optional[] - in such case unwraps it
     and returns its value.
@@ -128,7 +137,9 @@ def _check_union(parameter, annotation, method):
 
 
 def _get_parameter_binder_without_annotation(
-    parameter, services, route, method, name: str
+    services: Services,
+    route: Optional[Route],
+    name: str,
 ) -> Binder:
     if route:
         # 1. does route contain a parameter with matching name?
@@ -143,7 +154,7 @@ def _get_parameter_binder_without_annotation(
     return QueryBinder(List[str], name, True)
 
 
-def _is_bound_value_annotation(annotation) -> bool:
+def _is_bound_value_annotation(annotation: Any) -> bool:
     if inspect.isclass(annotation) and issubclass(annotation, BoundValue):
         return True
     return "__origin__" in annotation.__dict__ and issubclass(
@@ -176,7 +187,10 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
 
 
 def _get_parameter_binder(
-    parameter: inspect.Parameter, services, route, method
+    parameter: inspect.Parameter,
+    services: Services,
+    route: Optional[Route],
+    method: Callable[..., Any],
 ) -> Binder:
     name = parameter.name
 
@@ -189,9 +203,7 @@ def _get_parameter_binder(
     original_annotation = parameter.annotation
 
     if original_annotation is _empty:
-        return _get_parameter_binder_without_annotation(
-            parameter, services, route, method, name
-        )
+        return _get_parameter_binder_without_annotation(services, route, name)
 
     # unwrap the Optional[] annotation, if present:
     is_root_optional, annotation = _check_union(parameter, original_annotation, method)
@@ -250,7 +262,10 @@ def _get_parameter_binder(
 
 
 def get_parameter_binder(
-    parameter: inspect.Parameter, services, route, method
+    parameter: inspect.Parameter,
+    services: Services,
+    route: Optional[Route],
+    method: Callable[..., Any],
 ) -> Binder:
     binder = _get_parameter_binder(parameter, services, route, method)
     if parameter.default is _empty:
@@ -260,7 +275,9 @@ def get_parameter_binder(
     return binder
 
 
-def _get_binders_for_function(method, services, route) -> List[Binder]:
+def _get_binders_for_function(
+    method: Callable[..., Any], services: Services, route: Optional[Route]
+) -> List[Binder]:
     signature = Signature.from_callable(method)
     parameters = signature.parameters
     body_binder = None
@@ -282,7 +299,7 @@ def _get_binders_for_function(method, services, route) -> List[Binder]:
     return binders
 
 
-def get_binders(route, services) -> Sequence[Binder]:
+def get_binders(route: Route, services: Services) -> Sequence[Binder]:
     """
     Returns a list of binders to extract parameters
     for a request handler.
@@ -290,19 +307,22 @@ def get_binders(route, services) -> Sequence[Binder]:
     return _get_binders_for_function(route.handler, services, route)
 
 
-def get_binders_for_middleware(method, services):
+def get_binders_for_middleware(
+    method: Callable[..., Any], services: Services
+) -> Sequence[Binder]:
     return _get_binders_for_function(method, services, None)
 
 
-def _copy_name_and_docstring(source_method, wrapper):
-    try:
-        wrapper.__name__ = source_method.__name__
-        wrapper.__doc__ = source_method.__doc__
-    except AttributeError:
-        pass
+def _copy_name_and_docstring(
+    source_method: Callable[..., Any], wrapper: Callable[..., Any]
+) -> None:
+    wrapper.__name__ = source_method.__name__
+    wrapper.__doc__ = source_method.__doc__
 
 
-def _get_sync_wrapper_for_controller(binders: Sequence[Binder], method):
+def _get_sync_wrapper_for_controller(
+    binders: Sequence[Binder], method: Callable[..., Any]
+) -> Callable[[Request], Awaitable[Response]]:
     @wraps(method)
     async def handler(request):
         values = []
@@ -321,7 +341,9 @@ def _get_sync_wrapper_for_controller(binders: Sequence[Binder], method):
     return handler
 
 
-def _get_async_wrapper_for_controller(binders: Sequence[Binder], method):
+def _get_async_wrapper_for_controller(
+    binders: Sequence[Binder], method: Callable[..., Any]
+) -> Callable[[Request], Awaitable[Response]]:
     @wraps(method)
     async def handler(request):
         values = []
@@ -340,7 +362,13 @@ def _get_async_wrapper_for_controller(binders: Sequence[Binder], method):
     return handler
 
 
-def get_sync_wrapper(services, route, method, params, params_len):
+def get_sync_wrapper(
+    services: Services,
+    route: Route,
+    method: Callable[..., Any],
+    params: Mapping[str, inspect.Parameter],
+    params_len: int,
+) -> Callable[[Request], Awaitable[Response]]:
     if params_len == 0:
         # the user defined a synchronous request handler with no input
         async def handler(_):
@@ -370,7 +398,13 @@ def get_sync_wrapper(services, route, method, params, params_len):
     return handler
 
 
-def get_async_wrapper(services, route, method, params, params_len):
+def get_async_wrapper(
+    services: Services,
+    route: Route,
+    method: Callable[..., Any],
+    params: Mapping[str, inspect.Parameter],
+    params_len: int,
+) -> Callable[[Request], Awaitable[Response]]:
     if params_len == 0:
         # the user defined a request handler with no input
         async def handler(_):
@@ -397,14 +431,19 @@ def get_async_wrapper(services, route, method, params, params_len):
     return handler
 
 
-def normalize_handler(route, services):
+def normalize_handler(
+    route: Route, services: Services
+) -> Callable[[Request], Awaitable[Response]]:
     method = route.handler
 
     sig = Signature.from_callable(method)
     params = sig.parameters
     params_len = len(params)
 
-    if any(str(param).startswith("*") for param in params.values()):
+    if any(
+        str(param).startswith("*") or param.kind.value == _ParameterKind.KEYWORD_ONLY
+        for param in params.values()
+    ):
         raise UnsupportedSignatureError(method)
 
     if inspect.iscoroutinefunction(method):
@@ -419,7 +458,7 @@ def normalize_handler(route, services):
     return normalized
 
 
-def _is_basic_middleware_signature(parameters):
+def _is_basic_middleware_signature(parameters: Mapping[str, inspect.Parameter]) -> bool:
     values = list(parameters.values())
 
     if len(values) != 2:
@@ -432,7 +471,9 @@ def _is_basic_middleware_signature(parameters):
     return False
 
 
-def _get_middleware_async_binder(method, services):
+def _get_middleware_async_binder(
+    method: Callable[..., Awaitable[Response]], services: Services
+) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     binders = get_binders_for_middleware(method, services)
 
     async def handler(request, next_handler):
@@ -456,16 +497,16 @@ def _get_middleware_async_binder(method, services):
     return handler
 
 
-def normalize_middleware(middleware, services):
+def normalize_middleware(
+    middleware: Callable[..., Awaitable[Response]], services: Services
+) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
+    if not inspect.iscoroutinefunction(middleware):
+        raise ValueError("Middlewares must be asynchronous functions")
+
     sig = Signature.from_callable(middleware)
     params = sig.parameters
 
     if _is_basic_middleware_signature(params):
         return middleware
 
-    if inspect.iscoroutinefunction(middleware):
-        normalized = _get_middleware_async_binder(middleware, services)
-    else:
-        raise ValueError("Middlewares must be asynchronous functions")
-
-    return normalized
+    return _get_middleware_async_binder(middleware, services)

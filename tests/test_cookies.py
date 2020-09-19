@@ -1,12 +1,15 @@
-import pytest
 from datetime import datetime
+
+import pytest
+
 from blacksheep import (
     Cookie,
     datetime_from_cookie_format,
     datetime_to_cookie_format,
     parse_cookie,
+    scribe,
 )
-from blacksheep import scribe
+
 
 COOKIES = [
     (b"Foo", b"Power", None, None, None, False, False, None, None, b"Foo=Power"),
@@ -162,12 +165,14 @@ def test_parse_cookie(
     assert cookie.name == name
     assert cookie.value == value
     if expires:
+        assert cookie.expires is not None
         assert datetime_from_cookie_format(cookie.expires) == expires
     assert cookie.domain == domain
     assert cookie.path == path
     assert cookie.http_only == http_only
     assert cookie.secure == secure
     if max_age:
+        assert cookie.max_age is not None
         assert datetime_from_cookie_format(cookie.max_age) == max_age
 
 

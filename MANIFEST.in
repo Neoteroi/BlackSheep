@@ -3,3 +3,6 @@ include README.md
 include blacksheep/server/res/*.html
 include build_info.txt
 recursive-include blacksheep *.pyx *.pxd *.pxi *.pyi *.py *.c *.h
+
+# Stubs
+include blacksheep/py.typed

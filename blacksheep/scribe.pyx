@@ -43,6 +43,17 @@ STATUS_LINES = {
     status_code: _get_status_line(status_code) for status_code in range(100, 600)
 }
 
+HTTP_METHODS = {
+    "GET": b"GET",
+    "HEAD": b"HEAD",
+    "POST": b"POST",
+    "PUT": b"PUT",
+    "DELETE": b"DELETE",
+    "TRACE": b"TRACE",
+    "OPTIONS": b"OPTIONS",
+    "CONNECT": b"CONNECT",
+    "PATCH": b"PATCH"
+}
 
 cpdef bytes get_status_line(int status):
     return STATUS_LINES[status]
@@ -173,7 +184,7 @@ cpdef bint request_has_body(Request request):
 
 cpdef bytes write_request_without_body(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(HTTP_METHODS[request.method] + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
 
     ensure_host_header(request)
 
@@ -184,7 +195,7 @@ cpdef bytes write_request_without_body(Request request):
 
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(HTTP_METHODS[request.method] + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
 
     ensure_host_header(request)
     set_headers_for_content(request)
@@ -249,7 +260,7 @@ async def write_request(Request request):
 
     set_headers_for_content(request)
 
-    yield request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
+    yield HTTP_METHODS[request.method] + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
         write_headers(request.__headers) + b'\r\n'
 
     content = request.content

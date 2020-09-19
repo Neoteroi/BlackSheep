@@ -1,7 +1,6 @@
 import sys
-from typing import Any, Optional
-
-from essentials import json as JSON
+from types import FrameType
+from typing import Any, Callable, Optional
 
 from blacksheep import Request, Response
 from blacksheep.server.responses import (
@@ -27,11 +26,10 @@ from blacksheep.server.responses import (
 from blacksheep.server.routing import RoutesRegistry
 from blacksheep.server.templating import (
     Environment,
-    MissingJinjaModuleError,
     view,
     view_async,
 )
-from blacksheep.utils import BytesOrStr, join_fragments
+from blacksheep.utils import AnyStr, join_fragments
 
 
 # singleton router used to store initial configuration,
@@ -50,12 +48,6 @@ delete = router.delete
 trace = router.trace
 options = router.options
 connect = router.connect
-
-
-if Environment is ...:
-    TemplatesType = Any
-else:
-    TemplatesType = Optional[Environment]
 
 
 class CannotDetermineDefaultViewNameError(RuntimeError):
@@ -77,10 +69,18 @@ class ControllerMeta(type):
                 setattr(value, "controller_type", cls)
 
 
+class TemplatingNotConfiguredException(Exception):
+    def __init__(self) -> None:
+        super().__init__(
+            "Server side HTML templating is not configured. Configure templating using "
+            "the function `use_templates` from blacksheep.server.templating."
+        )
+
+
 class Controller(metaclass=ControllerMeta):
     """Base class for all controllers."""
 
-    templates: TemplatesType = None
+    templates: Optional[Environment] = None
     """
     Templates environment: this class property is configured automatically
     by the application object at startup,
@@ -133,7 +133,7 @@ class Controller(metaclass=ControllerMeta):
         """
         return status_code(200, message)
 
-    def created(self, location: BytesOrStr, value: Any = None) -> Response:
+    def created(self, location: AnyStr, value: Any = None) -> Response:
         """
         Returns an HTTP 201 Created response, to the given location and with
         optional JSON content.
@@ -153,21 +153,19 @@ class Controller(metaclass=ControllerMeta):
         """
         return no_content()
 
-    def json(self, data, status: int = 200, dumps=JSON.dumps) -> Response:
+    def json(self, data, status: int = 200) -> Response:
         """
         Returns a response with application/json content, and given status
         (default HTTP 200 OK).
         """
-        return json(status, data, dumps)
+        return json(data, status)
 
-    def pretty_json(
-        self, data: Any, status: int = 200, dumps=JSON.dumps, indent: int = 4
-    ) -> Response:
+    def pretty_json(self, data: Any, status: int = 200, indent: int = 4) -> Response:
         """
         Returns a response with indented application/json content,
         and given status (default HTTP 200 OK).
         """
-        return pretty_json(data, status, dumps, indent)
+        return pretty_json(data, status=status, indent=indent)
 
     def text(self, value: str, status: int = 200) -> Response:
         """
@@ -176,20 +174,20 @@ class Controller(metaclass=ControllerMeta):
         """
         return text(value, status)
 
-    def moved_permanently(self, location: BytesOrStr) -> Response:
+    def moved_permanently(self, location: AnyStr) -> Response:
         """
         Returns an HTTP 301 Moved Permanently response, to the given location.
         """
         return moved_permanently(location)
 
-    def redirect(self, location: BytesOrStr) -> Response:
+    def redirect(self, location: AnyStr) -> Response:
         """
         Returns an HTTP 302 Found response (commonly called redirect), to the
         given location.
         """
         return redirect(location)
 
-    def see_other(self, location: BytesOrStr) -> Response:
+    def see_other(self, location: AnyStr) -> Response:
         """
         Returns an HTTP 303 See Other response, to the given location.
         """
@@ -201,13 +199,13 @@ class Controller(metaclass=ControllerMeta):
         """
         return not_modified()
 
-    def temporary_redirect(self, location: BytesOrStr) -> Response:
+    def temporary_redirect(self, location: AnyStr) -> Response:
         """
         Returns an HTTP 307 Temporary Redirect response, to the given location.
         """
         return temporary_redirect(location)
 
-    def permanent_redirect(self, location: BytesOrStr) -> Response:
+    def permanent_redirect(self, location: AnyStr) -> Response:
         """
         Returns an HTTP 308 Permanent Redirect response, to the given location.
         """
@@ -261,8 +259,7 @@ class Controller(metaclass=ControllerMeta):
         the `view()` function.
 
         It uses sys._getframe, which is a CPython implementation detail and
-        is not guaranteed to be
-        to exist in all implementations of Python.
+        is not guaranteed to exist in all implementations of Python.
         https://docs.python.org/3/library/sys.html
         """
         i = 2
@@ -293,14 +290,14 @@ class Controller(metaclass=ControllerMeta):
         return None
 
     @classmethod
-    def class_name(cls):
+    def class_name(cls) -> str:
         """
         Returns the class name to be used for conventional behavior.
         By default, it returns the lowercase class name.
         """
         return cls.__name__.lower()
 
-    def full_view_name(self, name: str):
+    def full_view_name(self, name: str) -> str:
         """
         Returns the full view name for this controller.
         By default, this function concatenates the lowercase class name
@@ -320,8 +317,11 @@ class Controller(metaclass=ControllerMeta):
         :param model: optional model, required to render the template.
         :return: a Response object
         """
-        if not name:
+        if name is None:
             name = self.get_default_view_name()
+
+        if self.templates is None:
+            raise TemplatingNotConfiguredException()
 
         if model:
             return view(self.templates, self.full_view_name(name), **model)
@@ -338,8 +338,11 @@ class Controller(metaclass=ControllerMeta):
         :param model: optional model, required to render the template.
         :return: a Response object
         """
-        if not name:
+        if name is None:
             name = self.get_default_view_name()
+
+        if self.templates is None:
+            raise TemplatingNotConfiguredException()
 
         if model:
             return await view_async(self.templates, self.full_view_name(name), **model)
@@ -373,11 +376,3 @@ class ApiController(Controller):
         if cls_version and cls_name.endswith(cls_version.lower()):
             cls_name = cls_name[: -len(cls_version)]
         return join_fragments("api", cls_version, cls_name)
-
-
-if Environment is ...:
-    # Jinja2 is not a required dependency;
-    # the Environment is configured as Ellipsis
-    # Replace view functions with functions raising user-friendly exceptions
-    setattr(Controller, "view", MissingJinjaModuleError.replace_function())
-    setattr(Controller, "view_async", MissingJinjaModuleError.replace_function(True))

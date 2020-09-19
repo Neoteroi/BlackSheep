@@ -107,6 +107,8 @@ tests/out/
 # mypy
 .mypy_cache/
 
+*,cover
+
 blacksheep/*.c
 blacksheep/*.html
 blacksheep/includes/*.html
@@ -114,4 +116,3 @@ out/*
 
 itests/out/*
 /itests/nice-cat.jpg
-

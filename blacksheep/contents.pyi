@@ -1,6 +1,16 @@
 import json
 import uuid
-from typing import Any, AsyncIterable, Callable, Dict, List, Optional, Tuple, Union
+from typing import (
+    Any,
+    AsyncIterable,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 
 class Content:
@@ -17,7 +27,11 @@ class Content:
 
 
 class StreamedContent(Content):
-    def __init__(self, content_type: bytes, data_provider: Callable):
+    def __init__(
+        self,
+        content_type: bytes,
+        data_provider: Callable[[], AsyncIterable[bytes]],
+    ) -> None:
         self.type = content_type
         self.body = None
         self.length = -1

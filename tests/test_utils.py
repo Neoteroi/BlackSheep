@@ -1,6 +1,6 @@
 import pytest
-from typing import Sequence
-from blacksheep.utils import join_fragments, ensure_bytes, ensure_str, BytesOrStr
+from typing import Sequence, AnyStr
+from blacksheep.utils import join_fragments, ensure_bytes, ensure_str
 
 
 @pytest.mark.parametrize(
@@ -16,7 +16,7 @@ from blacksheep.utils import join_fragments, ensure_bytes, ensure_str, BytesOrSt
         [["//hello///world", "/today/"], "/hello/world/today"],
     ],
 )
-def test_join_url_fragments(fragments: Sequence[BytesOrStr], expected_value: str):
+def test_join_url_fragments(fragments: Sequence[AnyStr], expected_value: str):
     joined = join_fragments(*fragments)
     assert joined == expected_value
 
@@ -37,9 +37,9 @@ def test_ensure_str(value, expected_result):
 
 def test_ensure_bytes_throws_for_invalid_value():
     with pytest.raises(ValueError):
-        ensure_bytes(True)
+        ensure_bytes(True)  # type: ignore
 
 
 def test_ensure_str_throws_for_invalid_value():
     with pytest.raises(ValueError):
-        ensure_str(True)
+        ensure_str(True)  # type: ignore

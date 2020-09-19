@@ -145,7 +145,7 @@ async def send_file_with_async_gen():
     return file(
         get_static_path("pexels-photo-923360.jpeg"),
         "image/jpeg",
-        "nice-cat.jpg",
+        file_name="nice-cat.jpg",
         content_disposition=ContentDispositionType.INLINE,
     )
 
@@ -177,7 +177,7 @@ async def send_file_with_async_gen_two():
     return file(
         generator,
         "text/plain",
-        "black-knight.txt",
+        file_name="black-knight.txt",
         content_disposition=ContentDispositionType.INLINE,
     )
 
@@ -208,7 +208,7 @@ async def send_file_with_bytes():
     return file(
         all_bytes,
         "text/plain",
-        "black-knight.txt",
+        file_name="black-knight.txt",
         content_disposition=ContentDispositionType.INLINE,
     )
 
@@ -218,7 +218,7 @@ async def send_file_with_bytes_io():
     return file(
         io.BytesIO(b"some initial binary data: "),
         "text/plain",
-        "data.txt",
+        file_name="data.txt",
         content_disposition=ContentDispositionType.INLINE,
     )
 

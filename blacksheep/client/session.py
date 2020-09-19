@@ -1,6 +1,7 @@
 import asyncio
-from asyncio import TimeoutError
-from typing import Any, Callable, List, Optional, Tuple, Type, Union
+import ssl
+from asyncio import AbstractEventLoop, TimeoutError
+from typing import Any, AnyStr, Callable, Dict, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response
@@ -16,7 +17,6 @@ from .exceptions import (
     RequestTimeout,
     UnsupportedRedirect,
 )
-from .logs import get_client_logging_middleware
 from .pool import ClientConnection, ClientConnectionPools
 
 URLType = Union[str, bytes, URL]
@@ -29,21 +29,18 @@ class RedirectsCache:
     __slots__ = ("_cache",)
 
     def __init__(self):
-        self._cache = {}
+        self._cache: Dict[bytes, URL] = {}
 
-    def store_redirect(self, source, destination):
-        self._cache[source] = destination
-
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: bytes, value: URL):
         self._cache[key] = value
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any) -> Optional[URL]:
         try:
             return self._cache[item]
         except KeyError:
             return None
 
-    def __contains__(self, item):
+    def __contains__(self, item: Any) -> bool:
         return item in self._cache
 
 
@@ -51,18 +48,9 @@ class ClientRequestContext:
 
     __slots__ = ("path", "cookies")
 
-    def __init__(self, request, cookies: CookieJar = None):
+    def __init__(self, request, cookies: Optional[CookieJar] = None):
         self.path = [request.url.value.lower()]
         self.cookies = cookies
-
-
-def get_default_headers_middleware(headers):
-    async def default_headers_middleware(request, handler):
-        for header in headers:
-            request.headers.add(header)
-        return await handler(request)
-
-    return default_headers_middleware
 
 
 _default_pools_by_loop_id = {}
@@ -87,24 +75,29 @@ def _get_default_pools_for_loop(loop):
 class ClientSession:
     def __init__(
         self,
-        loop=None,
-        base_url=None,
-        ssl=None,
-        pools=None,
+        loop: Optional[AbstractEventLoop] = None,
+        base_url: Union[None, bytes, str, URL] = None,
+        ssl: Union[None, bool, ssl.SSLContext] = None,
+        pools: Optional[ClientConnectionPools] = None,
         default_headers: Optional[List[Header]] = None,
         follow_redirects: bool = True,
-        connection_timeout: float = 5.0,
+        connection_timeout: float = 10.0,
         request_timeout: float = 60.0,
         maximum_redirects: int = 20,
         redirects_cache_type: Union[Type[RedirectsCache], Any] = None,
-        cookie_jar: CookieJar = None,
-        middlewares: Optional[List[Callable]] = None,
+        cookie_jar: Union[None, bool, CookieJar] = None,
+        middlewares: Optional[List[Callable[..., Any]]] = None,
     ):
         if loop is None:
             loop = asyncio.get_event_loop()
 
         if not pools:
+            # TODO: maybe it is safer to emit a warning here,
+            # and create an instance of ClientConnectionPools
             pools = _get_default_pools_for_loop(loop)
+            self.owns_pools = False
+        else:
+            self.owns_pools = True
 
         if redirects_cache_type is None and follow_redirects:
             redirects_cache_type = RedirectsCache
@@ -115,11 +108,13 @@ class ClientSession:
         if cookie_jar is None:
             cookie_jar = CookieJar()
 
-        if cookie_jar:
+        if cookie_jar is False:
+            cookie_jar = None
+        else:
             middlewares.insert(0, cookies_middleware)
 
         self.loop = loop
-        self._base_url = None
+        self._base_url: Optional[URL]
         self.base_url = base_url
         self.ssl = ssl
         self.default_headers = default_headers
@@ -127,39 +122,48 @@ class ClientSession:
         self.connection_timeout = connection_timeout
         self.request_timeout = request_timeout
         self.follow_redirects = follow_redirects
-        self.cookie_jar = cookie_jar
+        self.cookie_jar: Optional[CookieJar] = cast(Optional[CookieJar], cookie_jar)
         self._permanent_redirects_urls = (
             redirects_cache_type() if follow_redirects else None
         )
         self.non_standard_handling_of_301_302_redirect_method = True
         self.maximum_redirects = maximum_redirects
         self._handler = None
-        self._middlewares = middlewares
-        if middlewares:
-            self._build_middlewares_chain()
+        self._middlewares: List[Callable[..., Any]]
+        self.middlewares = middlewares
         self.delay_before_retry = 0.5
 
     @property
-    def base_url(self) -> URL:
+    def middlewares(self) -> List[Callable[..., Any]]:
+        return self._middlewares
+
+    @middlewares.setter
+    def middlewares(self, value) -> None:
+        self._middlewares = list(value)
+        self._build_middlewares_chain()
+
+    @property
+    def base_url(self) -> Optional[URL]:
         return self._base_url
 
     @base_url.setter
-    def base_url(self, value: Union[str, URL]):
+    def base_url(self, value):
+        url = None
         if value and not isinstance(value, URL):
             if isinstance(value, str):
-                value = value.encode()
-            value = URL(value)
-        self._base_url = value
+                url = URL(value.encode())
+            else:
+                url = URL(value)
+        self._base_url = url
 
     def add_middlewares(self, middlewares: List[Callable]):
         self._middlewares += middlewares
         self._build_middlewares_chain()
 
-    def set_middlewares(self, middlewares: List[Callable]):
-        self._middlewares = middlewares
-        self._build_middlewares_chain()
-
     def _build_middlewares_chain(self):
+        if not self.middlewares:
+            return
+
         async def root_handler(request):
             return await self._send_core(request)
 
@@ -170,13 +174,13 @@ class ClientSession:
         self.non_standard_handling_of_301_302_redirect_method = False
 
     def get_url(self, url, params=None) -> bytes:
-        value = self._get_url_without_params(url)
+        value = self.get_url_value(url)
         if not params:
             return value
         query = urlencode(params).encode("ascii")
         return value + (b"&" if b"?" in value else b"?") + query
 
-    def _get_url_without_params(self, url) -> bytes:
+    def get_url_value(self, url: Union[AnyStr, URL]) -> bytes:
         if isinstance(url, str):
             url = url.encode()
 
@@ -190,23 +194,15 @@ class ClientSession:
             return self.base_url.join(url).value
         return url.value
 
-    def configure(self):
-        if self._middlewares and not self._handler:
-            self._build_middlewares_chain()
-
-    def use_sync_logging(self):
-        self._middlewares.insert(0, get_client_logging_middleware())
-        self._build_middlewares_chain()
-
     async def __aenter__(self):
-        self.configure()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
     async def close(self):
-        self.pools.dispose()
+        if self.owns_pools:
+            self.pools.dispose()
 
     @staticmethod
     def extract_redirect_location(response: Response) -> URL:
@@ -223,7 +219,7 @@ class ClientSession:
         try:
             return URL(location)
         except InvalidURL:
-            raise UnsupportedRedirect()
+            raise UnsupportedRedirect(location)
 
     @staticmethod
     def get_redirect_url(request: Request, location: URL) -> URL:
@@ -249,7 +245,9 @@ class ClientSession:
             )
 
     def update_request_for_redirect(self, request: Request, response: Response) -> None:
-        context: ClientRequestContext = request.context
+        context: ClientRequestContext = getattr(
+            request, "context", ClientRequestContext(request, self.cookie_jar)
+        )
         status = response.status
 
         if status == 301 or status == 302:
@@ -264,9 +262,6 @@ class ClientSession:
 
         location = self.extract_redirect_location(response)
         redirect_url = self.get_redirect_url(request, location)
-
-        if redirect_url.schema.lower() not in {b"http", b"https"}:
-            raise UnsupportedRedirect()
 
         self.validate_redirect(redirect_url, response, context)
 
@@ -286,10 +281,12 @@ class ClientSession:
 
     def check_permanent_redirects(self, request: Request) -> None:
         if (
-            self.follow_redirects
+            self._permanent_redirects_urls is not None
             and request.url.value in self._permanent_redirects_urls
         ):
-            request.url = self._permanent_redirects_urls[request.url.value]
+            redirect_url = self._permanent_redirects_urls[request.url.value]
+            if redirect_url is not None:
+                request.url = redirect_url
 
     async def get_connection(self, url: URL) -> ClientConnection:
         pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
@@ -307,7 +304,7 @@ class ClientSession:
     def _validate_request_url(self, request: Request):
         if not request.url.is_absolute:
             if self.base_url:
-                request.url = URL(self._get_url_without_params(request.url))
+                request.url = URL(self.get_url_value(request.url))
             else:
                 raise ValueError(
                     "request.url must be a complete, absolute URL. "
@@ -319,7 +316,7 @@ class ClientSession:
         self._validate_request_url(request)
 
         if not hasattr(request, "context"):
-            request.context = self.get_new_context(request)
+            request.context = self.get_new_context(request)  # type: ignore
             self.merge_default_headers(request)
 
         if self._handler:
@@ -353,9 +350,8 @@ class ClientSession:
                 connection.send(request), self.request_timeout
             )
         except ConnectionClosedError as connection_closed_error:
-
             if connection_closed_error.can_retry:
-                await asyncio.sleep(self.delay_before_retry, loop=self.loop)
+                await asyncio.sleep(self.delay_before_retry)
                 return await self._send_using_connection(request)
             raise
         except TimeoutError:
@@ -373,8 +369,9 @@ class ClientSession:
         headers: Optional[List[Header]] = None,
         params=None,
     ) -> Response:
+        request = Request("POST", self.get_url(url, params), headers)
         return await self.send(
-            Request("POST", self.get_url(url, params), headers).with_content(content)
+            request.with_content(content) if content is not None else request
         )
 
     async def put(
@@ -384,8 +381,9 @@ class ClientSession:
         headers: Optional[List[Header]] = None,
         params=None,
     ) -> Response:
+        request = Request("PUT", self.get_url(url, params), headers)
         return await self.send(
-            Request("PUT", self.get_url(url, params), headers).with_content(content)
+            request.with_content(content) if content is not None else request
         )
 
     async def delete(
@@ -395,8 +393,9 @@ class ClientSession:
         headers: Optional[List[Header]] = None,
         params=None,
     ) -> Response:
+        request = Request("DELETE", self.get_url(url, params), headers)
         return await self.send(
-            Request("DELETE", self.get_url(url, params), headers).with_content(content)
+            request.with_content(content) if content is not None else request
         )
 
     async def trace(
@@ -416,8 +415,9 @@ class ClientSession:
         headers: Optional[List[Header]] = None,
         params=None,
     ) -> Response:
+        request = Request("PATCH", self.get_url(url, params), headers)
         return await self.send(
-            Request("PATCH", self.get_url(url, params), headers).with_content(content)
+            request.with_content(content) if content is not None else request
         )
 
     async def options(
@@ -427,6 +427,7 @@ class ClientSession:
         headers: Optional[List[Header]] = None,
         params=None,
     ) -> Response:
+        request = Request("OPTIONS", self.get_url(url, params), headers)
         return await self.send(
-            Request("OPTIONS", self.get_url(url, params), headers).with_content(content)
+            request.with_content(content) if content is not None else request
         )

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from ipaddress import ip_address
-from typing import Optional, Dict, Iterable
+from typing import Any, Optional, Dict, Iterable, TypeVar
 
 from blacksheep import URL, Cookie
 
@@ -18,9 +18,9 @@ class InvalidCookieDomain(InvalidCookie):
         super().__init__("Invalid domain attribute")
 
 
-class MissingHostInURL(ValueError):
+class MissingSchemeInURL(ValueError):
     def __init__(self):
-        super().__init__("An URL with host is required.")
+        super().__init__("An URL with scheme is required.")
 
 
 def not_ip_address(value: str):
@@ -72,16 +72,22 @@ class StoredCookie:
         return False
 
 
+# cookies are stored by host name, path, and name
+StoredCookieContainer = Dict[bytes, Dict[bytes, Dict[bytes, StoredCookie]]]
+T = TypeVar("T")
+
+
 class CookieJar:
     def __init__(self):
-        self._domain_cookies = {}  # cookies with specific domain
-        self._host_only_cookies = {}  # cookies without specific domain
+        # cookies with specific domain
+        self._domain_cookies: StoredCookieContainer = {}
+
+        # cookies without specific domain
+        self._host_only_cookies: StoredCookieContainer = {}
 
     @staticmethod
     def _get_url_host(request_url: URL):
-        if not request_url.host:
-            raise MissingHostInURL()
-
+        assert request_url.host is not None
         return request_url.host.lower()
 
     @staticmethod
@@ -98,6 +104,10 @@ class CookieJar:
             return request_domain
 
         cookie_domain = cookie.domain.lstrip(b".").lower()
+
+        if not not_ip_address(cookie_domain.decode()):
+            # ignore
+            return request_domain
 
         if cookie_domain.endswith(b"."):
             # ignore the domain attribute;
@@ -125,27 +135,29 @@ class CookieJar:
         # https://tools.ietf.org/html/rfc6265#section-5.1.4
         uri_path = request_url.path
 
-        if not uri_path or not uri_path.startswith(b"/"):
+        if not uri_path or not uri_path.startswith(b"/") or uri_path.count(b"/") == 1:
             return b"/"
-
-        if uri_path == b"/":
-            return uri_path
 
         return uri_path[0 : uri_path.rfind(b"/")]
 
     @staticmethod
-    def domain_match(domain: bytes, value: bytes):
+    def domain_match(domain: bytes, value: bytes) -> bool:
+        # https://tools.ietf.org/html/rfc6265#section-5.1.3
         lower_domain = domain.lower()
         lower_value = value.lower()
+
+        if value.count(b".") == 0:
+            return False
 
         if lower_domain == lower_value:
             return True
 
-        return (
-            lower_value.startswith(lower_domain)
-            and lower_value[len(lower_domain)] == 46
-            and not_ip_address(lower_value.decode())
-        )
+        if lower_value.endswith(lower_domain):
+            return lower_value[-len(lower_domain) - 1] == 46 and not_ip_address(
+                lower_value.decode()
+            )
+
+        return False
 
     @staticmethod
     def path_match(request_path: bytes, cookie_path: bytes) -> bool:
@@ -170,29 +182,32 @@ class CookieJar:
 
         return False
 
-    def get_cookies_for_url(self, url: URL):
-        assert url.schema is not None
+    def get_cookies_for_url(self, url: URL) -> Iterable[Cookie]:
+        if url.schema is None:
+            raise MissingSchemeInURL()
         return self.get_cookies(
             url.schema, self._get_url_host(url), self._get_url_path(url)
         )
 
     def _get_cookies_by_path(
-        self, schema: bytes, path: bytes, cookies_by_path: Dict[bytes, Cookie]
+        self,
+        schema: bytes,
+        path: bytes,
+        cookies_by_path: Dict[bytes, Dict[bytes, StoredCookie]],
     ) -> Iterable[Cookie]:
         for cookie_path, cookies in cookies_by_path.items():
             if CookieJar.path_match(path, cookie_path):
-                for cookie in self._check_cookies(schema, cookies):
+                for cookie in self._get_cookies_checking_exp(schema, cookies):
                     yield cookie.clone()
 
     @staticmethod
-    def _check_cookies(schema: bytes, cookies: dict):
+    def _get_cookies_checking_exp(
+        schema: bytes, cookies: Dict[bytes, StoredCookie]
+    ) -> Iterable[Cookie]:
         for cookie_name, stored_cookie in cookies.copy().items():
 
             if stored_cookie.is_expired():
-                try:
-                    del cookies[cookie_name]
-                except KeyError:
-                    pass
+                del cookies[cookie_name]
                 continue
 
             cookie = stored_cookie.cookie
@@ -214,7 +229,9 @@ class CookieJar:
                 yield from self._get_cookies_by_path(schema, path, cookies_by_path)
 
     @staticmethod
-    def _ensure_dict_container(container, key):
+    def _ensure_dict_container(
+        container: Dict[bytes, Dict[bytes, T]], key: bytes
+    ) -> Dict[bytes, T]:
         try:
             return container[key]
         except KeyError:
@@ -223,8 +240,12 @@ class CookieJar:
             return new_container
 
     def _set_ensuring_container(
-        self, root_container, domain, path, stored_cookie: StoredCookie
-    ):
+        self,
+        root_container: dict,
+        domain: bytes,
+        path: bytes,
+        stored_cookie: StoredCookie,
+    ) -> None:
         domain_container = self._ensure_dict_container(root_container, domain)
         path_container = self._ensure_dict_container(domain_container, path)
         domain_container[path] = path_container
@@ -261,7 +282,7 @@ class CookieJar:
             self._host_only_cookies, domain, path, cookie_name
         ) or self._remove(self._domain_cookies, domain, path, cookie_name)
 
-    def add(self, request_url: URL, cookie: Cookie):
+    def add(self, request_url: URL, cookie: Cookie) -> None:
         domain = self.get_domain(request_url, cookie)
         path = self.get_path(request_url, cookie)
         cookie_name = cookie.name.lower()

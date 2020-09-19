@@ -27,6 +27,20 @@ FIELDS_WITH_CARRIAGE_RETURNS = (
     "------WebKitFormBoundaryyxVdKlePrAk93BbA--\r\n".encode("utf8")
 )
 
+FIELDS_WITH_CARRIAGE_RETURNS_AND_DEFAULT_CHARSET = (
+    "------WebKitFormBoundaryyxVdKlePrAk93BbA\r\nContent-Disposition: form-data; "
+    'name="one"\r\n\r\nAA\r\n------WebKitFormBoundaryyxVdKlePrAk93BbA\r\n'
+    'Content-Disposition: form-data; name="_charset_"\r\n\r\niso-8859-1\r\n'
+    "------WebKitFormBoundaryyxVdKlePrAk93BbA\r\nContent-Disposition: form-data; "
+    'name="two"\r\n\r\nCC\r\n------WebKitFormBoundaryyxVdKlePrAk93BbA\r\n'
+    'Content-Disposition: form-data; name="two"\r\n\r\nDD\r\n'
+    "------WebKitFormBoundaryyxVdKlePrAk93BbA\r\nContent-Disposition: form-data; "
+    'name="description"\r\n\r\nHello\r\n\r\nThis contains øø\r\n\r\nCarriage '
+    "returns\r\n------WebKitFormBoundaryyxVdKlePrAk93BbA\r\n"
+    'Content-Disposition: form-data; name="album"\r\n\r\nØØ Void\r\n'
+    "------WebKitFormBoundaryyxVdKlePrAk93BbA--\r\n".encode("iso-8859-1")
+)
+
 FIELDS_WITH_SMALL_PICTURE = (
     b"------WebKitFormBoundarypZguvAtDggx51LrW\r\nContent-Disposition: form-data; "
     b'name="one"\r\n\r\naaa\r\n------WebKitFormBoundarypZguvAtDggx51LrW\r\nContent'

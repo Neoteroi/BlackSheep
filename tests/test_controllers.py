@@ -1,6 +1,10 @@
+from abc import abstractmethod
+from blacksheep.server.application import RequiresServiceContainerError
 import pytest
 from typing import Optional
 from functools import wraps
+
+from rodi import Services
 from blacksheep import Request, Response
 from blacksheep.server.responses import text
 from blacksheep.server.controllers import Controller, ApiController, RoutesRegistry
@@ -11,7 +15,8 @@ from .test_application import FakeApplication, MockReceive, MockSend, get_exampl
 
 
 # NB: the following is an example of generic decorator (defined using *args and **kwargs)
-# it is used to demonstrate that decorators can be used with normalized methods; however functools.@wraps is required,
+# it is used to demonstrate that decorators can be used with normalized methods; however
+# functools.@wraps is required,
 # so it is the order (custom decorators must appear after router decorators)
 def example():
     def example_decorator(fn):
@@ -373,6 +378,47 @@ async def test_controller_with_base_route_as_string_attribute():
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Hello World"
+
+
+@pytest.mark.asyncio
+async def test_application_raises_for_invalid_route_class_attribute():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+
+        route = False
+
+        def greet(self):
+            return "Hello World"
+
+        @get()
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return text(self.greet())
+
+    with pytest.raises(RuntimeError):
+        app.setup_controllers()
+
+
+@pytest.mark.asyncio
+async def test_application_raises_for_controllers_for_invalid_services():
+    app = FakeApplication(services=Services())
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+        def greet(self):
+            return "Hello World"
+
+        @get()
+        async def index(self, request: Request):
+            assert isinstance(self, Home)
+            return text(self.greet())
+
+    with pytest.raises(RequiresServiceContainerError):
+        app.setup_controllers()
 
 
 @pytest.mark.asyncio

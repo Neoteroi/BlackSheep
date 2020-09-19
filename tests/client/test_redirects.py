@@ -1,10 +1,16 @@
+from blacksheep.client.session import RedirectsCache
+import http
+
 import pytest
-from blacksheep import Response, TextContent, HtmlContent
+
+from blacksheep import HtmlContent, Response, TextContent, URL
 from blacksheep.client import (
-    ClientSession,
     CircularRedirectError,
+    ClientSession,
     MaximumRedirectsExceededError,
 )
+from blacksheep.client.exceptions import MissingLocationForRedirect
+
 from . import FakePools
 
 
@@ -248,3 +254,40 @@ async def test_circular_redirect_detection(
             await client.get(b"/")
 
         assert str(error.value) == expected_error_message
+
+
+def test_session_raises_for_redirect_without_location():
+    """
+    If a server returns a redirect status without location response header,
+    the client raises an exception.
+    """
+
+    with pytest.raises(MissingLocationForRedirect):
+        ClientSession.extract_redirect_location(Response(http.HTTPStatus.FOUND.value))
+
+
+@pytest.mark.parametrize(
+    "source,destination",
+    [
+        (b"https://foo.org", b"https://somewhere-else.org"),
+        (b"/something", b"https://somewhere-else.org"),
+        (b"/", b"/foo"),
+    ],
+)
+def test_redirects_cache(source, destination):
+    cache = RedirectsCache()
+    cache[source] = URL(destination)
+    assert cache[source] == URL(destination)
+
+
+def test_redirects_cache_missing():
+    cache = RedirectsCache()
+    assert cache[b"/foo"] is None
+
+
+@pytest.mark.asyncio
+async def test_use_standard_redirect():
+    async with ClientSession(base_url=b"http://localhost:8080") as client:
+        assert client.non_standard_handling_of_301_302_redirect_method is True
+        client.use_standard_redirect()
+        assert client.non_standard_handling_of_301_302_redirect_method is False

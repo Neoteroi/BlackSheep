@@ -67,7 +67,7 @@ def start_server():
 def server(server_host, server_port):
     server_process = Process(target=start_server)
     server_process.start()
-    sleep(0.5)
+    sleep(1.5)
 
     yield 1
 

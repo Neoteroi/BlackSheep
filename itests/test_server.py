@@ -198,7 +198,7 @@ def test_exception_handling_with_details(session):
 
     assert response.status_code == 500
     details = response.text
-    assert "itests/app.py" in details
+    assert "app.py" in details
     assert "itests.utils.CrashTest: Crash Test!" in details
 
 

@@ -2041,7 +2041,7 @@ async def test_valid_header_parameter_uuid_list():
     await app(
         get_example_scope(
             "GET",
-            f"/",
+            "/",
             [(b"x_foo", str(value_1).encode()), (b"x_foo", str(value_2).encode())],
         ),
         MockReceive(),
@@ -2494,7 +2494,7 @@ async def test_default_headers():
     await app.start()
 
     await app(
-        get_example_scope("GET", f"/", []),
+        get_example_scope("GET", "/", []),
         MockReceive(),
         MockSend(),
     )

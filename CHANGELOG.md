@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - ...
+
+- Corrects two bugs happening when using `blacksheep` in Windows
+- Improves the test suite to be compatible with Windows
+- Adds a job running in Windows to the build and validation pipeline
+
 ## [0.2.5] - 2020-09-19 💯
 
 - **100% test coverage**, with more than _1000_ tests
@@ -38,5 +44,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improves code quality
 - Improves code for integration tests
 - Fixes bug [#37](https://github.com/RobertoPrevato/BlackSheep/issues/37)
-
-

@@ -1,3 +1,4 @@
+from itests.utils import get_sleep_time
 from blacksheep.client.pool import ClientConnectionPools
 import os
 import pathlib
@@ -67,7 +68,7 @@ def start_server():
 def server(server_host, server_port):
     server_process = Process(target=start_server)
     server_process.start()
-    sleep(1.5)
+    sleep(get_sleep_time())
 
     yield 1
 

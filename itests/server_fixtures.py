@@ -1,3 +1,4 @@
+import os
 import socket
 from multiprocessing import Process
 from time import sleep
@@ -7,7 +8,7 @@ import uvicorn
 
 from .app import app
 from .app_two import app_two
-from .utils import ClientSession
+from .utils import ClientSession, get_sleep_time
 
 
 @pytest.fixture(scope="module")
@@ -56,7 +57,7 @@ def start_server2():
 def server(server_host, server_port):
     server_process = Process(target=start_server)
     server_process.start()
-    sleep(0.5)
+    sleep(get_sleep_time())
 
     yield 1
 
@@ -68,7 +69,7 @@ def server(server_host, server_port):
 def server_two(server_host, server_port_two):
     server_process = Process(target=start_server2)
     server_process.start()
-    sleep(0.5)
+    sleep(1.5)
 
     yield 1
 

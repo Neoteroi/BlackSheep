@@ -29,7 +29,7 @@ jobs:
         displayName: "Compile Cython extensions"
 
       - bash: |
-          pytest --cov-report html --cov=blacksheep
+          pytest --doctest-modules --junitxml=junit/test-results.xml --cov-report html --cov=blacksheep
         displayName: "tests"
 
       - script: |
@@ -95,5 +95,5 @@ jobs:
         displayName: "flake8 tests"
 
       - script: |
-          pytest
+          pytest --doctest-modules --junitxml=junit/test-results.xml
         displayName: "tests"

@@ -193,7 +193,7 @@ loop.run_until_complete(client_example(loop))
 ## Supported platforms and runtimes
 The following Python versions are supported and tested by [validation pipeline](./azure-pipelines.yml):
 * Python 3.7 (cpython)
-* Python 3.8
+* Python 3.8 (cpython)
 
 The following platforms are supported and tested by [validation pipeline](./azure-pipelines.yml):
 * Ubuntu 18.04

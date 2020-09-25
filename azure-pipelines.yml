@@ -21,7 +21,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install uvloop==0.14.0
-          pip install pytest pytest-cov https://github.com/tonybaloney/pytest-azurepipelines/archive/master.zip
+          pip install pytest pytest-cov pytest-azurepipelines
         displayName: "Install dependencies"
 
       - bash: |
@@ -73,7 +73,7 @@ jobs:
       - script: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest https://github.com/tonybaloney/pytest-azurepipelines/archive/master.zip
+          pip install pytest pytest-azurepipelines
         displayName: "Install dependencies"
 
       - script: |

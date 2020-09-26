@@ -1,6 +1,5 @@
 import sys
-from types import FrameType
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from blacksheep import Request, Response
 from blacksheep.server.responses import (

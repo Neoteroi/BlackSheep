@@ -1,3 +1,4 @@
+from blacksheep.utils import join_fragments
 from blacksheep.server.authorization import allow_anonymous
 import html
 import os
@@ -75,7 +76,7 @@ def get_files_list_html_response(
         rel_path = item.get("rel_path")
         assert rel_path is not None
         full_rel_path = html.escape(
-            os.path.join(root_path, parent_folder_path, rel_path)
+            join_fragments(root_path, parent_folder_path, rel_path)
         )
         info_lines.append(f'<li><a href="/{full_rel_path}">{rel_path}</a></li>')
     info = "".join(info_lines)

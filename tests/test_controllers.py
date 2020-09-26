@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from blacksheep.server.application import RequiresServiceContainerError
 import pytest
 from typing import Optional

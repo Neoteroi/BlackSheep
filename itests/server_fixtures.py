@@ -1,3 +1,4 @@
+import os
 import socket
 from multiprocessing import Process
 from time import sleep
@@ -7,7 +8,7 @@ import uvicorn
 
 from .app import app
 from .app_two import app_two
-from .utils import ClientSession
+from .utils import ClientSession, get_sleep_time
 
 
 @pytest.fixture(scope="module")
@@ -44,14 +45,19 @@ def session_two(server_host, server_port_two):
     return ClientSession(f"http://{server_host}:{server_port_two}")
 
 
+def start_server():
+    uvicorn.run(app, host="127.0.0.1", port=44555, log_level="debug")
+
+
+def start_server2():
+    uvicorn.run(app_two, host="127.0.0.1", port=44556, log_level="debug")
+
+
 @pytest.fixture(scope="module", autouse=True)
 def server(server_host, server_port):
-    def start_server():
-        uvicorn.run(app, host=server_host, port=server_port, log_level="debug")
-
     server_process = Process(target=start_server)
     server_process.start()
-    sleep(0.5)
+    sleep(get_sleep_time())
 
     yield 1
 
@@ -61,12 +67,9 @@ def server(server_host, server_port):
 
 @pytest.fixture(scope="module", autouse=True)
 def server_two(server_host, server_port_two):
-    def start_server():
-        uvicorn.run(app_two, host=server_host, port=server_port_two, log_level="debug")
-
-    server_process = Process(target=start_server)
+    server_process = Process(target=start_server2)
     server_process.start()
-    sleep(0.5)
+    sleep(1.5)
 
     yield 1
 

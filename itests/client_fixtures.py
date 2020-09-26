@@ -1,3 +1,4 @@
+from itests.utils import get_sleep_time
 from blacksheep.client.pool import ClientConnectionPools
 import os
 import pathlib
@@ -27,7 +28,7 @@ def event_loop():
 
 @pytest.fixture(scope="module")
 def server_host():
-    return "0.0.0.0"
+    return "127.0.0.1"
 
 
 @pytest.fixture(scope="module")
@@ -58,15 +59,16 @@ def session_alt(event_loop):
     event_loop.run_until_complete(session.close())
 
 
+def start_server():
+    print(f"[*] Flask app listening on 0.0.0.0:44777")
+    app.run(host="127.0.0.1", port=44777)
+
+
 @pytest.fixture(scope="module", autouse=True)
 def server(server_host, server_port):
-    def start_server():
-        print(f"[*] Flask app listening on {server_host}:{server_port}")
-        app.run(host=server_host, port=server_port)
-
     server_process = Process(target=start_server)
     server_process.start()
-    sleep(0.5)
+    sleep(get_sleep_time())
 
     yield 1
 

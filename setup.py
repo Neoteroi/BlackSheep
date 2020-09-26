@@ -11,7 +11,7 @@ COMPILE_ARGS = ["-O3"]
 
 setup(
     name="blacksheep",
-    version="0.2.5",
+    version="0.2.6",
     description="Fast web framework and HTTP client for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -19,6 +19,7 @@ setup(
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Operating System :: OS Independent",
         "Framework :: AsyncIO",
     ],

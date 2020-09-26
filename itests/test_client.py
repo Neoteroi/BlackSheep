@@ -19,7 +19,7 @@ def ensure_success(response: Response):
 
 @pytest.mark.asyncio
 async def test_get_plain_text(session, event_loop):
-    for i in range(5):
+    for _ in range(5):
         response = await session.get("/hello-world")
         ensure_success(response)
         text = await response.text()

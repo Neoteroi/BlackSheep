@@ -65,15 +65,15 @@ REDIRECT_METHODS = [
 
 STATUS_METHODS_NO_BODY = [(no_content, 204), (not_modified, 304)]
 
-EXAMPLE_HTML = f"""
+EXAMPLE_HTML = """
 <!DOCTYPE html>
 <html>
   <head>
     <title>Example</title>
     <style>
-      h1 {{
+      h1 {
           color: pink;
-      }}
+      }
     </style>
     <link rel="stylesheet" type="text/css" href="/home.css" />
   </head>

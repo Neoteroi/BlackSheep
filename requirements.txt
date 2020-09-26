@@ -8,6 +8,7 @@ certifi==2019.11.28
 chardet==3.0.4
 click==7.1.2
 Cython==0.29.14
+dataclasses==0.7
 decorator==4.4.1
 entrypoints==0.3
 essentials==1.1.3

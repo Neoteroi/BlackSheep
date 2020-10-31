@@ -89,6 +89,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+py37venv
+py38venv
 
 # Spyder project settings
 .spyderproject

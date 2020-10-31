@@ -318,7 +318,7 @@ class BodyBinder(Binder):
     def _get_default_converter_single(self, expected_type):
         # this method converts an item that was already parsed to a supported type,
         # for example in JSON can be int, float, bool
-        if expected_type in {str, int, float, bool}:
+        if expected_type in {str, int, float, bool} or str(expected_type) == "~T":
             return lambda value: value
 
         if expected_type is date:
@@ -491,7 +491,7 @@ class SyncBinder(Binder):
         )
 
     def _get_default_converter_single(self, expected_type):
-        if expected_type is str:
+        if expected_type is str or str(expected_type) == "~T":
             return lambda value: unquote(value) if value else None
 
         if expected_type is bool:
@@ -525,7 +525,7 @@ class SyncBinder(Binder):
         return lambda values: generic_type(item_converter(value) for value in values)
 
     def _get_default_converter(self, expected_type):
-        if expected_type is str:
+        if expected_type is str or str(expected_type) == "~T":
             return lambda value: unquote(value[0]) if value else None
 
         if expected_type is bool:

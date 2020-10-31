@@ -6,6 +6,7 @@ from urllib.parse import unquote
 from uuid import uuid4
 
 import pytest
+import yaml
 
 from .client_fixtures import get_static_path
 from .lorem import LOREM_IPSUM
@@ -405,7 +406,6 @@ def test_get_file_with_bytesio(session):
     ensure_success(response)
 
     text = response.text
-
     assert text == """some initial binary data: """
 
 
@@ -454,3 +454,58 @@ def test_requires_admin_user(session_two, claims, expected_status):
     response = session_two.get("/only-for-admins", headers=headers)
 
     assert response.status_code == expected_status
+
+
+def test_open_api_ui(session_two):
+    response = session_two.get("/docs")
+
+    assert response.status_code == 200
+    text = response.text
+    assert (
+        text.strip()
+        == """
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="icon" href="/favicon.png"/>
+    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui.css">
+    <title>Swagger UI</title>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui-bundle.js"></script>
+    <script>
+    const ui = SwaggerUIBundle({
+        url: '/openapi.json',
+        oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
+        dom_id: '#swagger-ui',
+        presets: [
+            SwaggerUIBundle.presets.apis,
+            SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout",
+        deepLinking: true,
+        showExtensions: true,
+        showCommonExtensions: true
+    })
+    </script>
+</body>
+</html>
+""".strip()
+    )
+
+
+def test_open_api_json(session_two):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    text = response.text
+    assert json.loads(text) is not None
+
+
+def test_open_api_yaml(session_two):
+    response = session_two.get("/openapi.yaml")
+
+    assert response.status_code == 200
+    text = response.text
+    assert yaml.safe_load(text) is not None

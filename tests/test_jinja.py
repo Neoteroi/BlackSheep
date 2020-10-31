@@ -1,4 +1,3 @@
-from rodi import Services
 from blacksheep.server import Application
 import pytest
 from jinja2 import PackageLoader
@@ -319,21 +318,10 @@ def test_template_name(value, expected_name):
     assert template_name(value) == expected_name
 
 
-def test_application_use_templates_with_services():
-    app = Application(services=Services())
-
-    use_templates(
-        app, loader=PackageLoader("tests.testapp", "templates"), enable_async=False
-    )
-
-    assert isinstance(app.services, Services)
-    assert app.services["jinja_environment"] is not None
-
-
 def test_use_templates_throws_for_invalid_services():
     app = Application(services={})  # type: ignore
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TypeError):
         use_templates(
             app, loader=PackageLoader("tests.testapp", "templates"), enable_async=False
         )

@@ -15,6 +15,7 @@ from blacksheep.server.bindings import (
     BinderNotRegisteredForValueType,
     BodyBinder,
     BoundValue,
+    CookieBinder,
     FormBinder,
     HeaderBinder,
     IdentityBinder,
@@ -633,3 +634,10 @@ async def test_body_binder_throws_bad_request_for_value_error():
                 "POST", b"/", [(b"content-type", b"application/json")]
             ).with_content(JsonContent({"id": "1", "name": "foo"}))
         )
+
+
+def test_sync_binders_source_name():
+    assert CookieBinder().source_name == "cookie"
+    assert HeaderBinder().source_name == "header"
+    assert QueryBinder().source_name == "query"
+    assert RouteBinder().source_name == "route"

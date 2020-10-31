@@ -8,12 +8,15 @@ See:
     https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
 """
 from abc import abstractmethod
+from base64 import urlsafe_b64decode
 from collections.abc import Iterable as IterableAbc
+from datetime import date, datetime
 from typing import (
     Any,
     Callable,
     ClassVar,
     Dict,
+    ForwardRef,
     Generic,
     List,
     Optional,
@@ -23,14 +26,14 @@ from typing import (
     TypeVar,
     Union,
 )
-from uuid import UUID
 from urllib.parse import unquote
-
-from guardpost.authentication import Identity
-from rodi import Services
+from uuid import UUID
 
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
+from dateutil.parser import parse as dateutil_parser
+from guardpost.authentication import Identity
+from rodi import Services
 
 T = TypeVar("T")
 TypeOrName = Union[Type, str]
@@ -112,6 +115,12 @@ class FromQuery(BoundValue[T]):
     """
 
 
+class FromCookie(BoundValue[T]):
+    """
+    A parameter obtained from a cookie.
+    """
+
+
 class FromServices(BoundValue[T]):
     """
     A parameter obtained from configured application services.
@@ -180,6 +189,33 @@ class Binder(metaclass=BinderMeta):
     @property
     def implicit(self) -> bool:
         return self._implicit
+
+    def get_type_for_generic_iterable(self, expected_type):
+        if expected_type in {list, tuple, set}:
+            return expected_type
+
+        origin = expected_type.__origin__
+        if origin in {list, tuple, set}:
+            return origin
+        # here we cannot make something perfect: if the user of the library
+        # wants something better,
+        # a converter should be specified when configuring binders; here the
+        # code defaults to list
+        # for all abstract types (typing.Sequence, Set, etc.) even though not perfect
+        return list
+
+    def is_generic_iterable_annotation(self, param_type):
+        return hasattr(param_type, "__origin__") and (
+            param_type.__origin__ in {list, tuple, set}
+            or issubclass(param_type.__origin__, IterableAbc)
+        )
+
+    def generic_iterable_annotation_item_type(self, param_type):
+        try:
+            item_type = param_type.__args__[0]
+        except (IndexError, AttributeError):
+            return str
+        return item_type
 
     async def get_parameter(self, request: Request) -> Union[T, BoundValue[T]]:
         """
@@ -276,12 +312,66 @@ class BodyBinder(Binder):
         converter: Optional[Callable] = None,
     ):
         if not converter:
-
-            def default_converter(data):
-                return expected_type(**data)
-
-            converter = default_converter
+            converter = self.get_default_binder_for_body(expected_type)
         super().__init__(expected_type, name, implicit, required, converter)
+
+    def _get_default_converter_single(self, expected_type):
+        # this method converts an item that was already parsed to a supported type,
+        # for example in JSON can be int, float, bool
+        if expected_type in {str, int, float, bool} or str(expected_type) == "~T":
+            return lambda value: value
+
+        if expected_type is date:
+            return lambda value: dateutil_parser(value).date() if value else None
+
+        if expected_type is datetime:
+            return lambda value: dateutil_parser(value) if value else None
+
+        if expected_type is bytes:
+            # note: the code is optimized for strings here, not bytes
+            # since most of times the user will want to handle strings
+            return (
+                lambda value: urlsafe_b64decode(value.encode("utf8")).decode("utf8")
+                if value
+                else None
+            )
+
+        if expected_type is UUID:
+            return lambda value: UUID(value)
+
+        return lambda value: expected_type(**value)
+
+    def _get_default_converter_for_iterable(self, expected_type):
+        generic_type = self.get_type_for_generic_iterable(expected_type)
+        item_type = self.generic_iterable_annotation_item_type(expected_type)
+
+        if isinstance(item_type, ForwardRef):
+            from blacksheep.server.normalization import (
+                UnsupportedForwardRefInSignatureError,
+            )
+
+            raise UnsupportedForwardRefInSignatureError(expected_type)
+
+        item_converter = self._get_default_converter_single(item_type)
+        return lambda values: generic_type(item_converter(value) for value in values)
+
+    def get_default_binder_for_body(self, expected_type: Type):
+        if self.is_generic_iterable_annotation(expected_type) or expected_type in {
+            list,
+            set,
+            tuple,
+        }:
+            return self._get_default_converter_for_iterable(expected_type)
+
+        def default_converter(data):
+            return expected_type(**data)
+
+        return default_converter
+
+    @property
+    @abstractmethod
+    def content_type(self) -> str:
+        """Returns the content type related to this binder"""
 
     @abstractmethod
     def matches_content_type(self, request: Request) -> bool:
@@ -328,6 +418,10 @@ class JsonBinder(BodyBinder):
 
     handle = FromJson
 
+    @property
+    def content_type(self) -> str:
+        return "application/json"
+
     def matches_content_type(self, request: Request) -> bool:
         return request.declares_json()
 
@@ -342,6 +436,10 @@ class FormBinder(BodyBinder):
     """
 
     handle = FromForm
+
+    @property
+    def content_type(self) -> str:
+        return "application/json"
 
     def matches_content_type(self, request: Request) -> bool:
         return request.declares_content_type(
@@ -393,7 +491,7 @@ class SyncBinder(Binder):
         )
 
     def _get_default_converter_single(self, expected_type):
-        if expected_type is str:
+        if expected_type is str or str(expected_type) == "~T":
             return lambda value: unquote(value) if value else None
 
         if expected_type is bool:
@@ -410,16 +508,24 @@ class SyncBinder(Binder):
         if expected_type is UUID:
             return lambda value: UUID(value)
 
+        if expected_type is datetime:
+            return lambda value: dateutil_parser(unquote(value)) if value else None
+
+        if expected_type is date:
+            return (
+                lambda value: dateutil_parser(unquote(value)).date() if value else None
+            )
+
         raise MissingConverterError(expected_type, self.__class__)
 
     def _get_default_converter_for_iterable(self, expected_type):
-        generic_type = self._get_type_for_generic_iterable(expected_type)
-        item_type = self._generic_iterable_annotation_item_type(expected_type)
+        generic_type = self.get_type_for_generic_iterable(expected_type)
+        item_type = self.generic_iterable_annotation_item_type(expected_type)
         item_converter = self._get_default_converter_single(item_type)
         return lambda values: generic_type(item_converter(value) for value in values)
 
     def _get_default_converter(self, expected_type):
-        if expected_type is str:
+        if expected_type is str or str(expected_type) == "~T":
             return lambda value: unquote(value[0]) if value else None
 
         if expected_type is bool:
@@ -434,44 +540,24 @@ class SyncBinder(Binder):
         if expected_type is UUID:
             return lambda value: UUID(value[0]) if value else None
 
-        if self._is_generic_iterable_annotation(expected_type) or expected_type in {
+        if self.is_generic_iterable_annotation(expected_type) or expected_type in {
             list,
             set,
             tuple,
         }:
             return self._get_default_converter_for_iterable(expected_type)
 
+        if expected_type is datetime:
+            return lambda value: dateutil_parser(unquote(value[0])) if value else None
+
+        if expected_type is date:
+            return (
+                lambda value: dateutil_parser(unquote(value[0])).date()
+                if value
+                else None
+            )
+
         raise MissingConverterError(expected_type, self.__class__)
-
-    def _get_type_for_generic_iterable(self, expected_type):
-        if expected_type in {list, tuple, set}:
-            return expected_type
-
-        origin = expected_type.__origin__
-        if origin in {list, tuple, set}:
-            return origin
-        # here we cannot make something perfect: if the user of the library
-        # wants something better,
-        # a converter should be specified when configuring binders; here the
-        # code defaults to list
-        # for all abstract types (typing.Sequence, Set, etc.) even though not perfect
-        return list
-
-    def _is_generic_iterable_annotation(self, param_type):
-        return hasattr(param_type, "__origin__") and (
-            param_type.__origin__ in {list, tuple, set}
-            or issubclass(param_type.__origin__, IterableAbc)
-        )
-
-    def _generic_iterable_annotation_item_type(self, param_type):
-        try:
-            item_type = param_type.__args__[0]
-        except (IndexError, AttributeError):
-            return str
-
-        if isinstance(item_type, TypeVar):
-            return str
-        return item_type
 
     @abstractmethod
     def get_raw_value(self, request: Request) -> Sequence[str]:
@@ -534,6 +620,20 @@ class QueryBinder(SyncBinder):
 
     def get_raw_value(self, request: Request) -> Sequence[str]:
         return [value for value in request.query.get(self.parameter_name, [])]
+
+
+class CookieBinder(SyncBinder):
+    handle = FromCookie
+
+    @property
+    def source_name(self) -> str:
+        return "cookie"
+
+    def get_raw_value(self, request: Request) -> Sequence[str]:
+        cookie = request.cookies.get(self.parameter_name)
+        if cookie:
+            return [cookie]
+        return []
 
 
 class RouteBinder(SyncBinder):

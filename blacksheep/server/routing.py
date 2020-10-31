@@ -21,6 +21,7 @@ __all__ = [
 
 _route_all_rx = re.compile(b"\\*")
 _route_param_rx = re.compile(b"/:([^/]+)")
+_mustache_route_param_rx = re.compile(b"/{([^}]+)}")
 _named_group_rx = re.compile(b"\\?P<([^>]+)>")
 _escaped_chars = {b".", b"[", b"]", b"(", b")"}
 
@@ -105,21 +106,37 @@ class Route:
     pattern: bytes
 
     def __init__(self, pattern: AnyStr, handler: Any):
-        if isinstance(pattern, str):
-            raw_pattern = pattern.encode("utf8")
-        else:
-            raw_pattern = pattern
-        if raw_pattern == b"":
-            raw_pattern = b"/"
-        if len(raw_pattern) > 1 and raw_pattern.endswith(b"/"):
-            raw_pattern = raw_pattern.rstrip(b"/")
-        raw_pattern = raw_pattern.lower()
+        raw_pattern = self.normalize_pattern(pattern)
         self.handler = handler
         self.pattern = raw_pattern
         self.has_params = b"*" in raw_pattern or b":" in raw_pattern
         rx, param_names = _get_regex_for_pattern(raw_pattern)
         self._rx = rx
         self.param_names = [name.decode("utf8") for name in param_names]
+
+    def normalize_pattern(self, pattern: AnyStr) -> bytes:
+        if isinstance(pattern, str):
+            raw_pattern = pattern.encode("utf8")
+        else:
+            raw_pattern = pattern
+
+        # support for mustache patterns, e.g. /api/cats/{cat_id}
+        if b"{" in raw_pattern:
+            raw_pattern = _mustache_route_param_rx.sub(br"/:\1", raw_pattern)
+
+        if raw_pattern == b"":
+            raw_pattern = b"/"
+        if len(raw_pattern) > 1 and raw_pattern.endswith(b"/"):
+            raw_pattern = raw_pattern.rstrip(b"/")
+
+        return raw_pattern.lower()
+
+    def __repr__(self) -> str:
+        return f"<Route {self.pattern.decode('utf8')}>"
+
+    @property
+    def mustache_pattern(self) -> str:
+        return _route_param_rx.sub(br"/{\1}", self.pattern).decode("utf8")
 
     @property
     def full_pattern(self) -> bytes:

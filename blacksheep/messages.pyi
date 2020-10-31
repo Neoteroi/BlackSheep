@@ -100,7 +100,9 @@ def method_without_body(method: str) -> bool:
 
 
 class Request(Message):
-    def __init__(self, method: str, url: bytes, headers: Optional[List[HeaderType]]) -> None:
+    def __init__(
+        self, method: str, url: bytes, headers: Optional[List[HeaderType]]
+    ) -> None:
         self.method: str = ...
         self._url: URL = ...
         self.route_values: Optional[Dict[str, str]] = ...
@@ -130,13 +132,13 @@ class Request(Message):
         ...
 
     @property
-    def cookies(self) -> Cookies:
+    def cookies(self) -> Dict[str, str]:
         ...
 
-    def get_cookies(self) -> Cookies:
+    def get_cookies(self) -> Dict[str, str]:
         ...
 
-    def get_cookie(self, name: bytes) -> Optional[Cookie]:
+    def get_cookie(self, name: bytes) -> Optional[str]:
         ...
 
     def set_cookie(self, cookie: Cookie) -> None:

@@ -1,4 +1,5 @@
 from asyncio import AbstractEventLoop
+from datetime import datetime
 from blacksheep.ranges import Range, RangePart
 from blacksheep.exceptions import BadRequest, InvalidArgument
 from pathlib import Path
@@ -18,6 +19,7 @@ from blacksheep.server.files import (
     _get_requested_range,
 )
 from blacksheep.server.files.dynamic import get_response_for_file
+from blacksheep.server.files.static import get_response_for_static_content
 from tests.test_application import (
     FakeApplication,
     MockReceive,
@@ -716,3 +718,88 @@ def test_file_info():
     assert data["modified_time"] == info.modified_time
 
     assert info.mime in repr(info)
+
+
+@pytest.mark.asyncio
+async def test_get_response_for_static_content_returns_given_bytes():
+    response = get_response_for_static_content(
+        Request("GET", b"/", None),
+        b"text/plain",
+        b"Lorem ipsum dolor sit amet\n",
+        datetime(2020, 10, 24).timestamp(),
+    )
+
+    assert response.status == 200
+    data = await response.read()
+    assert data == b"Lorem ipsum dolor sit amet\n"
+
+
+@pytest.mark.asyncio
+async def test_get_response_for_static_content_handles_head():
+    response = get_response_for_static_content(
+        Request("GET", b"/", None),
+        b"text/plain",
+        b"Lorem ipsum dolor sit amet\n",
+        datetime(2020, 10, 24).timestamp(),
+    )
+
+    assert response.status == 200
+
+    head_response = get_response_for_static_content(
+        Request("HEAD", b"/", None),
+        b"text/plain",
+        b"Lorem ipsum dolor sit amet\n",
+        datetime(2020, 10, 24).timestamp(),
+    )
+
+    data = await head_response.read()
+    assert data is None
+
+    for name in {b"content-length", b"content-type"}:
+        # Note: a response with content has these headers handled automatically
+        assert head_response.get_single_header(name) is not None
+
+
+@pytest.mark.asyncio
+async def test_get_response_for_static_content_can_disable_max_age():
+    response = get_response_for_static_content(
+        Request("GET", b"/", None),
+        b"text/plain",
+        b"Lorem ipsum dolor sit amet\n",
+        datetime(2020, 10, 24).timestamp(),
+        cache_time=-1,
+    )
+
+    assert response.status == 200
+    assert response.headers.contains(b"Cache-Control") is False
+
+    response = get_response_for_static_content(
+        Request("GET", b"/", None),
+        b"text/plain",
+        b"Lorem ipsum dolor sit amet\n",
+        datetime(2020, 10, 24).timestamp(),
+        cache_time=20,
+    )
+    assert response.status == 200
+    assert b"20" in response.headers.get_first(b"Cache-Control")
+
+
+@pytest.mark.asyncio
+async def test_get_response_for_static_content_handles_304():
+    response = get_response_for_static_content(
+        Request("GET", b"/", None),
+        b"text/plain",
+        b"Lorem ipsum dolor sit amet\n",
+        datetime(2020, 10, 24).timestamp(),
+    )
+
+    assert response.status == 200
+
+    response = get_response_for_static_content(
+        Request("GET", b"/", [(b"If-None-Match", response.get_first_header(b"etag"))]),
+        b"text/plain",
+        b"Lorem ipsum dolor sit amet\n",
+        datetime(2020, 10, 24).timestamp(),
+    )
+
+    assert response.status == 304

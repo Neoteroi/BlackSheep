@@ -7,7 +7,6 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    Union,
     Sequence,
 )
 
@@ -39,8 +38,6 @@ from blacksheep.server.normalization import normalize_handler, normalize_middlew
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
 from blacksheep.utils import ensure_bytes, join_fragments
-
-ServicesType = Union[Services, Container]
 
 __all__ = ("Application",)
 
@@ -106,7 +103,7 @@ class Application(BaseApplication):
         *,
         router: Optional[Router] = None,
         resources: Optional[Resources] = None,
-        services: Optional[ServicesType] = None,
+        services: Optional[Container] = None,
         debug: bool = False,
         show_error_details: bool = False,
     ):
@@ -118,21 +115,32 @@ class Application(BaseApplication):
 
         if resources is None:
             resources = Resources(get_resource_file_content("error.html"))
-        self.services: ServicesType = services
+        self.services: Container = services
+        self._service_provider: Optional[Services] = None
         self.debug = debug
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []
         self.access_logger = None
         self.logger = None
-        self._default_headers = None
+        self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
         self._middlewares_configured = False
         self.resources = resources
         self._authentication_strategy: Optional[AuthenticationStrategy] = None
         self._authorization_strategy: Optional[AuthorizationStrategy] = None
         self.on_start = ApplicationEvent(self)
+        self.after_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
         self.started = False
         self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
+
+    @property
+    def service_provider(self) -> Services:
+        """
+        Returns the object that provides services of this application.
+        """
+        if self._service_provider is None:
+            raise TypeError("The service provider is not build for this application.")
+        return self._service_provider
 
     @property
     def default_headers(self) -> Optional[Tuple[Tuple[str, str], ...]]:
@@ -205,7 +213,7 @@ class Application(BaseApplication):
 
     def _normalize_middlewares(self):
         self.middlewares = [
-            normalize_middleware(middleware, self.services)  # type: ignore
+            normalize_middleware(middleware, self.service_provider)
             for middleware in self.middlewares
         ]
 
@@ -312,7 +320,7 @@ class Application(BaseApplication):
             if route.handler in configured_handlers:
                 continue
 
-            route.handler = normalize_handler(route, self.services)
+            route.handler = normalize_handler(route, self.service_provider)
             configured_handlers.add(route.handler)
         configured_handlers.clear()
 
@@ -344,8 +352,7 @@ class Application(BaseApplication):
             self._apply_middlewares_in_routes()
 
     def build_services(self):
-        if isinstance(self.services, Container):
-            self.services = self.services.build_provider()
+        self._service_provider = self.services.build_provider()
 
     async def start(self):
         if self.started:
@@ -359,6 +366,9 @@ class Application(BaseApplication):
         self.build_services()
         self.normalize_handlers()
         self.configure_middlewares()
+
+        if self.after_start:
+            await self.after_start.fire()
 
     async def stop(self):
         await self.on_stop.fire()

@@ -23,9 +23,9 @@ from blacksheep.server.normalization import (
     AmbiguousMethodSignatureError,
     NormalizationError,
     RouteBinderMismatch,
+    UnsupportedForwardRefInSignatureError,
     UnsupportedSignatureError,
     _check_union,
-    _copy_name_and_docstring,
     _get_raw_bound_value_type,
     get_binders,
     RequestBinder,
@@ -213,6 +213,32 @@ def test_throw_for_ambiguous_binder_multiple_from_body():
         ...
 
     with pytest.raises(AmbiguousMethodSignatureError):
+        get_binders(Route(b"/", handler), Services())
+
+
+def test_throw_for_forward_ref():
+    def handler(a: "Cat"):
+        ...
+
+    with pytest.raises(UnsupportedForwardRefInSignatureError):
+        get_binders(Route(b"/", handler), Services())
+
+    def handler(a: List["str"]):
+        ...
+
+    with pytest.raises(UnsupportedForwardRefInSignatureError):
+        get_binders(Route(b"/", handler), Services())
+
+    def handler(a: Optional[List["Cat"]]):
+        ...
+
+    with pytest.raises(UnsupportedForwardRefInSignatureError):
+        get_binders(Route(b"/", handler), Services())
+
+    def handler(a: FromQuery["str"]):
+        ...
+
+    with pytest.raises(UnsupportedForwardRefInSignatureError):
         get_binders(Route(b"/", handler), Services())
 
 
@@ -544,13 +570,3 @@ def test_get_raw_bound_value_type_fallsback_to_str():
         ...
 
     assert _get_raw_bound_value_type(Foo) is str  # type: ignore
-
-
-def test_copy_name_and_docstring():
-    class A:
-        ...
-
-    class B:
-        ...
-
-    _copy_name_and_docstring(A, B)

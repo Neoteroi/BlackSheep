@@ -5,11 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.6] - ...
+## [0.2.6] - 2020-10-31 🎃
 
+- Adds support for routes defined using mustaches (not only colon notation)
 - Corrects two bugs happening when using `blacksheep` in Windows
 - Improves the test suite to be compatible with Windows
 - Adds a job running in Windows to the build and validation pipeline
+- Adds `after_start` application event, fired when startup has been completed
+- Adds `FromCookie` binder
+- Adds automatic generation of **OpenAPI Documentation** and serving of
+  Swagger UI, supporting [OpenAPI version 3](https://swagger.io/specification/) ✨
+- Removes weird handling of DI `Services` and `Container` objects in the
+  application
+- Adds support for list of items to `BodyBinder`
+- Adds `python-dateutil` dependency, and support for `datetime` and `date` to
+  binders (i.e. possibility to have these automatically parsed and injected to
+  request handlers' calls)
+- Raises exception for a `typing.ForwardRef` during handlers normalization
 
 ## [0.2.5] - 2020-09-19 💯
 

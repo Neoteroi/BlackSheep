@@ -49,3 +49,6 @@ wcwidth==0.1.7
 websockets==8.1
 Werkzeug==0.16.0
 zipp==0.6.0
+pydantic==1.6.1
+essentials-openapi==0.0.1
+python-dateutil==2.8.1

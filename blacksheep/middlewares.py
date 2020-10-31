@@ -14,7 +14,7 @@ def get_middlewares_chain(middlewares, handler):
         if not middleware:
             continue
         wrapper_fn = middleware_partial(middleware, fn)
-
+        setattr(wrapper_fn, "root_fn", handler)
         copy_special_attributes(fn, wrapper_fn)
         fn = wrapper_fn
     return fn

@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from jinja2 import Environment, PackageLoader, Template, select_autoescape
-from rodi import Container, Services
+from rodi import Container
 
 from blacksheep import Content, Response
 
@@ -49,14 +49,9 @@ def use_templates(app, loader: PackageLoader, enable_async: bool = False):
             app.services.add_alias("jinja_environment", Environment)
             app.services.add_alias("jinja", Environment)
             app.services.add_alias("templates_environment", Environment)
-        elif isinstance(app.services, Services):
-            app.services["jinja_environment"] = env
-            app.services["jinja"] = env
-            app.services["templates_environment"] = env
         else:
-            raise RuntimeError(
-                "Application services must be either `rodi.Services` "
-                "or `rodi.Container`."
+            raise TypeError(
+                "Application services must be an instance of `rodi.Container`."
             )
         env.globals["app"] = app
 

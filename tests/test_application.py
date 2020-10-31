@@ -2,7 +2,8 @@ import asyncio
 import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
-from typing import List, Optional
+from datetime import date, datetime
+from typing import List, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pkg_resources
@@ -15,6 +16,7 @@ from blacksheep import HttpException, JsonContent, Request, Response, TextConten
 from blacksheep.server import Application
 from blacksheep.server.bindings import (
     ClientInfo,
+    FromCookie,
     FromHeader,
     FromJson,
     FromQuery,
@@ -24,7 +26,7 @@ from blacksheep.server.bindings import (
     ServerInfo,
 )
 from blacksheep.server.di import dependency_injection_middleware
-from blacksheep.server.responses import text
+from blacksheep.server.responses import status_code, text
 from tests.utils import ensure_folder
 
 
@@ -33,6 +35,11 @@ class FakeApplication(Application):
         super().__init__(show_error_details=True, *args, **kwargs)
         self.request = None
         self.response = None
+
+    def normalize_handlers(self):
+        if self._service_provider is None:
+            self.build_services()
+        super().normalize_handlers()
 
     def setup_controllers(self):
         self.use_controllers()
@@ -60,6 +67,16 @@ async def test_application_supports_dynamic_attributes():
     ), "This test makes sense if such attribute is not defined"
     app.foo = foo  # type: ignore
     assert app.foo is foo  # type: ignore
+
+
+@pytest.mark.asyncio
+async def test_application_service_provider_throws_for_missing_value():
+    app = FakeApplication()
+
+    assert app._service_provider is None
+
+    with pytest.raises(TypeError):
+        app.service_provider
 
 
 def get_example_scope(
@@ -348,6 +365,7 @@ async def test_application_middlewares_two():
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
+    app.build_services()
     app.configure_middlewares()
 
     send = MockSend()
@@ -388,6 +406,7 @@ async def test_application_middlewares_are_applied_only_once():
         response = await handler(request)
         return response
 
+    app.build_services()
     app.middlewares.append(middleware)
 
     for method, _ in {("GET", 1), ("GET", 2), ("HEAD", 1), ("HEAD", 2)}:
@@ -444,6 +463,7 @@ async def test_application_middlewares_three():
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
     app.middlewares.append(middleware_three)
+    app.build_services()
     app.configure_middlewares()
 
     send = MockSend()
@@ -493,6 +513,7 @@ async def test_application_middlewares_skip_handler():
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
     app.middlewares.append(middleware_three)
+    app.build_services()
     app.configure_middlewares()
 
     send = MockSend()
@@ -1483,6 +1504,131 @@ async def test_handler_from_json_parameter():
 
 
 @pytest.mark.asyncio
+async def test_handler_from_json_list_of_objects():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[List[Item]]):
+        assert item is not None
+        value = item.value
+
+        item_one = value[0]
+        item_two = value[1]
+        assert item_one.a == "Hello"
+        assert item_one.b == "World"
+        assert item_one.c == 10
+
+        assert item_two.a == "Lorem"
+        assert item_two.b == "ipsum"
+        assert item_two.c == 55
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive(
+            [
+                b'[{"a":"Hello","b":"World","c":10},'
+                + b'{"a":"Lorem","b":"ipsum","c":55}]'
+            ]
+        ),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.parametrize(
+    "expected_type,request_body,expected_result",
+    [
+        [
+            List,
+            b'["one","two","three"]',
+            ["one", "two", "three"],
+        ],
+        [
+            List[bytes],
+            b'["bG9yZW0gaXBzdW0=","aGVsbG8gd29ybGQ=","VGhyZWU="]',
+            ["lorem ipsum", "hello world", "Three"],
+        ],
+        [
+            List[str],
+            b'["one","two","three"]',
+            ["one", "two", "three"],
+        ],
+        [
+            List[int],
+            b"[20, 10, 0, 200, 12, 64]",
+            [20, 10, 0, 200, 12, 64],
+        ],
+        [
+            List[float],
+            b"[20.4, 10.23, 0.12, 200.00, 12.12, 64.01]",
+            [20.4, 10.23, 0.12, 200.00, 12.12, 64.01],
+        ],
+        [
+            List[bool],
+            b"[true, false, true, true, 1, 0]",
+            [True, False, True, True, True, False],
+        ],
+        [
+            List[datetime],
+            b'["2020-10-24", "2020-10-24T18:46:19.313346", "2019-05-30"]',
+            [
+                datetime(2020, 10, 24),
+                datetime(2020, 10, 24, 18, 46, 19, 313346),
+                datetime(2019, 5, 30),
+            ],
+        ],
+        [
+            List[date],
+            b'["2020-10-24", "2020-10-24", "2019-05-30"]',
+            [date(2020, 10, 24), date(2020, 10, 24), date(2019, 5, 30)],
+        ],
+        [
+            List[UUID],
+            b'["d1e7745f-2a20-4181-8249-b7fef73592dd",'
+            + b'"0bf95cca-3299-4cc0-93d1-ec8e041f5d3e",'
+            + b'"d2d52dde-b174-47e0-8a8e-a07d6a559a3a"]',
+            [
+                UUID("d1e7745f-2a20-4181-8249-b7fef73592dd"),
+                UUID("0bf95cca-3299-4cc0-93d1-ec8e041f5d3e"),
+                UUID("d2d52dde-b174-47e0-8a8e-a07d6a559a3a"),
+            ],
+        ],
+    ],
+)
+@pytest.mark.asyncio
+async def test_handler_from_json_list_of_primitives(
+    expected_type, request_body, expected_result
+):
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[expected_type]):
+        assert item is not None
+        value = item.value
+        assert value == expected_result
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                [b"content-type", b"application/json"],
+                [b"content-length", str(len(request_body)).encode()],
+            ],
+        ),
+        MockReceive([request_body]),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
 async def test_handler_from_json_dataclass():
     app = FakeApplication()
 
@@ -1657,6 +1803,272 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
     assert app.response.status == 400
     content = await app.response.text()
     assert content == "Bad Request: Expected request content"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameter,expected_value",
+    [
+        [str, "Hello", "Hello"],
+        [int, "1349", 1349],
+        [float, "13.2", 13.2],
+        [bool, "True", True],
+        [bool, "1", True],
+        [Optional[bool], "1", True],
+        [Optional[bool], "", None],
+        [bool, "False", False],
+        [Optional[bool], "False", False],
+        [date, "2020-5-30", date(2020, 5, 30)],
+        [date, "2020-1-1", date(2020, 1, 1)],
+        [Optional[date], "", None],
+        [
+            datetime,
+            "2020-10-24T18:46:19.313346",
+            datetime(2020, 10, 24, 18, 46, 19, 313346),
+        ],
+        [bool, "0", False],
+        [
+            UUID,
+            "54b2587a-0afc-40ec-a03d-13223d4bb04d",
+            UUID("54b2587a-0afc-40ec-a03d-13223d4bb04d"),
+        ],
+    ],
+)
+async def test_valid_query_parameter_parse(parameter_type, parameter, expected_value):
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(foo: FromQuery[parameter_type]):
+        assert foo.value == expected_value
+        return status_code(200)
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [], query=f"foo={parameter}".encode()),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameter,expected_value",
+    [
+        [str, "Hello", "Hello"],
+        [int, "1349", 1349],
+        [float, "13.2", 13.2],
+        [bool, "True", True],
+        [bool, "1", True],
+        [Optional[bool], "1", True],
+        [Optional[bool], "", None],
+        [bool, "False", False],
+        [Optional[bool], "False", False],
+        [date, "2020-5-30", date(2020, 5, 30)],
+        [date, "2020-1-1", date(2020, 1, 1)],
+        [Optional[date], "", None],
+        [
+            datetime,
+            "2020-10-24T18:46:19.313346",
+            datetime(2020, 10, 24, 18, 46, 19, 313346),
+        ],
+        [bool, "0", False],
+        [
+            UUID,
+            "54b2587a-0afc-40ec-a03d-13223d4bb04d",
+            UUID("54b2587a-0afc-40ec-a03d-13223d4bb04d"),
+        ],
+    ],
+)
+async def test_valid_cookie_parameter_parse(parameter_type, parameter, expected_value):
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(foo: FromCookie[parameter_type]):
+        assert foo.value == expected_value
+        return status_code(200)
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [(b"cookie", f"foo={parameter}".encode())]),
+        MockReceive(),
+        MockSend(),
+    )
+    assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameters,expected_value",
+    [
+        [List, ["Hello", "World"], ["Hello", "World"]],
+        [List[str], ["Hello", "World"], ["Hello", "World"]],
+        [List[int], ["1349"], [1349]],
+        [List[int], ["1", "2", "3"], [1, 2, 3]],
+        [List[float], ["1.12", "2.30", "3.55"], [1.12, 2.30, 3.55]],
+        [List[bool], ["1", "0", "0", "1"], [True, False, False, True]],
+        [
+            List[date],
+            ["2020-5-30", "2019-5-30", "2018-1-1"],
+            [date(2020, 5, 30), date(2019, 5, 30), date(2018, 1, 1)],
+        ],
+        [
+            List[datetime],
+            ["2020-10-24T18:46:19.313346", "2019-10-24T18:46:19.313346"],
+            [
+                datetime(2020, 10, 24, 18, 46, 19, 313346),
+                datetime(2019, 10, 24, 18, 46, 19, 313346),
+            ],
+        ],
+    ],
+)
+async def test_valid_query_parameter_list_parse(
+    parameter_type, parameters, expected_value
+):
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(foo: FromQuery[parameter_type]):
+        assert foo.value == expected_value
+        return status_code(200)
+
+    app.normalize_handlers()
+
+    query = "&".join(f"foo={parameter}" for parameter in parameters)
+
+    await app(
+        get_example_scope("GET", "/", [], query=query.encode()),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameter",
+    [
+        [int, "nope"],
+        [float, "nope"],
+        [date, "nope"],
+        [Optional[date], "nope"],
+        [datetime, "nope"],
+        [UUID, "nope"],
+    ],
+)
+async def test_invalid_query_parameter_400(parameter_type, parameter):
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def home(foo: FromQuery[parameter_type]):
+        return status_code(200)
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [], query=f"foo={parameter}".encode()),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 400
+    content = await app.response.text()
+    assert "Bad Request: Invalid value ['nope'] for parameter `foo`;" in content
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameter,expected_value",
+    [
+        [str, "Hello", "Hello"],
+        [int, "1349", 1349],
+        [float, "13.2", 13.2],
+        [bool, "True", True],
+        [bool, "1", True],
+        [bool, "False", False],
+        [date, "2020-5-30", date(2020, 5, 30)],
+        [
+            datetime,
+            "2020-10-24T18:46:19.313346",
+            datetime(2020, 10, 24, 18, 46, 19, 313346),
+        ],
+        [bool, "0", False],
+        [
+            UUID,
+            "54b2587a-0afc-40ec-a03d-13223d4bb04d",
+            UUID("54b2587a-0afc-40ec-a03d-13223d4bb04d"),
+        ],
+    ],
+)
+async def test_valid_route_parameter_parse(parameter_type, parameter, expected_value):
+    app = FakeApplication()
+
+    @app.router.get("/:foo")
+    async def home(foo: FromRoute[parameter_type]):
+        assert foo.value == expected_value
+        return status_code(200)
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/" + parameter, []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "parameter_type,parameter,expected_value",
+    [
+        [str, "Hello", "Hello"],
+        [int, "1349", 1349],
+        [float, "13.2", 13.2],
+        [bool, "True", True],
+        [bool, "1", True],
+        [bool, "False", False],
+        [date, "2020-5-30", date(2020, 5, 30)],
+        [
+            datetime,
+            "2020-10-24T18:46:19.313346",
+            datetime(2020, 10, 24, 18, 46, 19, 313346),
+        ],
+        [bool, "0", False],
+        [
+            UUID,
+            "54b2587a-0afc-40ec-a03d-13223d4bb04d",
+            UUID("54b2587a-0afc-40ec-a03d-13223d4bb04d"),
+        ],
+    ],
+)
+async def test_valid_header_parameter_parse(parameter_type, parameter, expected_value):
+    app = FakeApplication()
+
+    T = TypeVar("T")
+
+    class XFooHeader(FromHeader[T]):
+        name = "X-Foo"
+
+    @app.router.get("/")
+    async def home(x_foo: XFooHeader[parameter_type]):
+        assert x_foo.value == expected_value
+        return status_code(200)
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", [(b"X-Foo", parameter.encode())]),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response.status == 200
 
 
 @pytest.mark.asyncio
@@ -2509,6 +2921,7 @@ async def test_start_stop_events():
     app = FakeApplication()
 
     on_start_called = False
+    on_after_start_called = False
     on_stop_called = False
 
     async def before_start(application: Application) -> None:
@@ -2517,6 +2930,12 @@ async def test_start_stop_events():
         nonlocal on_start_called
         on_start_called = True
 
+    async def after_start(application: Application) -> None:
+        assert isinstance(application, Application)
+        assert application is app
+        nonlocal on_after_start_called
+        on_after_start_called = True
+
     async def on_stop(application: Application) -> None:
         assert isinstance(application, Application)
         assert application is app
@@ -2524,16 +2943,19 @@ async def test_start_stop_events():
         on_stop_called = True
 
     app.on_start += before_start
+    app.after_start += after_start
     app.on_stop += on_stop
 
     await app.start()
 
     assert on_start_called is True
+    assert on_after_start_called is True
     assert on_stop_called is False
 
     await app.stop()
 
     assert on_start_called is True
+    assert on_after_start_called is True
     assert on_stop_called is True
 
 
@@ -2687,3 +3109,9 @@ async def test_handles_on_start_error_asgi_lifespan():
     )
 
     assert mock_send.messages[0] == {"type": "lifespan.startup.failed"}
+
+
+def test_register_controller_types_handle_empty_list():
+    app = FakeApplication()
+
+    assert app.register_controllers([]) is None

@@ -6,6 +6,10 @@ def copy_special_attributes(source_method, wrapper) -> None:
         "allow_anonymous",
         "controller_type",
         "route_handler",
+        "__name__",
+        "__doc__",
+        "root_fn",
+        "binders"
     }:
         if hasattr(source_method, name):
             setattr(wrapper, name, getattr(source_method, name))

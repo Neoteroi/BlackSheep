@@ -5,6 +5,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    ForwardRef,
     List,
     Mapping,
     Optional,
@@ -54,6 +55,15 @@ class UnsupportedSignatureError(NormalizationError):
             f"signature contains *args, or *kwargs, or keyword only parameters. "
             f"If you use a decorator, please use `functools.@wraps` "
             f"with your wrapper, to fix this error."
+        )
+
+
+class UnsupportedForwardRefInSignatureError(NormalizationError):
+    def __init__(self, unsupported_type):
+        super().__init__(
+            f"Cannot normalize method `{unsupported_type}` because its "
+            f"signature contains a forward reference (type annotation as string). "
+            f"Use type annotations to exact types to fix this error. "
         )
 
 
@@ -208,12 +218,18 @@ def _get_parameter_binder(
     # unwrap the Optional[] annotation, if present:
     is_root_optional, annotation = _check_union(parameter, original_annotation, method)
 
+    if isinstance(annotation, (str, ForwardRef)):
+        raise UnsupportedForwardRefInSignatureError(original_annotation)
+
     # 1. is the type annotation of BoundValue[T] type?
     if _is_bound_value_annotation(annotation):
         binder_type = get_binder_by_type(annotation)
         expected_type = _get_bound_value_type(annotation)
 
         is_optional, expected_type = _check_union(parameter, expected_type, method)
+
+        if isinstance(expected_type, (str, ForwardRef)):
+            raise UnsupportedForwardRefInSignatureError(expected_type)
 
         parameter_name = annotation.name or name
 
@@ -299,25 +315,20 @@ def _get_binders_for_function(
     return binders
 
 
-def get_binders(route: Route, services: Services) -> Sequence[Binder]:
+def get_binders(route: Route, services: Services) -> List[Binder]:
     """
     Returns a list of binders to extract parameters
     for a request handler.
     """
-    return _get_binders_for_function(route.handler, services, route)
+    binders = _get_binders_for_function(route.handler, services, route)
+    setattr(route.handler, "binders", binders)
+    return binders
 
 
 def get_binders_for_middleware(
     method: Callable[..., Any], services: Services
 ) -> Sequence[Binder]:
     return _get_binders_for_function(method, services, None)
-
-
-def _copy_name_and_docstring(
-    source_method: Callable[..., Any], wrapper: Callable[..., Any]
-) -> None:
-    wrapper.__name__ = source_method.__name__
-    wrapper.__doc__ = source_method.__doc__
 
 
 def _get_sync_wrapper_for_controller(
@@ -452,8 +463,8 @@ def normalize_handler(
         normalized = get_sync_wrapper(services, route, method, params, params_len)
 
     if normalized is not method:
+        setattr(normalized, "root_fn", method)
         copy_special_attributes(method, normalized)
-        _copy_name_and_docstring(method, normalized)
 
     return normalized
 

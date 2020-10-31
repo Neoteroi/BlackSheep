@@ -1,7 +1,6 @@
 import pytest
 from blacksheep import HttpMethod
-from blacksheep.server.routing import Router, Route, RouteDuplicate
-
+from blacksheep.server.routing import Route, RouteDuplicate, Router
 
 FAKE = b"FAKE"
 
@@ -45,11 +44,16 @@ class MockHandler:
     "pattern,url,expected_values",
     [
         (b"/foo/:id", b"/foo/123", {"id": "123"}),
+        (b"/foo/{id}", b"/foo/123", {"id": "123"}),
         ("/foo/:id", b"/foo/123", {"id": "123"}),
+        ("/foo/{id}", b"/foo/123", {"id": "123"}),
         (b"/foo/:id/ufo/:b", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
+        (b"/foo/{id}/ufo/{b}", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
         ("/foo/:id/ufo/:b", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
+        ("/foo/{id}/ufo/{b}", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
         (b"/foo/:id/ufo/:b", b"/Foo/223/Ufo/a13", {"id": "223", "b": "a13"}),
         (b"/:a", b"/Something", {"a": "Something"}),
+        (b"/{a}", b"/Something", {"a": "Something"}),
         (b"/alive", b"/alive", None),
     ],
 )
@@ -59,6 +63,15 @@ def test_route_good_matches(pattern, url, expected_values):
 
     assert match is not None
     assert match.values == expected_values
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    ["/a", "/a/b", "/a/b/c", "/cats/:cat_id", "/cats/:cat_id/friends"],
+)
+def test_route_repr(pattern: str):
+    route = Route(pattern, mock_handler)
+    assert repr(route) == f"<Route {pattern}>"
 
 
 @pytest.mark.parametrize(
@@ -611,3 +624,22 @@ def test_router_iterable():
 
     for route in routes:
         assert route.handler in handlers
+
+
+@pytest.mark.parametrize(
+    "route_pattern,expected_pattern",
+    [
+        ["/", "/"],
+        ["/api/v1/help", "/api/v1/help"],
+        ["/api/cats/:cat_id", "/api/cats/{cat_id}"],
+        ["/api/cats/:cat_id/friends", "/api/cats/{cat_id}/friends"],
+        [
+            "/api/cats/:cat_id/friends/:friend_id",
+            "/api/cats/{cat_id}/friends/{friend_id}",
+        ],
+    ],
+)
+def test_route_to_openapi_pattern(route_pattern, expected_pattern):
+    route = Route(route_pattern, object())
+
+    assert route.mustache_pattern == expected_pattern

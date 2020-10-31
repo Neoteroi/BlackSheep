@@ -340,9 +340,6 @@ cdef class Request(Message):
                         cookies[unquote(name.decode())] = unquote(value.rstrip(b'; ').decode())
         return cookies
 
-    def get_cookie(self, bytes name):
-        return self.cookies.get(name)
-
     def set_cookie(self, Cookie cookie):
         self.__headers.append((b'cookie', cookie.name + b'=' + cookie.value))
 

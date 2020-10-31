@@ -1,18 +1,60 @@
+from blacksheep.server.responses import text
 import json
 from base64 import urlsafe_b64decode
+from dataclasses import dataclass
+from datetime import date, datetime
+from enum import Enum
+from http import HTTPStatus
+from uuid import UUID
+from typing import List, Optional, Set
 
 import uvicorn
-from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext
-from guardpost.common import AuthenticatedRequirement
-
 from blacksheep import Response, TextContent
 from blacksheep.server import Application
 from blacksheep.server.authentication import AuthenticationHandler
 from blacksheep.server.authorization import Policy, Requirement, auth
+from blacksheep.server.bindings import (
+    FromCookie,
+    FromForm,
+    FromHeader,
+    FromJson,
+    FromQuery,
+)
+from blacksheep.server.controllers import ApiController, delete, get, post
+from blacksheep.server.openapi.common import (
+    ContentInfo,
+    EndpointDocs,
+    HeaderInfo,
+    RequestBodyInfo,
+    ResponseExample,
+    ResponseInfo,
+)
+from blacksheep.server.openapi.v3 import OpenAPIHandler
+from dateutil.parser import parse as dateutil_parse
+from guardpost.authentication import Identity
+from guardpost.authorization import AuthorizationContext
+from guardpost.common import AuthenticatedRequirement
+from openapidocs.v3 import (
+    Discriminator,
+    Info,
+    MediaType,
+    Operation,
+    Response as ResponseDoc,
+    Schema,
+)
+from pydantic import BaseModel
+
 from itests.utils import CrashTest
 
 app_two = Application()
+
+
+# OpenAPI v3 configuration:
+docs = OpenAPIHandler(info=Info(title="Cats API", version="0.0.1"))
+
+# include only endpoints whose path starts with "/api/"
+docs.include = lambda path, _: path.startswith("/api/")
+docs.bind_app(app_two)
 
 
 class HandledException(Exception):
@@ -62,6 +104,17 @@ app_two.use_authorization().add(AdminsPolicy()).add(
 )
 
 
+@docs(responses={200: "Example"})
+@app_two.router.get("/api/dogs/bark")
+def bark(example: FromCookie[str], example_header: FromHeader[str]):
+    return text("Bau Bau")
+
+
+@app_two.router.get("/api/dogs/sleep/*")
+def not_documented():
+    return text("Ignored because catch-all")
+
+
 @auth("admin")
 @app_two.router.get("/only-for-admins")
 async def only_for_admins():
@@ -82,6 +135,372 @@ async def crash():
 @app_two.route("/handled-crash")
 async def handled_crash():
     raise HandledException()
+
+
+class CatType(Enum):
+    EUROPEAN = "european"
+    PERSIAN = "persian"
+
+
+@dataclass
+class Cat:
+    id: UUID
+    name: str
+    active: bool
+    type: CatType
+    creation_time: datetime
+
+
+@dataclass
+class HttpError:
+    status: int
+    message: str
+    code: str
+
+
+@dataclass
+class CreateCatInput:
+    name: str
+    active: bool
+    type: CatType
+
+
+@dataclass
+class CreateCatOutput:
+    id: UUID
+
+
+class PydanticChild(BaseModel):
+    foo: bool
+
+
+class PydanticExample(BaseModel):
+    name: str
+    active: bool
+    foo: float
+    birthdate: date
+    type: CatType
+    items: List[PydanticChild]
+
+
+@dataclass
+class Example:
+    name: Optional[str]
+    active: Optional[bool]
+
+
+@dataclass
+class Example2:
+    friend: "Cat"
+
+
+create_cat_docs = EndpointDocs(
+    request_body=RequestBodyInfo(
+        description="Example description etc. etc.",
+        examples={
+            "fat_cat": CreateCatInput(
+                name="Fatty",
+                active=False,
+                type=CatType.EUROPEAN,
+            ),
+            "thin_cat": CreateCatInput(
+                name="Thinny",
+                active=False,
+                type=CatType.PERSIAN,
+            ),
+        },
+    ),
+    responses={
+        201: ResponseInfo(
+            "The cat has been created",
+            headers={"Location": HeaderInfo(str, "URL to the new created object")},
+            content=[
+                ContentInfo(
+                    CreateCatOutput,
+                    examples=[
+                        ResponseExample(
+                            CreateCatOutput(
+                                UUID("7d6299fa-77d4-4fb0-825d-3c0c7ba759d5")
+                            ),
+                            description="Something something",
+                        ),
+                        CreateCatOutput(UUID("8f885fa9-e92f-47aa-a296-207e8105ad9b")),
+                        CreateCatOutput(UUID("7e530116-5bd6-40d3-b539-9966ab066720")),
+                    ],
+                ),
+            ],
+        ),
+        400: ResponseInfo(
+            "Bad request",
+            content=[
+                ContentInfo(
+                    HttpError,
+                    examples=[
+                        HttpError(
+                            404,
+                            "Bad request because something something",
+                            "DUPLICATE_CAT",
+                        )
+                    ],
+                )
+            ],
+        ),
+    },
+)
+
+
+@dataclass
+class CatsList:
+    items: List[Cat]
+    total: int
+
+
+class PetType(Enum):
+    CAT = "cat"
+    DOG = "dog"
+
+
+@dataclass
+class Animal:
+    beauty: float
+
+
+@dataclass
+class Pet(Animal):
+    name: str
+    type: PetType
+
+
+@dataclass
+class CatPet(Pet):
+    laziness: float
+
+
+@dataclass
+class DogPet(Pet):
+    loyalty: float
+
+
+class AnimalModel(BaseModel):
+    beauty: float
+
+
+class PetModel(AnimalModel):
+    name: str
+    type: PetType
+
+
+class DogPetModel(PetModel):
+    loyalty: float
+
+
+class CatPetModel(PetModel):
+    laziness: float
+
+
+def on_polymorph_example_docs_created(
+    docs: OpenAPIHandler, operation: Operation
+) -> None:
+    docs.register_schema_for_type(Pet)
+    pet_schema = docs.components.schemas["Pet"]
+    assert isinstance(pet_schema, Schema)
+    pet_schema.discriminator = Discriminator("type", {"cat": "CatPet", "dog": "DogPet"})
+
+    cat_ref = docs.register_schema_for_type(CatPet)
+    dog_ref = docs.register_schema_for_type(DogPet)
+
+    operation.responses["200"] = ResponseDoc(
+        "Polymorph example",
+        content={
+            "application/json": MediaType(schema=Schema(any_of=[cat_ref, dog_ref]))
+        },
+    )
+
+
+def on_polymorph_example_docs_created_pydantic(
+    docs: OpenAPIHandler, operation: Operation
+) -> None:
+    docs.register_schema_for_type(PetModel)
+    pet_schema = docs.components.schemas["Pet"]
+    assert isinstance(pet_schema, Schema)
+    pet_schema.discriminator = Discriminator("type", {"cat": "CatPet", "dog": "DogPet"})
+
+    cat_ref = docs.register_schema_for_type(CatPetModel)
+    dog_ref = docs.register_schema_for_type(DogPetModel)
+
+    operation.responses["200"] = ResponseDoc(
+        "Polymorph example",
+        content={
+            "application/json": MediaType(schema=Schema(any_of=[cat_ref, dog_ref]))
+        },
+    )
+
+
+class Cats(ApiController):
+    @get()
+    @docs(
+        responses={
+            HTTPStatus.OK: ResponseInfo(
+                "A paginated set of Cats",
+                content=[
+                    ContentInfo(
+                        CatsList,
+                        examples=[
+                            CatsList(
+                                [
+                                    Cat(
+                                        id=UUID("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+                                        name="Foo",
+                                        active=True,
+                                        type=CatType.EUROPEAN,
+                                        creation_time=dateutil_parse(
+                                            "2020-10-25T19:39:31.751652"
+                                        ),
+                                    ),
+                                    Cat(
+                                        id=UUID("f212cabf-987c-48e6-8cad-71d1c041209a"),
+                                        name="Frufru",
+                                        active=True,
+                                        type=CatType.PERSIAN,
+                                        creation_time=dateutil_parse(
+                                            "2020-10-25T19:39:31.751652"
+                                        ),
+                                    ),
+                                ],
+                                1230,
+                            )
+                        ],
+                    )
+                ],
+            ),
+            "400": "Bad Request",
+        }
+    )
+    def get_cats(
+        self,
+        page: FromQuery[int] = FromQuery(1),
+        page_size: FromQuery[int] = FromQuery(30),
+        search: FromQuery[str] = FromQuery(""),
+    ) -> Response:
+        """
+        Returns a list of paginated cats.
+        """
+
+    @docs.ignore()
+    @get("/ignored")
+    def secret_api(self):
+        ...
+
+    @docs.summary("Some deprecated API")
+    @docs.deprecated()
+    @docs.tags("Cats", "Deprecated")
+    @get("/deprecated")
+    def deprecated_api(self):
+        """
+        This endpoint is deprecated.
+        """
+
+    @docs(
+        summary="Gets a cat by id",
+        description="""A sample API that uses a petstore as an
+          example to demonstrate features in the OpenAPI 3 specification""",
+        responses={
+            200: ResponseInfo(
+                "A cat",
+                content=[
+                    ContentInfo(
+                        Cat,
+                        examples=[
+                            ResponseExample(
+                                Cat(
+                                    id=UUID("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+                                    name="Foo",
+                                    active=True,
+                                    type=CatType.EUROPEAN,
+                                    creation_time=dateutil_parse(
+                                        "2020-10-25T19:39:31.751652"
+                                    ),
+                                )
+                            )
+                        ],
+                    )
+                ],
+            ),
+            404: "Cat not found",
+        },
+    )
+    @get(":cat_id")
+    def get_cat(self, cat_id: str) -> Response:
+        """
+        Gets a cat by id.
+        """
+
+    @post()
+    @docs(create_cat_docs)
+    def create_cat(self, input: FromJson[CreateCatInput]) -> Response:
+        """
+        Creates a new cat.
+        """
+
+    @post("/variant")
+    @docs(create_cat_docs)
+    def post_form(self, input: FromForm[CreateCatInput]) -> Response:
+        """
+        ...
+        """
+
+    @docs(
+        responses={
+            204: "Cat deleted successfully",
+        },
+    )
+    @delete(":cat_id")
+    def delete_cat(self, cat_id: str) -> Response:
+        """
+        Deletes a cat by id.
+
+        Lorem ipsum dolor sit amet.
+        """
+
+    @post("magic")
+    def magic_cat(self, cat: PydanticExample, foo: Optional[bool]) -> Response:
+        """
+        Creates a magic cat
+        """
+
+    @post("magic2")
+    def magic_cat2(self, cat: PydanticExample) -> Response:
+        """
+        Creates a magic cat
+        """
+
+    @post("magic3")
+    def magic_cat3(self, example: Example) -> Response:
+        """
+        Creates a magic cat
+        """
+
+    @post("forward_ref")
+    def magic_cat4(self, example: Example2) -> Response:
+        ...
+
+    @post("poor-use-of-list-annotation")
+    def magic_cat5(self, example: list) -> Response:
+        ...
+
+    @post("poor-use-of-set-annotation2")
+    def magic_cat6(self, example: Set) -> Response:
+        ...
+
+    @post("/polymorph-example")
+    @docs(on_created=on_polymorph_example_docs_created)
+    def polymorph_example(self) -> Response:
+        ...
+
+    @post("/polymorph-example-pydantic")
+    @docs(on_created=on_polymorph_example_docs_created_pydantic)
+    def polymorph_example_pydantic(self) -> Response:
+        ...
 
 
 if __name__ == "__main__":

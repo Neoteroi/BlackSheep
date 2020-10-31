@@ -1,4 +1,7 @@
-[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI-v2?branchName=master)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=32) [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/) [![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)](https://www.python.org/downloads/release/python-370/) [![Python 3.8](https://img.shields.io/badge/python-3.8-blue.svg)](https://www.python.org/downloads/release/python-380/) [![Test coverage](https://img.shields.io/azure-devops/coverage/robertoprevato/BlackSheep/32/master.svg)](https://dev.azure.com/robertoprevato/BlackSheep/_build?definitionId=32)
+[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI-v2?branchName=master)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=32)
+[![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
+[![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/neoteroi/blacksheep)
+[![Test coverage](https://img.shields.io/azure-devops/coverage/robertoprevato/BlackSheep/32/master.svg)](https://dev.azure.com/robertoprevato/BlackSheep/_build?definitionId=32)
 
 # BlackSheep
 BlackSheep is an asynchronous web framework to build event based, non-blocking Python web applications.
@@ -191,9 +194,11 @@ loop.run_until_complete(client_example(loop))
 ```
 
 ## Supported platforms and runtimes
-The following Python versions are supported and tested by [validation pipeline](./azure-pipelines.yml):
+The following Python versions are supported and tested by [validation pipeline](./azure-pipelines.yml),
+or during development:
 * Python 3.7 (cpython)
 * Python 3.8 (cpython)
+* Python 3.9 (cpython)
 
 The following platforms are supported and tested by [validation pipeline](./azure-pipelines.yml):
 * Ubuntu 18.04

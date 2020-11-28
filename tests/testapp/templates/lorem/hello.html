@@ -1,0 +1,9 @@
+<div style="margin: 10em 2em;">
+  <h1>Hello, {{name}}!</h1>
+
+  <ul>
+    {% for sentence in sentences %}
+      <li><a href="{{ sentence.url }}">{{ sentence.text }}</a></li>
+    {% endfor %}
+  </ul>
+</div>

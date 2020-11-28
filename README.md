@@ -1,7 +1,7 @@
-[![Build status](https://dev.azure.com/robertoprevato/BlackSheep/_apis/build/status/BlackSheep-CI-v2?branchName=master)](https://dev.azure.com/robertoprevato/BlackSheep/_build/latest?definitionId=32)
+[![Build](https://github.com/RobertoPrevato/BlackSheep/workflows/Main/badge.svg)](https://github.com/RobertoPrevato/BlackSheep/actions)
 [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
 [![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/robertoprevato/blacksheep)
-[![Test coverage](https://img.shields.io/azure-devops/coverage/robertoprevato/BlackSheep/32/master.svg)](https://dev.azure.com/robertoprevato/BlackSheep/_build?definitionId=32)
+[![codecov](https://codecov.io/gh/RobertoPrevato/BlackSheep/branch/master/graph/badge.svg?token=Nzi29L0Eg1)](https://codecov.io/gh/RobertoPrevato/BlackSheep)
 
 # BlackSheep
 BlackSheep is an asynchronous web framework to build event based, non-blocking Python web applications.

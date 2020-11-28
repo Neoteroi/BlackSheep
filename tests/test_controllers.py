@@ -1,15 +1,16 @@
-from blacksheep.server.application import RequiresServiceContainerError
-import pytest
-from typing import Optional
 from functools import wraps
+from typing import Optional
 
-from rodi import Services
+import pytest
 from blacksheep import Request, Response
+from blacksheep.server.application import RequiresServiceContainerError
+from blacksheep.server.controllers import ApiController, Controller, RoutesRegistry
 from blacksheep.server.responses import text
-from blacksheep.server.controllers import Controller, ApiController, RoutesRegistry
 from blacksheep.server.routing import RouteDuplicate
 from blacksheep.utils import ensure_str
 from guardpost.authentication import User
+from rodi import Services
+
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
 
@@ -720,3 +721,36 @@ async def test_api_controller_with_version_2():
         assert app.response.status == 200
         body = await app.response.text()
         assert body == value
+
+
+@pytest.mark.asyncio
+async def test_controller_parameter_name_match():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Example(Controller):
+        @get("/")
+        async def from_query(self, example: str):
+            assert isinstance(self, Example)
+            assert isinstance(example, str)
+            return text(example)
+
+        @get("/{example}")
+        async def from_route(self, example: str):
+            assert isinstance(self, Example)
+            assert isinstance(example, str)
+            return text(example)
+
+    app.setup_controllers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 400
+    body = await app.response.text()
+    assert body == "Bad Request: Missing query parameter `example`"
+
+    await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == "foo"

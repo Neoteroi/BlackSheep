@@ -251,17 +251,13 @@ def _get_parameter_binder(
 
         return binder
 
-    # 2A. do services contain a service with matching name?
-    if name in services:
-        return ServiceBinder(name, name, True, services)
-
-    # 2B. do services contain a service with matching type?
-    if annotation in services:
-        return ServiceBinder(annotation, annotation.__class__.__name__, True, services)
-
-    # 3. does route contain a parameter with matching name?
+    # 2. does route contain a parameter with matching name?
     if route and name in route.param_names:
         return RouteBinder(annotation, name, True)
+
+    # 3. do services contain a service with matching type?
+    if annotation in services:
+        return ServiceBinder(annotation, annotation.__class__.__name__, True, services)
 
     # 4. is simple type?
     if annotation in _types_handled_with_query:

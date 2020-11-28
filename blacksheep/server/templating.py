@@ -1,4 +1,6 @@
+from dataclasses import asdict, is_dataclass
 from functools import lru_cache
+from typing import Any
 
 from jinja2 import Environment, PackageLoader, Template, select_autoescape
 from rodi import Container
@@ -57,42 +59,66 @@ def use_templates(app, loader: PackageLoader, enable_async: bool = False):
 
     if enable_async:
 
-        async def async_view(name: str, *args, **kwargs):
+        async def async_view(name: str, model: Any = None):
             return get_response(
                 await render_template_async(
-                    env.get_template(template_name(name)), *args, **kwargs
+                    env.get_template(template_name(name)), model
                 )
             )
 
         return async_view
 
-    def sync_view(name: str, *args, **kwargs):
+    def sync_view(name: str, model: Any = None):
         return get_response(
-            render_template(env.get_template(template_name(name)), *args, **kwargs)
+            render_template(env.get_template(template_name(name)), model)
         )
 
     return sync_view
 
 
-def view(jinja_environment: Environment, name: str, *args, **kwargs):
+def model_to_view_params(model):
+    if isinstance(model, dict):
+        return model
+    if is_dataclass(model):
+        return asdict(model)
+    if hasattr(model, "__dict__"):
+        return model.__dict__
+    return model
+
+
+def view(jinja_environment: Environment, name: str, model: Any = None) -> Response:
     """
     Returns a Response object with HTML obtained from synchronous rendering.
 
     Use this when `enable_async` is set to False when calling `use_templates`.
     """
+    if model:
+        return get_response(
+            render_template(
+                jinja_environment.get_template(template_name(name)),
+                **model_to_view_params(model)
+            )
+        )
     return get_response(
         render_template(
-            jinja_environment.get_template(template_name(name)), *args, **kwargs
+            jinja_environment.get_template(template_name(name)),
         )
     )
 
 
-async def view_async(jinja_environment: Environment, name: str, *args, **kwargs):
+async def view_async(
+    jinja_environment: Environment, name: str, model: Any = None
+) -> Response:
     """
     Returns a Response object with HTML obtained from synchronous rendering.
     """
-    return get_response(
-        await render_template_async(
-            jinja_environment.get_template(template_name(name)), *args, **kwargs
+    if model:
+        return get_response(
+            await render_template_async(
+                jinja_environment.get_template(template_name(name)),
+                **model_to_view_params(model)
+            )
         )
+    return get_response(
+        await render_template_async(jinja_environment.get_template(template_name(name)))
     )

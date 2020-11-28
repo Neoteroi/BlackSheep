@@ -256,7 +256,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if schema:
             return schema
 
-        schema = self._try_get_schema_for_enum(object_type)
+        if inspect.isclass(object_type):
+            schema = self._try_get_schema_for_enum(object_type)
         return schema or Schema()
 
     def _try_get_schema_for_simple_type(self, object_type: Type) -> Optional[Schema]:
@@ -298,7 +299,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             # note: it could also be union if it wasn't handled above for dataclasses
             try:
                 type_args = object_type.__args__  # type: ignore
-            except AttributeError:
+            except AttributeError:  # pragma: no cover
                 item_type = str
             else:
                 item_type = next(iter(type_args), str)
@@ -309,8 +310,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return None
 
     def _try_get_schema_for_enum(self, object_type: Type) -> Optional[Schema]:
-        if not inspect.isclass(object_type):
-            return None
         if issubclass(object_type, IntEnum):
             return Schema(type=ValueType.INTEGER, enum=[v.value for v in object_type])
         if issubclass(object_type, Enum):

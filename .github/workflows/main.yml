@@ -1,0 +1,150 @@
+name: Main
+
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - master
+      - ci
+  pull_request:
+    branches:
+      - "*"
+
+env:
+  PROJECT_NAME: blacksheep
+
+jobs:
+  windows-validation:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.7, 3.8, 3.9]
+    runs-on: windows-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 9
+          submodules: false
+
+      - name: Use Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Compile Cython extensions
+        run: |
+          cython blacksheep/url.pyx
+          cython blacksheep/exceptions.pyx
+          cython blacksheep/headers.pyx
+          cython blacksheep/cookies.pyx
+          cython blacksheep/contents.pyx
+          cython blacksheep/messages.pyx
+          cython blacksheep/scribe.pyx
+          cython blacksheep/baseapp.pyx
+          python setup.py build_ext --inplace
+
+      - name: Run tests
+        run: |
+          flake8 blacksheep
+          flake8 tests
+          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04]
+        python-version: [3.7, 3.8, 3.9]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 9
+          submodules: false
+
+      - name: Use Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v1
+        id: depcache
+        with:
+          path: deps
+          key: requirements-pip-${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Download dependencies
+        if: steps.depcache.outputs.cache-hit != 'true'
+        run: |
+          pip download --dest=deps -r requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -U --no-index --find-links=deps deps/*
+
+      - name: Compile Cython extensions
+        run: |
+          make compile
+
+      - name: Run tests
+        run: |
+          flake8 blacksheep
+          flake8 tests
+          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@master
+        with:
+          name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
+          path: junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
+        if: always()
+
+      - name: Codecov
+        run: |
+          bash <(curl -s https://codecov.io/bash)
+
+      - name: Install distribution dependencies
+        run: pip install --upgrade twine setuptools wheel
+        if: matrix.os == 'ubuntu-18.04' && (matrix.python-version == 3.8 || matrix.python-version == 3.9)
+
+      - name: Create distribution package
+        run: python setup.py sdist
+        if: matrix.os == 'ubuntu-18.04' && (matrix.python-version == 3.8 || matrix.python-version == 3.9)
+
+      - name: Upload distribution package
+        uses: actions/upload-artifact@master
+        with:
+          name: dist-package-${{ matrix.python-version }}
+          path: dist
+        if: matrix.os == 'ubuntu-18.04' && (matrix.python-version == 3.8 || matrix.python-version == 3.9)
+
+  publish:
+    runs-on: ubuntu-18.04
+    needs: build
+    if: github.event_name == 'release'
+    steps:
+      - name: Download a distribution artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: dist-package-3.9
+          path: dist
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          skip_existing: true
+          user: __token__
+          password: ${{ secrets.test_pypi_password }}
+          repository_url: https://test.pypi.org/legacy/
+      - name: Publish distribution 📦 to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}

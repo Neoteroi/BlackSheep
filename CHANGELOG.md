@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2020-11-xx :octocat:
+- Completely migrates to GitHub Workflows
+- Corrects a bug in `view` method, preventing the word "name" from being a valid
+  model property name
+- Improves the `view` method to support built-in dataclasses, Pydantic models,
+  and instances of user defined classes using `__dict__`
+- Corrects bug in binding of services by name
+
 ## [0.2.6] - 2020-10-31 🎃
 
 - Adds support for routes defined using mustaches (not only colon notation)

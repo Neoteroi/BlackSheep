@@ -132,12 +132,12 @@ class Controller(metaclass=ControllerMeta):
         """
         return status_code(200, message)
 
-    def created(self, location: AnyStr, value: Any = None) -> Response:
+    def created(self, value: Any = None, location: AnyStr = "") -> Response:
         """
         Returns an HTTP 201 Created response, to the given location and with
         optional JSON content.
         """
-        return created(location, value)
+        return created(value, location)
 
     def accepted(self, message: MessageType = None) -> Response:
         """
@@ -323,7 +323,11 @@ class Controller(metaclass=ControllerMeta):
             raise TemplatingNotConfiguredException()
 
         if model:
-            return view(self.templates, self.full_view_name(name), **model)
+            return view(
+                self.templates,
+                self.full_view_name(name),
+                model,
+            )
         return view(self.templates, self.full_view_name(name))
 
     async def view_async(
@@ -344,7 +348,7 @@ class Controller(metaclass=ControllerMeta):
             raise TemplatingNotConfiguredException()
 
         if model:
-            return await view_async(self.templates, self.full_view_name(name), **model)
+            return await view_async(self.templates, self.full_view_name(name), model)
         return await view_async(self.templates, self.full_view_name(name))
 
 

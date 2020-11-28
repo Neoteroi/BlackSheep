@@ -266,6 +266,22 @@ def test_combination_of_sources():
     assert binders[4].parameter_name == "e"
 
 
+def test_implicit_from_services_only_when_annotation_is_none():
+    def handler(dog):
+        ...
+
+    binders = get_binders(Route(b"/", handler), {"dog": Dog("Snoopy")})
+
+    assert isinstance(binders[0], ServiceBinder)
+
+    def handler(dog: str):
+        ...
+
+    binders = get_binders(Route(b"/", handler), {"dog": Dog("Snoopy")})
+
+    assert isinstance(binders[0], QueryBinder)
+
+
 def test_from_query_specific_name():
     class FromExampleQuery(FromQuery[str]):
         name = "example"

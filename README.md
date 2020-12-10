@@ -81,27 +81,20 @@ annotation or by conventions. See [more
 here](https://www.neoteroi.dev/blacksheep/requests/).
 
 ```python
-from blacksheep.server.bindings import (
-    FromJson,
-    FromHeader,
-    FromQuery,
-    FromRoute,
-    FromServices
-)
+from dataclasses import dataclass
 
-@app.router.put("/:d")
-async def example(
-    a: FromQuery[List[str]],
-    b: FromServices[Dog],
-    c: FromJson[Cat],
-    d: FromRoute[str],
-    e: FromHeader[str]
-):
-    # a is read from query string parameters "a"
-    # b is obtained from app services (DI)
-    # c is read from request content parsed as JSON
-    # d from the route parameter with matching name
-    # e from a request header with name "e" or "E"
+from blacksheep.server.bindings import FromJson
+
+
+@dataclass
+class CreateCatInput:
+    name: str
+
+
+@app.router.post("/api/cats")
+async def example(data: FromJson[CreateCatInput]):
+    # in this example, data is bound automatically reading the JSON
+    # payload and creating an instance of `CreateCatInput`
     ...
 
 
@@ -174,9 +167,10 @@ async def only_for_authenticated_users():
 ```
 
 ## Web framework features
-* [ASGI compatibility](https://asgi.readthedocs.io/en/latest/)
+* [ASGI compatibility](https://www.neoteroi.dev/blacksheep/asgi/)
 * [Routing](https://www.neoteroi.dev/blacksheep/routing/)
-* [Request handlers can be [defined as functions](https://www.neoteroi.dev/blacksheep/request-handlers/), or class
+* Request handlers can be [defined as
+  functions](https://www.neoteroi.dev/blacksheep/request-handlers/), or [class
   methods](https://www.neoteroi.dev/blacksheep/controllers/)
 * [Middlewares](https://www.neoteroi.dev/blacksheep/middlewares/)
 * [Built-in support for dependency

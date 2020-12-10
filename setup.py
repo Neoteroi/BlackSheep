@@ -82,7 +82,7 @@ setup(
     install_requires=[
         "httptools==0.1.*",
         "Jinja2==2.11.2",
-        "certifi",
+        "certifi>=2020.12.5",
         "cchardet~=2.1.5",
         "guardpost~=0.0.5",
         "rodi~=1.0.8",

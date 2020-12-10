@@ -11,7 +11,7 @@ COMPILE_ARGS = ["-O3"]
 
 setup(
     name="blacksheep",
-    version="0.2.7",
+    version="0.2.8",
     description="Fast web framework and HTTP client for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -82,7 +82,7 @@ setup(
     install_requires=[
         "httptools==0.1.*",
         "Jinja2==2.11.2",
-        "certifi",
+        "certifi>=2020.12.5",
         "cchardet~=2.1.5",
         "guardpost~=0.0.5",
         "rodi~=1.0.8",

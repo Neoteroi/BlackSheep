@@ -6,7 +6,7 @@ cchardet==2.1.5
 certifi>=2020.12.5
 chardet==3.0.4
 click==7.1.2
-Cython==0.29.14
+Cython==0.29.14; platform_system != "Windows"
 decorator==4.4.1
 entrypoints==0.3
 essentials==1.1.3

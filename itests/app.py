@@ -69,7 +69,7 @@ async def post_form(request):
 
 
 @app.router.post("/upload-files")
-async def upload_files(request):
+async def upload_files(request: Request):
     files = await request.files()
 
     assert bool(files)

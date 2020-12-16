@@ -114,28 +114,94 @@ jobs:
 
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel
-        if: matrix.os == 'ubuntu-18.04' && (matrix.python-version == 3.8 || matrix.python-version == 3.9)
+        if: matrix.os == 'ubuntu-18.04' && matrix.python-version == 3.9
 
       - name: Create distribution package
         run: python setup.py sdist
-        if: matrix.os == 'ubuntu-18.04' && (matrix.python-version == 3.8 || matrix.python-version == 3.9)
+        if: matrix.os == 'ubuntu-18.04' && matrix.python-version == 3.9
 
       - name: Upload distribution package
         uses: actions/upload-artifact@master
         with:
-          name: dist-package-${{ matrix.python-version }}
+          name: dist
           path: dist
-        if: matrix.os == 'ubuntu-18.04' && (matrix.python-version == 3.8 || matrix.python-version == 3.9)
+        if: matrix.os == 'ubuntu-18.04' && matrix.python-version == 3.9
+
+  build-wheels:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.7, 3.8, 3.9]
+        os: [ubuntu-18.04, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 9
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install cython==0.29.14 --install-option="--no-cython-compile"
+          pip install -r requirements.txt
+
+      - name: Compile Cython extensions
+        run: |
+          make clean
+
+          cython blacksheep/url.pyx
+          cython blacksheep/exceptions.pyx
+          cython blacksheep/headers.pyx
+          cython blacksheep/cookies.pyx
+          cython blacksheep/contents.pyx
+          cython blacksheep/messages.pyx
+          cython blacksheep/scribe.pyx
+          cython blacksheep/baseapp.pyx
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade setuptools pip wheel
+
+      - name: Build wheels (linux)
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: docker://quay.io/pypa/manylinux1_x86_64
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        with:
+          entrypoint: /github/workspace/.github/workflows/build-manylinux-wheels.sh
+
+      - name: Build wheels (non-linux)
+        if: "!startsWith(matrix.os, 'ubuntu')"
+        run: |
+          python setup.py bdist_wheel
+
+      - name: Test wheels
+        if: |
+          !startsWith(matrix.os, 'windows')
+        run: |
+          pip install --pre blacksheep -f "file:///${GITHUB_WORKSPACE}/dist"
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: dist
+          path: dist
 
   publish:
     runs-on: ubuntu-18.04
-    needs: build
+    needs: [build, build-wheels]
     if: github.event_name == 'release'
     steps:
       - name: Download a distribution artifact
         uses: actions/download-artifact@v2
         with:
-          name: dist-package-3.9
+          name: dist
           path: dist
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master

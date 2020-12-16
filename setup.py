@@ -6,12 +6,12 @@ def readme():
         return f.read()
 
 
-COMPILE_ARGS = ["-O3"]
+COMPILE_ARGS = ["-O2"]
 
 
 setup(
     name="blacksheep",
-    version="0.2.9",
+    version="0.3.0",
     description="Fast web framework and HTTP client for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -21,9 +21,11 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Environment :: Web Environment",
         "Operating System :: OS Independent",
         "Framework :: AsyncIO",
     ],
+    setup_requires=["wheel"],
     url="https://github.com/RobertoPrevato/BlackSheep",
     author="Roberto Prevato",
     author_email="roberto.prevato@gmail.com",

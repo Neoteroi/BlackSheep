@@ -2,7 +2,7 @@ import pytest
 from blacksheep import scribe
 from blacksheep import Request, Content
 from blacksheep.scribe import write_small_request
-from blacksheep.exceptions import BadRequestFormat, InvalidOperation
+from blacksheep.exceptions import BadRequestFormat
 from blacksheep.contents import MultiPartFormData, FormPart
 from blacksheep.url import URL
 
@@ -119,7 +119,7 @@ async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_
         Content(b"text/html", b'{"hello":')
     )  # broken json; broken content-type
 
-    with pytest.raises(InvalidOperation):
+    with pytest.raises(BadRequestFormat):
         await request.json()
 
 

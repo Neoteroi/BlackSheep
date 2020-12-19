@@ -1538,6 +1538,11 @@ class Item:
         self.c = c
 
 
+class Foo:
+    def __init__(self, item) -> None:
+        self.item = Item(**item)
+
+
 @pytest.mark.asyncio
 async def test_handler_from_json_parameter():
     app = FakeApplication()
@@ -1578,7 +1583,7 @@ async def test_handler_from_json_parameter_missing_property():
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+            [[b"content-type", b"application/json"], [b"content-length", b"25"]],
         ),
         MockReceive([b'{"a":"Hello","b":"World"}']),
         MockSend(),
@@ -1586,8 +1591,38 @@ async def test_handler_from_json_parameter_missing_property():
     assert app.response.status == 400
     assert (
         app.response.content.body
-        == b"Bad Request: invalid parameter in request payload."
-        + b" Error: __init__() missing 1 required positional argument: 'c'"
+        == b"Bad Request: invalid parameter in request payload, caused by type Item "
+        + b"or one of its subproperties. "
+        + b"Error: __init__() missing 1 required positional argument: 'c'"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_missing_property_complex_type():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Foo]):
+        ...
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"34"]],
+        ),
+        MockReceive([b'{"item":{"a":"Hello","b":"World"}}']),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert (
+        app.response.content.body
+        == b"Bad Request: invalid parameter in request payload, caused by type Foo "
+        + b"or one of its subproperties. "
+        + b"Error: __init__() missing 1 required positional argument: 'c'"
     )
 
 
@@ -1606,7 +1641,7 @@ async def test_handler_from_json_parameter_missing_property_array():
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"34"]],
+            [[b"content-type", b"application/json"], [b"content-length", b"25"]],
         ),
         MockReceive([b'[{"a":"Hello","b":"World"}]']),
         MockSend(),
@@ -1614,8 +1649,9 @@ async def test_handler_from_json_parameter_missing_property_array():
     assert app.response.status == 400
     assert (
         app.response.content.body
-        == b"Bad Request: invalid parameter in request payload."
-        + b" Error: __init__() missing 1 required positional argument: 'c'"
+        == b"Bad Request: invalid parameter in request payload, caused by type Item "
+        + b"or one of its subproperties. "
+        + b"Error: __init__() missing 1 required positional argument: 'c'"
     )
 
 

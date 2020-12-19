@@ -300,6 +300,20 @@ class MissingConverterError(Exception):
         )
 
 
+def get_default_class_converter(expected_type):
+    def converter(data):
+        try:
+            return expected_type(**data)
+        except TypeError as type_error:
+            raise BadRequest(
+                f"invalid parameter in request payload, "
+                + f"caused by type {expected_type.__name__} or "
+                + f"one of its subproperties. Error: {str(type_error)}"
+            )
+
+    return converter
+
+
 class BodyBinder(Binder):
     _excluded_methods = {"GET", "HEAD", "TRACE"}
 
@@ -341,15 +355,7 @@ class BodyBinder(Binder):
         if expected_type is UUID:
             return lambda value: UUID(value)
 
-        def converter(data):
-            try:
-                return expected_type(**data)
-            except TypeError as type_error:
-                raise BadRequest(
-                    f"invalid parameter in request payload. Error: {str(type_error)}"
-                )
-
-        return converter
+        return get_default_class_converter(expected_type)
 
     def _get_default_converter_for_iterable(self, expected_type):
         generic_type = self.get_type_for_generic_iterable(expected_type)
@@ -373,15 +379,7 @@ class BodyBinder(Binder):
         }:
             return self._get_default_converter_for_iterable(expected_type)
 
-        def default_converter(data):
-            try:
-                return expected_type(**data)
-            except TypeError as type_error:
-                raise BadRequest(
-                    f"invalid parameter in request payload. Error: {str(type_error)}"
-                )
-
-        return default_converter
+        return get_default_class_converter(expected_type)
 
     @property
     @abstractmethod

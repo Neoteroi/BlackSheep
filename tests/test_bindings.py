@@ -135,7 +135,7 @@ async def test_from_body_json_binding_invalid_input():
 
     parameter = JsonBinder(ExampleOne)
 
-    with raises(InvalidRequestBody):
+    with raises(BadRequest):
         await parameter.get_value(request)
 
 

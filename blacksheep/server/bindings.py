@@ -9,6 +9,7 @@ See:
 """
 from abc import abstractmethod
 from base64 import urlsafe_b64decode
+from blacksheep.contents import FormPart
 from collections.abc import Iterable as IterableAbc
 from datetime import date, datetime
 from typing import (
@@ -134,10 +135,28 @@ class FromJson(BoundValue[T]):
     """
 
 
+class FromText(BoundValue[str]):
+    """
+    A parameter obtained from the request body as plain text.
+    """
+
+
+class FromBytes(BoundValue[bytes]):
+    """
+    A parameter obtained from the request body as raw bytes.
+    """
+
+
 class FromForm(BoundValue[T]):
     """
     A parameter obtained from Form request body: either
     application/x-www-form-urlencoded or multipart/form-data.
+    """
+
+
+class FromFiles(BoundValue[List[FormPart]]):
+    """
+    A parameter obtained from multipart/form-data files.
     """
 
 
@@ -475,6 +494,20 @@ class FormBinder(BodyBinder):
         return await request.form()
 
 
+class TextBinder(Binder):
+    handle = FromText
+
+    async def get_value(self, request: Request) -> str:
+        return await request.text()
+
+
+class BytesBinder(Binder):
+    handle = FromBytes
+
+    async def get_value(self, request: Request) -> Optional[bytes]:
+        return await request.read()
+
+
 def _default_bool_converter(value: str) -> bool:
     if value in {"1", "true"}:
         return True
@@ -785,3 +818,10 @@ class RequestMethodBinder(Binder):
 
     async def get_value(self, request: Request) -> str:
         return request.method
+
+
+class FilesBinder(Binder):
+    handle = FromFiles
+
+    async def get_value(self, request: Request) -> List[FormPart]:
+        return await request.files()

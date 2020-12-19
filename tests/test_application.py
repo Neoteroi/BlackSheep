@@ -16,12 +16,15 @@ from blacksheep import HttpException, JsonContent, Request, Response, TextConten
 from blacksheep.server import Application
 from blacksheep.server.bindings import (
     ClientInfo,
+    FromBytes,
     FromCookie,
+    FromFiles,
     FromHeader,
     FromJson,
     FromQuery,
     FromRoute,
     FromServices,
+    FromText,
     RequestUser,
     ServerInfo,
 )
@@ -1564,6 +1567,182 @@ async def test_handler_from_json_parameter():
         ),
         MockReceive([b'{"a":"Hello","b":"World","c":10}']),
         MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Lorem ipsum dolor sit amet",
+        "Hello, World",
+        "Lorem ipsum dolor sit amet\n" * 200,
+    ],
+)
+@pytest.mark.asyncio
+async def test_handler_from_text_parameter(value: str):
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(text: FromText):
+        assert text.value == value
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                [b"content-type", b"text/plain; charset=utf-8"],
+                [b"content-length", str(len(value)).encode()],
+            ],
+        ),
+        MockReceive([value.encode("utf8")]),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        b"Lorem ipsum dolor sit amet",
+        b"Hello, World",
+        b"Lorem ipsum dolor sit amet\n" * 200,
+    ],
+)
+@pytest.mark.asyncio
+async def test_handler_from_bytes_parameter(value: bytes):
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(text: FromBytes):
+        assert text.value == value
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                [b"content-type", b"text/plain; charset=utf-8"],
+                [b"content-length", str(len(value)).encode()],
+            ],
+        ),
+        MockReceive([value]),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_files():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(files: FromFiles):
+        assert files is not None
+        assert files.value is not None
+        assert len(files.value) == 4
+        file1 = files.value[0]
+        file2 = files.value[1]
+        file3 = files.value[2]
+        file4 = files.value[3]
+
+        assert file1.name == b"file1"
+        assert file1.file_name == b"a.txt"
+        assert file1.data == b"Content of a.txt.\r\n"
+
+        assert file2.name == b"file2"
+        assert file2.file_name == b"a.html"
+        assert file2.data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
+
+        assert file3.name == b"file2"
+        assert file3.file_name == b"a.html"
+        assert file3.data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
+
+        assert file4.name == b"file3"
+        assert file4.file_name == b"binary"
+        assert file4.data == b"a\xcf\x89b"
+
+    app.normalize_handlers()
+    boundary = b"---------------------0000000000000000000000001"
+
+    content = b"\r\n".join(
+        [
+            boundary,
+            b'Content-Disposition: form-data; name="text1"',
+            b"",
+            b"text default",
+            boundary,
+            b'Content-Disposition: form-data; name="text2"',
+            b"",
+            "aωb".encode("utf8"),
+            boundary,
+            b'Content-Disposition: form-data; name="file1"; filename="a.txt"',
+            b"Content-Type: text/plain",
+            b"",
+            b"Content of a.txt.",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file2"; filename="a.html"',
+            b"Content-Type: text/html",
+            b"",
+            b"<!DOCTYPE html><title>Content of a.html.</title>",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file2"; filename="a.html"',
+            b"Content-Type: text/html",
+            b"",
+            b"<!DOCTYPE html><title>Content of a.html.</title>",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file3"; filename="binary"',
+            b"Content-Type: application/octet-stream",
+            b"",
+            "aωb".encode("utf8"),
+            boundary + b"--",
+        ]
+    )
+
+    send = MockSend()
+    receive = MockReceive([content])
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                [b"content-length", str(len(content)).encode()],
+                [b"content-type", b"multipart/form-data; boundary=" + boundary],
+            ],
+        ),
+        receive,
+        send,
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_files_handles_empty_body():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(files: FromFiles):
+        assert files.value == []
+
+    app.normalize_handlers()
+    send = MockSend()
+    receive = MockReceive([])
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [],
+        ),
+        receive,
+        send,
     )
     assert app.response.status == 204
 

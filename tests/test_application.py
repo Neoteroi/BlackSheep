@@ -1593,7 +1593,7 @@ async def test_handler_from_json_parameter_missing_property():
         app.response.content.body
         == b"Bad Request: invalid parameter in request payload, caused by type Item "
         + b"or one of its subproperties. "
-        + b"Error: __init__() missing 1 required positional argument: 'c'"
+        + b"Error: missing 1 required parameter: 'c'"
     )
 
 
@@ -1622,7 +1622,7 @@ async def test_handler_from_json_parameter_missing_property_complex_type():
         app.response.content.body
         == b"Bad Request: invalid parameter in request payload, caused by type Foo "
         + b"or one of its subproperties. "
-        + b"Error: __init__() missing 1 required positional argument: 'c'"
+        + b"Error: missing 1 required parameter: 'c'"
     )
 
 
@@ -1651,7 +1651,7 @@ async def test_handler_from_json_parameter_missing_property_array():
         app.response.content.body
         == b"Bad Request: invalid parameter in request payload, caused by type Item "
         + b"or one of its subproperties. "
-        + b"Error: __init__() missing 1 required positional argument: 'c'"
+        + b"Error: missing 1 required parameter: 'c'"
     )
 
 

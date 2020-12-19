@@ -31,6 +31,7 @@ from uuid import UUID
 
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
+from blacksheep.url import URL
 from dateutil.parser import parse as dateutil_parser
 from guardpost.authentication import Identity
 from rodi import Services
@@ -162,6 +163,18 @@ class RequestUser(BoundValue[Identity]):
     """
     Returns the identity of the user that initiated the web request.
     This value is obtained from the configured authentication strategy.
+    """
+
+
+class RequestURL(BoundValue[URL]):
+    """
+    Returns the URL of the request.
+    """
+
+
+class RequestMethod(BoundValue[str]):
+    """
+    Returns the HTTP Method of the request.
     """
 
 
@@ -308,7 +321,8 @@ def get_default_class_converter(expected_type):
             raise BadRequest(
                 f"invalid parameter in request payload, "
                 + f"caused by type {expected_type.__name__} or "
-                + f"one of its subproperties. Error: {str(type_error)}"
+                + "one of its subproperties. Error: "
+                + _generalize_init_type_error_message(type_error)
             )
 
     return converter
@@ -420,8 +434,6 @@ class BodyBinder(Binder):
     def parse_value(self, data: dict) -> T:
         try:
             return self.converter(data)
-        except TypeError as te:
-            raise InvalidRequestBody(_generalize_init_type_error_message(te))
         except ValueError as ve:
             raise InvalidRequestBody(str(ve))
 
@@ -737,19 +749,39 @@ class ExactBinder(Binder):
         super().__init__(object, implicit=True)
         self.exact_object = exact_object
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Any:
         return self.exact_object
 
 
 class ClientInfoBinder(Binder):
     handle = ClientInfo
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Tuple[str, int]:
         return tuple(request.scope["client"])
 
 
 class ServerInfoBinder(Binder):
     handle = ServerInfo
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Tuple[str, int]:
         return tuple(request.scope["server"])
+
+
+class RequestURLBinder(Binder):
+    handle = RequestURL
+
+    def __init__(self):
+        super().__init__(URL, name="request url", implicit=False)
+
+    async def get_value(self, request: Request) -> URL:
+        return request.url
+
+
+class RequestMethodBinder(Binder):
+    handle = RequestMethod
+
+    def __init__(self):
+        super().__init__(str, name="request method", implicit=False)
+
+    async def get_value(self, request: Request) -> str:
+        return request.method

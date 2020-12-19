@@ -7,8 +7,8 @@
 
 cdef class Cookie:
     cdef object _expiration
-    cdef public bytes name
-    cdef public bytes value
+    cdef public str name
+    cdef public str value
     cdef public bytes expires
     cdef public bytes domain
     cdef public bytes path

@@ -253,7 +253,7 @@ class CookieJar:
 
     @staticmethod
     def _get(
-        container: dict, domain: bytes, path: bytes, cookie_name: bytes
+        container: dict, domain: bytes, path: bytes, cookie_name: str
     ) -> Optional[StoredCookie]:
         try:
             return container[domain][path][cookie_name]
@@ -271,7 +271,7 @@ class CookieJar:
         return True
 
     def get(
-        self, domain: bytes, path: bytes, cookie_name: bytes
+        self, domain: bytes, path: bytes, cookie_name: str
     ) -> Optional[StoredCookie]:
         return self._get(
             self._host_only_cookies, domain, path, cookie_name

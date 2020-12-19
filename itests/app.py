@@ -50,7 +50,7 @@ async def echo_cookies(request):
 @app.route("/set-cookie")
 async def set_cookies(name: FromQuery[str], value: FromQuery[str]):
     response = text("Setting cookie")
-    response.set_cookie(Cookie(name.value.encode(), value.value.encode()))
+    response.set_cookie(Cookie(name.value, value.value))
     return response
 
 

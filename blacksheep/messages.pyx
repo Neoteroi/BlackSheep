@@ -9,7 +9,7 @@ import re
 import http
 import cchardet as chardet
 from asyncio import Event
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, unquote, quote
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
@@ -348,7 +348,9 @@ cdef class Request(Message):
         return cookies
 
     def set_cookie(self, Cookie cookie):
-        self.__headers.append((b'cookie', cookie.name + b'=' + cookie.value))
+        self.__headers.append(
+            (b'cookie', (quote(cookie.name) + '=' + quote(cookie.value)).encode())
+        )
 
     def set_cookies(self, list cookies):
         cdef Cookie cookie
@@ -406,7 +408,7 @@ cdef class Response(Message):
                 cookies[cookie.name] = cookie
         return cookies
 
-    def get_cookie(self, bytes name):
+    def get_cookie(self, str name):
         cdef bytes value
         cdef list set_cookies_headers = self.get_headers(b'set-cookie')
 
@@ -426,10 +428,16 @@ cdef class Response(Message):
         for cookie in cookies:
             self.set_cookie(cookie)
 
-    def unset_cookie(self, bytes name):
-        self.set_cookie(Cookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365))))
+    def unset_cookie(self, str name):
+        self.set_cookie(
+            Cookie(
+                name,
+                b'',
+                datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365))
+            )
+        )
 
-    def remove_cookie(self, bytes name):
+    def remove_cookie(self, str name):
         cdef list to_remove = []
         cdef tuple value
         cdef list set_cookies_headers = self.get_headers_tuples(b'set-cookie')

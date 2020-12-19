@@ -13,8 +13,8 @@ def datetime_from_cookie_format(value: bytes) -> datetime:
 class Cookie:
     def __init__(
         self,
-        name: bytes,
-        value: bytes,
+        name: str,
+        value: str,
         expires: Optional[bytes] = None,
         domain: Optional[bytes] = None,
         path: Optional[bytes] = None,
@@ -52,7 +52,7 @@ class Cookie:
         ...
 
     def __repr__(self):
-        return f"<Cookie {self.name.decode()}: {self.value.decode()}>"
+        return f"<Cookie {self.name}: {self.value}>"
 
 
 def parse_cookie(value: bytes) -> Cookie:

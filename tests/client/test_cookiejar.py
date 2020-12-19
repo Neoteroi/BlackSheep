@@ -29,7 +29,7 @@ from . import FakePools
 )
 def test_cookiejar_get_domain(request_url, cookie_domain, expected_domain):
     jar = CookieJar()
-    cookie = Cookie(b"Name", b"Value", domain=cookie_domain)
+    cookie = Cookie("Name", "Value", domain=cookie_domain)
     domain = jar.get_domain(request_url, cookie)
     assert domain == expected_domain
 
@@ -44,7 +44,7 @@ def test_cookiejar_get_domain(request_url, cookie_domain, expected_domain):
 )
 def test_cookiejar_invalid_domain(request_url, cookie_domain):
     jar = CookieJar()
-    cookie = Cookie(b"Name", b"Value", domain=cookie_domain)
+    cookie = Cookie("Name", "Value", domain=cookie_domain)
 
     with pytest.raises(InvalidCookieDomain):
         jar.add(request_url, cookie)
@@ -53,11 +53,11 @@ def test_cookiejar_invalid_domain(request_url, cookie_domain):
 @pytest.mark.parametrize(
     "cookie,expected_value",
     [
-        [Cookie(b"name", b"value"), False],
+        [Cookie("name", "value"), False],
         [
             Cookie(
-                b"name",
-                b"value",
+                "name",
+                "value",
                 expires=datetime_to_cookie_format(
                     datetime.utcnow() + timedelta(days=-20)
                 ),
@@ -75,8 +75,8 @@ def test_stored_cookie_is_expired(cookie, expected_value):
 def test_stored_cookie_handles_max_age_value_error():
     stored = StoredCookie(
         Cookie(
-            b"name",
-            b"value",
+            "name",
+            "value",
             max_age=b"xx",
         )
     )
@@ -86,8 +86,8 @@ def test_stored_cookie_handles_max_age_value_error():
 def test_stored_cookie_handles_max_age():
     stored = StoredCookie(
         Cookie(
-            b"name",
-            b"value",
+            "name",
+            "value",
             max_age=b"20",
         )
     )
@@ -106,7 +106,7 @@ async def test_cookies_jar_single_cookie():
     fake_pools = FakePools(
         [
             Response(
-                200, [(b"Set-Cookie", write_response_cookie(Cookie(b"X-Foo", b"Foo")))]
+                200, [(b"Set-Cookie", write_response_cookie(Cookie("X-Foo", "Foo")))]
             ).with_content(TextContent("Hello, World!")),
             Response(200, None, TextContent("Hello!")),
         ]
@@ -145,7 +145,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
                     ),
                 )
             ],
@@ -158,7 +158,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
                     ),
                 )
             ],
@@ -171,7 +171,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
                     ),
                 )
             ],
@@ -184,7 +184,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
                     ),
                 )
             ],
@@ -197,7 +197,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
                     ),
                 )
             ],
@@ -210,13 +210,13 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
                     ),
                 ),
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Not-Valid", b"Foo", domain=b"notvalid.org")
+                        Cookie("X-Not-Valid", "Foo", domain=b"notvalid.org")
                     ),  # tests not valid cookie (invalid domain)
                 ),
             ],
@@ -229,7 +229,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
                     ),
                 )
             ],
@@ -242,7 +242,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
                     ),
                 )
             ],
@@ -255,7 +255,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"some-example.org")
+                        Cookie("X-Foo", "Foo", domain=b"some-example.org")
                     ),
                 )
             ],
@@ -268,7 +268,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie(b"X-Foo", b"Foo", domain=b"example.org")
+                        Cookie("X-Foo", "Foo", domain=b"example.org")
                     ),
                 )
             ],
@@ -311,12 +311,12 @@ async def test_cookies_jar(
 
 @pytest.mark.asyncio
 async def test_remove_cookie_with_expiration():
-    expire_cookie = Cookie(b"X-Foo", b"Foo")
+    expire_cookie = Cookie("X-Foo", "Foo")
     expire_cookie.expiration = datetime.utcnow() + timedelta(days=-2)
     fake_pools = FakePools(
         [
             Response(
-                200, [(b"Set-Cookie", write_response_cookie(Cookie(b"X-Foo", b"Foo")))]
+                200, [(b"Set-Cookie", write_response_cookie(Cookie("X-Foo", "Foo")))]
             ).with_content(TextContent("Hello, World!")),
             Response(200, None, TextContent("Hello!")),
             Response(
@@ -354,13 +354,13 @@ async def test_remove_cookie_with_expiration():
 
 @pytest.mark.asyncio
 async def test_remove_cookie_with_max_age():
-    expire_cookie = Cookie(b"X-Foo", b"Foo")
+    expire_cookie = Cookie("X-Foo", "Foo")
     expire_cookie.set_max_age(0)
     fake_pools = FakePools(
         [
             Response(
                 200,
-                [(b"Set-Cookie", write_response_cookie(Cookie(b"X-Foo", b"Foo")))],
+                [(b"Set-Cookie", write_response_cookie(Cookie("X-Foo", "Foo")))],
                 TextContent("Hello, World!"),
             ),
             Response(200, None, TextContent("Hello!")),
@@ -399,7 +399,7 @@ async def test_remove_cookie_with_max_age():
 
 
 def test_stored_cookie_max_age_precedence():
-    cookie = Cookie(b"X-Foo", b"Foo")
+    cookie = Cookie("X-Foo", "Foo")
     cookie.set_max_age(0)
     cookie.expiration = datetime.utcnow() + timedelta(days=2)
 
@@ -410,19 +410,19 @@ def test_stored_cookie_max_age_precedence():
 def test_get_cookies_for_url():
     jar = CookieJar()
 
-    jar.add(URL(b"https://foo.org"), Cookie(b"hello", b"world"))
+    jar.add(URL(b"https://foo.org"), Cookie("hello", "world"))
 
     cookies = list(jar.get_cookies_for_url(URL(b"https://foo.org/hello-world")))
 
     assert len(cookies) == 1
-    assert cookies[0].name == b"hello"
-    assert cookies[0].value == b"world"
+    assert cookies[0].name == "hello"
+    assert cookies[0].value == "world"
 
 
 def test_get_cookies_for_url_ignores_secure_cookies_for_http():
     jar = CookieJar()
 
-    jar.add(URL(b"https://foo.org"), Cookie(b"hello", b"world", secure=True))
+    jar.add(URL(b"https://foo.org"), Cookie("hello", "world", secure=True))
 
     cookies = list(jar.get_cookies_for_url(URL(b"http://foo.org/hello-world")))
     assert len(cookies) == 0
@@ -470,7 +470,7 @@ def test_cookiejar_ignores_cookie_domain_set_as_ipaddress():
     assert (
         jar.get_domain(
             URL(b"https://foo.org/hello-world"),
-            Cookie(b"foo", b"foo", domain=b"192.168.1.5"),
+            Cookie("foo", "foo", domain=b"192.168.1.5"),
         )
         == b"foo.org"
     )
@@ -499,7 +499,7 @@ def test_cookie_jar_check_cookies_removes_expired():
         b"foo.org": {
             b"/": {
                 b"hello": StoredCookie(
-                    Cookie(b"hello", b"world", expires=b"Fri, 17 Aug 2018 20:55:04 GMT")
+                    Cookie("hello", "world", expires=b"Fri, 17 Aug 2018 20:55:04 GMT")
                 )
             }
         }
@@ -510,7 +510,7 @@ def test_cookie_jar_check_cookies_removes_expired():
             b"https", jar._host_only_cookies[b"foo.org"][b"/"]
         )
     )
-    assert jar.get(b"foo.org", b"/", b"hello") is None
+    assert jar.get(b"foo.org", b"/", "hello") is None
 
 
 def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie():
@@ -519,8 +519,8 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
     jar.add(
         URL(b"https://foo.org"),
         Cookie(
-            b"hello",
-            b"world",
+            "hello",
+            "world",
             expires=datetime_to_cookie_format(datetime.utcnow() + timedelta(days=2)),
             http_only=True,
         ),
@@ -529,30 +529,30 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
     jar.add(
         URL(b"https://foo.org"),
         Cookie(
-            b"hello",
-            b"world2",
+            "hello",
+            "world2",
             expires=datetime_to_cookie_format(datetime.utcnow() + timedelta(days=2)),
             http_only=True,
         ),
     )
 
-    cookie = jar.get(b"foo.org", b"/", b"hello")
+    cookie = jar.get(b"foo.org", b"/", "hello")
     assert cookie is not None
-    assert cookie.cookie.value == b"world2"
+    assert cookie.cookie.value == "world2"
 
     jar.add(
         URL(b"https://foo.org"),
         Cookie(
-            b"hello",
-            b"world modified",
+            "hello",
+            "world modified",
             expires=datetime_to_cookie_format(datetime.utcnow() + timedelta(days=2)),
             http_only=False,
         ),
     )
 
-    cookie = jar.get(b"foo.org", b"/", b"hello")
+    cookie = jar.get(b"foo.org", b"/", "hello")
     assert cookie is not None
-    assert cookie.cookie.value == b"world2"
+    assert cookie.cookie.value == "world2"
 
 
 def test_cookie_jar_remove_does_not_throw_key_error():

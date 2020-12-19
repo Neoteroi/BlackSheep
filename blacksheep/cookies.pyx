@@ -17,16 +17,18 @@ cpdef object datetime_from_cookie_format(bytes value):
 
 cdef class Cookie:
 
-    def __init__(self,
-                 bytes name,
-                 bytes value,
-                 bytes expires=None,
-                 bytes domain=None,
-                 bytes path=None,
-                 bint http_only=0,
-                 bint secure=0,
-                 bytes max_age=None,
-                 bytes same_site=None):
+    def __init__(
+        self,
+        str name,
+        str value,
+        bytes expires=None,
+        bytes domain=None,
+        bytes path=None,
+        bint http_only=0,
+        bint secure=0,
+        bytes max_age=None,
+        bytes same_site=None
+    ):
         if not name:
             raise ValueError('A cookie name is required')
         self.name = name
@@ -41,15 +43,17 @@ cdef class Cookie:
         self.same_site = same_site
 
     cpdef Cookie clone(self):
-        return Cookie(self.name,
-                      self.value,
-                      self.expires,
-                      self.domain,
-                      self.path,
-                      self.http_only,
-                      self.secure,
-                      self.max_age,
-                      self.same_site)
+        return Cookie(
+            self.name,
+            self.value,
+            self.expires,
+            self.domain,
+            self.path,
+            self.http_only,
+            self.secure,
+            self.max_age,
+            self.same_site
+        )
 
     @property
     def expiration(self):
@@ -73,15 +77,15 @@ cdef class Cookie:
 
     def __eq__(self, other):
         if isinstance(other, str):
-            return other.encode() == self.value
-        if isinstance(other, bytes):
             return other == self.value
+        if isinstance(other, bytes):
+            return other.decode() == self.value
         if isinstance(other, Cookie):
             return other.name == self.name and other.value == self.value
         return NotImplemented
 
     def __repr__(self):
-        return f'<Cookie {self.name.decode()}: {self.value.decode()}>'
+        return f'<Cookie {self.name)}: {self.value}>'
 
 
 cdef tuple split_value(bytes raw_value, bytes separator):
@@ -148,15 +152,17 @@ cpdef Cookie parse_cookie(bytes raw_value):
             if lower_part == b'secure':
                 secure = True
 
-    return Cookie(unquote(name.decode()).encode(),
-                  unquote(value.decode()).encode(),
-                  expires,
-                  domain,
-                  path,
-                  http_only,
-                  secure,
-                  max_age,
-                  same_site)
+    return Cookie(
+        unquote(name.decode()),
+        unquote(value.decode()),
+        expires,
+        domain,
+        path,
+        http_only,
+        secure,
+        max_age,
+        same_site
+    )
 
 
 cdef bytes write_cookie_for_response(Cookie cookie):

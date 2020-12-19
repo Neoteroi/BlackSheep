@@ -338,6 +338,38 @@ async def test_application_post_handler():
 
 
 @pytest.mark.asyncio
+async def test_application_post_json_handles_missing_body():
+    app = FakeApplication()
+
+    @app.router.post("/api/cat")
+    async def create_cat(request):
+        assert request is not None
+
+        content = await request.read()
+        assert b"" == content
+
+        text = await request.text()
+        assert "" == text
+
+        data = await request.json()
+        assert data is None
+
+        return Response(201)
+
+    send = MockSend()
+    receive = MockReceive([])
+
+    await app(
+        get_example_scope("POST", "/api/cat", []),
+        receive,
+        send,
+    )
+
+    response = app.response
+    assert response.status == 201
+
+
+@pytest.mark.asyncio
 async def test_application_middlewares_two():
     app = FakeApplication()
 
@@ -1501,6 +1533,28 @@ async def test_handler_from_json_parameter():
         MockSend(),
     )
     assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_handles_request_without_body():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Item]):
+        return Response(200)
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [],
+        ),
+        MockReceive([]),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert app.response.content.body == b"Bad Request: Expected request content"
 
 
 @pytest.mark.asyncio

@@ -217,26 +217,33 @@ cdef class Message:
 
     async def json(self, loads=json_loads):
         text = await self.text()
+
+        if text is None or text == "":
+            return None
+
         try:
             return loads(text)
         except JSONDecodeError as decode_error:
             content_type = self.content_type()
             if content_type and b'json' in content_type:
-                # NB: content type could also be "application/problem+json"; so we don't check for
-                # application/json in this case
-                raise BadRequestFormat(f'Declared Content-Type is {content_type.decode()} but the content '
-                                       f'cannot be parsed as JSON.',
-                                       decode_error)
-            raise InvalidOperation(f'Cannot parse content as JSON; declared Content-Type is '
-                                   f'{content_type.decode()}.',
-                                   decode_error)
+                # NB: content type could also be "application/problem+json";
+                # so we don't check for application/json in this case
+                raise BadRequestFormat(
+                    f'Declared Content-Type is {content_type.decode()} but '
+                    f'the content cannot be parsed as JSON.', decode_error
+                )
+            raise InvalidOperation(
+                f'Cannot parse content as JSON ',
+                decode_error
+            )
 
     cpdef bint has_body(self):
         cdef Content content = self.content
         if not content or content.length == 0:
             return False
         # NB: if we use chunked encoding, we don't know the content.length;
-        # and it is set to -1 (in contents.pyx), therefore it is handled properly
+        # and it is set to -1 (in contents.pyx), therefore it is handled
+        # properly
         return True
 
     @property

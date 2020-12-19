@@ -6,13 +6,6 @@ cdef class InvalidOperation(Exception):
         self.inner_exception = inner_exception
 
 
-cdef class BadRequestFormat(Exception):
-
-    def __init__(self, str message, object inner_exception=None):
-        super().__init__(message)
-        self.inner_exception = inner_exception
-
-
 cdef class HttpException(Exception):
 
     def __init__(self, int status, str message = 'HTTP Exception'):
@@ -24,6 +17,13 @@ cdef class BadRequest(HttpException):
 
     def __init__(self, message=None):
         super().__init__(400, message)
+
+
+cdef class BadRequestFormat(BadRequest):
+
+    def __init__(self, str message, object inner_exception=None):
+        super().__init__(message)
+        self.inner_exception = inner_exception
 
 
 cdef class NotFound(HttpException):

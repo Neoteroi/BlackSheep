@@ -232,8 +232,8 @@ cdef class Message:
                     f'Declared Content-Type is {content_type.decode()} but '
                     f'the content cannot be parsed as JSON.', decode_error
                 )
-            raise InvalidOperation(
-                f'Cannot parse content as JSON ',
+            raise BadRequestFormat(
+                f'Cannot parse content as JSON',
                 decode_error
             )
 

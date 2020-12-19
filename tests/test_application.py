@@ -370,6 +370,34 @@ async def test_application_post_json_handles_missing_body():
 
 
 @pytest.mark.asyncio
+async def test_application_returns_400_for_invalid_json():
+    app = FakeApplication()
+
+    @app.router.post("/api/cat")
+    async def create_cat(request):
+        await request.json()
+        ...
+
+    # invalid JSON:
+    content = b'"name":"Celine";"kind":"Persian"'
+
+    send = MockSend()
+    receive = MockReceive([content])
+
+    await app(
+        get_example_scope(
+            "POST", "/api/cat", [(b"content-length", str(len(content)).encode())]
+        ),
+        receive,
+        send,
+    )
+
+    response = app.response
+    assert response.status == 400
+    assert response.content.body == b"Bad Request: Cannot parse content as JSON"
+
+
+@pytest.mark.asyncio
 async def test_application_middlewares_two():
     app = FakeApplication()
 

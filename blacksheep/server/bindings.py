@@ -311,9 +311,11 @@ class BodyBinder(Binder):
         required: bool = False,
         converter: Optional[Callable] = None,
     ):
+        super().__init__(expected_type, name, implicit, required, None)
+
         if not converter:
-            converter = self.get_default_binder_for_body(expected_type)
-        super().__init__(expected_type, name, implicit, required, converter)
+            converter = self.get_default_binder_for_body(expected_type)  # type: ignore
+        self.converter = converter
 
     def _get_default_converter_single(self, expected_type):
         # this method converts an item that was already parsed to a supported type,
@@ -339,7 +341,15 @@ class BodyBinder(Binder):
         if expected_type is UUID:
             return lambda value: UUID(value)
 
-        return lambda value: expected_type(**value)
+        def converter(data):
+            try:
+                return expected_type(**data)
+            except TypeError as type_error:
+                raise BadRequest(
+                    f"invalid parameter in request payload. Error: {str(type_error)}"
+                )
+
+        return converter
 
     def _get_default_converter_for_iterable(self, expected_type):
         generic_type = self.get_type_for_generic_iterable(expected_type)
@@ -364,7 +374,12 @@ class BodyBinder(Binder):
             return self._get_default_converter_for_iterable(expected_type)
 
         def default_converter(data):
-            return expected_type(**data)
+            try:
+                return expected_type(**data)
+            except TypeError as type_error:
+                raise BadRequest(
+                    f"invalid parameter in request payload. Error: {str(type_error)}"
+                )
 
         return default_converter
 

@@ -1564,6 +1564,62 @@ async def test_handler_from_json_parameter():
 
 
 @pytest.mark.asyncio
+async def test_handler_from_json_parameter_missing_property():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Item]):
+        ...
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World"}']),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert (
+        app.response.content.body
+        == b"Bad Request: invalid parameter in request payload."
+        + b" Error: __init__() missing 1 required positional argument: 'c'"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_missing_property_array():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[List[Item]]):
+        ...
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"34"]],
+        ),
+        MockReceive([b'[{"a":"Hello","b":"World"}]']),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert (
+        app.response.content.body
+        == b"Bad Request: invalid parameter in request payload."
+        + b" Error: __init__() missing 1 required positional argument: 'c'"
+    )
+
+
+@pytest.mark.asyncio
 async def test_handler_from_json_parameter_handles_request_without_body():
     app = FakeApplication()
 

@@ -1,4 +1,5 @@
 from functools import wraps
+from tests.test_files_serving import get_file_path
 from typing import Optional
 
 import pytest
@@ -754,3 +755,35 @@ async def test_controller_parameter_name_match():
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "foo"
+
+
+@pytest.mark.asyncio
+async def test_controller_return_file():
+    file_path = get_file_path("example.config", "files2")
+
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Example(Controller):
+        @get("/")
+        async def home(self):
+            return self.file(file_path, "text/plain; charset=utf-8")
+
+    app.setup_controllers()
+
+    await app(
+        get_example_scope("GET", "/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert response.headers.get_single(b"content-type") == b"text/plain; charset=utf-8"
+    assert response.headers.get_single(b"content-disposition") == b"attachment"
+
+    text = await response.text()
+    with open(file_path, mode="rt", encoding="utf8") as f:
+        contents = f.read()
+        assert contents == text

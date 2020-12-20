@@ -432,8 +432,8 @@ cdef class Response(Message):
         self.set_cookie(
             Cookie(
                 name,
-                b'',
-                datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365))
+                '',
+                datetime.utcnow() - timedelta(days=365)
             )
         )
 

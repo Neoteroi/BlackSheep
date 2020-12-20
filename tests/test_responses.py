@@ -173,7 +173,7 @@ def test_response_supports_dynamic_attributes():
             Response(400, [(b"Server", b"BlackSheep")]).with_content(
                 Content(b"text/plain", b"Hello, World")
             ),
-            [Cookie("session", "123"), Cookie("aaa", "bbb", domain=b"bezkitu.org")],
+            [Cookie("session", "123"), Cookie("aaa", "bbb", domain="bezkitu.org")],
             b"HTTP/1.1 400 Bad Request\r\n"
             b"Server: BlackSheep\r\n"
             b"set-cookie: session=123\r\n"

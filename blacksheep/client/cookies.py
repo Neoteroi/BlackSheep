@@ -86,30 +86,30 @@ class CookieJar:
         self._host_only_cookies: StoredCookieContainer = {}
 
     @staticmethod
-    def _get_url_host(request_url: URL):
+    def _get_url_host(request_url: URL) -> str:
         assert request_url.host is not None
-        return request_url.host.lower()
+        return request_url.host.lower().decode()
 
     @staticmethod
-    def _get_url_path(request_url: URL):
+    def _get_url_path(request_url: URL) -> str:
         if request_url.path:
-            return request_url.path.lower()
-        return b"/"
+            return request_url.path.lower().decode()
+        return "/"
 
-    def get_domain(self, request_url: URL, cookie: Cookie) -> bytes:
+    def get_domain(self, request_url: URL, cookie: Cookie) -> str:
         # https://tools.ietf.org/html/rfc6265#section-4.1.2.3
         request_domain = self._get_url_host(request_url)
 
         if not cookie.domain:
             return request_domain
 
-        cookie_domain = cookie.domain.lstrip(b".").lower()
+        cookie_domain = cookie.domain.lstrip(".").lower()
 
-        if not not_ip_address(cookie_domain.decode()):
+        if not not_ip_address(cookie_domain):
             # ignore
             return request_domain
 
-        if cookie_domain.endswith(b"."):
+        if cookie_domain.endswith("."):
             # ignore the domain attribute;
             return request_domain
 
@@ -124,43 +124,43 @@ class CookieJar:
         return cookie_domain
 
     @staticmethod
-    def get_path(request_url: URL, cookie: Cookie):
+    def get_path(request_url: URL, cookie: Cookie) -> str:
         if cookie.path:
             return cookie.path.lower()
 
         return CookieJar.get_cookie_default_path(request_url)
 
     @staticmethod
-    def get_cookie_default_path(request_url: URL) -> bytes:
+    def get_cookie_default_path(request_url: URL) -> str:
         # https://tools.ietf.org/html/rfc6265#section-5.1.4
         uri_path = request_url.path
 
         if not uri_path or not uri_path.startswith(b"/") or uri_path.count(b"/") == 1:
-            return b"/"
+            return "/"
 
-        return uri_path[0 : uri_path.rfind(b"/")]
+        return uri_path[0 : uri_path.rfind(b"/")].decode()
 
     @staticmethod
-    def domain_match(domain: bytes, value: bytes) -> bool:
+    def domain_match(domain: str, value: str) -> bool:
         # https://tools.ietf.org/html/rfc6265#section-5.1.3
         lower_domain = domain.lower()
         lower_value = value.lower()
 
-        if value.count(b".") == 0:
+        if value.count(".") == 0:
             return False
 
         if lower_domain == lower_value:
             return True
 
         if lower_value.endswith(lower_domain):
-            return lower_value[-len(lower_domain) - 1] == 46 and not_ip_address(
-                lower_value.decode()
+            return lower_value[-len(lower_domain) - 1] == "." and not_ip_address(
+                lower_value
             )
 
         return False
 
     @staticmethod
-    def path_match(request_path: bytes, cookie_path: bytes) -> bool:
+    def path_match(request_path: str, cookie_path: str) -> bool:
         # https://tools.ietf.org/html/rfc6265#section-5.1.4
         lower_request_path = request_path.lower()
         lower_cookie_path = cookie_path.lower()
@@ -170,13 +170,13 @@ class CookieJar:
 
         if (
             lower_request_path.startswith(lower_cookie_path)
-            and lower_cookie_path[-1] == 47
+            and lower_cookie_path[-1] == "/"
         ):
             return True
 
         if (
             lower_request_path.startswith(lower_cookie_path)
-            and lower_request_path[len(lower_cookie_path)] == 47
+            and lower_request_path[len(lower_cookie_path)] == "/"
         ):
             return True
 
@@ -186,14 +186,14 @@ class CookieJar:
         if url.schema is None:
             raise MissingSchemeInURL()
         return self.get_cookies(
-            url.schema, self._get_url_host(url), self._get_url_path(url)
+            url.schema.decode(), self._get_url_host(url), self._get_url_path(url)
         )
 
     def _get_cookies_by_path(
         self,
-        schema: bytes,
-        path: bytes,
-        cookies_by_path: Dict[bytes, Dict[bytes, StoredCookie]],
+        schema: str,
+        path: str,
+        cookies_by_path: Dict[str, Dict[str, StoredCookie]],
     ) -> Iterable[Cookie]:
         for cookie_path, cookies in cookies_by_path.items():
             if CookieJar.path_match(path, cookie_path):
@@ -202,7 +202,7 @@ class CookieJar:
 
     @staticmethod
     def _get_cookies_checking_exp(
-        schema: bytes, cookies: Dict[bytes, StoredCookie]
+        schema: str, cookies: Dict[str, StoredCookie]
     ) -> Iterable[Cookie]:
         for cookie_name, stored_cookie in cookies.copy().items():
 
@@ -218,7 +218,7 @@ class CookieJar:
             yield cookie
 
     def get_cookies(
-        self, schema: bytes, domain: bytes, path: bytes
+        self, schema: str, domain: str, path: str
     ) -> Iterable[Cookie]:
         for cookies_domain, cookies_by_path in self._host_only_cookies.items():
             if cookies_domain == domain:
@@ -230,8 +230,8 @@ class CookieJar:
 
     @staticmethod
     def _ensure_dict_container(
-        container: Dict[bytes, Dict[bytes, T]], key: bytes
-    ) -> Dict[bytes, T]:
+        container: Dict[str, Dict[str, T]], key: str
+    ) -> Dict[str, T]:
         try:
             return container[key]
         except KeyError:
@@ -242,8 +242,8 @@ class CookieJar:
     def _set_ensuring_container(
         self,
         root_container: dict,
-        domain: bytes,
-        path: bytes,
+        domain: str,
+        path: str,
         stored_cookie: StoredCookie,
     ) -> None:
         domain_container = self._ensure_dict_container(root_container, domain)
@@ -253,7 +253,7 @@ class CookieJar:
 
     @staticmethod
     def _get(
-        container: dict, domain: bytes, path: bytes, cookie_name: str
+        container: dict, domain: str, path: str, cookie_name: str
     ) -> Optional[StoredCookie]:
         try:
             return container[domain][path][cookie_name]
@@ -262,7 +262,7 @@ class CookieJar:
 
     @staticmethod
     def _remove(
-        container: dict, domain: bytes, path: bytes, cookie_name: bytes
+        container: dict, domain: str, path: str, cookie_name: str
     ) -> bool:
         try:
             del container[domain][path][cookie_name]
@@ -271,13 +271,13 @@ class CookieJar:
         return True
 
     def get(
-        self, domain: bytes, path: bytes, cookie_name: str
+        self, domain: str, path: str, cookie_name: str
     ) -> Optional[StoredCookie]:
         return self._get(
             self._host_only_cookies, domain, path, cookie_name
         ) or self._get(self._domain_cookies, domain, path, cookie_name)
 
-    def remove(self, domain: bytes, path: bytes, cookie_name: bytes) -> bool:
+    def remove(self, domain: str, path: str, cookie_name: str) -> bool:
         return self._remove(
             self._host_only_cookies, domain, path, cookie_name
         ) or self._remove(self._domain_cookies, domain, path, cookie_name)

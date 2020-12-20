@@ -22,8 +22,8 @@ cdef class Cookie:
         str name,
         str value,
         bytes expires=None,
-        bytes domain=None,
-        bytes path=None,
+        str domain=None,
+        str path=None,
         bint http_only=0,
         bint secure=0,
         bytes max_age=None,
@@ -156,8 +156,8 @@ cpdef Cookie parse_cookie(bytes raw_value):
         unquote(name.decode()),
         unquote(value.decode()),
         expires,
-        domain,
-        path,
+        domain.decode() if domain else None,
+        path.decode() if path else None,
         http_only,
         secure,
         max_age,
@@ -176,10 +176,10 @@ cdef bytes write_cookie_for_response(Cookie cookie):
         parts.append(b'Max-Age=' + cookie.max_age)
 
     if cookie.domain:
-        parts.append(b'Domain=' + cookie.domain)
+        parts.append(b'Domain=' + cookie.domain.encode())
 
     if cookie.path:
-        parts.append(b'Path=' + cookie.path)
+        parts.append(b'Path=' + cookie.path.encode())
 
     if cookie.http_only:
         parts.append(b'HttpOnly')

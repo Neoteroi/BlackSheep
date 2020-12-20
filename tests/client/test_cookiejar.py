@@ -21,10 +21,10 @@ from . import FakePools
 @pytest.mark.parametrize(
     "request_url,cookie_domain,expected_domain",
     [
-        [URL(b"https://bezkitu.org"), None, b"bezkitu.org"],
-        [URL(b"https://foo.bezkitu.org"), b"foo.bezkitu.org", b"foo.bezkitu.org"],
-        [URL(b"https://foo.bezkitu.org"), b"bezkitu.org", b"bezkitu.org"],
-        [URL(b"https://foo.bezkitu.org"), b"bezkitu.org.", b"foo.bezkitu.org"],
+        [URL(b"https://bezkitu.org"), None, "bezkitu.org"],
+        [URL(b"https://foo.bezkitu.org"), "foo.bezkitu.org", "foo.bezkitu.org"],
+        [URL(b"https://foo.bezkitu.org"), "bezkitu.org", "bezkitu.org"],
+        [URL(b"https://foo.bezkitu.org"), "bezkitu.org.", "foo.bezkitu.org"],
     ],
 )
 def test_cookiejar_get_domain(request_url, cookie_domain, expected_domain):
@@ -37,9 +37,9 @@ def test_cookiejar_get_domain(request_url, cookie_domain, expected_domain):
 @pytest.mark.parametrize(
     "request_url,cookie_domain",
     [
-        [URL(b"https://bezkitu.org"), b"example.com"],
-        [URL(b"https://foo.bezkitu.org"), b"baz.foo.bezkitu.org"],
-        [URL(b"https://foo.bezkitu.org"), b"foo.org"],
+        [URL(b"https://bezkitu.org"), "example.com"],
+        [URL(b"https://foo.bezkitu.org"), "baz.foo.bezkitu.org"],
+        [URL(b"https://foo.bezkitu.org"), "foo.org"],
     ],
 )
 def test_cookiejar_invalid_domain(request_url, cookie_domain):
@@ -145,7 +145,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
                     ),
                 )
             ],
@@ -158,7 +158,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
                     ),
                 )
             ],
@@ -171,7 +171,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="foo.bezkitu.org")
                     ),
                 )
             ],
@@ -184,7 +184,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
                     ),
                 )
             ],
@@ -197,7 +197,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="foo.bezkitu.org")
                     ),
                 )
             ],
@@ -210,13 +210,13 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="foo.bezkitu.org")
                     ),
                 ),
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Not-Valid", "Foo", domain=b"notvalid.org")
+                        Cookie("X-Not-Valid", "Foo", domain="notvalid.org")
                     ),  # tests not valid cookie (invalid domain)
                 ),
             ],
@@ -229,7 +229,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"foo.bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="foo.bezkitu.org")
                     ),
                 )
             ],
@@ -242,7 +242,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"bezkitu.org")
+                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
                     ),
                 )
             ],
@@ -255,7 +255,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"some-example.org")
+                        Cookie("X-Foo", "Foo", domain="some-example.org")
                     ),
                 )
             ],
@@ -268,7 +268,7 @@ async def test_cookies_jar_single_cookie():
                 (
                     b"Set-Cookie",
                     write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain=b"example.org")
+                        Cookie("X-Foo", "Foo", domain="example.org")
                     ),
                 )
             ],
@@ -431,31 +431,31 @@ def test_get_cookies_for_url_ignores_secure_cookies_for_http():
 @pytest.mark.parametrize(
     "domain,value,is_match",
     [
-        (b"x.y.z.com", b"x.y.z.com", True),
-        (b"y.z.com", b"x.y.z.com", True),
-        (b"z.com", b"x.y.z.com", True),
-        (b"x.y.z.com", b"y.z.com", False),
-        (b"x.y.z.com", b"z.com", False),
-        (b"x.y.z.com", b".com", False),
-        (b"x.y.z.com", b"com", False),
+        ("x.y.z.com", "x.y.z.com", True),
+        ("y.z.com", "x.y.z.com", True),
+        ("z.com", "x.y.z.com", True),
+        ("x.y.z.com", "y.z.com", False),
+        ("x.y.z.com", "z.com", False),
+        ("x.y.z.com", ".com", False),
+        ("x.y.z.com", "com", False),
     ],
 )
-def test_cookie_domain_match(domain: bytes, value: bytes, is_match: bool):
+def test_cookie_domain_match(domain: str, value: str, is_match: bool):
     assert (
         CookieJar.domain_match(domain, value) is is_match
-    ), f"{domain.decode()} {value.decode()} != {is_match}"
+    ), f"{domain} {value} != {is_match}"
 
 
 @pytest.mark.parametrize(
     "request_path,cookie_path,is_match",
     [
-        (b"/", b"/", True),
-        (b"/foo", b"/foo", True),
-        (b"/foo/foo", b"/foo/foo", True),
-        (b"/foo/foo", b"/foo", True),
-        (b"/foo", b"/foo/foo", False),
-        (b"/ufo", b"/foo", False),
-        (b"/foo", b"/foo/foo", False),
+        ("/", "/", True),
+        ("/foo", "/foo", True),
+        ("/foo/foo", "/foo/foo", True),
+        ("/foo/foo", "/foo", True),
+        ("/foo", "/foo/foo", False),
+        ("/ufo", "/foo", False),
+        ("/foo", "/foo/foo", False),
     ],
 )
 def test_cookie_path_match(request_path: bytes, cookie_path: bytes, is_match: bool):
@@ -470,19 +470,19 @@ def test_cookiejar_ignores_cookie_domain_set_as_ipaddress():
     assert (
         jar.get_domain(
             URL(b"https://foo.org/hello-world"),
-            Cookie("foo", "foo", domain=b"192.168.1.5"),
+            Cookie("foo", "foo", domain="192.168.1.5"),
         )
-        == b"foo.org"
+        == "foo.org"
     )
 
 
 @pytest.mark.parametrize(
     "value,expected_result",
     [
-        (b"/", b"/"),
-        (b"/foo", b"/"),
-        (b"/hello/world", b"/hello"),
-        (b"/hello/world/super", b"/hello/world"),
+        (b"/", "/"),
+        (b"/foo", "/"),
+        (b"/hello/world", "/hello"),
+        (b"/hello/world/super", "/hello/world"),
     ],
 )
 def test_cookie_jar_get_cookie_default_path(value, expected_result):
@@ -510,7 +510,7 @@ def test_cookie_jar_check_cookies_removes_expired():
             b"https", jar._host_only_cookies[b"foo.org"][b"/"]
         )
     )
-    assert jar.get(b"foo.org", b"/", "hello") is None
+    assert jar.get("foo.org", "/", "hello") is None
 
 
 def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie():
@@ -536,7 +536,7 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
         ),
     )
 
-    cookie = jar.get(b"foo.org", b"/", "hello")
+    cookie = jar.get("foo.org", "/", "hello")
     assert cookie is not None
     assert cookie.cookie.value == "world2"
 
@@ -550,7 +550,7 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
         ),
     )
 
-    cookie = jar.get(b"foo.org", b"/", "hello")
+    cookie = jar.get("foo.org", "/", "hello")
     assert cookie is not None
     assert cookie.cookie.value == "world2"
 
@@ -558,4 +558,4 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
 def test_cookie_jar_remove_does_not_throw_key_error():
     jar = CookieJar()
 
-    assert jar.remove(b"foo", b"foo", b"foo") is False
+    assert jar.remove("foo", "foo", "foo") is False

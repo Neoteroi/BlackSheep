@@ -10,8 +10,8 @@ cdef class Cookie:
     cdef public str name
     cdef public str value
     cdef public bytes expires
-    cdef public bytes domain
-    cdef public bytes path
+    cdef public str domain
+    cdef public str path
     cdef public bint http_only
     cdef public bint secure
     cdef public bytes max_age

@@ -118,10 +118,10 @@ cdef bytes write_cookie_for_response(Cookie cookie):
         parts.append(b'Max-Age=' + cookie.max_age)
 
     if cookie.domain:
-        parts.append(b'Domain=' + cookie.domain)
+        parts.append(b'Domain=' + cookie.domain.encode())
 
     if cookie.path:
-        parts.append(b'Path=' + cookie.path)
+        parts.append(b'Path=' + cookie.path.encode())
 
     if cookie.http_only:
         parts.append(b'HttpOnly')

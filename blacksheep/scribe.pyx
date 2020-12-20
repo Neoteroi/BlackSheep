@@ -114,8 +114,8 @@ cdef bytes write_cookie_for_response(Cookie cookie):
     if cookie.expires:
         parts.append(b'Expires=' + cookie.expires)
 
-    if cookie.max_age:
-        parts.append(b'Max-Age=' + cookie.max_age)
+    if cookie.max_age > -1:
+        parts.append(b'Max-Age=' + str(cookie.max_age).encode())
 
     if cookie.domain:
         parts.append(b'Domain=' + cookie.domain.encode())

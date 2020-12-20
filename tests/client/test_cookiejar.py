@@ -77,7 +77,7 @@ def test_stored_cookie_handles_max_age_value_error():
         Cookie(
             "name",
             "value",
-            max_age=b"xx",
+            max_age=-20,
         )
     )
     assert stored.expiry_time is None
@@ -88,7 +88,7 @@ def test_stored_cookie_handles_max_age():
         Cookie(
             "name",
             "value",
-            max_age=b"20",
+            max_age=20,
         )
     )
     assert stored.expiry_time is not None
@@ -355,7 +355,7 @@ async def test_remove_cookie_with_expiration():
 @pytest.mark.asyncio
 async def test_remove_cookie_with_max_age():
     expire_cookie = Cookie("X-Foo", "Foo")
-    expire_cookie.set_max_age(0)
+    expire_cookie.max_age = 0
     fake_pools = FakePools(
         [
             Response(
@@ -400,7 +400,7 @@ async def test_remove_cookie_with_max_age():
 
 def test_stored_cookie_max_age_precedence():
     cookie = Cookie("X-Foo", "Foo")
-    cookie.set_max_age(0)
+    cookie.max_age = 0
     cookie.expiration = datetime.utcnow() + timedelta(days=2)
 
     stored_cookie = StoredCookie(cookie)
@@ -496,9 +496,9 @@ def test_cookie_jar_check_cookies_removes_expired():
     jar._domain_cookies
 
     jar._host_only_cookies = {
-        b"foo.org": {
-            b"/": {
-                b"hello": StoredCookie(
+        "foo.org": {
+            "/": {
+                "hello": StoredCookie(
                     Cookie("hello", "world", expires=b"Fri, 17 Aug 2018 20:55:04 GMT")
                 )
             }
@@ -507,7 +507,7 @@ def test_cookie_jar_check_cookies_removes_expired():
 
     list(
         jar._get_cookies_checking_exp(
-            b"https", jar._host_only_cookies[b"foo.org"][b"/"]
+            "https", jar._host_only_cookies["foo.org"]["/"]
         )
     )
     assert jar.get("foo.org", "/", "hello") is None

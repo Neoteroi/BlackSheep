@@ -26,7 +26,7 @@ cdef class Cookie:
         str path=None,
         bint http_only=0,
         bint secure=0,
-        bytes max_age=None,
+        int max_age=-1,
         bytes same_site=None
     ):
         if not name:
@@ -72,9 +72,6 @@ cdef class Cookie:
         else:
             self.expires = None
 
-    cpdef void set_max_age(self, int max_age):
-        self.max_age = str(max_age).encode()
-
     def __eq__(self, other):
         if isinstance(other, str):
             return other == self.value
@@ -97,8 +94,9 @@ cdef tuple split_value(bytes raw_value, bytes separator):
 
 
 cpdef Cookie parse_cookie(bytes raw_value):
+    cdef int max_age
     cdef bytes value = b''
-    cdef bytes eq, expires, domain, path, part, max_age, k, v, lower_k, lower_part
+    cdef bytes eq, expires, domain, path, part, k, v, lower_k, lower_part
     cdef bint http_only, secure
     cdef bytes same_site
     cdef list parts
@@ -128,7 +126,7 @@ cpdef Cookie parse_cookie(bytes raw_value):
     path = None
     http_only = False
     secure = False
-    max_age = None
+    max_age = -1
     same_site = None
 
     for part in parts:
@@ -142,7 +140,7 @@ cpdef Cookie parse_cookie(bytes raw_value):
             elif lower_k == b'path':
                 path = v
             elif lower_k == b'max-age':
-                max_age = v
+                max_age = int(v)
             elif lower_k == b'samesite':
                 same_site = v
         else:
@@ -172,8 +170,8 @@ cdef bytes write_cookie_for_response(Cookie cookie):
     if cookie.expires:
         parts.append(b'Expires=' + cookie.expires)
 
-    if cookie.max_age:
-        parts.append(b'Max-Age=' + cookie.max_age)
+    if cookie.max_age > -1:
+        parts.append(b'Max-Age=' + str(cookie.max_age).encode())
 
     if cookie.domain:
         parts.append(b'Domain=' + cookie.domain.encode())

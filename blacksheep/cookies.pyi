@@ -20,7 +20,7 @@ class Cookie:
         path: Optional[str] = None,
         http_only: bool = False,
         secure: bool = False,
-        max_age: Optional[bytes] = None,
+        max_age: int = -1,
         same_site: Optional[bytes] = None,
     ):
         self.name = name
@@ -43,9 +43,6 @@ class Cookie:
 
     @expiration.setter
     def expiration(self, value: datetime):
-        ...
-
-    def set_max_age(self, max_age: int):
         ...
 
     def __eq__(self, other: Union[str, bytes, "Cookie"]) -> bool:

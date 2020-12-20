@@ -12,7 +12,7 @@ from blacksheep import (
 
 
 COOKIES = [
-    ("Foo", "Power", None, None, None, False, False, None, None, b"Foo=Power"),
+    ("Foo", "Power", None, None, None, False, False, -1, None, b"Foo=Power"),
     (
         "Foo",
         "Hello World;",
@@ -21,7 +21,7 @@ COOKIES = [
         None,
         False,
         False,
-        None,
+        -1,
         None,
         b"Foo=Hello%20World%3B",
     ),
@@ -33,7 +33,7 @@ COOKIES = [
         None,
         False,
         False,
-        None,
+        -1,
         None,
         b"Foo%3B%20foo=Hello%20World%3B",
     ),
@@ -45,7 +45,7 @@ COOKIES = [
         None,
         False,
         False,
-        None,
+        -1,
         None,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT",
     ),
@@ -57,7 +57,7 @@ COOKIES = [
         None,
         False,
         False,
-        None,
+        -1,
         None,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org",
     ),
@@ -69,7 +69,7 @@ COOKIES = [
         "/",
         True,
         False,
-        None,
+        -1,
         None,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly",
     ),
@@ -81,7 +81,7 @@ COOKIES = [
         "/",
         True,
         True,
-        None,
+        -1,
         None,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly; Secure",
     ),
@@ -93,7 +93,7 @@ COOKIES = [
         "/",
         True,
         True,
-        None,
+        -1,
         b"Lax",
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly; Secure; SameSite=Lax",
     ),
@@ -105,9 +105,9 @@ COOKIES = [
         "/",
         True,
         True,
-        datetime(2018, 8, 20, 20, 55, 4),
+        200,
         b"Strict",
-        b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Max-Age=Mon, 20 Aug 2018 20:55:04 GMT; "
+        b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Max-Age=200; "
         b"Domain=something.org; Path=/; HttpOnly; Secure; SameSite=Strict",
     ),
 ]
@@ -137,7 +137,7 @@ def test_write_cookie(
         path,
         http_only,
         secure,
-        datetime_to_cookie_format(max_age) if max_age else None,
+        max_age,
         same_site,
     )
     value = scribe.write_response_cookie(cookie)
@@ -171,9 +171,8 @@ def test_parse_cookie(
     assert cookie.path == path
     assert cookie.http_only == http_only
     assert cookie.secure == secure
-    if max_age:
-        assert cookie.max_age is not None
-        assert datetime_from_cookie_format(cookie.max_age) == max_age
+    if max_age is not None:
+        assert cookie.max_age == max_age
 
 
 @pytest.mark.parametrize(

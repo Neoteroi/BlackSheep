@@ -41,7 +41,7 @@ class StoredCookie:
         self.creation_time = datetime.utcnow()
 
         expiry = None
-        if cookie.max_age:
+        if cookie.max_age > -1:
             # https://tools.ietf.org/html/rfc6265#section-5.2.2
             try:
                 max_age = int(cookie.max_age)
@@ -73,7 +73,7 @@ class StoredCookie:
 
 
 # cookies are stored by host name, path, and name
-StoredCookieContainer = Dict[bytes, Dict[bytes, Dict[bytes, StoredCookie]]]
+StoredCookieContainer = Dict[str, Dict[str, Dict[str, StoredCookie]]]
 T = TypeVar("T")
 
 
@@ -211,7 +211,7 @@ class CookieJar:
                 continue
 
             cookie = stored_cookie.cookie
-            if cookie.secure and schema != b"https":
+            if cookie.secure and schema != "https":
                 # skip cookie for this request
                 continue
 

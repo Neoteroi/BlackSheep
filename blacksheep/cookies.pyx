@@ -4,11 +4,11 @@ from urllib.parse import quote, unquote
 from cpython.datetime cimport datetime
 
 
-cpdef bytes datetime_to_cookie_format(object value):
+cpdef bytes datetime_to_cookie_format(datetime value):
     return value.strftime('%a, %d %b %Y %H:%M:%S GMT').encode()
 
 
-cpdef object datetime_from_cookie_format(bytes value):
+cpdef datetime datetime_from_cookie_format(bytes value):
     value_str = value.decode()
     try:
         return datetime.strptime(value_str, '%a, %d %b %Y %H:%M:%S GMT')
@@ -153,7 +153,7 @@ cpdef Cookie parse_cookie(bytes raw_value):
     return Cookie(
         unquote(name.decode()),
         unquote(value.decode()),
-        expires,
+        datetime_from_cookie_format(expires) if expires else None,
         domain.decode() if domain else None,
         path.decode() if path else None,
         http_only,

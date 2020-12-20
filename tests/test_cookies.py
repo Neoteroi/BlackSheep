@@ -144,7 +144,7 @@ def test_write_cookie(
     cookie = Cookie(
         name,
         value,
-        datetime_to_cookie_format(expires) if expires else None,
+        expires,
         domain,
         path,
         http_only,
@@ -178,7 +178,7 @@ def test_parse_cookie(
     assert cookie.value == value
     if expires:
         assert cookie.expires is not None
-        assert datetime_from_cookie_format(cookie.expires) == expires
+        assert cookie.expires == expires
     assert cookie.domain == domain
     assert cookie.path == path
     assert cookie.http_only == http_only

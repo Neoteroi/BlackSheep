@@ -32,10 +32,10 @@ cdef class Cookie:
 cpdef Cookie parse_cookie(bytes value)
 
 
-cpdef bytes datetime_to_cookie_format(object value)
+cpdef bytes datetime_to_cookie_format(datetime value)
 
 
-cpdef object datetime_from_cookie_format(bytes value)
+cpdef datetime datetime_from_cookie_format(bytes value)
 
 
 cdef bytes write_cookie_for_response(Cookie cookie)

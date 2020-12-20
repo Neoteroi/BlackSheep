@@ -4,6 +4,7 @@ import pytest
 
 from blacksheep import (
     Cookie,
+    CookieSameSiteMode,
     datetime_from_cookie_format,
     datetime_to_cookie_format,
     parse_cookie,
@@ -12,7 +13,18 @@ from blacksheep import (
 
 
 COOKIES = [
-    ("Foo", "Power", None, None, None, False, False, -1, None, b"Foo=Power"),
+    (
+        "Foo",
+        "Power",
+        None,
+        None,
+        None,
+        False,
+        False,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
+        b"Foo=Power",
+    ),
     (
         "Foo",
         "Hello World;",
@@ -22,7 +34,7 @@ COOKIES = [
         False,
         False,
         -1,
-        None,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Hello%20World%3B",
     ),
     (
@@ -34,7 +46,7 @@ COOKIES = [
         False,
         False,
         -1,
-        None,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo%3B%20foo=Hello%20World%3B",
     ),
     (
@@ -46,7 +58,7 @@ COOKIES = [
         False,
         False,
         -1,
-        None,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT",
     ),
     (
@@ -58,7 +70,7 @@ COOKIES = [
         False,
         False,
         -1,
-        None,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org",
     ),
     (
@@ -70,7 +82,7 @@ COOKIES = [
         True,
         False,
         -1,
-        None,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly",
     ),
     (
@@ -82,7 +94,7 @@ COOKIES = [
         True,
         True,
         -1,
-        None,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly; Secure",
     ),
     (
@@ -94,7 +106,7 @@ COOKIES = [
         True,
         True,
         -1,
-        b"Lax",
+        CookieSameSiteMode.LAX,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly; Secure; SameSite=Lax",
     ),
     (
@@ -106,7 +118,7 @@ COOKIES = [
         True,
         True,
         200,
-        b"Strict",
+        CookieSameSiteMode.STRICT,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Max-Age=200; "
         b"Domain=something.org; Path=/; HttpOnly; Secure; SameSite=Strict",
     ),

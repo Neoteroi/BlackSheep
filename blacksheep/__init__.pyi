@@ -11,6 +11,7 @@ from .contents import (
 )
 from .cookies import (
     Cookie as Cookie,
+    CookieSameSiteMode as CookieSameSiteMode,
     datetime_from_cookie_format as datetime_from_cookie_format,
     datetime_to_cookie_format as datetime_to_cookie_format,
     parse_cookie as parse_cookie,

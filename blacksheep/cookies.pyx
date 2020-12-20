@@ -27,7 +27,7 @@ cdef class Cookie:
         bint http_only=0,
         bint secure=0,
         int max_age=-1,
-        bytes same_site=None
+        CookieSameSiteMode same_site=CookieSameSiteMode.UNDEFINED
     ):
         if not name:
             raise ValueError('A cookie name is required')
@@ -91,6 +91,23 @@ cdef tuple split_value(bytes raw_value, bytes separator):
         # this is the situation of flags, e.g. httponly and secure
         return b"", raw_value
     return raw_value[:rindex], raw_value[rindex+1:]
+
+
+cdef CookieSameSiteMode same_site_mode_from_bytes(bytes raw_value):
+    cdef bytes raw_value_lower
+    if not raw_value:
+        return CookieSameSiteMode.UNDEFINED
+
+    raw_value_lower = raw_value.lower()
+
+    if raw_value_lower == b"strict":
+        return CookieSameSiteMode.STRICT
+    if raw_value_lower == b"lax":
+        return CookieSameSiteMode.LAX
+    if raw_value_lower == b"none":
+        return CookieSameSiteMode.NONE
+
+    return CookieSameSiteMode.UNDEFINED
 
 
 cpdef Cookie parse_cookie(bytes raw_value):
@@ -159,7 +176,7 @@ cpdef Cookie parse_cookie(bytes raw_value):
         http_only,
         secure,
         max_age,
-        same_site
+        same_site_mode_from_bytes(same_site)
     )
 
 
@@ -182,10 +199,16 @@ cdef bytes write_cookie_for_response(Cookie cookie):
     if cookie.http_only:
         parts.append(b'HttpOnly')
 
-    if cookie.secure:
+    if cookie.secure or cookie.same_site == CookieSameSiteMode.STRICT or cookie.same_site == CookieSameSiteMode.NONE:
         parts.append(b'Secure')
 
-    if cookie.same_site:
-        parts.append(b'SameSite=' + cookie.same_site)
+    if cookie.same_site == CookieSameSiteMode.STRICT:
+        parts.append(b'SameSite=Strict')
+
+    if cookie.same_site == CookieSameSiteMode.LAX:
+        parts.append(b'SameSite=Lax')
+
+    if cookie.same_site == CookieSameSiteMode.NONE:
+        parts.append(b'SameSite=None')
 
     return b'; '.join(parts)

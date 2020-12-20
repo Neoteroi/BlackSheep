@@ -5,6 +5,13 @@
 # the MIT License https://opensource.org/licenses/MIT
 
 
+cpdef enum CookieSameSiteMode:
+    UNDEFINED = 0
+    LAX = 1
+    STRICT = 2
+    NONE = 3
+
+
 cdef class Cookie:
     cdef object _expiration
     cdef public str name
@@ -15,7 +22,7 @@ cdef class Cookie:
     cdef public bint http_only
     cdef public bint secure
     cdef public int max_age
-    cdef public bytes same_site
+    cdef public CookieSameSiteMode same_site
     cpdef Cookie clone(self)
 
 
@@ -32,3 +39,6 @@ cdef bytes write_cookie_for_response(Cookie cookie)
 
 
 cdef tuple split_value(bytes raw_value, bytes separator)
+
+
+cdef CookieSameSiteMode same_site_mode_from_bytes(bytes raw_value)

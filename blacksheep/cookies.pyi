@@ -23,7 +23,7 @@ class Cookie:
         self,
         name: str,
         value: str,
-        expires: Optional[bytes] = None,
+        expires: Optional[datetime] = None,
         domain: Optional[str] = None,
         path: Optional[str] = None,
         http_only: bool = False,
@@ -34,7 +34,6 @@ class Cookie:
         self.name = name
         self.value = value
         self.expires = expires
-        self._expiration = None
         self.domain = domain
         self.path = path
         self.http_only = http_only
@@ -43,14 +42,6 @@ class Cookie:
         self.same_site = same_site
 
     def clone(self) -> "Cookie":
-        ...
-
-    @property
-    def expiration(self) -> datetime:
-        ...
-
-    @expiration.setter
-    def expiration(self, value: datetime):
         ...
 
     def __eq__(self, other: Union[str, bytes, "Cookie"]) -> bool:

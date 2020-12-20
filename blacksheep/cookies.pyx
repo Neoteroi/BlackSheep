@@ -1,6 +1,7 @@
 from typing import Optional
 from datetime import datetime
 from urllib.parse import quote, unquote
+from cpython.datetime cimport datetime
 
 
 cpdef bytes datetime_to_cookie_format(object value):
@@ -21,7 +22,7 @@ cdef class Cookie:
         self,
         str name,
         str value,
-        bytes expires=None,
+        datetime expires=None,
         str domain=None,
         str path=None,
         bint http_only=0,
@@ -34,7 +35,6 @@ cdef class Cookie:
         self.name = name
         self.value = value
         self.expires = expires
-        self._expiration = None
         self.domain = domain
         self.path = path
         self.http_only = http_only
@@ -54,23 +54,6 @@ cdef class Cookie:
             self.max_age,
             self.same_site
         )
-
-    @property
-    def expiration(self):
-        if not self.expires:
-            return None
-
-        if self._expiration is None:
-            self._expiration = datetime_from_cookie_format(self.expires)
-        return self._expiration
-
-    @expiration.setter
-    def expiration(self, value):
-        self._expiration = value
-        if value:
-            self.expires = datetime_to_cookie_format(value)
-        else:
-            self.expires = None
 
     def __eq__(self, other):
         if isinstance(other, str):
@@ -185,7 +168,7 @@ cdef bytes write_cookie_for_response(Cookie cookie):
     parts.append(quote(cookie.name).encode() + b'=' + quote(cookie.value).encode())
 
     if cookie.expires:
-        parts.append(b'Expires=' + cookie.expires)
+        parts.append(b'Expires=' + datetime_to_cookie_format(cookie.expires))
 
     if cookie.max_age > -1:
         parts.append(b'Max-Age=' + str(cookie.max_age).encode())

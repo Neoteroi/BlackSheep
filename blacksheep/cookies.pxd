@@ -3,6 +3,9 @@
 #
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
+# Datetime C API initialization function.
+# You have to call it before any usage of DateTime CAPI functions.
+from cpython.datetime cimport datetime
 
 
 cpdef enum CookieSameSiteMode:
@@ -16,7 +19,7 @@ cdef class Cookie:
     cdef object _expiration
     cdef public str name
     cdef public str value
-    cdef public bytes expires
+    cdef public datetime expires
     cdef public str domain
     cdef public str path
     cdef public bint http_only

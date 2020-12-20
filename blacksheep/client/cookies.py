@@ -53,7 +53,7 @@ class StoredCookie:
                 else:
                     expiry = self.creation_time + timedelta(seconds=max_age)
         elif cookie.expires:
-            expiry = cookie.expiration
+            expiry = cookie.expires
 
         self.expiry_time = expiry
         self.persistent = True if expiry else False

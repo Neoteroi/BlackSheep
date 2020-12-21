@@ -1,10 +1,15 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import ForwardRef, Optional, Union
+from openapidocs.common import Format
 
 import pytest
 from blacksheep.server.application import Application
-from blacksheep.server.openapi.common import ContentInfo, ResponseInfo
+from blacksheep.server.openapi.common import (
+    ContentInfo,
+    OpenAPIEndpointException,
+    ResponseInfo,
+)
 from blacksheep.server.openapi.exceptions import (
     DuplicatedContentTypeDocsException,
     UnsupportedUnionTypeException,
@@ -183,3 +188,32 @@ def test_get_schema_by_type_returns_reference_for_forward_ref():
     assert docs._get_schema_by_type(ForwardRef("Foo")) == Reference(
         "#/components/schemas/Foo"
     )
+
+
+@pytest.mark.parametrize(
+    "json_path,yaml_path,preferred_format,expected_result",
+    [
+        ["foo.json", "foo.yaml", Format.YAML, "foo.yaml"],
+        ["foo.json", "foo.yaml", Format.JSON, "foo.json"],
+        ["/openapi.json", "/openapi.yaml", Format.YAML, "/openapi.yaml"],
+    ],
+)
+def test_get_spec_path_preferred_format(
+    json_path, yaml_path, preferred_format, expected_result
+):
+    docs = OpenAPIHandler(
+        info=Info("Example", "0.0.1"),
+        json_spec_path=json_path,
+        yaml_spec_path=yaml_path,
+        preferred_format=preferred_format,
+    )
+
+    assert docs.get_spec_path() == expected_result
+
+
+def test_get_spec_path_raises_for_unsupported_preferred_format():
+    docs = OpenAPIHandler(info=Info("Example", "0.0.1"))
+    docs.preferred_format = "NOPE"  # type: ignore
+
+    with pytest.raises(OpenAPIEndpointException):
+        docs.get_spec_path()

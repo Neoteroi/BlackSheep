@@ -43,15 +43,13 @@ class StoredCookie:
         expiry = None
         if cookie.max_age > -1:
             # https://tools.ietf.org/html/rfc6265#section-5.2.2
-            try:
-                max_age = int(cookie.max_age)
-            except ValueError:
-                pass
+            # note: cookie.max_age here is ensured to be int because this is ensured
+            # in the Cookie class
+            max_age = int(cookie.max_age)
+            if max_age <= 0:
+                expiry = datetime.min
             else:
-                if max_age <= 0:
-                    expiry = datetime.min
-                else:
-                    expiry = self.creation_time + timedelta(seconds=max_age)
+                expiry = self.creation_time + timedelta(seconds=max_age)
         elif cookie.expires:
             expiry = cookie.expires
 
@@ -217,9 +215,7 @@ class CookieJar:
 
             yield cookie
 
-    def get_cookies(
-        self, schema: str, domain: str, path: str
-    ) -> Iterable[Cookie]:
+    def get_cookies(self, schema: str, domain: str, path: str) -> Iterable[Cookie]:
         for cookies_domain, cookies_by_path in self._host_only_cookies.items():
             if cookies_domain == domain:
                 yield from self._get_cookies_by_path(schema, path, cookies_by_path)
@@ -261,18 +257,14 @@ class CookieJar:
             return None
 
     @staticmethod
-    def _remove(
-        container: dict, domain: str, path: str, cookie_name: str
-    ) -> bool:
+    def _remove(container: dict, domain: str, path: str, cookie_name: str) -> bool:
         try:
             del container[domain][path][cookie_name]
         except KeyError:
             return False
         return True
 
-    def get(
-        self, domain: str, path: str, cookie_name: str
-    ) -> Optional[StoredCookie]:
+    def get(self, domain: str, path: str, cookie_name: str) -> Optional[StoredCookie]:
         return self._get(
             self._host_only_cookies, domain, path, cookie_name
         ) or self._get(self._domain_cookies, domain, path, cookie_name)

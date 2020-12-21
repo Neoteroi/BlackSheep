@@ -1,3 +1,4 @@
+from openapidocs.common import Format
 from blacksheep.server.openapi.exceptions import (
     DuplicatedContentTypeDocsException,
     UnsupportedUnionTypeException,
@@ -80,11 +81,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         ui_path: str = "/docs",
         json_spec_path: str = "/openapi.json",
         yaml_spec_path: str = "/openapi.yaml",
+        preferred_format: Format = Format.JSON,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
             json_spec_path=json_spec_path,
             yaml_spec_path=yaml_spec_path,
+            preferred_format=preferred_format,
         )
         self.info = info
         self.components = Components()

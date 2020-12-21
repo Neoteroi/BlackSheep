@@ -3,8 +3,7 @@
 #
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
-# Datetime C API initialization function.
-# You have to call it before any usage of DateTime CAPI functions.
+
 from cpython.datetime cimport datetime
 
 

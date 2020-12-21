@@ -1,6 +1,5 @@
-from abc import ABC, abstractmethod
 import json
-from blacksheep.server.responses import FriendlyEncoderExtended
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from http import HTTPStatus
@@ -10,9 +9,9 @@ from blacksheep.messages import Request
 from blacksheep.server.application import Application
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
+from blacksheep.server.responses import FriendlyEncoderExtended
 from blacksheep.server.routing import Route, Router
-from openapidocs.common import OpenAPIRoot, Serializer
-
+from openapidocs.common import Format, OpenAPIRoot, Serializer
 
 T = TypeVar("T")
 
@@ -78,6 +77,10 @@ class EndpointDocs:
 OpenAPIRootType = TypeVar("OpenAPIRootType", bound=OpenAPIRoot)
 
 
+class OpenAPIEndpointException(Exception):
+    pass
+
+
 class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     """
     Provides methods to handle the documentation for an API.
@@ -85,9 +88,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
     def __init__(
         self,
+        *,
         ui_path: str = "/docs",
         json_spec_path: str = "/openapi.json",
         yaml_spec_path: str = "/openapi.yaml",
+        preferred_format: Format = Format.JSON,
     ) -> None:
         self._handlers_docs: Dict[Any, EndpointDocs] = {}
         self.use_docstrings: bool = True
@@ -98,6 +103,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._ui_html: bytes = b""
         self._json_docs: bytes = b""
         self._yaml_docs: bytes = b""
+        self.preferred_format = preferred_format
 
     def __call__(
         self,
@@ -110,7 +116,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None,
         ignored: Optional[bool] = None,
         deprecated: Optional[bool] = None,
-        on_created: Optional[Callable[[Any, Any], None]] = None
+        on_created: Optional[Callable[[Any, Any], None]] = None,
     ) -> Any:
         def decorator(fn):
             if doc:
@@ -253,11 +259,24 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
         return routes_dictionary
 
+    def get_spec_path(self) -> str:
+        if self.preferred_format == Format.JSON:
+            return self.json_spec_path
+
+        if self.preferred_format == Format.YAML:
+            return self.yaml_spec_path
+
+        raise OpenAPIEndpointException(
+            f"Unhandled preferred format {self.preferred_format}"
+        )
+
     def get_openapi_ui_html(self) -> str:
         """
         Returns the HTML response to serve the Swagger UI.
         """
-        return get_resource_file_content("openapi-ui.html")
+        return get_resource_file_content("openapi-ui.html").replace(
+            "##SPEC_URL##", self.get_spec_path()
+        )
 
     def register_docs_ui_handler(self, app: Application) -> None:
         current_time = datetime.utcnow().timestamp()
@@ -276,14 +295,18 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         @app.route(self.json_spec_path, methods=["GET", "HEAD"])
         def get_open_api_json(request: Request):
             return get_response_for_static_content(
-                request, b"application/json", self._json_docs, current_time
+                request,
+                b"application/json",
+                self._json_docs,
+                current_time,
+                cache_time=1,
             )
 
         @self.ignore()
         @app.route(self.yaml_spec_path, methods=["GET", "HEAD"])
         def get_open_api_yaml(request: Request):
             return get_response_for_static_content(
-                request, b"text/yaml", self._yaml_docs, current_time
+                request, b"text/yaml", self._yaml_docs, current_time, cache_time=1
             )
 
     def normalize_example(self, value: Any) -> Any:

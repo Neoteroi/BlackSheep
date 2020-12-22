@@ -3,7 +3,7 @@ import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pkg_resources
@@ -1557,6 +1557,103 @@ async def test_handler_from_json_parameter():
         assert value.a == "Hello"
         assert value.b == "World"
         assert value.c == 10
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_without_annotation():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_dict():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[dict]):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_dict_unannotated():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Dict]):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_dict_annotated():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Dict[str, Any]]):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
 
     app.normalize_handlers()
     await app(

@@ -132,7 +132,11 @@ class FromServices(BoundValue[T]):
 class FromJson(BoundValue[T]):
     """
     A parameter obtained from JSON request body.
+    If value type is `dict`, `typing.Dict`, or not specified, the deserialized JSON
+    is returned without any cast.
     """
+
+    default_value_type = dict
 
 
 class FromText(BoundValue[str]):
@@ -152,6 +156,8 @@ class FromForm(BoundValue[T]):
     A parameter obtained from Form request body: either
     application/x-www-form-urlencoded or multipart/form-data.
     """
+
+    default_value_type = dict
 
 
 class FromFiles(BoundValue[List[FormPart]]):
@@ -332,6 +338,13 @@ class MissingConverterError(Exception):
         )
 
 
+def _try_get_type_name(expected_type) -> str:
+    try:
+        return expected_type.__name__
+    except AttributeError:  # pragma: no cover
+        return expected_type
+
+
 def get_default_class_converter(expected_type):
     def converter(data):
         try:
@@ -339,7 +352,7 @@ def get_default_class_converter(expected_type):
         except TypeError as type_error:
             raise BadRequest(
                 f"invalid parameter in request payload, "
-                + f"caused by type {expected_type.__name__} or "
+                + f"caused by type {_try_get_type_name(expected_type)} or "
                 + "one of its subproperties. Error: "
                 + _generalize_init_type_error_message(type_error)
             )
@@ -410,6 +423,8 @@ class BodyBinder(Binder):
             set,
             tuple,
         }:
+            if expected_type is Dict or expected_type.__origin__ is dict:
+                return lambda value: dict(**value)
             return self._get_default_converter_for_iterable(expected_type)
 
         return get_default_class_converter(expected_type)

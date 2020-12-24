@@ -12,7 +12,7 @@ from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
 from rodi import Container
 
-from blacksheep import HttpException, JsonContent, Request, Response, TextContent
+from blacksheep import HTTPException, JsonContent, Request, Response, TextContent
 from blacksheep.server import Application
 from blacksheep.server.bindings import (
     ClientInfo,
@@ -692,7 +692,7 @@ async def test_application_http_exception_handlers():
 
     @app.router.get("/")
     async def home(request):
-        raise HttpException(519)
+        raise HTTPException(519)
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
@@ -721,7 +721,7 @@ async def test_application_http_exception_handlers_called_in_application_context
 
     @app.router.get("/")
     async def home(request):
-        raise HttpException(519)
+        raise HTTPException(519)
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response is not None
@@ -1593,7 +1593,6 @@ async def test_handler_from_json_without_annotation():
         MockSend(),
     )
     assert app.response.status == 204
-
 
 
 @pytest.mark.asyncio

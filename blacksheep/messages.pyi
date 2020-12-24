@@ -207,3 +207,11 @@ class Response(Message):
 
     def with_content(self, content: Content) -> "Response":
         ...
+
+
+def is_cors_request(request: Request) -> bool:
+    ...
+
+
+def is_cors_preflight_request(request: Request) -> bool:
+    ...

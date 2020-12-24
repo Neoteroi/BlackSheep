@@ -5,11 +5,11 @@ cdef class MessageAborted(Exception):
     pass
 
 
-cdef class HttpException(Exception):
+cdef class HTTPException(Exception):
     cdef public int status
 
 
-cdef class BadRequest(HttpException):
+cdef class BadRequest(HTTPException):
     pass
 
 
@@ -17,7 +17,7 @@ cdef class BadRequestFormat(BadRequest):
     cdef public object inner_exception
 
 
-cdef class NotFound(HttpException):
+cdef class NotFound(HTTPException):
     pass
 
 

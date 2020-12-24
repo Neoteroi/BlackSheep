@@ -16,7 +16,7 @@ from .cookies import (
     datetime_to_cookie_format as datetime_to_cookie_format,
     parse_cookie as parse_cookie,
 )
-from .exceptions import HttpException as HttpException
+from .exceptions import HTTPException as HTTPException
 from .headers import Header as Header, Headers as Headers
 from .messages import Request as Request, Response as Response
 from .url import InvalidURL as InvalidURL, URL as URL

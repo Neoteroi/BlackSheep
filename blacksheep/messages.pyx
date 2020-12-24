@@ -452,3 +452,18 @@ cdef class Response(Message):
 
     cpdef bint is_redirect(self):
         return self.status in {301, 302, 303, 307, 308}
+
+
+cpdef bint is_cors_request(Request request):
+    return bool(request.get_first_header(b"Origin"))
+
+
+cpdef bint is_cors_preflight_request(Request request):
+    if request.method != "OPTIONS" or not is_cors_request(request):
+        return False
+
+    next_request_method = request.get_first_header(
+        b"Access-Control-Request-Method"
+    )
+
+    return bool(next_request_method)

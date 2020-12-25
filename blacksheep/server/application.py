@@ -1,8 +1,14 @@
+from blacksheep.server.cors import (
+    CORSPolicy,
+    CORSStrategy,
+    get_cors_middleware,
+)
 import logging
 from typing import (
     Any,
     Awaitable,
     Callable,
+    Iterable,
     List,
     Optional,
     Tuple,
@@ -124,6 +130,7 @@ class Application(BaseApplication):
         self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
         self._middlewares_configured = False
         self.resources = resources
+        self._cors_strategy: Optional[CORSStrategy] = None
         self._authentication_strategy: Optional[AuthenticationStrategy] = None
         self._authorization_strategy: Optional[AuthorizationStrategy] = None
         self.on_start = ApplicationEvent(self)
@@ -149,6 +156,43 @@ class Application(BaseApplication):
     @default_headers.setter
     def default_headers(self, value: Optional[Tuple[Tuple[str, str], ...]]) -> None:
         self._default_headers = tuple(value) if value else None
+
+    def use_cors(
+        self,
+        *,
+        allow_methods: Optional[Iterable[str]] = None,
+        allow_headers: Optional[Iterable[str]] = None,
+        allow_origins: Optional[Iterable[str]] = None,
+        allow_credentials: bool = False,
+        max_age: int = 5,
+    ) -> CORSStrategy:
+        if self.started:
+            raise RuntimeError(
+                "The application is already running, configure CORS rules "
+                "before starting the application"
+            )
+        self._cors_strategy = CORSStrategy(
+            CORSPolicy(
+                allow_methods=allow_methods,
+                allow_headers=allow_headers,
+                allow_origins=allow_origins,
+                allow_credentials=allow_credentials,
+                max_age=max_age,
+            )
+        )
+
+        # Note: the following is a no-op request handler, necessary to activate handling
+        # of OPTIONS preflight requests.
+        # However, preflight requests are handled by the CORS middleware. This is to
+        # stop the chain of middlewares and prevent extra logic from executing for
+        # preflight requests (e.g. authentication logic)
+        @self.router.options("*")
+        async def options_handler(request):
+            return Response(404)
+
+        # User defined catch-all OPTIONS request handlers are not supported when the
+        # built-in CORS handler is used.
+        return self._cors_strategy
 
     def use_authentication(
         self, strategy: Optional[AuthenticationStrategy] = None
@@ -340,6 +384,9 @@ class Application(BaseApplication):
             self.middlewares.insert(
                 0, get_authentication_middleware(self._authentication_strategy)
             )
+
+        if self._cors_strategy:
+            self.middlewares.insert(0, get_cors_middleware(self._cors_strategy))
 
         if self._default_headers:
             self.middlewares.insert(

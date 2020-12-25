@@ -4,7 +4,6 @@ from typing import Any, AsyncIterable, Callable, Optional, Union
 
 from blacksheep import Request, Response
 from blacksheep.server.responses import (
-    FileInput,
     MessageType,
     accepted,
     bad_request,

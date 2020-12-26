@@ -1,13 +1,7 @@
-from blacksheep.cookies import datetime_from_cookie_format
-import pytest
 from datetime import datetime, timedelta
-from blacksheep import (
-    Response,
-    Cookie,
-    URL,
-    TextContent,
-    datetime_to_cookie_format,
-)
+
+import pytest
+from blacksheep import URL, Cookie, Response, TextContent
 from blacksheep.client import ClientSession
 from blacksheep.client.cookies import (
     CookieJar,
@@ -15,7 +9,9 @@ from blacksheep.client.cookies import (
     MissingSchemeInURL,
     StoredCookie,
 )
+from blacksheep.cookies import datetime_from_cookie_format
 from blacksheep.scribe import write_response_cookie
+
 from . import FakePools
 
 
@@ -56,11 +52,7 @@ def test_cookiejar_invalid_domain(request_url, cookie_domain):
     [
         [Cookie("name", "value"), False],
         [
-            Cookie(
-                "name",
-                "value",
-                expires=datetime.utcnow() + timedelta(days=-20)
-            ),
+            Cookie("name", "value", expires=datetime.utcnow() + timedelta(days=-20)),
             True,
         ],
     ],
@@ -143,9 +135,7 @@ async def test_cookies_jar_single_cookie():
             [
                 (
                     b"Set-Cookie",
-                    write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
-                    ),
+                    write_response_cookie(Cookie("X-Foo", "Foo", domain="bezkitu.org")),
                 )
             ],
             ["X-Foo"],
@@ -156,9 +146,7 @@ async def test_cookies_jar_single_cookie():
             [
                 (
                     b"Set-Cookie",
-                    write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
-                    ),
+                    write_response_cookie(Cookie("X-Foo", "Foo", domain="bezkitu.org")),
                 )
             ],
             ["X-Foo"],
@@ -182,9 +170,7 @@ async def test_cookies_jar_single_cookie():
             [
                 (
                     b"Set-Cookie",
-                    write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
-                    ),
+                    write_response_cookie(Cookie("X-Foo", "Foo", domain="bezkitu.org")),
                 )
             ],
             ["X-Foo"],
@@ -240,9 +226,7 @@ async def test_cookies_jar_single_cookie():
             [
                 (
                     b"Set-Cookie",
-                    write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain="bezkitu.org")
-                    ),
+                    write_response_cookie(Cookie("X-Foo", "Foo", domain="bezkitu.org")),
                 )
             ],
             [],
@@ -266,9 +250,7 @@ async def test_cookies_jar_single_cookie():
             [
                 (
                     b"Set-Cookie",
-                    write_response_cookie(
-                        Cookie("X-Foo", "Foo", domain="example.org")
-                    ),
+                    write_response_cookie(Cookie("X-Foo", "Foo", domain="example.org")),
                 )
             ],
             [],
@@ -498,17 +480,19 @@ def test_cookie_jar_check_cookies_removes_expired():
         "foo.org": {
             "/": {
                 "hello": StoredCookie(
-                    Cookie("hello", "world", expires=datetime_from_cookie_format(b"Fri, 17 Aug 2018 20:55:04 GMT"))
+                    Cookie(
+                        "hello",
+                        "world",
+                        expires=datetime_from_cookie_format(
+                            b"Fri, 17 Aug 2018 20:55:04 GMT"
+                        ),
+                    )
                 )
             }
         }
     }
 
-    list(
-        jar._get_cookies_checking_exp(
-            "https", jar._host_only_cookies["foo.org"]["/"]
-        )
-    )
+    list(jar._get_cookies_checking_exp("https", jar._host_only_cookies["foo.org"]["/"]))
     assert jar.get("foo.org", "/", "hello") is None
 
 

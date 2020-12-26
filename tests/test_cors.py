@@ -1,8 +1,23 @@
 import pytest
-from blacksheep.server.cors import CORSPolicy, cors
+from blacksheep.server.application import ApplicationAlreadyStartedCORSError
+from blacksheep.server.cors import (
+    CORSConfigurationError,
+    CORSPolicy,
+    CORSPolicyNotConfiguredError,
+    CORSStrategy,
+    NotRequestHandlerError,
+)
 from blacksheep.server.responses import text
+from blacksheep.server.routing import Router
 
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
+
+
+def test_app_raises_type_error_for_cors_property():
+    app = FakeApplication()
+
+    with pytest.raises(TypeError):
+        app.cors
 
 
 def test_cors_policy():
@@ -89,6 +104,25 @@ def test_cors_policy_raises_for_negative_max_age():
         policy.max_age = -5
 
 
+def test_cors_strategy_raises_for_missing_policy_name():
+    cors = CORSStrategy(CORSPolicy(), Router())
+
+    with pytest.raises(CORSConfigurationError):
+        cors.add_policy("", CORSPolicy())
+
+    with pytest.raises(CORSConfigurationError):
+        cors.add_policy(None, CORSPolicy())  # type: ignore
+
+
+def test_cors_strategy_raises_for_duplicate_policy_name():
+    cors = CORSStrategy(CORSPolicy(), Router())
+
+    cors.add_policy("a", CORSPolicy())
+
+    with pytest.raises(CORSConfigurationError):
+        cors.add_policy("a", CORSPolicy())
+
+
 @pytest.mark.asyncio
 async def test_cors_request():
     app = FakeApplication()
@@ -151,9 +185,13 @@ async def test_cors_preflight_request():
 
     app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
 
-    @app.router.get("/")
+    @app.router.post("/")
     async def home():
         return text("Hello, World")
+
+    @app.router.delete("/")
+    async def delete_example():
+        ...
 
     await app.start()
 
@@ -211,7 +249,7 @@ async def test_cors_preflight_request_allow_headers():
         allow_headers="Authorization credentials",
     )
 
-    @app.router.get("/")
+    @app.route("/", methods=["GET", "POST"])
     async def home():
         return text("Hello, World")
 
@@ -293,6 +331,10 @@ async def test_cors_preflight_request_allow_credentials():
     async def home():
         return text("Hello, World")
 
+    @app.router.post("/")
+    async def post_example():
+        ...
+
     await app.start()
 
     await app(
@@ -322,6 +364,10 @@ async def test_cors_preflight_request_allow_any():
     @app.router.get("/")
     async def home():
         return text("Hello, World")
+
+    @app.router.post("/")
+    async def post_example():
+        ...
 
     await app.start()
 
@@ -414,29 +460,96 @@ async def test_use_cors_raises_for_started_app():
 
     await app.start()
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ApplicationAlreadyStartedCORSError):
         app.use_cors()
 
-    await app.start()
+    with pytest.raises(ApplicationAlreadyStartedCORSError):
+        app.add_cors_policy("deny")
 
 
 @pytest.mark.asyncio
-async def OFF_test_cors_by_handler():
+async def test_add_cors_policy_configures_cors_settings():
+    app = FakeApplication()
+
+    app.add_cors_policy(
+        "yes", allow_methods="GET POST", allow_origins="https://www.neoteroi.dev"
+    )
+
+    @app.cors("yes")
+    @app.router.post("/")
+    async def home():
+        return text("Hello, World")
+
+    @app.router.post("/another")
+    async def another():
+        ...
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "OPTIONS",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+                (b"Access-Control-Request-Method", b"POST"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert set(
+        response.headers.get_single(b"Access-Control-Allow-Methods").split(b", ")
+    ) == {b"GET", b"POST"}
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+
+    await app(
+        get_example_scope(
+            "OPTIONS",
+            "/another",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+                (b"Access-Control-Request-Method", b"POST"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 400
+    assert (
+        response.headers.get_single(b"CORS-Error")
+        == b"The origin of the request is not enabled by CORS rules."
+    )
+
+
+@pytest.mark.asyncio
+async def test_cors_by_handler():
     app = FakeApplication()
 
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
-    ).add(
-        "specific",
-        CORSPolicy(allow_methods="GET POST", allow_origins="https://www.neoteroi.xyz"),
     )
 
-    @app.router.get("/")
+    app.add_cors_policy(
+        "specific",
+        allow_methods="GET POST",
+        allow_origins="https://www.neoteroi.xyz",
+    )
+
+    @app.route("/", methods=["GET", "POST"])
     async def home():
         return text("Hello, World")
 
-    @cors("specific")
-    @app.router.get("/specific-rules")
+    @app.cors("specific")
+    @app.route("/specific-rules", methods=["GET", "POST"])
     async def different_rules():
         return text("Specific")
 
@@ -468,7 +581,7 @@ async def OFF_test_cors_by_handler():
     await app(
         get_example_scope(
             "OPTIONS",
-            "/",
+            "/specific-rules",
             [
                 (b"Origin", b"https://www.neoteroi.xyz"),
                 (b"Access-Control-Request-Method", b"POST"),
@@ -489,5 +602,55 @@ async def OFF_test_cors_by_handler():
     ) == {b"GET", b"POST"}
 
 
-# TODO: support more policies
-# TODO: cleaner handling of polluting properties
+def test_cors_decorator_raises_for_missing_policy():
+    app = FakeApplication()
+
+    app.add_cors_policy(
+        "yes", allow_methods="GET POST", allow_origins="https://www.neoteroi.dev"
+    )
+
+    with pytest.raises(CORSPolicyNotConfiguredError):
+
+        @app.cors("nope")
+        @app.router.post("/")
+        async def home():
+            return text("Hello, World")
+
+
+def test_cors_decorator_raises_for_non_request_handler():
+    app = FakeApplication()
+
+    app.add_cors_policy(
+        "yes", allow_methods="GET POST", allow_origins="https://www.neoteroi.dev"
+    )
+
+    with pytest.raises(NotRequestHandlerError):
+
+        @app.cors("yes")
+        async def home():
+            return text("Hello, World")
+
+
+@pytest.mark.asyncio
+async def test_cors_preflight_request_handles_404_for_missing_routes():
+    app = FakeApplication()
+
+    app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "OPTIONS",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+                (b"Access-Control-Request-Method", b"POST"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 404

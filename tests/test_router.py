@@ -117,12 +117,18 @@ def test_router_add_method(method, pattern, url):
     router = Router()
     router.add(method, pattern, mock_handler)
 
-    route = router.get_match(method, url)
+    match = router.get_match(method, url)
 
+    assert match is not None
+    assert match.handler is mock_handler
+
+    route = router.get_matching_route(method, url)
     assert route is not None
-    assert route.handler is mock_handler
 
-    route = router.get_match(FAKE, url)
+    match = router.get_match(FAKE, url)
+    assert match is None
+
+    route = router.get_matching_route(FAKE, url)
     assert route is None
 
 

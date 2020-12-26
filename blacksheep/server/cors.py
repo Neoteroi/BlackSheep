@@ -1,21 +1,11 @@
 import re
-import weakref
+from functools import lru_cache
 from typing import Any, Awaitable, Callable, Dict, FrozenSet, Iterable, Optional, Union
 
 from blacksheep.messages import Request, Response
+from blacksheep.server.routing import Route, Router
 
-from .responses import ok, status_code
-
-
-HandlersPolicy = weakref.WeakKeyDictionary()
-
-
-def cors(policy: str):
-    def decorator(fn):
-        HandlersPolicy[fn] = policy
-        return fn
-
-    return decorator
+from .responses import not_found, ok, status_code
 
 
 class CORSPolicy:
@@ -122,24 +112,93 @@ class CORSPolicy:
         return self
 
 
+class CORSConfigurationError(Exception):
+    pass
+
+
+class CORSPolicyNotConfiguredError(CORSConfigurationError):
+    def __init__(self, name: str) -> None:
+        super().__init__(
+            f'The policy with name "{name}" is not configured. '
+            "Configure this policy before applying it to request handlers."
+        )
+
+
+class NotRequestHandlerError(CORSConfigurationError):
+    def __init__(self) -> None:
+        super().__init__(
+            "The decorated function is not a request handler. "
+            "Apply the @cors() decorator after decorators that define routes."
+        )
+
+
 class CORSStrategy:
-    def __init__(self, default_policy: CORSPolicy) -> None:
+    def __init__(self, default_policy: CORSPolicy, router: Router) -> None:
         self.default_policy = default_policy
-        self.policies: Dict[str, CORSPolicy] = {}
+        self._router = router
+        self._policies: Dict[str, CORSPolicy] = {}
+        self._policies_by_route: Dict[Route, CORSPolicy] = {}
 
-    def add(self, name: str, policy: CORSPolicy) -> None:
-        if name in self.policies:
-            raise ValueError(f"A policy with name {name} is already configured.")
+    @property
+    def router(self) -> Router:
+        return self._router
 
+    @property
+    def policies(self) -> Dict[str, CORSPolicy]:
+        return self._policies
+
+    def add_policy(self, name: str, policy: CORSPolicy) -> "CORSStrategy":
+        """
+        Adds a new CORS policy by name to the overall CORS configuration.
+
+        The CORS policy can then be associated to specific request handlers,
+        using the instance of `CORSStrategy` as a function decorator:
+
+        @app.cors("example")
+        @app.route("/")
+        async def foo():
+            ....
+        """
         if not name:
-            raise ValueError(
+            raise CORSConfigurationError(
                 "A name is required to configure additional CORS policies."
             )
 
-        self.policies[name] = policy
+        if name in self.policies:
+            raise CORSConfigurationError(
+                f"A policy with name {name} is already configured. "
+                "The name of CORS policies must be unique."
+            )
 
-    def get(self, name: str) -> Optional[CORSPolicy]:
-        return self.policies.get(name)
+        self.policies[name] = policy
+        return self
+
+    def get_policy_by_route(self, route: Route) -> Optional[CORSPolicy]:
+        return self._policies_by_route.get(route)
+
+    def get_policy_by_route_or_default(self, route: Route) -> CORSPolicy:
+        return self.get_policy_by_route(route) or self.default_policy
+
+    def __call__(self, policy: str):
+        """Decorates a request handler to bind it to a specific policy by name."""
+
+        def decorator(fn):
+            is_match = False
+            policy_object = self.policies.get(policy)
+            if not policy_object:
+                raise CORSPolicyNotConfiguredError(policy)
+
+            for route in self.router:
+                if route.handler is fn:
+                    self._policies_by_route[route] = policy_object
+                    is_match = True
+
+            if not is_match:
+                raise NotRequestHandlerError()
+
+            return fn
+
+        return decorator
 
 
 def _get_cors_error_response(message: str) -> Response:
@@ -166,40 +225,52 @@ def _get_invalid_header_response(header_name: str) -> Response:
     )
 
 
+@lru_cache(maxsize=100)
+def _get_encoded_value_for_set(items: FrozenSet[str]) -> bytes:
+    if not items:
+        return b""
+    return ", ".join(items).encode()
+
+
+@lru_cache(maxsize=20)
+def _get_encoded_value_for_max_age(max_age: int) -> bytes:
+    return str(max_age).encode()
+
+
 def get_cors_middleware(
     strategy: CORSStrategy,
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
-    # TODO: use a policy by request method and path
-
-    # TODO: how to support METHOD and PATH based rules?
-    # requires a dictionary of METHOD-PATH: CORS POLICY NAME
-    policy = strategy.default_policy
-    allowed_origins = ", ".join(policy.allow_origins).encode()
-    allowed_methods = ", ".join(policy.allow_methods).encode()
-    expose_headers = ", ".join(policy.expose_headers).encode()
-    max_age = str(policy.max_age).encode()
-
-    async def cors_middleware(request, handler):
-        # NB: we cannot match policy configuration by handler, because the
-        # handler for OPTIONS is different than the actual request handler for which
-        # the preflight request is happening
-
-        # NB: using request method and path also makes the use of global variables
-        # like a global WeakKeyDictionary not advisable (it doesn't support multiple
-        # applications!)
+    async def cors_middleware(request: Request, handler):
         origin = request.get_first_header(b"Origin")
 
         if not origin:
             # not a CORS request
             return await handler(request)
 
+        next_request_method = request.get_first_header(b"Access-Control-Request-Method")
+
+        # match policy by route to support route-specific CORS rules,
+        # instead of supporting only global CORS rules
+        # this approach has the added value that destination routes are validated for
+        # OPTIONS requests, instead of assuming a path is handled
+        route = strategy.router.get_matching_route(
+            next_request_method or request.method, request.url.path
+        )
+
+        if route is None:
+            return not_found()
+
+        policy = strategy.get_policy_by_route_or_default(route)
+        allowed_origins = _get_encoded_value_for_set(policy.allow_origins)
+        allowed_methods = _get_encoded_value_for_set(policy.allow_methods)
+        expose_headers = _get_encoded_value_for_set(policy.expose_headers)
+        max_age = _get_encoded_value_for_max_age(policy.max_age)
+
         if (
             "*" not in policy.allow_origins
             and origin.decode() not in policy.allow_origins
         ):
             return _get_invalid_origin_response()
-
-        next_request_method = request.get_first_header(b"Access-Control-Request-Method")
 
         if next_request_method:
             # This is a preflight request;

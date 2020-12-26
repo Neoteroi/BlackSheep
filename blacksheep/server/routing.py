@@ -265,7 +265,7 @@ class Router(RouterBase):
         self._fallback = value
 
     def __iter__(self):
-        for key, routes in self.routes.items():
+        for _, routes in self.routes.items():
             for route in routes:
                 yield route
         if self._fallback:
@@ -326,6 +326,14 @@ class Router(RouterBase):
             return None
 
         return RouteMatch(self._fallback, None)
+
+    @lru_cache(maxsize=1200)
+    def get_matching_route(self, method: AnyStr, value: AnyStr) -> Optional[Route]:
+        for route in self.routes[ensure_bytes(method)]:
+            match = route.match(ensure_bytes(value))
+            if match:
+                return route
+        return None
 
 
 class RegisteredRoute:

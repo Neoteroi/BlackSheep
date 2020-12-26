@@ -14,6 +14,7 @@ from typing import (
     Tuple,
     Type,
     Sequence,
+    Union,
 )
 
 from guardpost.asynchronous.authentication import AuthenticationStrategy
@@ -160,9 +161,9 @@ class Application(BaseApplication):
     def use_cors(
         self,
         *,
-        allow_methods: Optional[Iterable[str]] = None,
-        allow_headers: Optional[Iterable[str]] = None,
-        allow_origins: Optional[Iterable[str]] = None,
+        allow_methods: Union[None, str, Iterable[str]] = None,
+        allow_headers: Union[None, str, Iterable[str]] = None,
+        allow_origins: Union[None, str, Iterable[str]] = None,
         allow_credentials: bool = False,
         max_age: int = 5,
     ) -> CORSStrategy:

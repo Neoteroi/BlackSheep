@@ -1,41 +1,20 @@
 import re
-from typing import Any, Awaitable, Callable, Iterable, Optional, FrozenSet
+from typing import Any, Awaitable, Callable, Iterable, FrozenSet, Union
 
 from blacksheep.messages import Request, Response
-from .responses import text, ok
-
-
-class CORSException(Exception):
-    pass
-
-
-class DisallowedOriginCORSException(CORSException):
-    def __init__(self) -> None:
-        super().__init__("The request origin is not allowed.")
-
-
-class DisallowedMethodCORSException(CORSException):
-    def __init__(self) -> None:
-        super().__init__("The request method is not allowed.")
-
-
-class DisallowedHeaderCORSException(CORSException):
-    def __init__(self, header_name: str) -> None:
-        super().__init__(
-            f"The request includes an header that is not allowed: {header_name}."
-        )
+from .responses import status_code, ok
 
 
 class CORSPolicy:
     def __init__(
         self,
         *,
-        allow_methods: Optional[Iterable[str]] = None,
-        allow_headers: Optional[Iterable[str]] = None,
-        allow_origins: Optional[Iterable[str]] = None,
+        allow_methods: Union[None, str, Iterable[str]] = None,
+        allow_headers: Union[None, str, Iterable[str]] = None,
+        allow_origins: Union[None, str, Iterable[str]] = None,
         allow_credentials: bool = False,
         max_age: int = 5,
-        expose_headers: Optional[Iterable[str]] = None,
+        expose_headers: Union[None, str, Iterable[str]] = None,
     ) -> None:
         if expose_headers is None:
             expose_headers = self.default_expose_headers()
@@ -66,8 +45,10 @@ class CORSPolicy:
         )
 
     def _normalize_set(
-        self, value: Iterable[str], ci_function: Callable[[str], str]
+        self, value: Union[None, str, Iterable[str]], ci_function: Callable[[str], str]
     ) -> FrozenSet[str]:
+        if value is None:
+            return frozenset()
         if isinstance(value, str):
             value = re.split(r"\s|,\s?|;\s?", value)
         return frozenset(map(ci_function, value))
@@ -77,7 +58,7 @@ class CORSPolicy:
         return self._allow_methods
 
     @allow_methods.setter
-    def allow_methods(self, value: Iterable[str]) -> None:
+    def allow_methods(self, value) -> None:
         self._allow_methods = self._normalize_set(value, str.upper)
 
     @property
@@ -85,7 +66,7 @@ class CORSPolicy:
         return self._allow_headers
 
     @allow_headers.setter
-    def allow_headers(self, value: Iterable[str]) -> None:
+    def allow_headers(self, value) -> None:
         self._allow_headers = self._normalize_set(value, str.lower)
 
     @property
@@ -93,7 +74,7 @@ class CORSPolicy:
         return self._allow_origins
 
     @allow_origins.setter
-    def allow_origins(self, value: Iterable[str]) -> None:
+    def allow_origins(self, value) -> None:
         self._allow_origins = self._normalize_set(value, str.lower)
 
     @property
@@ -112,7 +93,7 @@ class CORSPolicy:
         return self._expose_headers
 
     @expose_headers.setter
-    def expose_headers(self, value: Iterable[str]) -> None:
+    def expose_headers(self, value) -> None:
         self._expose_headers = self._normalize_set(value, str.lower)
 
     def allow_any_header(self) -> "CORSPolicy":
@@ -134,16 +115,28 @@ class CORSStrategy:
         self.default_policy = default_policy
 
 
+def _get_cors_error_response(message: str) -> Response:
+    response = status_code(400)
+    response.add_header(b"CORS-Error", message.encode())
+    return response
+
+
 def _get_invalid_origin_response() -> Response:
-    return text("The origin of the request is not enabled by CORS rules.", 400)
+    return _get_cors_error_response(
+        "The origin of the request is not enabled by CORS rules."
+    )
 
 
 def _get_invalid_method_response() -> Response:
-    return text("The method of the request is not enabled by CORS rules.", 400)
+    return _get_cors_error_response(
+        "The method of the request is not enabled by CORS rules."
+    )
 
 
 def _get_invalid_header_response(header_name: str) -> Response:
-    return text(f"The request header {header_name} is not enabled by CORS rules.", 400)
+    return _get_cors_error_response(
+        f'The "{header_name}" request header is not enabled by CORS rules.'
+    )
 
 
 def get_cors_middleware(
@@ -166,7 +159,10 @@ def get_cors_middleware(
             # not a CORS request
             return await handler(request)
 
-        if "*" not in policy.allow_origins and origin not in policy.allow_origins:
+        if (
+            "*" not in policy.allow_origins
+            and origin.decode() not in policy.allow_origins
+        ):
             return _get_invalid_origin_response()
 
         next_request_method = request.get_first_header(b"Access-Control-Request-Method")
@@ -175,7 +171,7 @@ def get_cors_middleware(
             # This is a preflight request;
             if (
                 "*" not in policy.allow_methods
-                and next_request_method not in policy.allow_methods
+                and next_request_method.decode() not in policy.allow_methods
             ):
                 return _get_invalid_method_response()
 
@@ -183,7 +179,7 @@ def get_cors_middleware(
                 b"Access-Control-Request-Headers"
             )
 
-            if next_request_headers:
+            if next_request_headers and "*" not in policy.allow_headers:
                 for value in next_request_headers.split(b","):
                     str_value = value.strip().decode()
                     if str_value.lower() not in policy.allow_headers:
@@ -198,13 +194,13 @@ def get_cors_middleware(
                     b"Access-Control-Allow-Headers", next_request_headers
                 )
 
+            if policy.allow_credentials:
+                response.set_header(b"Access-Control-Allow-Credentials", b"true")
+
             response.set_header(b"Access-Control-Max-Age", max_age)
             return response
 
         # regular (non-preflight) CORS request
-        if "*" not in policy.allow_origins and origin not in policy.allow_origins:
-            return _get_invalid_origin_response()
-
         if (
             "*" not in policy.allow_methods
             and request.method not in policy.allow_methods
@@ -214,7 +210,7 @@ def get_cors_middleware(
         response = await handler(request)
         response.set_header(b"Access-Control-Allow-Origin", allowed_origins)
         response.set_header(b"Access-Control-Expose-Headers", expose_headers)
-        # TODO: handle credentials
+
         return response
 
     return cors_middleware

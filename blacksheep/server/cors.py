@@ -1,8 +1,21 @@
 import re
-from typing import Any, Awaitable, Callable, Iterable, FrozenSet, Union
+import weakref
+from typing import Any, Awaitable, Callable, Dict, FrozenSet, Iterable, Optional, Union
 
 from blacksheep.messages import Request, Response
-from .responses import status_code, ok
+
+from .responses import ok, status_code
+
+
+HandlersPolicy = weakref.WeakKeyDictionary()
+
+
+def cors(policy: str):
+    def decorator(fn):
+        HandlersPolicy[fn] = policy
+        return fn
+
+    return decorator
 
 
 class CORSPolicy:
@@ -110,9 +123,23 @@ class CORSPolicy:
 
 
 class CORSStrategy:
-    # TODO: support a number of policies
     def __init__(self, default_policy: CORSPolicy) -> None:
         self.default_policy = default_policy
+        self.policies: Dict[str, CORSPolicy] = {}
+
+    def add(self, name: str, policy: CORSPolicy) -> None:
+        if name in self.policies:
+            raise ValueError(f"A policy with name {name} is already configured.")
+
+        if not name:
+            raise ValueError(
+                "A name is required to configure additional CORS policies."
+            )
+
+        self.policies[name] = policy
+
+    def get(self, name: str) -> Optional[CORSPolicy]:
+        return self.policies.get(name)
 
 
 def _get_cors_error_response(message: str) -> Response:
@@ -153,6 +180,13 @@ def get_cors_middleware(
     max_age = str(policy.max_age).encode()
 
     async def cors_middleware(request, handler):
+        # NB: we cannot match policy configuration by handler, because the
+        # handler for OPTIONS is different than the actual request handler for which
+        # the preflight request is happening
+
+        # NB: using request method and path also makes the use of global variables
+        # like a global WeakKeyDictionary not advisable (it doesn't support multiple
+        # applications!)
         origin = request.get_first_header(b"Origin")
 
         if not origin:

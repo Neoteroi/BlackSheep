@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1] - 2020-12-25 🎄
+## [0.3.1] - 2020-12-26 🎄
 - Implements an abstraction layer to handle CORS
-- Improves the code API to handle [response cookies](https://www.neoteroi.dev/blacksheep/responses/#setting-cookies).
+- Improves the code API to handle [response cookies](https://www.neoteroi.dev/blacksheep/responses/#setting-cookies)
 - Adds more binders: `FromText`, `FromBytes`, `RequestMethod`, `RequestURL`
 - Improves `FromJson` binder to support returning the dictionary after JSON deserialization
 - Improves the default bad request response for invalid dataclass
@@ -17,10 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixes bugs: #54, #55, #68
 
 ## [0.3.0] - 2020-12-16 :gear:
-- Builds `wheels` and packs them in the distribution package.
+- Builds `wheels` and packs them in the distribution package
 
 ## [0.2.9] - 2020-12-12 🏳️
-- Corrects inconsistent dependency causing an error in `pip-20.3.1`.
+- Corrects inconsistent dependency causing an error in `pip-20.3.1`
 
 ## [0.2.8] - 2020-12-10 📜
 - Links to the new website with documentation: [https://www.neoteroi.dev/blacksheep/](https://www.neoteroi.dev/blacksheep/)

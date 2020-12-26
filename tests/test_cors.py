@@ -1,5 +1,5 @@
 import pytest
-from blacksheep.server.cors import CORSPolicy
+from blacksheep.server.cors import CORSPolicy, cors
 from blacksheep.server.responses import text
 
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
@@ -418,6 +418,75 @@ async def test_use_cors_raises_for_started_app():
         app.use_cors()
 
     await app.start()
+
+
+@pytest.mark.asyncio
+async def OFF_test_cors_by_handler():
+    app = FakeApplication()
+
+    app.use_cors(
+        allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
+    ).add(
+        "specific",
+        CORSPolicy(allow_methods="GET POST", allow_origins="https://www.neoteroi.xyz"),
+    )
+
+    @app.router.get("/")
+    async def home():
+        return text("Hello, World")
+
+    @cors("specific")
+    @app.router.get("/specific-rules")
+    async def different_rules():
+        return text("Specific")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "OPTIONS",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+                (b"Access-Control-Request-Method", b"POST"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+    assert set(
+        response.headers.get_single(b"Access-Control-Allow-Methods").split(b", ")
+    ) == {b"GET", b"POST", b"DELETE"}
+
+    await app(
+        get_example_scope(
+            "OPTIONS",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.xyz"),
+                (b"Access-Control-Request-Method", b"POST"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.xyz"
+    )
+    assert set(
+        response.headers.get_single(b"Access-Control-Allow-Methods").split(b", ")
+    ) == {b"GET", b"POST"}
 
 
 # TODO: support more policies

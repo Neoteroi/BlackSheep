@@ -387,3 +387,28 @@ def test_get_www_authenticated_header_from_generic_unauthorized_error(
     name, value = header
     assert name == b"WWW-Authenticate"
     assert value == expected_value
+
+
+@pytest.mark.asyncio
+async def test_authorization_default_requires_authenticated_user():
+    app = FakeApplication()
+
+    app.use_authentication().add(MockNotAuthHandler())
+
+    app.use_authorization()
+
+    @app.router.get("/")
+    async def home():
+        return None
+
+    @auth()
+    @app.router.get("/admin")
+    async def admin():
+        return None
+
+    app.prepare()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    assert app.response.status == 204
+
+    await app(get_example_scope("GET", "/admin"), MockReceive(), MockSend())
+    assert app.response.status == 401

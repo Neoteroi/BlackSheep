@@ -1,8 +1,3 @@
-from blacksheep.server.cors import (
-    CORSPolicy,
-    CORSStrategy,
-    get_cors_middleware,
-)
 import logging
 from typing import (
     Any,
@@ -11,16 +6,11 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Tuple,
     Type,
-    Sequence,
     Union,
 )
-
-from guardpost.asynchronous.authentication import AuthenticationStrategy
-from guardpost.asynchronous.authorization import AuthorizationStrategy
-from guardpost.authorization import Policy, UnauthorizedError
-from rodi import Container, Services
 
 from blacksheep.baseapp import BaseApplication
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -40,11 +30,17 @@ from blacksheep.server.authorization import (
 )
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
+from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.files.dynamic import ServeFilesOptions, serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
 from blacksheep.utils import ensure_bytes, join_fragments
+from guardpost.asynchronous.authentication import AuthenticationStrategy
+from guardpost.asynchronous.authorization import AuthorizationStrategy
+from guardpost.authorization import Policy, UnauthorizedError
+from guardpost.common import AuthenticatedRequirement
+from rodi import Container, Services
 
 __all__ = ("Application",)
 
@@ -283,11 +279,10 @@ class Application(BaseApplication):
 
         if strategy.default_policy is None:
             # by default, a default policy is configured with no requirements,
-            # meaning that request handlers allow anonymous users, unless
-            # specified otherwise
-            # this can be modified, by adding a requirement to the default
-            # policy
+            # meaning that request handlers allow anonymous users by default, unless
+            # they are decorated with @auth()
             strategy.default_policy = Policy("default")
+            strategy.add(Policy("authenticated").add(AuthenticatedRequirement()))
 
         self._authorization_strategy = strategy
         self.exceptions_handlers[

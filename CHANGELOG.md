@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - - support defining common responses to be shared across all operations
 - - support defining servers settings without subclassing `OpenAPIHandler`
 - Fixes bugs: #54, #55, #68
+- Renames `HttpException` class to `HTTPException` to follow [PEP 8](https://www.python.org/dev/peps/pep-0008/)
 
 ## [0.3.0] - 2020-12-16 :gear:
 - Builds `wheels` and packs them in the distribution package

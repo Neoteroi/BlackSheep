@@ -1,3 +1,4 @@
+from openapidocs.common import Format
 from blacksheep.server.openapi.exceptions import (
     DuplicatedContentTypeDocsException,
     UnsupportedUnionTypeException,
@@ -32,6 +33,7 @@ from openapidocs.v3 import (
     PathItem,
     Reference,
     RequestBody,
+    Server,
 )
 from openapidocs.v3 import Response as ResponseDoc
 from openapidocs.v3 import Schema, ValueFormat, ValueType
@@ -43,6 +45,7 @@ from .common import (
     ContentInfo,
     ResponseExample,
     ResponseInfo,
+    ResponseStatusType,
     response_status_to_str,
 )
 
@@ -80,15 +83,19 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         ui_path: str = "/docs",
         json_spec_path: str = "/openapi.json",
         yaml_spec_path: str = "/openapi.yaml",
+        preferred_format: Format = Format.JSON,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
             json_spec_path=json_spec_path,
             yaml_spec_path=yaml_spec_path,
+            preferred_format=preferred_format,
         )
         self.info = info
         self.components = Components()
         self._objects_references: Dict[Any, Reference] = {}
+        self.servers: List[Server] = []
+        self.common_responses: Dict[ResponseStatusType, ResponseDoc] = {}
 
     def generate_documentation(self, app: Application) -> OpenAPI:
         return OpenAPI(
@@ -461,21 +468,32 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         docs = self.get_handler_docs(handler)
         data = docs.responses if docs else None
 
-        if not data:
-            return None
-
-        return {
-            response_status_to_str(key): (
-                ResponseDoc(
-                    description=value.description,
-                    content=self._get_content_from_response_info(value.content),
-                    headers=self._get_headers_from_response_info(value.headers),
-                )
-                if isinstance(value, ResponseInfo)
-                else ResponseDoc(description=value)
-            )
-            for key, value in data.items()
+        responses = {
+            response_status_to_str(key): value
+            for key, value in self.common_responses.items()
         }
+
+        if not data:
+            return responses
+
+        responses.update(
+            {
+                response_status_to_str(key): (
+                    ResponseDoc(
+                        description=value.description,
+                        content=self._get_content_from_response_info(value.content),
+                        headers=self._get_headers_from_response_info(value.headers),
+                    )
+                    if isinstance(value, ResponseInfo)
+                    else ResponseDoc(description=value)
+                )
+                for key, value in data.items()
+            }
+        )
+        return responses
+
+    def on_docs_generated(self, docs: OpenAPI) -> None:
+        docs.servers = self.servers
 
     def get_routes_docs(self, router: Router) -> Dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""

@@ -2,6 +2,7 @@
 [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
 [![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/robertoprevato/blacksheep)
 [![codecov](https://codecov.io/gh/RobertoPrevato/BlackSheep/branch/master/graph/badge.svg?token=Nzi29L0Eg1)](https://codecov.io/gh/RobertoPrevato/BlackSheep)
+[![license](https://img.shields.io/github/license/RobertoPrevato/blacksheep.svg)](https://github.com/RobertoPrevato/blacksheep/blob/master/LICENSE)
 
 # BlackSheep
 BlackSheep is an asynchronous web framework to build event based web
@@ -192,7 +193,7 @@ async def only_for_authenticated_users():
   routing](https://www.neoteroi.dev/blacksheep/static-files/#how-to-serve-spas-that-use-html5-history-api)
 * [Support for automatic generation of OpenAPI
   Documentation](https://www.neoteroi.dev/blacksheep/openapi/)
-
+* [Strategy to handle CORS settings](https://www.neoteroi.dev/blacksheep/cors/)
 ## Client features
 BlackSheep includes an HTTP Client.
 
@@ -220,7 +221,6 @@ loop.run_until_complete(client_example(loop))
 * Python 3.7 (cpython)
 * Python 3.8 (cpython)
 * Python 3.9 (cpython)
-
 * Ubuntu 18.04
 * Windows 10
 * macOS

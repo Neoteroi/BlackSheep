@@ -4,6 +4,7 @@ import pytest
 
 from blacksheep import (
     Cookie,
+    CookieSameSiteMode,
     datetime_from_cookie_format,
     datetime_to_cookie_format,
     parse_cookie,
@@ -12,102 +13,113 @@ from blacksheep import (
 
 
 COOKIES = [
-    (b"Foo", b"Power", None, None, None, False, False, None, None, b"Foo=Power"),
     (
-        b"Foo",
-        b"Hello World;",
+        "Foo",
+        "Power",
         None,
         None,
         None,
         False,
         False,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
+        b"Foo=Power",
+    ),
+    (
+        "Foo",
+        "Hello World;",
         None,
         None,
+        None,
+        False,
+        False,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Hello%20World%3B",
     ),
     (
-        b"Foo; foo",
-        b"Hello World;",
+        "Foo; foo",
+        "Hello World;",
         None,
         None,
         None,
         False,
         False,
-        None,
-        None,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo%3B%20foo=Hello%20World%3B",
     ),
     (
-        b"Foo",
-        b"Power",
+        "Foo",
+        "Power",
         datetime(2018, 8, 17, 20, 55, 4),
         None,
         None,
         False,
         False,
-        None,
-        None,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT",
     ),
     (
-        b"Foo",
-        b"Power",
+        "Foo",
+        "Power",
         datetime(2018, 8, 17, 20, 55, 4),
-        b"something.org",
+        "something.org",
         None,
         False,
         False,
-        None,
-        None,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org",
     ),
     (
-        b"Foo",
-        b"Power",
+        "Foo",
+        "Power",
         datetime(2018, 8, 17, 20, 55, 4),
-        b"something.org",
-        b"/",
+        "something.org",
+        "/",
         True,
         False,
-        None,
-        None,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly",
     ),
     (
-        b"Foo",
-        b"Power",
+        "Foo",
+        "Power",
         datetime(2018, 8, 17, 20, 55, 4),
-        b"something.org",
-        b"/",
+        "something.org",
+        "/",
         True,
         True,
-        None,
-        None,
+        -1,
+        CookieSameSiteMode.UNDEFINED,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly; Secure",
     ),
     (
-        b"Foo",
-        b"Power",
+        "Foo",
+        "Power",
         datetime(2018, 8, 17, 20, 55, 4),
-        b"something.org",
-        b"/",
+        "something.org",
+        "/",
         True,
         True,
-        None,
-        b"Lax",
+        -1,
+        CookieSameSiteMode.LAX,
         b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Domain=something.org; Path=/; HttpOnly; Secure; SameSite=Lax",
     ),
     (
-        b"Foo",
-        b"Power",
+        "Foo",
+        "Power",
         datetime(2018, 8, 17, 20, 55, 4),
-        b"something.org",
-        b"/",
+        "something.org",
+        "/",
         True,
         True,
-        datetime(2018, 8, 20, 20, 55, 4),
-        b"Strict",
-        b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Max-Age=Mon, 20 Aug 2018 20:55:04 GMT; "
+        200,
+        CookieSameSiteMode.STRICT,
+        b"Foo=Power; Expires=Fri, 17 Aug 2018 20:55:04 GMT; Max-Age=200; "
         b"Domain=something.org; Path=/; HttpOnly; Secure; SameSite=Strict",
     ),
 ]
@@ -132,12 +144,12 @@ def test_write_cookie(
     cookie = Cookie(
         name,
         value,
-        datetime_to_cookie_format(expires) if expires else None,
+        expires,
         domain,
         path,
         http_only,
         secure,
-        datetime_to_cookie_format(max_age) if max_age else None,
+        max_age,
         same_site,
     )
     value = scribe.write_response_cookie(cookie)
@@ -166,14 +178,13 @@ def test_parse_cookie(
     assert cookie.value == value
     if expires:
         assert cookie.expires is not None
-        assert datetime_from_cookie_format(cookie.expires) == expires
+        assert cookie.expires == expires
     assert cookie.domain == domain
     assert cookie.path == path
     assert cookie.http_only == http_only
     assert cookie.secure == secure
-    if max_age:
-        assert cookie.max_age is not None
-        assert datetime_from_cookie_format(cookie.max_age) == max_age
+    if max_age is not None:
+        assert cookie.max_age == max_age
 
 
 @pytest.mark.parametrize(
@@ -206,27 +217,27 @@ def test_datetime_from_cookie_format_2(expected_result, value):
     [
         (
             b"ARRAffinity=c12038089a7sdlkj1237192873; Path=/; HttpOnly; Domain=example.scm.azurewebsites.net",
-            b"ARRAffinity",
-            b"c12038089a7sdlkj1237192873",
-            b"/",
+            "ARRAffinity",
+            "c12038089a7sdlkj1237192873",
+            "/",
         ),
         (
             b"ARRAffinity=c12038089a7sdlkj1237192873;Path=/;HttpOnly;Domain=example.scm.azurewebsites.net",
-            b"ARRAffinity",
-            b"c12038089a7sdlkj1237192873",
-            b"/",
+            "ARRAffinity",
+            "c12038089a7sdlkj1237192873",
+            "/",
         ),
         (
             b"1P_JAR=2020-08-23-11; expires=Tue, 22-Sep-2020 11:13:40 GMT; path=/; domain=.google.com; Secure",
-            b"1P_JAR",
-            b"2020-08-23-11",
-            b"/",
+            "1P_JAR",
+            "2020-08-23-11",
+            "/",
         ),
         (
             b"NID=204=0K7PurlER1icDcU_vBBCFWff0gPjtSX3saNz-AXBmkjWGi7RWl_XEeV4uAUuHdX0qsAJbaAhl8E-fZTjwMlTyB9Du_bkal2PHdlnz6h0iKsBNjC5ee8JePM-0PW6hCKdyxyORH6Dzhd7kkvJBhZzk6HQz0QeP8vi9h9eDGL0RGs; expires=Mon, 22-Feb-2021 11:13:40 GMT; path=/; domain=.google.com; HttpOnly",
-            b"NID=204",
-            b"0K7PurlER1icDcU_vBBCFWff0gPjtSX3saNz-AXBmkjWGi7RWl_XEeV4uAUuHdX0qsAJbaAhl8E-fZTjwMlTyB9Du_bkal2PHdlnz6h0iKsBNjC5ee8JePM-0PW6hCKdyxyORH6Dzhd7kkvJBhZzk6HQz0QeP8vi9h9eDGL0RGs",
-            b"/",
+            "NID=204",
+            "0K7PurlER1icDcU_vBBCFWff0gPjtSX3saNz-AXBmkjWGi7RWl_XEeV4uAUuHdX0qsAJbaAhl8E-fZTjwMlTyB9Du_bkal2PHdlnz6h0iKsBNjC5ee8JePM-0PW6hCKdyxyORH6Dzhd7kkvJBhZzk6HQz0QeP8vi9h9eDGL0RGs",
+            "/",
         ),
     ],
 )

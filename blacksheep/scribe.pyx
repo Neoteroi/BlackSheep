@@ -1,6 +1,6 @@
 from .url cimport URL
 from .contents cimport Content
-from .cookies cimport Cookie
+from .cookies cimport Cookie, write_cookie_for_response
 from .messages cimport Request, Response
 
 
@@ -105,34 +105,6 @@ cdef void set_headers_for_content(Message message):
         message._add_header_if_missing(b'transfer-encoding', b'chunked')
     else:
         message._add_header_if_missing(b'content-length', str(content.length).encode())
-
-
-cdef bytes write_cookie_for_response(Cookie cookie):
-    cdef list parts = []
-    parts.append(quote(cookie.name).encode() + b'=' + quote(cookie.value).encode())
-
-    if cookie.expires:
-        parts.append(b'Expires=' + cookie.expires)
-
-    if cookie.max_age:
-        parts.append(b'Max-Age=' + cookie.max_age)
-
-    if cookie.domain:
-        parts.append(b'Domain=' + cookie.domain)
-
-    if cookie.path:
-        parts.append(b'Path=' + cookie.path)
-
-    if cookie.http_only:
-        parts.append(b'HttpOnly')
-
-    if cookie.secure:
-        parts.append(b'Secure')
-
-    if cookie.same_site:
-        parts.append(b'SameSite=' + cookie.same_site)
-
-    return b'; '.join(parts)
 
 
 cpdef bytes write_response_cookie(Cookie cookie):

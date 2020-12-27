@@ -191,6 +191,8 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
         # The user of the API did not specify a value type,
         # for example:
         #   def foo(x: FromQuery): ...
+        if hasattr(bound_type, "default_value_type"):
+            return getattr(bound_type, "default_value_type")
         return List[str]
 
     return value_type

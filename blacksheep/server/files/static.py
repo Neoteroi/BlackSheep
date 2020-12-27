@@ -21,7 +21,7 @@ def get_response_for_static_content(
         (b"ETag", current_etag),
     ]
 
-    if cache_time > 0:
+    if cache_time > -1:
         headers.append((b"Cache-Control", b"max-age=" + str(cache_time).encode()))
 
     if previous_etag and current_etag == previous_etag:

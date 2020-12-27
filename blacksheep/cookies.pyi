@@ -1,5 +1,13 @@
 from datetime import datetime
 from typing import Optional, Union
+from enum import IntEnum
+
+
+class CookieSameSiteMode(IntEnum):
+    UNDEFINED = 0
+    LAX = 1
+    STRICT = 2
+    NONE = 3
 
 
 def datetime_to_cookie_format(value: datetime) -> bytes:
@@ -13,20 +21,19 @@ def datetime_from_cookie_format(value: bytes) -> datetime:
 class Cookie:
     def __init__(
         self,
-        name: bytes,
-        value: bytes,
-        expires: Optional[bytes] = None,
-        domain: Optional[bytes] = None,
-        path: Optional[bytes] = None,
+        name: str,
+        value: str,
+        expires: Optional[datetime] = None,
+        domain: Optional[str] = None,
+        path: Optional[str] = None,
         http_only: bool = False,
         secure: bool = False,
-        max_age: Optional[bytes] = None,
+        max_age: int = -1,
         same_site: Optional[bytes] = None,
     ):
         self.name = name
         self.value = value
         self.expires = expires
-        self._expiration = None
         self.domain = domain
         self.path = path
         self.http_only = http_only
@@ -37,23 +44,16 @@ class Cookie:
     def clone(self) -> "Cookie":
         ...
 
-    @property
-    def expiration(self) -> datetime:
-        ...
-
-    @expiration.setter
-    def expiration(self, value: datetime):
-        ...
-
-    def set_max_age(self, max_age: int):
-        ...
-
     def __eq__(self, other: Union[str, bytes, "Cookie"]) -> bool:
         ...
 
     def __repr__(self):
-        return f"<Cookie {self.name.decode()}: {self.value.decode()}>"
+        return f"<Cookie {self.name}: {self.value}>"
 
 
 def parse_cookie(value: bytes) -> Cookie:
+    ...
+
+
+def write_response_cookie(cookie: Cookie) -> bytes:
     ...

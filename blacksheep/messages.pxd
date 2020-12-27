@@ -58,3 +58,7 @@ cdef class Response(Message):
 
 
 cpdef bint method_without_body(str method)
+
+cpdef bint is_cors_request(Request request)
+
+cpdef bint is_cors_preflight_request(Request request)

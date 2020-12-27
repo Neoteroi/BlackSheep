@@ -9,7 +9,7 @@ import re
 import http
 import cchardet as chardet
 from asyncio import Event
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, unquote, quote
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
@@ -217,26 +217,33 @@ cdef class Message:
 
     async def json(self, loads=json_loads):
         text = await self.text()
+
+        if text is None or text == "":
+            return None
+
         try:
             return loads(text)
         except JSONDecodeError as decode_error:
             content_type = self.content_type()
             if content_type and b'json' in content_type:
-                # NB: content type could also be "application/problem+json"; so we don't check for
-                # application/json in this case
-                raise BadRequestFormat(f'Declared Content-Type is {content_type.decode()} but the content '
-                                       f'cannot be parsed as JSON.',
-                                       decode_error)
-            raise InvalidOperation(f'Cannot parse content as JSON; declared Content-Type is '
-                                   f'{content_type.decode()}.',
-                                   decode_error)
+                # NB: content type could also be "application/problem+json";
+                # so we don't check for application/json in this case
+                raise BadRequestFormat(
+                    f'Declared Content-Type is {content_type.decode()} but '
+                    f'the content cannot be parsed as JSON.', decode_error
+                )
+            raise BadRequestFormat(
+                f'Cannot parse content as JSON',
+                decode_error
+            )
 
     cpdef bint has_body(self):
         cdef Content content = self.content
         if not content or content.length == 0:
             return False
         # NB: if we use chunked encoding, we don't know the content.length;
-        # and it is set to -1 (in contents.pyx), therefore it is handled properly
+        # and it is set to -1 (in contents.pyx), therefore it is handled
+        # properly
         return True
 
     @property
@@ -341,7 +348,9 @@ cdef class Request(Message):
         return cookies
 
     def set_cookie(self, Cookie cookie):
-        self.__headers.append((b'cookie', cookie.name + b'=' + cookie.value))
+        self.__headers.append(
+            (b'cookie', (quote(cookie.name) + '=' + quote(cookie.value)).encode())
+        )
 
     def set_cookies(self, list cookies):
         cdef Cookie cookie
@@ -399,7 +408,7 @@ cdef class Response(Message):
                 cookies[cookie.name] = cookie
         return cookies
 
-    def get_cookie(self, bytes name):
+    def get_cookie(self, str name):
         cdef bytes value
         cdef list set_cookies_headers = self.get_headers(b'set-cookie')
 
@@ -419,10 +428,16 @@ cdef class Response(Message):
         for cookie in cookies:
             self.set_cookie(cookie)
 
-    def unset_cookie(self, bytes name):
-        self.set_cookie(Cookie(name, b'', datetime_to_cookie_format(datetime.utcnow() - timedelta(days=365))))
+    def unset_cookie(self, str name):
+        self.set_cookie(
+            Cookie(
+                name,
+                '',
+                datetime.utcnow() - timedelta(days=365)
+            )
+        )
 
-    def remove_cookie(self, bytes name):
+    def remove_cookie(self, str name):
         cdef list to_remove = []
         cdef tuple value
         cdef list set_cookies_headers = self.get_headers_tuples(b'set-cookie')
@@ -437,3 +452,18 @@ cdef class Response(Message):
 
     cpdef bint is_redirect(self):
         return self.status in {301, 302, 303, 307, 308}
+
+
+cpdef bint is_cors_request(Request request):
+    return bool(request.get_first_header(b"Origin"))
+
+
+cpdef bint is_cors_preflight_request(Request request):
+    if request.method != "OPTIONS" or not is_cors_request(request):
+        return False
+
+    next_request_method = request.get_first_header(
+        b"Access-Control-Request-Method"
+    )
+
+    return bool(next_request_method)

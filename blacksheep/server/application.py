@@ -3,17 +3,14 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Iterable,
     List,
     Optional,
+    Sequence,
     Tuple,
     Type,
-    Sequence,
+    Union,
 )
-
-from guardpost.asynchronous.authentication import AuthenticationStrategy
-from guardpost.asynchronous.authorization import AuthorizationStrategy
-from guardpost.authorization import Policy, UnauthorizedError
-from rodi import Container, Services
 
 from blacksheep.baseapp import BaseApplication
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -33,11 +30,17 @@ from blacksheep.server.authorization import (
 )
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
+from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.files.dynamic import ServeFilesOptions, serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
 from blacksheep.utils import ensure_bytes, join_fragments
+from guardpost.asynchronous.authentication import AuthenticationStrategy
+from guardpost.asynchronous.authorization import AuthorizationStrategy
+from guardpost.authorization import Policy, UnauthorizedError
+from guardpost.common import AuthenticatedRequirement
+from rodi import Container, Services
 
 __all__ = ("Application",)
 
@@ -97,6 +100,14 @@ class RequiresServiceContainerError(ApplicationStartupError):
         self.details = details
 
 
+class ApplicationAlreadyStartedCORSError(TypeError):
+    def __init__(self) -> None:
+        super().__init__(
+            "The application is already running, configure CORS rules "
+            "before starting the application"
+        )
+
+
 class Application(BaseApplication):
     def __init__(
         self,
@@ -119,11 +130,10 @@ class Application(BaseApplication):
         self._service_provider: Optional[Services] = None
         self.debug = debug
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []
-        self.access_logger = None
-        self.logger = None
         self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
         self._middlewares_configured = False
         self.resources = resources
+        self._cors_strategy: Optional[CORSStrategy] = None
         self._authentication_strategy: Optional[AuthenticationStrategy] = None
         self._authorization_strategy: Optional[AuthorizationStrategy] = None
         self.on_start = ApplicationEvent(self)
@@ -149,6 +159,97 @@ class Application(BaseApplication):
     @default_headers.setter
     def default_headers(self, value: Optional[Tuple[Tuple[str, str], ...]]) -> None:
         self._default_headers = tuple(value) if value else None
+
+    @property
+    def cors(self) -> CORSStrategy:
+        if not self._cors_strategy:
+            raise TypeError(
+                "CORS settings are not initialized for the application. "
+                + "Use `app.use_cors()` method before using this property."
+            )
+        return self._cors_strategy
+
+    def use_cors(
+        self,
+        *,
+        allow_methods: Union[None, str, Iterable[str]] = None,
+        allow_headers: Union[None, str, Iterable[str]] = None,
+        allow_origins: Union[None, str, Iterable[str]] = None,
+        allow_credentials: bool = False,
+        max_age: int = 5,
+        expose_headers: Union[None, str, Iterable[str]] = None,
+    ) -> CORSStrategy:
+        """
+        Enables CORS for the application, specifying the default rules to be applied
+        for all request handlers.
+        """
+        if self.started:
+            raise ApplicationAlreadyStartedCORSError()
+        self._cors_strategy = CORSStrategy(
+            CORSPolicy(
+                allow_methods=allow_methods,
+                allow_headers=allow_headers,
+                allow_origins=allow_origins,
+                allow_credentials=allow_credentials,
+                max_age=max_age,
+                expose_headers=expose_headers,
+            ),
+            self.router,
+        )
+
+        # Note: the following is a no-op request handler, necessary to activate handling
+        # of OPTIONS preflight requests.
+        # However, preflight requests are handled by the CORS middleware. This is to
+        # stop the chain of middlewares and prevent extra logic from executing for
+        # preflight requests (e.g. authentication logic)
+        @self.router.options("*")
+        async def options_handler(request):
+            return Response(404)
+
+        # User defined catch-all OPTIONS request handlers are not supported when the
+        # built-in CORS handler is used.
+        return self._cors_strategy
+
+    def add_cors_policy(
+        self,
+        policy_name,
+        *,
+        allow_methods: Union[None, str, Iterable[str]] = None,
+        allow_headers: Union[None, str, Iterable[str]] = None,
+        allow_origins: Union[None, str, Iterable[str]] = None,
+        allow_credentials: bool = False,
+        max_age: int = 5,
+        expose_headers: Union[None, str, Iterable[str]] = None,
+    ) -> None:
+        """
+        Configures a set of CORS rules that can later be applied to specific request
+        handlers, by name.
+
+        The CORS policy can then be associated to specific request handlers,
+        using the instance of `CORSStrategy` as a function decorator:
+
+        @app.cors("example")
+        @app.route("/")
+        async def foo():
+            ....
+        """
+        if self.started:
+            raise ApplicationAlreadyStartedCORSError()
+
+        if not self._cors_strategy:
+            self.use_cors()
+
+        self._cors_strategy.add_policy(
+            policy_name,
+            CORSPolicy(
+                allow_methods=allow_methods,
+                allow_headers=allow_headers,
+                allow_origins=allow_origins,
+                allow_credentials=allow_credentials,
+                max_age=max_age,
+                expose_headers=expose_headers,
+            ),
+        )
 
     def use_authentication(
         self, strategy: Optional[AuthenticationStrategy] = None
@@ -178,11 +279,10 @@ class Application(BaseApplication):
 
         if strategy.default_policy is None:
             # by default, a default policy is configured with no requirements,
-            # meaning that request handlers allow anonymous users, unless
-            # specified otherwise
-            # this can be modified, by adding a requirement to the default
-            # policy
+            # meaning that request handlers allow anonymous users by default, unless
+            # they are decorated with @auth()
             strategy.default_policy = Policy("default")
+            strategy.add(Policy("authenticated").add(AuthenticatedRequirement()))
 
         self._authorization_strategy = strategy
         self.exceptions_handlers[
@@ -340,6 +440,9 @@ class Application(BaseApplication):
             self.middlewares.insert(
                 0, get_authentication_middleware(self._authentication_strategy)
             )
+
+        if self._cors_strategy:
+            self.middlewares.insert(0, get_cors_middleware(self._cors_strategy))
 
         if self._default_headers:
             self.middlewares.insert(

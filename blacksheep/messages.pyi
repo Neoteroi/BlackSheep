@@ -138,7 +138,7 @@ class Request(Message):
     def get_cookies(self) -> Dict[str, str]:
         ...
 
-    def get_cookie(self, name: bytes) -> Optional[str]:
+    def get_cookie(self, name: str) -> Optional[str]:
         ...
 
     def set_cookie(self, cookie: Cookie) -> None:
@@ -187,7 +187,7 @@ class Response(Message):
     def get_cookies(self) -> Cookies:
         ...
 
-    def get_cookie(self, name: bytes) -> Optional[Cookie]:
+    def get_cookie(self, name: str) -> Optional[Cookie]:
         ...
 
     def set_cookie(self, cookie: Cookie) -> None:
@@ -207,3 +207,11 @@ class Response(Message):
 
     def with_content(self, content: Content) -> "Response":
         ...
+
+
+def is_cors_request(request: Request) -> bool:
+    ...
+
+
+def is_cors_preflight_request(request: Request) -> bool:
+    ...

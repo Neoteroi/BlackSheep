@@ -1,5 +1,6 @@
+from io import BytesIO
 import sys
-from typing import Any, Optional
+from typing import Any, AsyncIterable, Callable, Optional, Union
 
 from blacksheep import Request, Response
 from blacksheep.server.responses import (
@@ -7,6 +8,8 @@ from blacksheep.server.responses import (
     accepted,
     bad_request,
     created,
+    file,
+    ContentDispositionType,
     forbidden,
     json,
     moved_permanently,
@@ -247,6 +250,33 @@ class Controller(metaclass=ControllerMeta):
         if route_handler_name is None:
             raise CannotDetermineDefaultViewNameError()
         return route_handler_name
+
+    def file(
+        self,
+        value: Union[
+            Callable[[], AsyncIterable[bytes]], str, bytes, bytearray, BytesIO
+        ],
+        content_type: str,
+        *,
+        file_name: str = None,
+        content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,
+    ) -> Response:
+        """
+        Returns a binary file response with given content type and optional
+        file name, for download (attachment)
+        (default HTTP 200 OK). This method supports both call with bytes,
+        or a generator yielding chunks.
+
+        Remarks: this method does not handle cache, ETag and HTTP 304 Not Modified
+        responses; when handling files it is recommended to handle cache, ETag and
+        Not Modified, according to use case.
+        """
+        return file(
+            value,
+            content_type,
+            content_disposition=content_disposition,
+            file_name=file_name,
+        )
 
     def _get_route_handler_name(self):
         """

@@ -114,7 +114,7 @@ async def test_cookies(session, cookies):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "name,value", [(b"Foo", b"Foo"), (b"Character-Name", b"Charlie Brown")]
+    "name,value", [("Foo", "Foo"), ("Character-Name", "Charlie Brown")]
 )
 async def test_set_cookie(session, name, value):
     response = await session.get("/set-cookie", params=dict(name=name, value=value))

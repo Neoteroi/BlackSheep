@@ -2,7 +2,7 @@ __author__ = "Roberto Prevato <roberto.prevato@gmail.com>"
 
 from .url import URL, InvalidURL
 from .headers import Header, Headers
-from .exceptions import HttpException
+from .exceptions import HTTPException
 from .contents import (
     Content,
     StreamedContent,
@@ -16,6 +16,7 @@ from .contents import (
 )
 from .cookies import (
     Cookie,
+    CookieSameSiteMode,
     datetime_from_cookie_format,
     datetime_to_cookie_format,
     parse_cookie,

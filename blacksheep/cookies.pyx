@@ -1,13 +1,14 @@
 from typing import Optional
 from datetime import datetime
 from urllib.parse import quote, unquote
+from cpython.datetime cimport datetime
 
 
-cpdef bytes datetime_to_cookie_format(object value):
+cpdef bytes datetime_to_cookie_format(datetime value):
     return value.strftime('%a, %d %b %Y %H:%M:%S GMT').encode()
 
 
-cpdef object datetime_from_cookie_format(bytes value):
+cpdef datetime datetime_from_cookie_format(bytes value):
     value_str = value.decode()
     try:
         return datetime.strptime(value_str, '%a, %d %b %Y %H:%M:%S GMT')
@@ -17,22 +18,23 @@ cpdef object datetime_from_cookie_format(bytes value):
 
 cdef class Cookie:
 
-    def __init__(self,
-                 bytes name,
-                 bytes value,
-                 bytes expires=None,
-                 bytes domain=None,
-                 bytes path=None,
-                 bint http_only=0,
-                 bint secure=0,
-                 bytes max_age=None,
-                 bytes same_site=None):
+    def __init__(
+        self,
+        str name,
+        str value,
+        datetime expires=None,
+        str domain=None,
+        str path=None,
+        bint http_only=0,
+        bint secure=0,
+        int max_age=-1,
+        CookieSameSiteMode same_site=CookieSameSiteMode.UNDEFINED
+    ):
         if not name:
             raise ValueError('A cookie name is required')
         self.name = name
         self.value = value
         self.expires = expires
-        self._expiration = None
         self.domain = domain
         self.path = path
         self.http_only = http_only
@@ -41,47 +43,29 @@ cdef class Cookie:
         self.same_site = same_site
 
     cpdef Cookie clone(self):
-        return Cookie(self.name,
-                      self.value,
-                      self.expires,
-                      self.domain,
-                      self.path,
-                      self.http_only,
-                      self.secure,
-                      self.max_age,
-                      self.same_site)
-
-    @property
-    def expiration(self):
-        if not self.expires:
-            return None
-
-        if self._expiration is None:
-            self._expiration = datetime_from_cookie_format(self.expires)
-        return self._expiration
-
-    @expiration.setter
-    def expiration(self, value):
-        self._expiration = value
-        if value:
-            self.expires = datetime_to_cookie_format(value)
-        else:
-            self.expires = None
-
-    cpdef void set_max_age(self, int max_age):
-        self.max_age = str(max_age).encode()
+        return Cookie(
+            self.name,
+            self.value,
+            self.expires,
+            self.domain,
+            self.path,
+            self.http_only,
+            self.secure,
+            self.max_age,
+            self.same_site
+        )
 
     def __eq__(self, other):
         if isinstance(other, str):
-            return other.encode() == self.value
-        if isinstance(other, bytes):
             return other == self.value
+        if isinstance(other, bytes):
+            return other.decode() == self.value
         if isinstance(other, Cookie):
             return other.name == self.name and other.value == self.value
         return NotImplemented
 
     def __repr__(self):
-        return f'<Cookie {self.name.decode()}: {self.value.decode()}>'
+        return f'<Cookie {self.name)}: {self.value}>'
 
 
 cdef tuple split_value(bytes raw_value, bytes separator):
@@ -92,9 +76,27 @@ cdef tuple split_value(bytes raw_value, bytes separator):
     return raw_value[:rindex], raw_value[rindex+1:]
 
 
+cdef CookieSameSiteMode same_site_mode_from_bytes(bytes raw_value):
+    cdef bytes raw_value_lower
+    if not raw_value:
+        return CookieSameSiteMode.UNDEFINED
+
+    raw_value_lower = raw_value.lower()
+
+    if raw_value_lower == b"strict":
+        return CookieSameSiteMode.STRICT
+    if raw_value_lower == b"lax":
+        return CookieSameSiteMode.LAX
+    if raw_value_lower == b"none":
+        return CookieSameSiteMode.NONE
+
+    return CookieSameSiteMode.UNDEFINED
+
+
 cpdef Cookie parse_cookie(bytes raw_value):
+    cdef int max_age
     cdef bytes value = b''
-    cdef bytes eq, expires, domain, path, part, max_age, k, v, lower_k, lower_part
+    cdef bytes eq, expires, domain, path, part, k, v, lower_k, lower_part
     cdef bint http_only, secure
     cdef bytes same_site
     cdef list parts
@@ -124,7 +126,7 @@ cpdef Cookie parse_cookie(bytes raw_value):
     path = None
     http_only = False
     secure = False
-    max_age = None
+    max_age = -1
     same_site = None
 
     for part in parts:
@@ -138,7 +140,7 @@ cpdef Cookie parse_cookie(bytes raw_value):
             elif lower_k == b'path':
                 path = v
             elif lower_k == b'max-age':
-                max_age = v
+                max_age = int(v)
             elif lower_k == b'samesite':
                 same_site = v
         else:
@@ -148,15 +150,17 @@ cpdef Cookie parse_cookie(bytes raw_value):
             if lower_part == b'secure':
                 secure = True
 
-    return Cookie(unquote(name.decode()).encode(),
-                  unquote(value.decode()).encode(),
-                  expires,
-                  domain,
-                  path,
-                  http_only,
-                  secure,
-                  max_age,
-                  same_site)
+    return Cookie(
+        unquote(name.decode()),
+        unquote(value.decode()),
+        datetime_from_cookie_format(expires) if expires else None,
+        domain.decode() if domain else None,
+        path.decode() if path else None,
+        http_only,
+        secure,
+        max_age,
+        same_site_mode_from_bytes(same_site)
+    )
 
 
 cdef bytes write_cookie_for_response(Cookie cookie):
@@ -164,24 +168,30 @@ cdef bytes write_cookie_for_response(Cookie cookie):
     parts.append(quote(cookie.name).encode() + b'=' + quote(cookie.value).encode())
 
     if cookie.expires:
-        parts.append(b'Expires=' + cookie.expires)
+        parts.append(b'Expires=' + datetime_to_cookie_format(cookie.expires))
 
-    if cookie.max_age:
-        parts.append(b'Max-Age=' + cookie.max_age)
+    if cookie.max_age > -1:
+        parts.append(b'Max-Age=' + str(cookie.max_age).encode())
 
     if cookie.domain:
-        parts.append(b'Domain=' + cookie.domain)
+        parts.append(b'Domain=' + cookie.domain.encode())
 
     if cookie.path:
-        parts.append(b'Path=' + cookie.path)
+        parts.append(b'Path=' + cookie.path.encode())
 
     if cookie.http_only:
         parts.append(b'HttpOnly')
 
-    if cookie.secure:
+    if cookie.secure or cookie.same_site == CookieSameSiteMode.STRICT or cookie.same_site == CookieSameSiteMode.NONE:
         parts.append(b'Secure')
 
-    if cookie.same_site:
-        parts.append(b'SameSite=' + cookie.same_site)
+    if cookie.same_site == CookieSameSiteMode.STRICT:
+        parts.append(b'SameSite=Strict')
+
+    if cookie.same_site == CookieSameSiteMode.LAX:
+        parts.append(b'SameSite=Lax')
+
+    if cookie.same_site == CookieSameSiteMode.NONE:
+        parts.append(b'SameSite=None')
 
     return b'; '.join(parts)

@@ -9,6 +9,7 @@ See:
 """
 from abc import abstractmethod
 from base64 import urlsafe_b64decode
+from blacksheep.contents import FormPart
 from collections.abc import Iterable as IterableAbc
 from datetime import date, datetime
 from typing import (
@@ -31,6 +32,7 @@ from uuid import UUID
 
 from blacksheep import Request
 from blacksheep.exceptions import BadRequest
+from blacksheep.url import URL
 from dateutil.parser import parse as dateutil_parser
 from guardpost.authentication import Identity
 from rodi import Services
@@ -130,6 +132,22 @@ class FromServices(BoundValue[T]):
 class FromJson(BoundValue[T]):
     """
     A parameter obtained from JSON request body.
+    If value type is `dict`, `typing.Dict`, or not specified, the deserialized JSON
+    is returned without any cast.
+    """
+
+    default_value_type = dict
+
+
+class FromText(BoundValue[str]):
+    """
+    A parameter obtained from the request body as plain text.
+    """
+
+
+class FromBytes(BoundValue[bytes]):
+    """
+    A parameter obtained from the request body as raw bytes.
     """
 
 
@@ -137,6 +155,14 @@ class FromForm(BoundValue[T]):
     """
     A parameter obtained from Form request body: either
     application/x-www-form-urlencoded or multipart/form-data.
+    """
+
+    default_value_type = dict
+
+
+class FromFiles(BoundValue[List[FormPart]]):
+    """
+    A parameter obtained from multipart/form-data files.
     """
 
 
@@ -162,6 +188,18 @@ class RequestUser(BoundValue[Identity]):
     """
     Returns the identity of the user that initiated the web request.
     This value is obtained from the configured authentication strategy.
+    """
+
+
+class RequestURL(BoundValue[URL]):
+    """
+    Returns the URL of the request.
+    """
+
+
+class RequestMethod(BoundValue[str]):
+    """
+    Returns the HTTP Method of the request.
     """
 
 
@@ -300,6 +338,28 @@ class MissingConverterError(Exception):
         )
 
 
+def _try_get_type_name(expected_type) -> str:
+    try:
+        return expected_type.__name__
+    except AttributeError:  # pragma: no cover
+        return expected_type
+
+
+def get_default_class_converter(expected_type):
+    def converter(data):
+        try:
+            return expected_type(**data)
+        except TypeError as type_error:
+            raise BadRequest(
+                f"invalid parameter in request payload, "
+                + f"caused by type {_try_get_type_name(expected_type)} or "
+                + "one of its subproperties. Error: "
+                + _generalize_init_type_error_message(type_error)
+            )
+
+    return converter
+
+
 class BodyBinder(Binder):
     _excluded_methods = {"GET", "HEAD", "TRACE"}
 
@@ -311,9 +371,11 @@ class BodyBinder(Binder):
         required: bool = False,
         converter: Optional[Callable] = None,
     ):
+        super().__init__(expected_type, name, implicit, required, None)
+
         if not converter:
-            converter = self.get_default_binder_for_body(expected_type)
-        super().__init__(expected_type, name, implicit, required, converter)
+            converter = self.get_default_binder_for_body(expected_type)  # type: ignore
+        self.converter = converter
 
     def _get_default_converter_single(self, expected_type):
         # this method converts an item that was already parsed to a supported type,
@@ -339,7 +401,7 @@ class BodyBinder(Binder):
         if expected_type is UUID:
             return lambda value: UUID(value)
 
-        return lambda value: expected_type(**value)
+        return get_default_class_converter(expected_type)
 
     def _get_default_converter_for_iterable(self, expected_type):
         generic_type = self.get_type_for_generic_iterable(expected_type)
@@ -361,12 +423,11 @@ class BodyBinder(Binder):
             set,
             tuple,
         }:
+            if expected_type is Dict or expected_type.__origin__ is dict:
+                return lambda value: dict(**value)
             return self._get_default_converter_for_iterable(expected_type)
 
-        def default_converter(data):
-            return expected_type(**data)
-
-        return default_converter
+        return get_default_class_converter(expected_type)
 
     @property
     @abstractmethod
@@ -407,8 +468,6 @@ class BodyBinder(Binder):
     def parse_value(self, data: dict) -> T:
         try:
             return self.converter(data)
-        except TypeError as te:
-            raise InvalidRequestBody(_generalize_init_type_error_message(te))
         except ValueError as ve:
             raise InvalidRequestBody(str(ve))
 
@@ -448,6 +507,20 @@ class FormBinder(BodyBinder):
 
     async def read_data(self, request: Request) -> Any:
         return await request.form()
+
+
+class TextBinder(Binder):
+    handle = FromText
+
+    async def get_value(self, request: Request) -> str:
+        return await request.text()
+
+
+class BytesBinder(Binder):
+    handle = FromBytes
+
+    async def get_value(self, request: Request) -> Optional[bytes]:
+        return await request.read()
 
 
 def _default_bool_converter(value: str) -> bool:
@@ -724,19 +797,46 @@ class ExactBinder(Binder):
         super().__init__(object, implicit=True)
         self.exact_object = exact_object
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Any:
         return self.exact_object
 
 
 class ClientInfoBinder(Binder):
     handle = ClientInfo
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Tuple[str, int]:
         return tuple(request.scope["client"])
 
 
 class ServerInfoBinder(Binder):
     handle = ServerInfo
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Tuple[str, int]:
         return tuple(request.scope["server"])
+
+
+class RequestURLBinder(Binder):
+    handle = RequestURL
+
+    def __init__(self):
+        super().__init__(URL, name="request url", implicit=False)
+
+    async def get_value(self, request: Request) -> URL:
+        return request.url
+
+
+class RequestMethodBinder(Binder):
+    handle = RequestMethod
+
+    def __init__(self):
+        super().__init__(str, name="request method", implicit=False)
+
+    async def get_value(self, request: Request) -> str:
+        return request.method
+
+
+class FilesBinder(Binder):
+    handle = FromFiles
+
+    async def get_value(self, request: Request) -> List[FormPart]:
+        return await request.files()

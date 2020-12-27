@@ -3,7 +3,7 @@ import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pkg_resources
@@ -12,16 +12,19 @@ from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
 from rodi import Container
 
-from blacksheep import HttpException, JsonContent, Request, Response, TextContent
+from blacksheep import HTTPException, JsonContent, Request, Response, TextContent
 from blacksheep.server import Application
 from blacksheep.server.bindings import (
     ClientInfo,
+    FromBytes,
     FromCookie,
+    FromFiles,
     FromHeader,
     FromJson,
     FromQuery,
     FromRoute,
     FromServices,
+    FromText,
     RequestUser,
     ServerInfo,
 )
@@ -338,6 +341,66 @@ async def test_application_post_handler():
 
 
 @pytest.mark.asyncio
+async def test_application_post_json_handles_missing_body():
+    app = FakeApplication()
+
+    @app.router.post("/api/cat")
+    async def create_cat(request):
+        assert request is not None
+
+        content = await request.read()
+        assert b"" == content
+
+        text = await request.text()
+        assert "" == text
+
+        data = await request.json()
+        assert data is None
+
+        return Response(201)
+
+    send = MockSend()
+    receive = MockReceive([])
+
+    await app(
+        get_example_scope("POST", "/api/cat", []),
+        receive,
+        send,
+    )
+
+    response = app.response
+    assert response.status == 201
+
+
+@pytest.mark.asyncio
+async def test_application_returns_400_for_invalid_json():
+    app = FakeApplication()
+
+    @app.router.post("/api/cat")
+    async def create_cat(request):
+        await request.json()
+        ...
+
+    # invalid JSON:
+    content = b'"name":"Celine";"kind":"Persian"'
+
+    send = MockSend()
+    receive = MockReceive([content])
+
+    await app(
+        get_example_scope(
+            "POST", "/api/cat", [(b"content-length", str(len(content)).encode())]
+        ),
+        receive,
+        send,
+    )
+
+    response = app.response
+    assert response.status == 400
+    assert response.content.body == b"Bad Request: Cannot parse content as JSON"
+
+
+@pytest.mark.asyncio
 async def test_application_middlewares_two():
     app = FakeApplication()
 
@@ -629,7 +692,7 @@ async def test_application_http_exception_handlers():
 
     @app.router.get("/")
     async def home(request):
-        raise HttpException(519)
+        raise HTTPException(519)
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
@@ -658,7 +721,7 @@ async def test_application_http_exception_handlers_called_in_application_context
 
     @app.router.get("/")
     async def home(request):
-        raise HttpException(519)
+        raise HTTPException(519)
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response is not None
@@ -1478,6 +1541,11 @@ class Item:
         self.c = c
 
 
+class Foo:
+    def __init__(self, item) -> None:
+        self.item = Item(**item)
+
+
 @pytest.mark.asyncio
 async def test_handler_from_json_parameter():
     app = FakeApplication()
@@ -1501,6 +1569,387 @@ async def test_handler_from_json_parameter():
         MockSend(),
     )
     assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_without_annotation():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_dict():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[dict]):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_dict_unannotated():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Dict]):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_dict_annotated():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Dict[str, Any]]):
+        assert item is not None
+        assert isinstance(item.value, dict)
+        value = item.value
+        assert value == {"a": "Hello", "b": "World", "c": 10}
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Lorem ipsum dolor sit amet",
+        "Hello, World",
+        "Lorem ipsum dolor sit amet\n" * 200,
+    ],
+)
+@pytest.mark.asyncio
+async def test_handler_from_text_parameter(value: str):
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(text: FromText):
+        assert text.value == value
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                [b"content-type", b"text/plain; charset=utf-8"],
+                [b"content-length", str(len(value)).encode()],
+            ],
+        ),
+        MockReceive([value.encode("utf8")]),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        b"Lorem ipsum dolor sit amet",
+        b"Hello, World",
+        b"Lorem ipsum dolor sit amet\n" * 200,
+    ],
+)
+@pytest.mark.asyncio
+async def test_handler_from_bytes_parameter(value: bytes):
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(text: FromBytes):
+        assert text.value == value
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                [b"content-type", b"text/plain; charset=utf-8"],
+                [b"content-length", str(len(value)).encode()],
+            ],
+        ),
+        MockReceive([value]),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_files():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(files: FromFiles):
+        assert files is not None
+        assert files.value is not None
+        assert len(files.value) == 4
+        file1 = files.value[0]
+        file2 = files.value[1]
+        file3 = files.value[2]
+        file4 = files.value[3]
+
+        assert file1.name == b"file1"
+        assert file1.file_name == b"a.txt"
+        assert file1.data == b"Content of a.txt.\r\n"
+
+        assert file2.name == b"file2"
+        assert file2.file_name == b"a.html"
+        assert file2.data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
+
+        assert file3.name == b"file2"
+        assert file3.file_name == b"a.html"
+        assert file3.data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
+
+        assert file4.name == b"file3"
+        assert file4.file_name == b"binary"
+        assert file4.data == b"a\xcf\x89b"
+
+    app.normalize_handlers()
+    boundary = b"---------------------0000000000000000000000001"
+
+    content = b"\r\n".join(
+        [
+            boundary,
+            b'Content-Disposition: form-data; name="text1"',
+            b"",
+            b"text default",
+            boundary,
+            b'Content-Disposition: form-data; name="text2"',
+            b"",
+            "aωb".encode("utf8"),
+            boundary,
+            b'Content-Disposition: form-data; name="file1"; filename="a.txt"',
+            b"Content-Type: text/plain",
+            b"",
+            b"Content of a.txt.",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file2"; filename="a.html"',
+            b"Content-Type: text/html",
+            b"",
+            b"<!DOCTYPE html><title>Content of a.html.</title>",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file2"; filename="a.html"',
+            b"Content-Type: text/html",
+            b"",
+            b"<!DOCTYPE html><title>Content of a.html.</title>",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file3"; filename="binary"',
+            b"Content-Type: application/octet-stream",
+            b"",
+            "aωb".encode("utf8"),
+            boundary + b"--",
+        ]
+    )
+
+    send = MockSend()
+    receive = MockReceive([content])
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                [b"content-length", str(len(content)).encode()],
+                [b"content-type", b"multipart/form-data; boundary=" + boundary],
+            ],
+        ),
+        receive,
+        send,
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_files_handles_empty_body():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(files: FromFiles):
+        assert files.value == []
+
+    app.normalize_handlers()
+    send = MockSend()
+    receive = MockReceive([])
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [],
+        ),
+        receive,
+        send,
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_missing_property():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Item]):
+        ...
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"25"]],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World"}']),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert (
+        app.response.content.body
+        == b"Bad Request: invalid parameter in request payload, caused by type Item "
+        + b"or one of its subproperties. "
+        + b"Error: missing 1 required parameter: 'c'"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_missing_property_complex_type():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Foo]):
+        ...
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"34"]],
+        ),
+        MockReceive([b'{"item":{"a":"Hello","b":"World"}}']),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert (
+        app.response.content.body
+        == b"Bad Request: invalid parameter in request payload, caused by type Foo "
+        + b"or one of its subproperties. "
+        + b"Error: missing 1 required parameter: 'c'"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_missing_property_array():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[List[Item]]):
+        ...
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [[b"content-type", b"application/json"], [b"content-length", b"25"]],
+        ),
+        MockReceive([b'[{"a":"Hello","b":"World"}]']),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert (
+        app.response.content.body
+        == b"Bad Request: invalid parameter in request payload, caused by type Item "
+        + b"or one of its subproperties. "
+        + b"Error: missing 1 required parameter: 'c'"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handler_from_json_parameter_handles_request_without_body():
+    app = FakeApplication()
+
+    @app.router.post("/")
+    async def home(item: FromJson[Item]):
+        return Response(200)
+
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [],
+        ),
+        MockReceive([]),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert app.response.content.body == b"Bad Request: Expected request content"
 
 
 @pytest.mark.asyncio

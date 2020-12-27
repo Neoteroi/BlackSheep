@@ -1,6 +1,6 @@
 from .messages cimport Request, Response
 from .contents cimport TextContent, HtmlContent
-from .exceptions cimport HttpException, NotFound
+from .exceptions cimport HTTPException, NotFound
 
 
 import os
@@ -9,15 +9,15 @@ import http
 import traceback
 
 
-async def handle_not_found(app, Request request, HttpException http_exception):
+async def handle_not_found(app, Request request, HTTPException http_exception):
     return Response(404, content=TextContent('Resource not found'))
 
 
-async def handle_bad_request(app, Request request, HttpException http_exception):
+async def handle_bad_request(app, Request request, HTTPException http_exception):
     return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
 
 
-async def common_http_exception_handler(app, Request request, HttpException http_exception):
+async def common_http_exception_handler(app, Request request, HTTPException http_exception):
     return Response(http_exception.status, content=TextContent(http.HTTPStatus(http_exception.status).phrase))
 
 
@@ -45,7 +45,7 @@ cdef class BaseApplication:
 
             try:
                 response = await route.handler(request)
-            except HttpException as http_exception:
+            except HTTPException as http_exception:
                 response = await self.handle_http_exception(request, http_exception)
             except Exception as exc:
                 response = await self.handle_exception(request, exc)
@@ -59,7 +59,7 @@ cdef class BaseApplication:
         # this might be ambiguous, if a programmer thinks to return None for "Not found"
         return response or Response(204)
 
-    cdef object get_http_exception_handler(self, HttpException http_exception):
+    cdef object get_http_exception_handler(self, HTTPException http_exception):
         return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
 
     cdef object get_exception_handler(self, Exception exception):
@@ -91,7 +91,7 @@ cdef class BaseApplication:
         except Exception as server_ex:
             return await self.handle_exception(request, server_ex)
 
-    async def handle_http_exception(self, Request request, HttpException http_exception):
+    async def handle_http_exception(self, Request request, HTTPException http_exception):
         exception_handler = self.get_http_exception_handler(http_exception)
         if exception_handler:
             return await self._apply_exception_handler(request, http_exception, exception_handler)

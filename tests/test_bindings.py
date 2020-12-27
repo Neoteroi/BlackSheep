@@ -1,3 +1,4 @@
+from blacksheep.url import URL
 from typing import Any, List, Optional, Sequence, Set, Tuple, Type
 from guardpost.authentication import Identity
 
@@ -28,6 +29,8 @@ from blacksheep.server.bindings import (
     ServiceBinder,
     SyncBinder,
     get_binder_by_type,
+    RequestURLBinder,
+    RequestMethodBinder,
 )
 
 JsonContentType = (b"Content-Type", b"application/json")
@@ -116,7 +119,6 @@ async def test_from_body_json_with_converter():
 
 @pytest.mark.asyncio
 async def test_from_body_json_binding_request_missing_content_type():
-
     request = Request("POST", b"/", [])
 
     parameter = JsonBinder(ExampleOne)
@@ -128,14 +130,13 @@ async def test_from_body_json_binding_request_missing_content_type():
 
 @pytest.mark.asyncio
 async def test_from_body_json_binding_invalid_input():
-
     request = Request("POST", b"/", [JsonContentType]).with_content(
         JsonContent({"c": 1, "d": 2})
     )
 
     parameter = JsonBinder(ExampleOne)
 
-    with raises(InvalidRequestBody):
+    with raises(BadRequest):
         await parameter.get_value(request)
 
 
@@ -641,3 +642,21 @@ def test_sync_binders_source_name():
     assert HeaderBinder().source_name == "header"
     assert QueryBinder().source_name == "query"
     assert RouteBinder().source_name == "route"
+
+
+@pytest.mark.parametrize("method", ["GET", "OPTIONS", "POST"])
+@pytest.mark.asyncio
+async def test_request_method_binder(method):
+    request = Request(method, b"/", [])
+    parameter = RequestMethodBinder()
+    value = await parameter.get_value(request)
+    assert value == method
+
+
+@pytest.mark.parametrize("url", [b"/", b"/api/cats/123", b"/foo/index.html?s=20"])
+@pytest.mark.asyncio
+async def test_request_url_binder(url):
+    request = Request("GET", url, [])
+    parameter = RequestURLBinder()
+    value = await parameter.get_value(request)
+    assert value == URL(url)

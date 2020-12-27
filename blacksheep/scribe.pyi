@@ -36,6 +36,10 @@ async def write_request(request: Request) -> AsyncIterable[bytes]:
     ...
 
 
+async def write_response(response: Response) -> AsyncIterable[bytes]:
+    ...
+
+
 async def write_request_body_only(request: Request) -> AsyncIterable[bytes]:
     ...
 

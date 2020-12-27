@@ -1,12 +1,10 @@
 import asyncio
 import ssl
-from typing import Optional
 import weakref
+from typing import Optional
 
 import certifi
 import httptools
-from httptools import HttpParserCallbackError, HttpParserError
-
 from blacksheep import Content, Request, Response
 from blacksheep.scribe import (
     is_small_request,
@@ -16,6 +14,7 @@ from blacksheep.scribe import (
     write_request_without_body,
     write_small_request,
 )
+from httptools import HttpParserCallbackError, HttpParserError
 
 SECURE_SSLCONTEXT = ssl.create_default_context(
     ssl.Purpose.SERVER_AUTH, cafile=certifi.where()

@@ -187,9 +187,9 @@ def get_files_route_handler(
                 root_path,
                 index_document,
             )
-        except NotFound as not_found:
+        except NotFound:
             if fallback_document is None:
-                raise not_found
+                return Response(404)
 
             return get_response_for_resource_path(
                 request,

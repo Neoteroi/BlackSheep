@@ -11,6 +11,7 @@ from blacksheep.server.responses import (
     file,
     ContentDispositionType,
     forbidden,
+    html,
     json,
     moved_permanently,
     no_content,
@@ -154,6 +155,13 @@ class Controller(metaclass=ControllerMeta):
         Returns an HTTP 204 No Content response.
         """
         return no_content()
+
+    def html(self, data, status: int = 200) -> Response:
+        """
+        Returns a response with text/html content, and given status
+        (default HTTP 200 OK).
+        """
+        return html(data, status)
 
     def json(self, data, status: int = 200) -> Response:
         """

@@ -1,6 +1,12 @@
 import pytest
 from blacksheep import HttpMethod
-from blacksheep.server.routing import Route, RouteDuplicate, Router
+from blacksheep.server.routing import (
+    InvalidValuePatternName,
+    Route,
+    RouteDuplicate,
+    RouteException,
+    Router,
+)
 
 FAKE = b"FAKE"
 
@@ -45,24 +51,136 @@ class MockHandler:
     [
         (b"/foo/:id", b"/foo/123", {"id": "123"}),
         (b"/foo/{id}", b"/foo/123", {"id": "123"}),
+        (b"/foo/<id>", b"/foo/123", {"id": "123"}),
         ("/foo/:id", b"/foo/123", {"id": "123"}),
         ("/foo/{id}", b"/foo/123", {"id": "123"}),
+        ("/foo/<id>", b"/foo/123", {"id": "123"}),
         (b"/foo/:id/ufo/:b", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
         (b"/foo/{id}/ufo/{b}", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
+        (b"/foo/<id>/ufo/<b>", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
         ("/foo/:id/ufo/:b", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
         ("/foo/{id}/ufo/{b}", b"/foo/223/ufo/a13", {"id": "223", "b": "a13"}),
         (b"/foo/:id/ufo/:b", b"/Foo/223/Ufo/a13", {"id": "223", "b": "a13"}),
         (b"/:a", b"/Something", {"a": "Something"}),
         (b"/{a}", b"/Something", {"a": "Something"}),
+        (b"/<a>", b"/Something", {"a": "Something"}),
         (b"/alive", b"/alive", None),
     ],
 )
 def test_route_good_matches(pattern, url, expected_values):
     route = Route(pattern, mock_handler)
+    print(route.full_pattern)
     match = route.match(url)
 
     assert match is not None
     assert match.values == expected_values
+
+
+@pytest.mark.parametrize(
+    "pattern,url,expected_values",
+    [
+        ("/foo/{string:foo}", b"/foo/Hello", {"foo": "Hello"}),
+        ("/foo/{string:foo}/ufo", b"/foo/Hello/ufo", {"foo": "Hello"}),
+        ("/foo/{str:foo}", b"/foo/Hello", {"foo": "Hello"}),
+        ("/foo/{str:foo}/ufo", b"/foo/Hello/ufo", {"foo": "Hello"}),
+        ("/foo/{int:id}", b"/foo/123", {"id": "123"}),
+        ("/foo/<int:id>", b"/foo/123", {"id": "123"}),
+        ("/foo/{float:a}", b"/foo/123", {"a": "123"}),
+        ("/foo/{float:a}", b"/foo/123.15", {"a": "123.15"}),
+        ("/foo/<int:a>/<float:b>", b"/foo/123/777.77", {"a": "123", "b": "777.77"}),
+        (
+            "/foo/{uuid:id}",
+            b"/foo/52464abf-f583-4b32-80f8-704bcb9e36a2",
+            {"id": "52464abf-f583-4b32-80f8-704bcb9e36a2"},
+        ),
+        (
+            "/public/{path:file}",
+            b"/public/",
+            {"file": ""},
+        ),
+        (
+            "/public/{path:file}",
+            b"/public/js/home/home.js",
+            {"file": "js/home/home.js"},
+        ),
+        (
+            "/public/{path:file}",
+            b"/public/home.js",
+            {"file": "home.js"},
+        ),
+        (
+            "/public/<path:file>",
+            b"/public/js/home/home.js",
+            {"file": "js/home/home.js"},
+        ),
+        (
+            "/<path:filepath>",
+            b"/public/js/home/home.js",
+            {"filepath": "public/js/home/home.js"},
+        ),
+    ],
+)
+def test_route_good_matches_with_parameter_patterns(pattern, url, expected_values):
+    route = Route(pattern, mock_handler)
+    match = route.match(url)
+
+    assert match is not None
+    assert match.values == expected_values
+
+
+@pytest.mark.parametrize(
+    "pattern,url",
+    [
+        (b"/foo/{int:id}", b"/foo/abc"),
+        (b"/foo/<int:id>", b"/foo/X"),
+        (b"/foo/{float:a}", b"/foo/false"),
+        (b"/foo/{float:a}", b"/foo/123.15.31"),
+        (b"/foo/{float:a}", b"/foo/123,50"),
+        (b"/foo/{uuid:a}", b"/foo/not-a-guid"),
+    ],
+)
+def test_route_bad_matches_with_parameter_patterns(pattern, url):
+    route = Route(pattern, mock_handler)
+    match = route.match(url)
+    assert match is None
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    (
+        "/public/<path:file>",
+        "/<path:file>",
+        "/public/*",
+        "/*",
+        "*",
+    ),
+)
+def test_sort_routes_path_pattern(pattern):
+    router = Router()
+    catch_all_route = Route(pattern, mock_handler)
+
+    router.add_route("GET", catch_all_route)
+    router.add_route("GET", Route("/cat/:cat_id", mock_handler))
+    router.add_route("GET", Route("/index", mock_handler))
+    router.add_route("GET", Route("/about", mock_handler))
+
+    assert router.routes[b"GET"][0] is catch_all_route
+
+    router.sort_routes()
+
+    assert router.routes[b"GET"][-1] is catch_all_route
+
+
+@pytest.mark.parametrize(
+    "pattern,invalid_pattern_name",
+    [
+        (b"/foo/{xxx:id}", "xxx"),
+        (b"/foo/{ind:id}", "ind"),
+    ],
+)
+def test_route_raises_for_invalid_parameter_name(pattern, invalid_pattern_name):
+    with pytest.raises(InvalidValuePatternName):
+        Route(pattern, mock_handler)
 
 
 @pytest.mark.parametrize(
@@ -536,7 +654,7 @@ def test_more_than_one_star_raises():
     def home():
         ...
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RouteException):
         router.add_get("*/*", home)
 
 

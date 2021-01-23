@@ -85,7 +85,6 @@ class Route:
         "pattern",
         "param_names",
         "_rx",
-        "parameters_patterns",
     )
 
     pattern: bytes
@@ -405,6 +404,7 @@ class Router(RouterBase):
         current_routes = self.routes.copy()
 
         for method in current_routes.keys():
+            current_routes[method].sort(key=lambda route: -route.pattern.count(b"/"))
             current_routes[method].sort(key=lambda route: len(route.param_names))
             current_routes[method].sort(key=lambda route: b".*" in route.rx.pattern)
             current_routes[method].sort(

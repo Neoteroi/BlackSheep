@@ -342,6 +342,7 @@ class Application(BaseApplication):
             from typing import cast
 
             deprecated_arg = cast(ServeFilesOptions, source_folder)
+            deprecated_arg.validate()
             serve_files_dynamic(
                 self.router,
                 self.files_handler,

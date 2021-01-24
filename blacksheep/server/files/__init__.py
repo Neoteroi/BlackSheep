@@ -253,7 +253,7 @@ class ServeFilesOptions:
         return get_default_extensions()
 
     def validate(self) -> None:
-        validate_source_path(self.source_folder)
+        validate_source_path(str(self.source_folder))
 
 
 def get_response_for_file(

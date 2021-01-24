@@ -3,7 +3,7 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, AnyStr
+from typing import Any, Callable, Dict, List, Optional, AnyStr, Union
 from urllib.parse import unquote
 
 from blacksheep import HttpMethod
@@ -22,49 +22,9 @@ __all__ = [
 _route_all_rx = re.compile(b"\\*")
 _route_param_rx = re.compile(b"/:([^/]+)")
 _mustache_route_param_rx = re.compile(b"/{([^}]+)}")
+_angle_bracket_route_param_rx = re.compile(b"/<([^>]+)>")
 _named_group_rx = re.compile(b"\\?P<([^>]+)>")
 _escaped_chars = {b".", b"[", b"]", b"(", b")"}
-
-
-def _get_regex_for_pattern(pattern):
-
-    for c in _escaped_chars:
-        if c in pattern:
-            pattern = pattern.replace(c, b"\\" + c)
-    if b"*" in pattern:
-        # throw exception if a star appears more than once
-        if pattern.count(b"*") > 1:
-            raise ValueError(
-                "A route pattern cannot contain more than one star sign *. "
-                "Multiple star signs are not supported."
-            )
-
-        if b"/*" in pattern:
-            pattern = _route_all_rx.sub(br"?(?P<tail>.*)", pattern)
-        else:
-            pattern = _route_all_rx.sub(br"(?P<tail>.*)", pattern)
-    if b"/:" in pattern:
-        pattern = _route_param_rx.sub(br"/(?P<\1>[^\/]+)", pattern)
-
-    # NB: following code is just to throw user friendly errors;
-    # regex would fail anyway, but with a more complex message
-    # 'sre_constants.error: redefinition of group name'
-    # we only return param names as they are useful for other things
-    param_names = []
-    for p in _named_group_rx.finditer(pattern):
-        param_name = p.group(1)
-        if param_name in param_names:
-            raise ValueError(
-                f"cannot have multiple parameters with name: " f"{param_name}"
-            )
-
-        param_names.append(param_name)
-
-    if len(pattern) > 1 and not pattern.endswith(b"*"):
-        # NB: the /? at the end, ensures that a route is matched both with
-        # a trailing slash or not
-        pattern = pattern + b"/?"
-    return re.compile(b"^" + pattern + b"$", re.IGNORECASE), param_names
 
 
 class RouteException(Exception):
@@ -86,6 +46,19 @@ class RouteDuplicate(RouteException):
         self.current_handler = current_handler
 
 
+class InvalidValuePatternName(RouteException):
+    def __init__(self, parameter_pattern_name: str, matched_parameter: str) -> None:
+        super().__init__(
+            f"Invalid value pattern: {parameter_pattern_name} "
+            f"for route parameter {matched_parameter}."
+            f"Define a value pattern in the `Route.value_patterns` class "
+            f"attribute to configure additional patterns for route values."
+        )
+
+        self.parameter_pattern_name = parameter_pattern_name
+        self.matched_parameter = matched_parameter
+
+
 class RouteMatch:
 
     __slots__ = ("values", "handler")
@@ -99,30 +72,151 @@ class RouteMatch:
         )
 
 
+def _get_parameter_pattern_fragment(
+    parameter_name: bytes, value_pattern: bytes = br"[^\/]+"
+) -> bytes:
+    return b"/(?P<" + parameter_name + b">" + value_pattern + b")"
+
+
 class Route:
 
-    __slots__ = ("handler", "pattern", "has_params", "param_names", "_rx")
+    __slots__ = (
+        "handler",
+        "pattern",
+        "param_names",
+        "_rx",
+    )
 
     pattern: bytes
 
-    def __init__(self, pattern: AnyStr, handler: Any):
+    value_patterns = {
+        "string": r"[^\/]+",
+        "str": r"[^\/]+",
+        "path": r".*",
+        "int": r"\d+",
+        "float": r"\d+(?:\.\d+)?",
+        "uuid": r"[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]"
+        + r"{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}",
+    }
+
+    def __init__(self, pattern: Union[str, bytes], handler: Any):
         raw_pattern = self.normalize_pattern(pattern)
         self.handler = handler
         self.pattern = raw_pattern
-        self.has_params = b"*" in raw_pattern or b":" in raw_pattern
-        rx, param_names = _get_regex_for_pattern(raw_pattern)
+        rx, param_names = self._get_regex_for_pattern(raw_pattern)
         self._rx = rx
         self.param_names = [name.decode("utf8") for name in param_names]
 
-    def normalize_pattern(self, pattern: AnyStr) -> bytes:
+    @property
+    def rx(self) -> re.Pattern:
+        return self._rx
+
+    @property
+    def has_params(self) -> bool:
+        return self._rx.groups > 0
+
+    def _get_regex_for_pattern(self, pattern: bytes):
+        """
+        Converts a raw pattern into a compiled regular expression that can be used
+        to match bytes URL paths, extracting route parameters.
+        """
+        # TODO: should blacksheep support ":" in routes (using escape chars)?
+        for c in _escaped_chars:
+            if c in pattern:
+                pattern = pattern.replace(c, b"\\" + c)
+
+        if b"*" in pattern:
+            # throw exception if a star appears more than once
+            if pattern.count(b"*") > 1:
+                raise RouteException(
+                    "A route pattern cannot contain more than one star sign *. "
+                    "Multiple star signs are not supported."
+                )
+
+            if b"/*" in pattern:
+                pattern = _route_all_rx.sub(br"?(?P<tail>.*)", pattern)
+            else:
+                pattern = _route_all_rx.sub(br"(?P<tail>.*)", pattern)
+
+        # support for < > patterns, e.g. /api/cats/<cat_id>
+        # but also: /api/cats/<int:cat_id> or /api/cats/<uuid:cat_id> for more
+        # granular control on the generated pattern
+        if b"<" in pattern:
+            pattern = _angle_bracket_route_param_rx.sub(
+                self._handle_rich_parameter, pattern
+            )
+
+        # support for mustache patterns, e.g. /api/cats/{cat_id}
+        # but also: /api/cats/{int:cat_id} or /api/cats/{uuid:cat_id} for more
+        # granular control on the generated pattern
+        if b"{" in pattern:
+            pattern = _mustache_route_param_rx.sub(self._handle_rich_parameter, pattern)
+
+        # route parameters defined using /:name syntax
+        if b"/:" in pattern:
+            pattern = _route_param_rx.sub(br"/(?P<\1>[^\/]+)", pattern)
+
+        # NB: following code is just to throw user friendly errors;
+        # regex would fail anyway, but with a more complex message
+        # 'sre_constants.error: redefinition of group name'
+        # we only return param names as they are useful for other things
+        param_names = []
+        for p in _named_group_rx.finditer(pattern):
+            param_name = p.group(1)
+            if param_name in param_names:
+                raise ValueError(
+                    f"cannot have multiple parameters with name: " f"{param_name}"
+                )
+
+            param_names.append(param_name)
+
+        if len(pattern) > 1 and not pattern.endswith(b"*"):
+            # NB: the /? at the end ensures that a route is matched both with
+            # a trailing slash or not
+            pattern = pattern + b"/?"
+        return re.compile(b"^" + pattern + b"$", re.IGNORECASE), param_names
+
+    def _handle_rich_parameter(self, match: re.Match):
+        """
+        Handles a route parameter that can include details about the pattern,
+        for example:
+
+        /api/cats/<int:cat_id>
+        /api/cats/<uuid:cat_id>
+
+        /api/cats/{int:cat_id}
+        /api/cats/{uuid:cat_id}
+        """
+        assert (
+            len(match.groups()) == 1
+        ), "The regex using this function must handle a single group at a time."
+
+        matched_parameter = next(iter(match.groups()))
+        assert isinstance(matched_parameter, bytes)
+
+        if b":" in matched_parameter:
+            assert matched_parameter.count(b":") == 1
+
+            raw_pattern_name, parameter_name = matched_parameter.split(b":")
+            parameter_pattern_name = raw_pattern_name.decode()
+            parameter_pattern = Route.value_patterns.get(parameter_pattern_name)
+
+            if not parameter_pattern:
+                raise InvalidValuePatternName(
+                    parameter_pattern_name,
+                    matched_parameter.decode("utf8"),
+                )
+
+            return _get_parameter_pattern_fragment(
+                parameter_name, parameter_pattern.encode()
+            )
+        return _get_parameter_pattern_fragment(matched_parameter)
+
+    def normalize_pattern(self, pattern: Union[str, bytes]) -> bytes:
         if isinstance(pattern, str):
             raw_pattern = pattern.encode("utf8")
         else:
             raw_pattern = pattern
-
-        # support for mustache patterns, e.g. /api/cats/{cat_id}
-        if b"{" in raw_pattern:
-            raw_pattern = _mustache_route_param_rx.sub(br"/:\1", raw_pattern)
 
         if raw_pattern == b"":
             raw_pattern = b"/"
@@ -310,9 +404,12 @@ class Router(RouterBase):
         current_routes = self.routes.copy()
 
         for method in current_routes.keys():
+            current_routes[method].sort(key=lambda route: -route.pattern.count(b"/"))
             current_routes[method].sort(key=lambda route: len(route.param_names))
-            current_routes[method].sort(key=lambda route: b"*" in route.pattern)
-            current_routes[method].sort(key=lambda route: b"*" == route.pattern)
+            current_routes[method].sort(key=lambda route: b".*" in route.rx.pattern)
+            current_routes[method].sort(
+                key=lambda route: b"*" == route.pattern or b"/*" == route.pattern
+            )
 
         self.routes = current_routes
 

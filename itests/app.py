@@ -8,7 +8,6 @@ import uvicorn
 from blacksheep import Content, Cookie, Request, Response
 from blacksheep.server import Application
 from blacksheep.server.bindings import FromQuery
-from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.responses import ContentDispositionType, file, json, text
 from itests.utils import CrashTest, ensure_folder
 
@@ -23,7 +22,7 @@ def get_static_path(file_name):
     return os.path.join(str(static_folder_path), file_name)
 
 
-app.serve_files(ServeFilesOptions(static_folder_path, discovery=True))
+app.serve_files(static_folder_path, discovery=True)
 
 
 @app.route("/hello-world")

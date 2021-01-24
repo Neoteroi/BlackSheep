@@ -11,6 +11,7 @@ cdef class BaseApplication:
 
     cdef public bint show_error_details
     cdef readonly object router
+    cdef readonly object logger
     cdef public dict exceptions_handlers
     cdef object get_http_exception_handler(self, HTTPException http_exception)
     cdef object get_exception_handler(self, Exception exception)

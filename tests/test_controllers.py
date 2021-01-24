@@ -65,6 +65,70 @@ async def test_handler_through_controller():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path_one,path_two",
+    [
+        ["/<path:filepath>", "/example/<path:filepath>"],
+        ["/{path:filepath}", "/example/{path:filepath}"],
+    ],
+)
+async def test_handler_catch_all_through_controller(path_one, path_two):
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+        def greet(self):
+            return "Hello World"
+
+        @get(path_one)
+        async def catch_all(self, filepath: str):
+            assert isinstance(self, Home)
+            assert isinstance(filepath, str)
+            return text(filepath)
+
+        @get(path_two)
+        async def catch_all_under_example(self, filepath: str):
+            assert isinstance(self, Home)
+            assert isinstance(filepath, str)
+            return text(f"Example: {filepath}")
+
+        @get("/foo")
+        async def foo(self):
+            assert isinstance(self, Home)
+            return text("foo")
+
+    app.setup_controllers()
+    await app(get_example_scope("GET", "/hello.js"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == "hello.js"
+
+    await app(
+        get_example_scope("GET", "/scripts/a/b/c/hello.js"), MockReceive(), MockSend()
+    )
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == "scripts/a/b/c/hello.js"
+
+    await app(
+        get_example_scope("GET", "/example/a/b/c/hello.js"), MockReceive(), MockSend()
+    )
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == "Example: a/b/c/hello.js"
+
+    await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert body == "foo"
+
+
+@pytest.mark.asyncio
 async def test_handler_through_controller_owned_text_method():
     app = FakeApplication()
     app.controllers_router = RoutesRegistry()
@@ -96,6 +160,33 @@ async def test_handler_through_controller_owned_text_method():
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "foo"
+
+
+@pytest.mark.asyncio
+async def test_handler_through_controller_owned_html_method():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+        @get("/")
+        async def index(self):
+            assert isinstance(self, Home)
+            return self.html(
+                """
+                <h1>Title</h1>
+                <p>Lorem ipsum</p>
+                """
+            )
+
+    app.setup_controllers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert "<h1>Title</h1>" in body
+    assert "<p>Lorem ipsum</p>" in body
+    assert app.response.content_type() == b"text/html; charset=utf-8"
 
 
 @pytest.mark.asyncio

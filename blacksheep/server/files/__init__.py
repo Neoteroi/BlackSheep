@@ -153,6 +153,37 @@ def is_requested_range_actual(request: Request, info: FileInfo) -> bool:
     return if_range == info.etag.encode() or if_range == info.modified_time.encode()
 
 
+def get_default_extensions() -> Set[str]:
+    """Returns a set of extensions that are served by default."""
+    return {
+        ".txt",
+        ".css",
+        ".js",
+        ".jpeg",
+        ".jpg",
+        ".html",
+        ".ico",
+        ".png",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".eot",
+        ".svg",
+        ".mp4",
+        ".mp3",
+    }
+
+
+def validate_source_path(source_folder: str) -> None:
+    source_folder_path = Path(source_folder)
+
+    if not source_folder_path.exists():
+        raise InvalidArgument("given root path does not exist")
+
+    if not source_folder_path.is_dir():
+        raise InvalidArgument("given root path is not a directory")
+
+
 class ServeFilesOptions:
 
     __slots__ = (
@@ -179,7 +210,6 @@ class ServeFilesOptions:
         fallback_document: Optional[str] = None,
     ):
         """Options for static files serving.
-
         Args:
             source_folder (str): Path to the source folder containing static files.
             extensions: The set of files extensions to serve.
@@ -196,6 +226,17 @@ class ServeFilesOptions:
             response would be otherwise 404 Not Found; e.g. use this to serve SPA that
             use HTML5 History API for client side routing.
         """
+        import warnings
+
+        warnings.warn(
+            "The ServeFilesOptions is deprecated and will "
+            "be removed in the version 1.0.0. Update your code to not use this class "
+            "and pass the same arguments to the application.serve_files method. "
+            "For more information see "
+            "https://www.neoteroi.dev/blacksheep/static-files/",
+            DeprecationWarning,
+        )
+
         if extensions is None:
             extensions = self.get_default_extensions()
         self.source_folder = source_folder
@@ -209,32 +250,10 @@ class ServeFilesOptions:
 
     def get_default_extensions(self) -> Set[str]:
         """Returns a set of extensions that are served by default."""
-        return {
-            ".txt",
-            ".css",
-            ".js",
-            ".jpeg",
-            ".jpg",
-            ".html",
-            ".ico",
-            ".png",
-            ".woff",
-            ".woff2",
-            ".ttf",
-            ".eot",
-            ".svg",
-            ".mp4",
-            ".mp3",
-        }
+        return get_default_extensions()
 
     def validate(self) -> None:
-        source_folder_path = Path(self.source_folder)
-
-        if not source_folder_path.exists():
-            raise InvalidArgument("given root path does not exist")
-
-        if not source_folder_path.is_dir():
-            raise InvalidArgument("given root path is not a directory")
+        validate_source_path(str(self.source_folder))
 
 
 def get_response_for_file(

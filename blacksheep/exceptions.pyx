@@ -8,7 +8,7 @@ cdef class InvalidOperation(Exception):
 
 cdef class HTTPException(Exception):
 
-    def __init__(self, int status, str message = 'HTTP Exception'):
+    def __init__(self, int status, str message = "HTTP exception"):
         super().__init__(message)
         self.status = status
 
@@ -16,7 +16,7 @@ cdef class HTTPException(Exception):
 cdef class BadRequest(HTTPException):
 
     def __init__(self, message=None):
-        super().__init__(400, message)
+        super().__init__(400, message or "Bad request")
 
 
 cdef class BadRequestFormat(BadRequest):
@@ -29,37 +29,37 @@ cdef class BadRequestFormat(BadRequest):
 cdef class NotFound(HTTPException):
 
     def __init__(self):
-        super().__init__(404)
+        super().__init__(404, "Not found")
 
 
 cdef class Unauthorized(HTTPException):
 
     def __init__(self):
-        super().__init__(401)
+        super().__init__(401, "Unauthorized")
 
 
 cdef class Forbidden(HTTPException):
 
     def __init__(self):
-        super().__init__(403)
+        super().__init__(403, "Forbidden")
 
 
 cdef class RangeNotSatisfiable(HTTPException):
 
     def __init__(self):
-        super().__init__(416)
+        super().__init__(416, "Range not satisfiable")
 
 
 cdef class InternalServerError(HTTPException):
 
     def __init__(self):
-        super().__init__(500)
+        super().__init__(500, "Internal server error")
 
 
 cdef class NotImplementedByServer(HTTPException):
 
     def __init__(self):
-        super().__init__(501)
+        super().__init__(501, "Not implemented by server")
 
 
 cdef class InvalidArgument(Exception):
@@ -70,4 +70,6 @@ cdef class InvalidArgument(Exception):
 
 cdef class MessageAborted(Exception):
     def __init__(self):
-        super().__init__('The message was aborted before the client sent its whole content.')
+        super().__init__(
+            "The message was aborted before the client sent its whole content."
+        )

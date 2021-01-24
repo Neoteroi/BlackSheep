@@ -1,3 +1,4 @@
+from blacksheep.server.files import ServeFilesOptions
 import logging
 from typing import (
     Any,
@@ -7,6 +8,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
@@ -31,7 +33,7 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
-from blacksheep.server.files.dynamic import ServeFilesOptions, serve_files_dynamic
+from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
@@ -304,8 +306,68 @@ class Application(BaseApplication):
 
         return decorator
 
-    def serve_files(self, options: ServeFilesOptions):
-        serve_files_dynamic(self.router, self.files_handler, options)
+    def serve_files(
+        self,
+        source_folder: str,
+        *,
+        discovery: bool = False,
+        cache_time: int = 10800,
+        extensions: Optional[Set[str]] = None,
+        root_path: str = "",
+        index_document: Optional[str] = "index.html",
+        fallback_document: Optional[str] = None,
+        allow_anonymous: bool = True,
+    ):
+        """
+        Configures dynamic file serving from a given folder, relative to the server cwd.
+
+        Parameters:
+            source_folder (str): Path to the source folder containing static files.
+            extensions: The set of files extensions to serve.
+            discovery: Whether to enable file discovery, serving HTML pages for folders.
+            cache_time: Controls the Cache-Control Max-Age in seconds for static files.
+            root_path: Path prefix used for routing requests.
+            For example, if set to "public", files are served at "/public/*".
+            allow_anonymous: Whether to enable anonymous access to static files, true by
+            default.
+            index_document: The name of the index document to display, if present,
+            in folders. Requests for folders that contain a file with matching produce
+            a response with this document.
+            fallback_document: Optional file name, for a document to serve when a
+            response would be otherwise 404 Not Found; e.g. use this to serve SPA that
+            use HTML5 History API for client side routing.
+        """
+        if isinstance(source_folder, ServeFilesOptions):
+            # deprecated class, will be removed in the next version
+            from typing import cast
+
+            deprecated_arg = cast(ServeFilesOptions, source_folder)
+            deprecated_arg.validate()
+            serve_files_dynamic(
+                self.router,
+                self.files_handler,
+                str(deprecated_arg.source_folder),
+                discovery=deprecated_arg.discovery,
+                cache_time=deprecated_arg.cache_time,
+                extensions=deprecated_arg.extensions,
+                root_path=deprecated_arg.root_path,
+                index_document=deprecated_arg.index_document,
+                fallback_document=deprecated_arg.fallback_document,
+                anonymous_access=deprecated_arg.allow_anonymous,
+            )
+            return
+        serve_files_dynamic(
+            self.router,
+            self.files_handler,
+            source_folder,
+            discovery=discovery,
+            cache_time=cache_time,
+            extensions=extensions,
+            root_path=root_path,
+            index_document=index_document,
+            fallback_document=fallback_document,
+            anonymous_access=allow_anonymous,
+        )
 
     def _apply_middlewares_in_routes(self):
         for route in self.router:

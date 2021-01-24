@@ -451,6 +451,27 @@ async def test_cannot_serve_files_outside_static_folder():
 
 
 @pytest.mark.asyncio
+async def test_cannot_serve_files_with_unhandled_extension():
+    app = FakeApplication()
+
+    folder_path = get_folder_path("files2")
+    options = ServeFilesOptions(folder_path, discovery=True, extensions={".py"})
+    app.serve_files(options)
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/example.config", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 404
+
+
+@pytest.mark.asyncio
 async def test_can_serve_files_with_relative_paths(files2_index_contents):
     app = FakeApplication()
     folder_path = get_folder_path("files2")

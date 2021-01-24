@@ -163,6 +163,33 @@ async def test_handler_through_controller_owned_text_method():
 
 
 @pytest.mark.asyncio
+async def test_handler_through_controller_owned_html_method():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+        @get("/")
+        async def index(self):
+            assert isinstance(self, Home)
+            return self.html(
+                """
+                <h1>Title</h1>
+                <p>Lorem ipsum</p>
+                """
+            )
+
+    app.setup_controllers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    body = await app.response.text()
+    assert "<h1>Title</h1>" in body
+    assert "<p>Lorem ipsum</p>" in body
+    assert app.response.content_type() == b"text/html; charset=utf-8"
+
+
+@pytest.mark.asyncio
 async def test_controller_supports_on_request():
     app = FakeApplication()
     app.controllers_router = RoutesRegistry()

@@ -232,7 +232,8 @@ class ServeFilesOptions:
             "The ServeFilesOptions is deprecated and will "
             "be removed in the version 1.0.0. Update your code to not use this class "
             "and pass the same arguments to the application.serve_files method. "
-            "For more information see https://www.neoteroi.dev/blacksheep/static-files/",
+            "For more information see "
+            "https://www.neoteroi.dev/blacksheep/static-files/",
             DeprecationWarning,
         )
 

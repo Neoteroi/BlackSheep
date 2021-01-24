@@ -184,6 +184,77 @@ def validate_source_path(source_folder: str) -> None:
         raise InvalidArgument("given root path is not a directory")
 
 
+class ServeFilesOptions:
+
+    __slots__ = (
+        "source_folder",
+        "extensions",
+        "discovery",
+        "cache_time",
+        "root_path",
+        "allow_anonymous",
+        "index_document",
+        "fallback_document",
+    )
+
+    def __init__(
+        self,
+        source_folder: Union[str, Path],
+        *,
+        extensions: Optional[Set[str]] = None,
+        discovery: bool = False,
+        cache_time: int = 10800,
+        root_path: str = "",
+        allow_anonymous: bool = True,
+        index_document: Optional[str] = "index.html",
+        fallback_document: Optional[str] = None,
+    ):
+        """Options for static files serving.
+        Args:
+            source_folder (str): Path to the source folder containing static files.
+            extensions: The set of files extensions to serve.
+            discovery: Whether to enable file discovery, serving HTML pages for folders.
+            cache_time: Controls the Cache-Control Max-Age in seconds for static files.
+            root_path: Path prefix used for routing requests.
+            For example, if set to "public", files are served at "/public/*".
+            allow_anonymous: Whether to enable anonymous access to static files, true by
+            default.
+            index_document: The name of the index document to display, if present,
+            in folders. Requests for folders that contain a file with matching produce
+            a response with this document.
+            fallback_document: Optional file name, for a document to serve when a
+            response would be otherwise 404 Not Found; e.g. use this to serve SPA that
+            use HTML5 History API for client side routing.
+        """
+        import warnings
+
+        warnings.warn(
+            "The ServeFilesOptions is deprecated and will "
+            "be removed in the version 0.3.3. Update your code to not use this class "
+            "and pass the same arguments to the application.serve_files method. "
+            "For more information see https://www.neoteroi.dev/blacksheep/static-files/",
+            DeprecationWarning,
+        )
+
+        if extensions is None:
+            extensions = self.get_default_extensions()
+        self.source_folder = source_folder
+        self.extensions = set(extensions)
+        self.discovery = bool(discovery)
+        self.cache_time = int(cache_time)
+        self.root_path = root_path
+        self.allow_anonymous = allow_anonymous
+        self.index_document = index_document
+        self.fallback_document = fallback_document
+
+    def get_default_extensions(self) -> Set[str]:
+        """Returns a set of extensions that are served by default."""
+        return get_default_extensions()
+
+    def validate(self) -> None:
+        validate_source_path(self.source_folder)
+
+
 def get_response_for_file(
     files_handler: FilesHandler,
     request: Request,

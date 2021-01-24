@@ -222,6 +222,7 @@ def serve_files_dynamic(
     router: Router,
     files_handler: FilesHandler,
     source_folder: str,
+    *,
     discovery: bool,
     cache_time: int,
     extensions: Optional[Set[str]],

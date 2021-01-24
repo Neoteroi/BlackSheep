@@ -307,7 +307,7 @@ class Application(BaseApplication):
 
     def serve_files(
         self,
-        source_folder_name: str,
+        source_folder: str,
         *,
         discovery: bool = False,
         cache_time: int = 10800,
@@ -317,17 +317,36 @@ class Application(BaseApplication):
         fallback_document: Optional[str] = None,
         allow_anonymous: bool = True,
     ):
+        """
+        Configures dynamic file serving from a given folder, relative to the server cwd.
+
+        Parameters:
+            source_folder (str): Path to the source folder containing static files.
+            extensions: The set of files extensions to serve.
+            discovery: Whether to enable file discovery, serving HTML pages for folders.
+            cache_time: Controls the Cache-Control Max-Age in seconds for static files.
+            root_path: Path prefix used for routing requests.
+            For example, if set to "public", files are served at "/public/*".
+            allow_anonymous: Whether to enable anonymous access to static files, true by
+            default.
+            index_document: The name of the index document to display, if present,
+            in folders. Requests for folders that contain a file with matching produce
+            a response with this document.
+            fallback_document: Optional file name, for a document to serve when a
+            response would be otherwise 404 Not Found; e.g. use this to serve SPA that
+            use HTML5 History API for client side routing.
+        """
         serve_files_dynamic(
             self.router,
             self.files_handler,
-            source_folder_name,
-            discovery,
-            cache_time,
-            extensions,
-            root_path,
-            index_document,
-            fallback_document,
-            allow_anonymous,
+            source_folder,
+            discovery=discovery,
+            cache_time=cache_time,
+            extensions=extensions,
+            root_path=root_path,
+            index_document=index_document,
+            fallback_document=fallback_document,
+            anonymous_access=allow_anonymous,
         )
 
     def _apply_middlewares_in_routes(self):

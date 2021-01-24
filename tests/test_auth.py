@@ -1,13 +1,6 @@
-from tests.test_files_serving import get_folder_path
-from blacksheep.server.files import ServeFilesOptions
 from typing import Any, Optional
 
 import pytest
-from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext, UnauthorizedError
-from guardpost.common import AuthenticatedRequirement
-from pytest import raises
-
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
     AuthenticationHandler,
@@ -20,6 +13,12 @@ from blacksheep.server.authorization import (
     auth,
     get_www_authenticated_header_from_generic_unauthorized_error,
 )
+from guardpost.authentication import Identity
+from guardpost.authorization import AuthorizationContext, UnauthorizedError
+from guardpost.common import AuthenticatedRequirement
+from pytest import raises
+
+from tests.test_files_serving import get_folder_path
 
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
@@ -184,7 +183,7 @@ async def test_static_files_allow_anonymous_by_default():
     async def home():
         return None
 
-    app.serve_files(ServeFilesOptions(get_folder_path("files")))
+    app.serve_files(get_folder_path("files"))
 
     await app.start()
 
@@ -213,7 +212,7 @@ async def test_static_files_support_authentication():
     async def home():
         return None
 
-    app.serve_files(ServeFilesOptions(get_folder_path("files"), allow_anonymous=False))
+    app.serve_files(get_folder_path("files"), allow_anonymous=False)
 
     await app.start()
 
@@ -240,12 +239,8 @@ async def test_static_files_support_authentication_by_route():
     async def home():
         return None
 
-    app.serve_files(ServeFilesOptions(get_folder_path("files"), allow_anonymous=False))
-    app.serve_files(
-        ServeFilesOptions(
-            get_folder_path("files2"), allow_anonymous=True, root_path="/login"
-        )
-    )
+    app.serve_files(get_folder_path("files"), allow_anonymous=False)
+    app.serve_files(get_folder_path("files2"), allow_anonymous=True, root_path="/login")
 
     await app.start()
 

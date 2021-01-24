@@ -13,7 +13,7 @@ from blacksheep.exceptions import NotFound
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import Route, Router
 
-from . import ServeFilesOptions, get_response_for_file
+from . import get_default_extensions, get_response_for_file, validate_source_path
 
 
 def get_files_to_serve(
@@ -219,30 +219,42 @@ def get_static_files_route(path_prefix: str) -> bytes:
 
 
 def serve_files_dynamic(
-    router: Router, files_handler: FilesHandler, options: ServeFilesOptions
+    router: Router,
+    files_handler: FilesHandler,
+    source_folder: str,
+    discovery: bool,
+    cache_time: int,
+    extensions: Optional[Set[str]],
+    root_path: str,
+    index_document: Optional[str],
+    fallback_document: Optional[str],
+    anonymous_access: bool = True,
 ) -> None:
     """
     Configures a route to serve files dynamically, using the given files handler and
     options.
     """
-    options.validate()
+    validate_source_path(source_folder)
+
+    if not extensions:
+        extensions = get_default_extensions()
 
     handler = get_files_route_handler(
         files_handler,
-        str(options.source_folder),
-        options.discovery,
-        options.cache_time,
-        options.extensions,
-        options.root_path,
-        options.index_document,
-        options.fallback_document,
+        str(source_folder),
+        bool(discovery),
+        int(cache_time),
+        set(extensions),
+        root_path,
+        index_document,
+        fallback_document,
     )
 
-    if options.allow_anonymous:
+    if anonymous_access:
         handler = allow_anonymous()(handler)
 
     route = Route(
-        get_static_files_route(options.root_path),
+        get_static_files_route(root_path),
         handler,
     )
     router.add_route("GET", route)

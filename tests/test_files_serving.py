@@ -1,25 +1,26 @@
 from asyncio import AbstractEventLoop
 from datetime import datetime
-from blacksheep.ranges import Range, RangePart
-from blacksheep.exceptions import BadRequest, InvalidArgument
 from pathlib import Path
 from typing import List
 
 import pkg_resources
 import pytest
-from essentials.folders import get_file_extension
-
 from blacksheep import Request
 from blacksheep.common.files.asyncfs import FileContext, FilesHandler
+from blacksheep.exceptions import BadRequest, InvalidArgument
+from blacksheep.ranges import Range, RangePart
 from blacksheep.server.files import (
     FileInfo,
     RangeNotSatisfiable,
-    ServeFilesOptions,
-    get_range_file_getter,
     _get_requested_range,
+    get_default_extensions,
+    get_range_file_getter,
+    validate_source_path,
 )
 from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
+from essentials.folders import get_file_extension
+
 from tests.test_application import (
     FakeApplication,
     MockReceive,
@@ -325,7 +326,7 @@ async def test_serve_files_no_discovery():
     app = FakeApplication()
 
     # Note the folder files3 does not contain an index.html page
-    app.serve_files(ServeFilesOptions(get_folder_path("files3")))
+    app.serve_files(get_folder_path("files3"))
 
     await app.start()
 
@@ -345,9 +346,7 @@ async def test_serve_files_fallback_document(files2_index_contents: bytes):
     """Feature used to serve SPAs that use HTML5 History API"""
     app = FakeApplication()
 
-    app.serve_files(
-        ServeFilesOptions(get_folder_path("files2"), fallback_document="index.html")
-    )
+    app.serve_files(get_folder_path("files2"), fallback_document="index.html")
 
     await app.start()
 
@@ -368,7 +367,7 @@ async def test_serve_files_fallback_document(files2_index_contents: bytes):
 async def test_serve_files_serves_index_html_by_default(files2_index_contents):
     app = FakeApplication()
 
-    app.serve_files(ServeFilesOptions(get_folder_path("files2")))
+    app.serve_files(get_folder_path("files2"))
 
     await app.start()
 
@@ -388,7 +387,7 @@ async def test_serve_files_serves_index_html_by_default(files2_index_contents):
 async def test_serve_files_can_disable_index_html_by_default():
     app = FakeApplication()
 
-    app.serve_files(ServeFilesOptions(get_folder_path("files2"), index_document=None))
+    app.serve_files(get_folder_path("files2"), index_document=None)
 
     await app.start()
 
@@ -408,9 +407,7 @@ async def test_serve_files_custom_index_page():
     app = FakeApplication()
 
     # Note the folder files3 does not contain an index.html page
-    app.serve_files(
-        ServeFilesOptions(get_folder_path("files3"), index_document="lorem-ipsum.txt")
-    )
+    app.serve_files(get_folder_path("files3"), index_document="lorem-ipsum.txt")
 
     await app.start()
 
@@ -434,8 +431,7 @@ async def test_cannot_serve_files_outside_static_folder():
     app = FakeApplication()
 
     folder_path = get_folder_path("files")
-    options = ServeFilesOptions(folder_path, discovery=True, extensions={".py"})
-    app.serve_files(options)
+    app.serve_files(folder_path, discovery=True, extensions={".py"})
 
     await app.start()
 
@@ -455,8 +451,7 @@ async def test_cannot_serve_files_with_unhandled_extension():
     app = FakeApplication()
 
     folder_path = get_folder_path("files2")
-    options = ServeFilesOptions(folder_path, discovery=True, extensions={".py"})
-    app.serve_files(options)
+    app.serve_files(folder_path, discovery=True, extensions={".py"})
 
     await app.start()
 
@@ -475,8 +470,7 @@ async def test_cannot_serve_files_with_unhandled_extension():
 async def test_can_serve_files_with_relative_paths(files2_index_contents):
     app = FakeApplication()
     folder_path = get_folder_path("files2")
-    options = ServeFilesOptions(folder_path, discovery=True)
-    app.serve_files(options)
+    app.serve_files(folder_path, discovery=True)
 
     await app.start()
 
@@ -521,8 +515,8 @@ async def test_serve_files_discovery(folder_name: str):
     app = FakeApplication()
 
     folder_path = get_folder_path(folder_name)
-    options = ServeFilesOptions(folder_path, discovery=True)
-    app.serve_files(options)
+    app.serve_files(folder_path, discovery=True)
+    extensions = get_default_extensions()
 
     await app.start()
 
@@ -544,7 +538,7 @@ async def test_serve_files_discovery(folder_name: str):
             continue
 
         file_extension = get_file_extension(str(item))
-        if file_extension in options.extensions:
+        if file_extension in extensions:
             assert f"/{item.name}" in body
         else:
             assert item.name not in body
@@ -555,7 +549,7 @@ async def test_serve_files_discovery_subfolder():
     app = FakeApplication()
 
     folder_path = get_folder_path("files2")
-    app.serve_files(ServeFilesOptions(folder_path, discovery=True))
+    app.serve_files(folder_path, discovery=True)
 
     await app.start()
 
@@ -594,7 +588,7 @@ async def test_serve_files_with_custom_files_handler():
     app.files_handler = CustomFilesHandler()
 
     folder_path = get_folder_path("files2")
-    app.serve_files(ServeFilesOptions(folder_path, discovery=True))
+    app.serve_files(folder_path, discovery=True)
 
     await app.start()
 
@@ -628,8 +622,8 @@ async def test_serve_files_multiple_folders(files2_index_contents):
 
     files1 = get_folder_path("files")
     files2 = get_folder_path("files2")
-    app.serve_files(ServeFilesOptions(files1, discovery=True, root_path="one"))
-    app.serve_files(ServeFilesOptions(files2, discovery=True, root_path="two"))
+    app.serve_files(files1, discovery=True, root_path="one")
+    app.serve_files(files2, discovery=True, root_path="two")
 
     await app.start()
 
@@ -692,13 +686,13 @@ async def test_serve_files_multiple_folders(files2_index_contents):
     assert body == files2_index_contents
 
 
-def test_serve_file_options_raise_for_invalid_path():
+def test_validate_source_path_raises_for_invalid_path():
 
     with pytest.raises(InvalidArgument):
-        ServeFilesOptions("./not-existing").validate()
+        validate_source_path("./not-existing")
 
     with pytest.raises(InvalidArgument):
-        ServeFilesOptions(files2_index_path).validate()
+        validate_source_path(files2_index_path)
 
 
 def test_get_requested_range_raises_for_invalid_range():

@@ -7,6 +7,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     Union,
@@ -31,7 +32,7 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
-from blacksheep.server.files.dynamic import ServeFilesOptions, serve_files_dynamic
+from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
@@ -304,8 +305,30 @@ class Application(BaseApplication):
 
         return decorator
 
-    def serve_files(self, options: ServeFilesOptions):
-        serve_files_dynamic(self.router, self.files_handler, options)
+    def serve_files(
+        self,
+        source_folder_name: str,
+        *,
+        discovery: bool = False,
+        cache_time: int = 10800,
+        extensions: Optional[Set[str]] = None,
+        root_path: str = "",
+        index_document: Optional[str] = "index.html",
+        fallback_document: Optional[str] = None,
+        allow_anonymous: bool = True,
+    ):
+        serve_files_dynamic(
+            self.router,
+            self.files_handler,
+            source_folder_name,
+            discovery,
+            cache_time,
+            extensions,
+            root_path,
+            index_document,
+            fallback_document,
+            allow_anonymous,
+        )
 
     def _apply_middlewares_in_routes(self):
         for route in self.router:

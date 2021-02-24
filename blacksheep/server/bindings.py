@@ -35,7 +35,7 @@ from blacksheep.exceptions import BadRequest
 from blacksheep.url import URL
 from dateutil.parser import parse as dateutil_parser
 from guardpost.authentication import Identity
-from rodi import Services
+from rodi import Services, CannotResolveTypeException
 
 T = TypeVar("T")
 TypeOrName = Union[Type, str]
@@ -751,7 +751,10 @@ class ServiceBinder(Binder):
             # (across parameters and middlewares)
             context = None
 
-        return self.services.get(self.expected_type, context)
+        try:
+            return self.services.get(self.expected_type, context)
+        except CannotResolveTypeException:
+            return None
 
 
 class ControllerParameter(BoundValue[T]):

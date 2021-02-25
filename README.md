@@ -1,8 +1,8 @@
-[![Build](https://github.com/RobertoPrevato/BlackSheep/workflows/Main/badge.svg)](https://github.com/RobertoPrevato/BlackSheep/actions)
+[![Build](https://github.com/Neoteroi/BlackSheep/workflows/Main/badge.svg)](https://github.com/Neoteroi/BlackSheep/actions)
 [![pypi](https://img.shields.io/pypi/v/BlackSheep.svg?color=blue)](https://pypi.org/project/BlackSheep/)
 [![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/robertoprevato/blacksheep)
-[![codecov](https://codecov.io/gh/RobertoPrevato/BlackSheep/branch/master/graph/badge.svg?token=Nzi29L0Eg1)](https://codecov.io/gh/RobertoPrevato/BlackSheep)
-[![license](https://img.shields.io/github/license/RobertoPrevato/blacksheep.svg)](https://github.com/RobertoPrevato/blacksheep/blob/master/LICENSE)
+[![codecov](https://codecov.io/gh/Neoteroi/BlackSheep/branch/master/graph/badge.svg?token=Nzi29L0Eg1)](https://codecov.io/gh/Neoteroi/BlackSheep)
+[![license](https://img.shields.io/github/license/Neoteroi/blacksheep.svg)](https://github.com/Neoteroi/blacksheep/blob/master/LICENSE)
 
 # BlackSheep
 BlackSheep is an asynchronous web framework to build event based web
@@ -45,9 +45,9 @@ The documentation offers getting started tutorials:
 These project templates can be used to start new applications faster:
 
 * [BlackSheep MVC project
-  template](https://github.com/RobertoPrevato/BlackSheepMVC)
+  template](https://github.com/Neoteroi/BlackSheepMVC)
 * [BlackSheep empty project
-  template](https://github.com/RobertoPrevato/BlackSheepEmptyProject)
+  template](https://github.com/Neoteroi/BlackSheepEmptyProject)
 
 ## Requirements
 

@@ -76,7 +76,7 @@ def dataclass_model():
         [
             Sentence(
                 "Check this out!",
-                "https://github.com/RobertoPrevato/BlackSheep",
+                "https://github.com/Neoteroi/BlackSheep",
             )
         ],
     )
@@ -88,7 +88,7 @@ def class_model():
         [
             Sentence2(
                 "Check this out!",
-                "https://github.com/RobertoPrevato/BlackSheep",
+                "https://github.com/Neoteroi/BlackSheep",
             )
         ],
     )
@@ -100,7 +100,7 @@ def pydantic_model():
         sentences=[
             PydanticSentence(
                 text="Check this out!",
-                url="https://github.com/RobertoPrevato/BlackSheep",
+                url="https://github.com/Neoteroi/BlackSheep",
             )
         ],
     )
@@ -395,7 +395,7 @@ async def test_controller_model_interop(model_fixture):
     await _view_scenario(
         app,
         expected_text='<div style="margin: 10em 2em;">\n  <h1>Hello, World!!</h1>\n\n'
-        + '  <ul>\n    \n      <li><a href="https://github.com/RobertoPrevato/'
+        + '  <ul>\n    \n      <li><a href="https://github.com/Neoteroi/'
         + 'BlackSheep">Check this out!</a></li>\n    \n  </ul>\n</div>',
     )
 

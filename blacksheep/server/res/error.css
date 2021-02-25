@@ -1,0 +1,89 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+dl {
+  display: flex;
+  flex-flow: row;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+dt {
+  font-weight: bold;
+  flex: 0 0 20%;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  border-bottom: 1px dotted #eee;
+  padding: 10px 0;
+}
+
+dd {
+  flex: 0 0 80%;
+  margin-left: auto;
+  text-align: left;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  padding: 10px 0;
+  border-bottom: 1px dotted #eee;
+}
+
+dt, dd {
+  padding: .3rem 0;
+}
+
+header {
+  background-color: #1c6962;
+  color: white;
+  padding: .5rem 2rem;
+  border-bottom: 1px solid #0f5046;
+}
+
+#content {
+  padding: .5rem 2rem;
+}
+
+.stack-trace {
+  font-family: monospace;
+  background: aliceblue;
+  padding: 1rem 3.5rem;
+  border: 1px dashed #366a62;
+  font-size: 14px;
+}
+
+.stack-trace pre {
+  padding-left: 60px;
+  word-break: break-word;
+  white-space: break-spaces;
+}
+
+.custom-counter {
+  margin: 0;
+  padding: 0 1rem 0 0;
+  list-style-type: none;
+}
+
+.custom-counter li {
+  counter-increment: step-counter;
+  margin-bottom: 5px;
+}
+
+.custom-counter li::before {
+  content: counter(step-counter);
+  margin-right: 20px;
+  font-size: 80%;
+  background-color: rgb(54 106 98);
+  color: white;
+  font-weight: bold;
+  padding: 3px 8px;
+  float: left;
+  border-radius: 11px;
+  margin-left: 20px;
+}
+
+.notes {
+  padding: 1rem 0;
+  font-size: small;
+}

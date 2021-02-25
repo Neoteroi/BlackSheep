@@ -1,6 +1,6 @@
 from .messages cimport Request, Response
-from .contents cimport TextContent, HtmlContent
-from .exceptions cimport HTTPException, NotFound
+from .contents cimport TextContent
+from .exceptions cimport HTTPException
 
 
 import os
@@ -94,30 +94,8 @@ cdef class BaseApplication:
 
     async def handle_internal_server_error(self, Request request, Exception exc):
         if self.show_error_details:
-            tb = traceback.format_exception(
-                exc.__class__,
-                exc,
-                exc.__traceback__
-            )
-            info = ''
-            for item in tb:
-                info += f'<li><pre>{html.escape(item)}</pre></li>'
-
-            content = HtmlContent(
-                self.resources.error_page_html.format_map(
-                    {
-                        'process_id': os.getpid(),
-                        'info': info,
-                        'exctype': exc.__class__.__name__,
-                        'excmessage': str(exc),
-                        'method': request.method,
-                        'path': request.url.value.decode()
-                    }
-                )
-            )
-
-            return Response(500, content=content)
-        return Response(500, content=TextContent('Internal server error.'))
+            return self.server_error_details_handler.produce_response(request, exc)
+        return Response(500, content=TextContent("Internal server error."))
 
     async def _apply_exception_handler(self, Request request, Exception exc, object exception_handler):
         try:

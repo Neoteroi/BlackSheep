@@ -1,10 +1,13 @@
 import pytest
-from blacksheep import scribe
-from blacksheep import Request, Content
-from blacksheep.scribe import write_small_request
+from blacksheep import Content, Request, scribe
+from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
-from blacksheep.contents import MultiPartFormData, FormPart
+from blacksheep.scribe import write_small_request
+from blacksheep.server.asgi import get_request_url
 from blacksheep.url import URL
+
+
+from .test_application import get_example_scope
 
 
 def test_request_supports_dynamic_attributes():
@@ -250,3 +253,36 @@ def test_request_content_type_is_read_from_content():
     )
 
     assert request.content_type() == request.content.type
+
+
+@pytest.mark.parametrize(
+    "scope,expected_value",
+    [
+        (
+            get_example_scope("GET", "/foo", scheme="http", server=["127.0.0.1", 8000]),
+            "http://127.0.0.1:8000/foo",
+        ),
+        (
+            get_example_scope("GET", "/foo", scheme="http", server=["127.0.0.1", 80]),
+            "http://127.0.0.1/foo",
+        ),
+        (
+            get_example_scope(
+                "GET", "/foo", scheme="https", server=["127.0.0.1", 44777]
+            ),
+            "https://127.0.0.1:44777/foo",
+        ),
+        (
+            get_example_scope("GET", "/foo", scheme="https", server=["127.0.0.1", 443]),
+            "https://127.0.0.1/foo",
+        ),
+    ],
+)
+def test_get_asgi_request_full_url(scope, expected_value):
+    request = Request.incoming(
+        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+    )
+    request.scope = scope
+
+    full_url = get_request_url(request)
+    assert full_url == expected_value

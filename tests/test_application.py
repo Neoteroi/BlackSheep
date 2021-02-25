@@ -83,18 +83,25 @@ async def test_application_service_provider_throws_for_missing_value():
 
 
 def get_example_scope(
-    method: str, path: str, extra_headers=None, query: Optional[bytes] = b""
+    method: str,
+    path: str,
+    extra_headers=None,
+    query: Optional[bytes] = b"",
+    scheme: str = "http",
+    server: Optional[List] = None,
 ):
     if "?" in path:
         raise ValueError("The path in ASGI messages does not contain query string")
     if query.startswith(b""):
         query = query.lstrip(b"")
+    if server is None:
+        server = ["127.0.0.1", 8000]
     return {
-        "type": "http",
+        "type": scheme,
         "http_version": "1.1",
-        "server": ["127.0.0.1", 8000],
+        "server": server,
         "client": ["127.0.0.1", 51492],
-        "scheme": "http",
+        "scheme": scheme,
         "method": method,
         "root_path": "",
         "path": path,

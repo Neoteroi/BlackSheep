@@ -9,7 +9,6 @@ import pytest
 import yaml
 
 from .client_fixtures import get_static_path
-from .lorem import LOREM_IPSUM
 from .server_fixtures import *  # NoQA
 from .utils import assert_files_equals, ensure_success
 
@@ -217,112 +216,6 @@ def test_exception_handling_with_response(session_two):
 
     assert response.status_code == 200
     assert response.text == "Fake exception, to test handlers"
-
-
-if os.environ.get("SLOW_TESTS") == "1":
-
-    def test_low_level_hello_world(socket_connection, server_host):
-
-        lines = b"\r\n".join(
-            [
-                b"GET /hello-world HTTP/1.1",
-                b"Host: " + server_host.encode(),
-                b"\r\n\r\n",
-            ]
-        )
-
-        socket_connection.send(lines)
-
-        response_bytes = bytearray()
-
-        while True:
-            chunk = socket_connection.recv(1024)
-
-            if chunk:
-                response_bytes.extend(chunk)
-            else:
-                break
-
-        value = bytes(response_bytes)
-        assert b"content-length: 13" in value
-        assert value.endswith(b"Hello, World!")
-
-    @pytest.mark.parametrize("value", [LOREM_IPSUM])
-    def test_posting_chunked_text(socket_connection, server_host, value):
-
-        lines = b"\r\n".join(
-            [
-                b"POST /echo-chunked-text HTTP/1.1",
-                b"Host: " + server_host.encode(),
-                b"Transfer-Encoding: chunked",
-                b"Content-Type: text/plain; charset=utf-8",
-            ]
-        )
-
-        socket_connection.send(lines)
-
-        for line in value.splitlines():
-            chunk = line.encode("utf-8")
-            socket_connection.send(
-                (hex(len(chunk))).encode()[2:] + b"\r\n" + chunk + b"\r\n"
-            )
-
-        socket_connection.send(b"0\r\n\r\n")
-
-        response_bytes = bytearray()
-
-        while True:
-            chunk = socket_connection.recv(1024)
-
-            if chunk:
-                response_bytes.extend(chunk)
-            else:
-                break
-
-        response_bytes = bytes(response_bytes)
-        value = value.replace("\n", "")  # NB: splitlines removes line breaks
-
-        content_length_header = b"content-length: " + str(len(value)).encode()
-
-        assert content_length_header in response_bytes
-        assert response_bytes.endswith(value.encode("utf-8"))
-
-    @pytest.mark.parametrize("value", [LOREM_IPSUM])
-    def test_posting_chunked_text_streamed(socket_connection, server_host, value):
-
-        lines = b"\r\n".join(
-            [
-                b"POST /echo-streamed-text HTTP/1.1",
-                b"Host: " + server_host.encode(),
-                b"Transfer-Encoding: chunked",
-                b"Content-Type: text/plain; charset=utf-8",
-            ]
-        )
-
-        socket_connection.send(lines)
-
-        for line in value.splitlines():
-            chunk = line.encode("utf-8")
-            socket_connection.send(
-                (hex(len(chunk))).encode()[2:] + b"\r\n" + chunk + b"\r\n"
-            )
-
-        socket_connection.send(b"0\r\n\r\n")
-
-        response_bytes = bytearray()
-
-        while True:
-            chunk = socket_connection.recv(1024)
-
-            if chunk:
-                response_bytes.extend(chunk)
-            else:
-                break
-
-        response_bytes = bytes(response_bytes)
-        # value = value.replace('\n', '')  # NB: splitlines removes line breaks
-
-        assert b"transfer-encoding: chunked" in response_bytes
 
 
 @pytest.mark.parametrize(

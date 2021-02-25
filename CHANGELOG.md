@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2021-02-25 :hatching_chick:
+- Upgrades dependencies
+- Improves the internal server error page and the code handling it
+- Marks the web framework as stable
+
 ## [0.3.2] - 2021-01-24 :grapes:
 - Logs handled and unhandled exceptions (fixes: #75)
 - Adds support for [Flask Variable Rules syntax](https://flask.palletsprojects.com/en/1.1.x/quickstart/?highlight=routing#variable-rules) (ref. #76) and more granular control on the

@@ -1,5 +1,6 @@
-from blacksheep.server.files import ServeFilesOptions
+from blacksheep.server.errors import ServerErrorDetailsHandler
 import logging
+import os
 from typing import (
     Any,
     Awaitable,
@@ -33,9 +34,9 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
+from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
-from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
 from blacksheep.utils import ensure_bytes, join_fragments
 from guardpost.asynchronous.authentication import AuthenticationStrategy
@@ -61,11 +62,6 @@ def get_default_headers_middleware(
         return response
 
     return default_headers_middleware
-
-
-class Resources:
-    def __init__(self, error_page_html: str):
-        self.error_page_html = error_page_html
 
 
 class ApplicationEvent:
@@ -115,26 +111,24 @@ class Application(BaseApplication):
         self,
         *,
         router: Optional[Router] = None,
-        resources: Optional[Resources] = None,
         services: Optional[Container] = None,
         debug: bool = False,
-        show_error_details: bool = False,
+        show_error_details: Optional[bool] = None,
     ):
         if router is None:
             router = Router()
         if services is None:
             services = Container()
+        if show_error_details is None:
+            show_error_details = bool(os.environ.get("APP_SHOW_ERROR_DETAILS", False))
         super().__init__(show_error_details, router)
 
-        if resources is None:
-            resources = Resources(get_resource_file_content("error.html"))
         self.services: Container = services
         self._service_provider: Optional[Services] = None
         self.debug = debug
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []
         self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
         self._middlewares_configured = False
-        self.resources = resources
         self._cors_strategy: Optional[CORSStrategy] = None
         self._authentication_strategy: Optional[AuthenticationStrategy] = None
         self._authorization_strategy: Optional[AuthorizationStrategy] = None
@@ -144,6 +138,7 @@ class Application(BaseApplication):
         self.started = False
         self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
+        self.server_error_details_handler = ServerErrorDetailsHandler()
 
     @property
     def service_provider(self) -> Services:

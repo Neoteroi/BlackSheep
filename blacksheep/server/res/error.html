@@ -5,24 +5,37 @@
     <meta charset="utf-8" />
     <meta content='text/html; charset=utf-8' http-equiv='Content-Type'>
     <style>
-        dt {{
-            font-weight: bold;
-        }}
+      /*STYLES*/
     </style>
   </head>
   <body>
-    <h1>Internal Server Error.</h1>
-    <p>While handling request: {method} {path}</p>
-    <dl>
-        <dt>Exception type:</dt>
-        <dd>{exctype}</dd>
-        <dt>Exception message:</dt>
-        <dd>{excmessage}</dd>
-    </dl>
-    <hr/>
-    <p>Stack trace:</p>
-    <ol>{info}</ol>
-    <hr/>
-    <p>Process ID: {process_id}.</p>
+    <header>
+      <h1>Internal Server Error.</h1>
+      <p>While handling request: {method} {path}</p>
+    </header>
+    <div id="content">
+      <div>
+        <dl>
+            <dt>Exception type:</dt>
+            <dd>{exctype}</dd>
+            <dt>Exception message:</dt>
+            <dd>{excmessage}</dd>
+            <dt>Method:</dt>
+            <dd>{method}</dd>
+            <dt>URL:</dt>
+            <dd>{full_url}</dd>
+        </dl>
+      </div>
+      <hr/>
+      <h3>Stack trace:</h3>
+      <ol class="stack-trace custom-counter">{info}</ol>
+      <hr/>
+      <div class="notes">
+        <span>
+          ⚠️ This error is displayed for diagnostic purpose. Error details
+          should be hidden during normal service operation.
+        </span>
+      </div>
+    </div>
   </body>
 </html>

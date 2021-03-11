@@ -5,7 +5,7 @@ on:
     types: [published]
   push:
     branches:
-      - master
+      - main
       - ci
   pull_request:
     branches:

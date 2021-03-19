@@ -408,7 +408,7 @@ async def test_application_returns_400_for_invalid_json():
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_two():
+async def test_application_middlewares_one():
     app = FakeApplication()
 
     calls = []
@@ -435,6 +435,51 @@ async def test_application_middlewares_two():
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
+    app.build_services()
+    app.configure_middlewares()
+
+    send = MockSend()
+    receive = MockReceive([])
+
+    await app(get_example_scope("GET", "/"), receive, send)
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response is not None
+    assert response.status == 200
+    assert calls == [1, 3, 5, 4, 2]
+
+
+@pytest.mark.asyncio
+async def test_application_middlewares_as_classes():
+    app = FakeApplication()
+
+    calls = []
+
+    class MiddlewareExample:
+        def __init__(self, calls: List[int], seed: int) -> None:
+            self.seed = seed
+            self.calls = calls
+
+        def get_seed(self) -> int:
+            self.seed += 1
+            return self.seed
+
+        async def __call__(self, request, handler):
+            self.calls.append(self.get_seed())
+            response = await handler(request)
+            self.calls.append(self.get_seed())
+            return response
+
+    @app.route("/")
+    async def example(request):
+        nonlocal calls
+        calls.append(5)
+        return Response(200, [(b"Server", b"Python/3.7")], JsonContent({"id": "123"}))
+
+    app.middlewares.append(MiddlewareExample(calls, 0))
+    app.middlewares.append(MiddlewareExample(calls, 2))
     app.build_services()
     app.configure_middlewares()
 

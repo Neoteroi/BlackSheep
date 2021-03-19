@@ -509,7 +509,9 @@ def _get_middleware_async_binder(
 def normalize_middleware(
     middleware: Callable[..., Awaitable[Response]], services: Services
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
-    if not inspect.iscoroutinefunction(middleware):
+    if not inspect.iscoroutinefunction(middleware) and not inspect.iscoroutinefunction(
+        getattr(middleware, "__call__", None)
+    ):
         raise ValueError("Middlewares must be asynchronous functions")
 
     sig = Signature.from_callable(middleware)

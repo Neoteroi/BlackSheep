@@ -499,7 +499,7 @@ class Application(BaseApplication):
             )
 
         if self._cors_strategy:
-            self.middlewares.insert(0, get_cors_middleware(self._cors_strategy))
+            self.middlewares.insert(0, get_cors_middleware(self, self._cors_strategy))
 
         if self._default_headers:
             self.middlewares.insert(

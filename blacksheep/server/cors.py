@@ -2,6 +2,7 @@ import re
 from functools import lru_cache
 from typing import Any, Awaitable, Callable, Dict, FrozenSet, Iterable, Optional, Union
 
+from blacksheep.baseapp import BaseApplication
 from blacksheep.messages import Request, Response
 from blacksheep.server.routing import Route, Router
 
@@ -238,6 +239,7 @@ def _get_encoded_value_for_max_age(max_age: int) -> bytes:
 
 
 def get_cors_middleware(
+    app: BaseApplication,
     strategy: CORSStrategy,
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     async def cors_middleware(request: Request, handler):
@@ -305,14 +307,24 @@ def get_cors_middleware(
             response.set_header(b"Access-Control-Max-Age", max_age)
             return response
 
-        # regular (non-preflight) CORS request
+        # regular CORS request (non-preflight)
         if (
             "*" not in policy.allow_methods
             and request.method not in policy.allow_methods
         ):
             return _get_invalid_method_response()
 
-        response = await handler(request)
+        # CORS response headers must be set even if exceptions are used to
+        # control the flow of the application.
+        # For example if a request handler throws a "Conflict" exception to handle
+        # unique constraints conflicts in a relational database.
+        # If CORS response headers weren't set, error details wouldn't be available
+        # to the client code, in such circumstances.
+        try:
+            response = await handler(request)
+        except Exception as exc:
+            response = await app.handle_request_handler_exception(request, exc)
+
         response.set_header(b"Access-Control-Allow-Origin", allowed_origins)
         response.set_header(b"Access-Control-Expose-Headers", expose_headers)
 

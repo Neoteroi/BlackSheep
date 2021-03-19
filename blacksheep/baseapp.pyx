@@ -70,12 +70,8 @@ cdef class BaseApplication:
 
             try:
                 response = await route.handler(request)
-            except HTTPException as http_exception:
-                await self.log_handled_exc(request, http_exception)
-                response = await self.handle_http_exception(request, http_exception)
             except Exception as exc:
-                await self.log_unhandled_exc(request, exc)
-                response = await self.handle_exception(request, exc)
+                response = await self.handle_request_handler_exception(request, exc)
         else:
             response = await self.exceptions_handlers.get(404)(self, request, None)
             if not response:
@@ -85,6 +81,14 @@ cdef class BaseApplication:
         # for example, a user might return "None" from an handler
         # this might be ambiguous, if a programmer thinks to return None for "Not found"
         return response or Response(204)
+
+    async def handle_request_handler_exception(self, request, exc):
+        if isinstance(exc, HTTPException):
+            await self.log_handled_exc(request, exc)
+            return await self.handle_http_exception(request, exc)
+
+        await self.log_unhandled_exc(request, exc)
+        return await self.handle_exception(request, exc)
 
     cdef object get_http_exception_handler(self, HTTPException http_exception):
         return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)

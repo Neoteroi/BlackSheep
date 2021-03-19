@@ -1,4 +1,5 @@
 import pytest
+from blacksheep.exceptions import BadRequest
 from blacksheep.server.application import ApplicationAlreadyStartedCORSError
 from blacksheep.server.cors import (
     CORSConfigurationError,
@@ -177,6 +178,123 @@ async def test_cors_request():
         response = app.response
         assert response.status == 200
         assert response.content.body == b"Hello, World"
+
+
+@pytest.mark.asyncio
+async def test_response_to_cors_request_contains_cors_headers():
+    app = FakeApplication()
+
+    app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
+
+    @app.router.post("/")
+    async def home():
+        return text("Hello, World")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+    assert response.headers.get_single(b"Access-Control-Expose-Headers") is not None
+
+
+@pytest.mark.asyncio
+async def test_response_to_failed_cors_request_contains_cors_headers():
+    # ref. issue #90
+    app = FakeApplication()
+
+    async def example(*args):
+        return text("Oh, no!", status=500)
+
+    class CrashError(Exception):
+        pass
+
+    app.exceptions_handlers[CrashError] = example
+
+    app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
+
+    @app.router.post("/example_1")
+    async def example_1():
+        # example: use an exception to control the execution flow,
+        # the error handler defined in app.exceptions_handlers will produce the
+        # response object
+        # the response object must be populated with CORS headers, otherwise the
+        # client won't expose the error details - for example we might send a JSON
+        # structure with error information
+        raise CrashError()
+
+    @app.router.post("/example_2")
+    async def example_2():
+        # example: use an exception to control the execution flow,
+        # the error handler defined in app.exceptions_handlers will produce the
+        # response object
+        # the response object must be populated with CORS headers, otherwise the
+        # client won't expose the error details - for example we might send a JSON
+        # structure with error information
+        raise BadRequest("Some user friendly client error detail")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/example_1",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 500
+    assert (await response.text()) == "Oh, no!"
+
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+    assert response.headers.get_single(b"Access-Control-Expose-Headers") is not None
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/example_2",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 400
+    assert (
+        await response.text()
+    ) == "Bad Request: Some user friendly client error detail"
+
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+    assert response.headers.get_single(b"Access-Control-Expose-Headers") is not None
 
 
 @pytest.mark.asyncio

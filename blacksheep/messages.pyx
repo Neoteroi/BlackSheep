@@ -347,15 +347,13 @@ cdef class Request(Message):
                         cookies[unquote(name.decode())] = unquote(value.rstrip(b'; ').decode())
         return cookies
 
-    def set_cookie(self, Cookie cookie):
-        self.__headers.append(
-            (b'cookie', (quote(cookie.name) + '=' + quote(cookie.value)).encode())
-        )
+    def get_cookie(self, str name):
+        return self.cookies.get(name)
 
-    def set_cookies(self, list cookies):
-        cdef Cookie cookie
-        for cookie in cookies:
-            self.set_cookie(cookie)
+    def set_cookie(self, str name, str value):
+        self.__headers.append(
+            (b'cookie', (quote(name) + '=' + quote(value)).encode())
+        )
 
     @property
     def etag(self):

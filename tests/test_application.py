@@ -543,7 +543,7 @@ async def test_application_middlewares_are_applied_only_once():
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_three():
+async def test_application_middlewares_two():
     app = FakeApplication()
 
     calls = []

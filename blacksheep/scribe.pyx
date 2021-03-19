@@ -111,16 +111,6 @@ cpdef bytes write_response_cookie(Cookie cookie):
     return write_cookie_for_response(cookie)
 
 
-cdef bytes write_cookies_for_request(dict cookies):
-    cdef list parts = []
-    cdef bytes name, value
-
-    for name, value in cookies.items():
-        parts.append(name + b'=' + value)
-
-    return b'; '.join(parts)
-
-
 async def write_chunks(Content http_content):
     async for chunk in http_content.get_parts():
         yield (hex(len(chunk))).encode()[2:] + b'\r\n' + chunk + b'\r\n'

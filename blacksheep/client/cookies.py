@@ -309,7 +309,7 @@ async def cookies_middleware(request, next_handler):
     cookie_jar = request.context.cookies
 
     for cookie in cookie_jar.get_cookies_for_url(request.url):
-        request.set_cookie(cookie)
+        request.set_cookie(cookie.name, cookie.value)
 
     response = await next_handler(request)
 

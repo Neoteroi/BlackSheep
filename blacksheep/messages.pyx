@@ -15,6 +15,7 @@ from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
 from blacksheep.multipart import parse_multipart
+from blacksheep.sessions import Session
 
 
 _charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
@@ -268,9 +269,23 @@ cdef class Request(Message):
         self.__headers = headers or []
         self.method = method
         self._url = _url
+        self._session = None
         if _url:
             self._path = _url.path
             self._raw_query = _url.query
+
+    @property
+    def session(self):
+        if self._session is None:
+            raise TypeError(
+                "A session is not configured for this request, activate "
+                "sessions using `app.use_sessions` method."
+            )
+        return self._session
+
+    @session.setter
+    def session(self, value: Session):
+        self._session = value
 
     @classmethod
     def incoming(cls, str method, bytes path, bytes query, list headers):

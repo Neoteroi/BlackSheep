@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
 from blacksheep.cookies import Cookie
 from blacksheep.messages import Request, Response
@@ -18,7 +18,7 @@ def get_logger():
 
 
 class Session:
-    def __init__(self, values: Dict[str, Any] = None) -> None:
+    def __init__(self, values: Mapping[str, Any] = None) -> None:
         if values is None:
             values = {}
         self._modified = False
@@ -33,6 +33,10 @@ class Session:
 
     def set(self, name: str, value: Any) -> None:
         self._values[name] = value
+
+    def update(self, values: Mapping[str, Any]) -> None:
+        self._modified = True
+        self._values.update(values)
 
     def __getitem__(self, name: str) -> Any:
         return self._values[name]
@@ -109,6 +113,8 @@ class SessionMiddleware:
         self._session_cookie = session_cookie
         self._encryptor = encryptor
         self._logger = get_logger()
+        if session_max_age is not None and session_max_age < 1:
+            raise ValueError("session_max_age must be a positive number greater than 0")
         self.session_max_age = session_max_age
 
     def try_read_session(self, raw_value: str) -> Session:
@@ -118,18 +124,28 @@ class SessionMiddleware:
             except Exception as decrypt_error:
                 # the client might be sending forged tokens
                 self._logger.info(
-                    "Session value decryption failed.",
+                    "The session value decryption failed.",
                     exc_info=decrypt_error,
                 )
                 return Session()
 
         try:
-            unsigned_value = self._signer.unsign(
-                raw_value, max_age=self.session_max_age
-            )
+            if self.session_max_age:
+                assert isinstance(self._signer, TimestampSigner), (
+                    "To use a session_max_age, the configured signer must be of "
+                    + " TimestampSigner type"
+                )
+                unsigned_value = self._signer.unsign(
+                    raw_value, max_age=self.session_max_age
+                )
+            else:
+                unsigned_value = self._signer.unsign(raw_value)
+        except SignatureExpired:
+            self._logger.info("The session signature has expired.")
+            return Session()
         except BadSignature:
             # the client might be sending forged tokens
-            self._logger.info("Session signature verification failed.")
+            self._logger.info("The session signature verification failed.")
             return Session()
 
         # in this case, we don't try because if the signature verification worked,

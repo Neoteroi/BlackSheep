@@ -1,5 +1,6 @@
+import time
+
 import pytest
-from urllib.parse import quote
 from blacksheep.cookies import parse_cookie
 from blacksheep.messages import Request
 from blacksheep.server.responses import text
@@ -8,6 +9,13 @@ from blacksheep.sessions.crypto import FernetEncryptor
 from cryptography.fernet import Fernet
 
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
+
+
+def test_friendly_exception_for_request_without_session():
+    request = Request("GET", b"/", None)
+
+    with pytest.raises(TypeError):
+        request.session
 
 
 def test_session_base_methods():
@@ -28,6 +36,12 @@ def test_session_base_methods():
     assert session.get("foo") == "lorem ipsum"
 
     assert session.get("ufo", ...) is ...
+
+    session.update({"a": 1, "b": 2, "c": 3})
+
+    assert session["a"] == 1
+    assert session["b"] == 2
+    assert session["c"] == 3
 
 
 @pytest.mark.parametrize(
@@ -210,6 +224,68 @@ async def test_session_middleware_basics():
 
 
 @pytest.mark.asyncio
+async def test_session_middleware_use_method():
+    app = FakeApplication()
+
+    app.use_sessions("LOREM_IPSUM")
+
+    @app.router.get("/")
+    def home(request: Request):
+        session = request.session
+
+        assert isinstance(session, Session)
+        session["foo"] = "Some value"
+
+        return text("Hello, World")
+
+    @app.router.get("/second")
+    def second(request: Request):
+        session = request.session
+
+        assert "foo" in session
+        assert session["foo"] == "Some value"
+
+        return text("Hello, World")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_single(b"Set-Cookie")
+    assert session_set_cookie is not None
+
+    cookie = parse_cookie(session_set_cookie)
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/second",
+            [
+                [b"cookie", b"session=" + cookie.value.encode()],
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_first(b"Set-Cookie")
+    assert session_set_cookie is None
+
+
+@pytest.mark.asyncio
 async def test_session_middleware_with_encryptor():
     app = FakeApplication()
 
@@ -315,6 +391,69 @@ async def test_session_middleware_handling_of_invalid_signature():
 
 
 @pytest.mark.asyncio
+async def test_session_middleware_handling_of_expired_signature():
+    app = FakeApplication()
+
+    app.middlewares.append(SessionMiddleware("LOREM_IPSUM", session_max_age=1))
+
+    @app.router.get("/")
+    def home(request: Request):
+        session = request.session
+
+        assert isinstance(session, Session)
+        session["foo"] = "Some value"
+
+        return text("Hello, World")
+
+    @app.router.get("/second")
+    def second(request: Request):
+        session = request.session
+
+        assert "foo" not in session
+
+        return text("Hello, World")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_single(b"Set-Cookie")
+    assert session_set_cookie is not None
+
+    cookie = parse_cookie(session_set_cookie)
+
+    time.sleep(2)
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/second",
+            [
+                [b"cookie", b"session=" + cookie.value.encode()],
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_first(b"Set-Cookie")
+    assert session_set_cookie is None
+
+
+@pytest.mark.asyncio
 async def test_session_middleware_handling_of_invalid_encrypted_signature():
     app = FakeApplication()
 
@@ -357,3 +496,11 @@ async def test_session_middleware_handling_of_invalid_encrypted_signature():
 
     response = app.response
     assert response.status == 200
+
+
+def test_exception_for_invalid_max_age():
+    with pytest.raises(ValueError):
+        SessionMiddleware("example", session_max_age=0)
+
+    with pytest.raises(ValueError):
+        SessionMiddleware("example", session_max_age=-10)

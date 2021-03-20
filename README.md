@@ -194,6 +194,11 @@ async def only_for_authenticated_users():
 * [Support for automatic generation of OpenAPI
   Documentation](https://www.neoteroi.dev/blacksheep/openapi/)
 * [Strategy to handle CORS settings](https://www.neoteroi.dev/blacksheep/cors/)
+* [Sessions](https://www.neoteroi.dev/blacksheep/sessions/)
+* Support for automatic binding of `dataclasses` and
+  [`pydantic`](https://pydantic-docs.helpmanual.io) models to handle the
+  request body payload expected by request handlers
+
 ## Client features
 BlackSheep includes an HTTP Client.
 

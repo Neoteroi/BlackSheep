@@ -69,11 +69,11 @@ cdef class Cookie:
 
 
 cdef tuple split_value(bytes raw_value, bytes separator):
-    cdef int rindex = raw_value.rindex(separator)
-    if rindex == -1:
+    cdef int index = raw_value.index(separator)
+    if index == -1:
         # this is the situation of flags, e.g. httponly and secure
         return b"", raw_value
-    return raw_value[:rindex], raw_value[rindex+1:]
+    return raw_value[:index], raw_value[index+1:]
 
 
 cdef CookieSameSiteMode same_site_mode_from_bytes(bytes raw_value):
@@ -94,6 +94,7 @@ cdef CookieSameSiteMode same_site_mode_from_bytes(bytes raw_value):
 
 
 cpdef Cookie parse_cookie(bytes raw_value):
+    # https://tools.ietf.org/html/rfc6265
     cdef int max_age
     cdef bytes value = b''
     cdef bytes eq, expires, domain, path, part, k, v, lower_k, lower_part

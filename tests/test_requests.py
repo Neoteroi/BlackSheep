@@ -286,3 +286,14 @@ def test_get_asgi_request_full_url(scope, expected_value):
 
     full_url = get_request_url(request)
     assert full_url == expected_value
+
+
+def test_request_pyi():
+    request = Request("GET", b"/", [(b"cookie", b"foo=aaa")])
+
+    request.cookies["foo"] == "aaa"
+    request.get_cookie("foo") == "aaa"
+    request.get_first_header(b"cookie") == b"foo=aaa"
+
+    request.set_cookie("lorem", "ipsum")
+    request.get_cookie("lorem") == "ipsum"

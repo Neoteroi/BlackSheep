@@ -1,4 +1,3 @@
-from blacksheep.server.errors import ServerErrorDetailsHandler
 import logging
 import os
 from typing import (
@@ -34,10 +33,17 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
+from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
+from blacksheep.sessions import (
+    Encryptor,
+    SessionSerializer,
+    Signer,
+    SessionMiddleware,
+)
 from blacksheep.utils import ensure_bytes, join_fragments
 from guardpost.asynchronous.authentication import AuthenticationStrategy
 from guardpost.asynchronous.authorization import AuthorizationStrategy
@@ -139,6 +145,7 @@ class Application(BaseApplication):
         self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
+        self._session_middleware: Optional[SessionMiddleware] = None
 
     @property
     def service_provider(self) -> Services:
@@ -165,6 +172,25 @@ class Application(BaseApplication):
                 + "Use `app.use_cors()` method before using this property."
             )
         return self._cors_strategy
+
+    def use_sessions(
+        self,
+        secret_key: str,
+        *,
+        session_cookie: str = "session",
+        serializer: Optional[SessionSerializer] = None,
+        signer: Optional[Signer] = None,
+        encryptor: Optional[Encryptor] = None,
+        session_max_age: Optional[int] = None,
+    ) -> None:
+        self._session_middleware = SessionMiddleware(
+            secret_key=secret_key,
+            session_cookie=session_cookie,
+            serializer=serializer,
+            signer=signer,
+            encryptor=encryptor,
+            session_max_age=session_max_age,
+        )
 
     def use_cors(
         self,
@@ -454,13 +480,6 @@ class Application(BaseApplication):
 
             self.bind_controller_type(controller_class)
 
-            # TODO: maybe rodi should be modified to handle the following
-            # internally;
-            # if a type does not define an __init__ method, then a fair
-            # assumption is that it can be instantiated
-            # by calling it;
-            # TODO: the following if statement can be removed if rodi is
-            # modified as described above.
             if getattr(controller_class, "__init__") is object.__init__:
                 self.services.add_transient_by_factory(
                     controller_class, controller_class
@@ -498,8 +517,11 @@ class Application(BaseApplication):
                 0, get_authentication_middleware(self._authentication_strategy)
             )
 
+        if self._session_middleware:
+            self.middlewares.insert(0, self._session_middleware)
+
         if self._cors_strategy:
-            self.middlewares.insert(0, get_cors_middleware(self._cors_strategy))
+            self.middlewares.insert(0, get_cors_middleware(self, self._cors_strategy))
 
         if self._default_headers:
             self.middlewares.insert(

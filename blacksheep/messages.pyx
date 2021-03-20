@@ -1,7 +1,7 @@
 from .url cimport URL
 from .headers cimport Headers
 from .exceptions cimport BadRequestFormat, InvalidOperation, MessageAborted
-from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
+from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response, split_value
 from .contents cimport Content, MultiPartFormData, parse_www_form_urlencoded, multiparts_to_dictionary
 
 
@@ -15,6 +15,7 @@ from json.decoder import JSONDecodeError
 from datetime import datetime, timedelta
 from typing import Union, Dict, List, Optional
 from blacksheep.multipart import parse_multipart
+from blacksheep.sessions import Session
 
 
 _charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
@@ -268,9 +269,23 @@ cdef class Request(Message):
         self.__headers = headers or []
         self.method = method
         self._url = _url
+        self._session = None
         if _url:
             self._path = _url.path
             self._raw_query = _url.query
+
+    @property
+    def session(self):
+        if self._session is None:
+            raise TypeError(
+                "A session is not configured for this request, activate "
+                "sessions using `app.use_sessions` method."
+            )
+        return self._session
+
+    @session.setter
+    def session(self, value: Session):
+        self._session = value
 
     @classmethod
     def incoming(cls, str method, bytes path, bytes query, list headers):
@@ -338,7 +353,7 @@ cdef class Request(Message):
 
                 for fragment in pairs:
                     try:
-                        name, value = fragment.split(b'=')
+                        name, value = split_value(fragment, b"=")
                     except ValueError as unpack_error:
                         # discard cookie: in this case it's better to eat the exception
                         # than blocking a request just because a cookie is malformed
@@ -347,15 +362,13 @@ cdef class Request(Message):
                         cookies[unquote(name.decode())] = unquote(value.rstrip(b'; ').decode())
         return cookies
 
-    def set_cookie(self, Cookie cookie):
-        self.__headers.append(
-            (b'cookie', (quote(cookie.name) + '=' + quote(cookie.value)).encode())
-        )
+    def get_cookie(self, str name):
+        return self.cookies.get(name)
 
-    def set_cookies(self, list cookies):
-        cdef Cookie cookie
-        for cookie in cookies:
-            self.set_cookie(cookie)
+    def set_cookie(self, str name, str value):
+        self.__headers.append(
+            (b'cookie', (quote(name) + '=' + quote(value)).encode())
+        )
 
     @property
     def etag(self):

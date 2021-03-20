@@ -11,16 +11,6 @@ from blacksheep import Content, JsonContent, Response, StreamedContent, TextCont
 from blacksheep.common.files.asyncfs import FilesHandler
 
 
-class FriendlyEncoderExtended(FriendlyEncoder):
-    def default(self, obj):
-        try:
-            return super().default(obj)
-        except TypeError:
-            if dataclasses.is_dataclass(obj):
-                return dataclasses.asdict(obj)
-            raise
-
-
 MessageType = Any
 
 
@@ -38,7 +28,7 @@ def _ensure_bytes(value: AnyStr) -> bytes:
 
 
 def _json_serialize(obj) -> str:
-    return friendly_dumps(obj, cls=FriendlyEncoderExtended, separators=(",", ":"))
+    return friendly_dumps(obj, cls=FriendlyEncoder, separators=(",", ":"))
 
 
 def _json_content(obj) -> JsonContent:
@@ -201,9 +191,7 @@ def json(data: Any, status: int = 200, dumps=friendly_dumps) -> Response:
         None,
         Content(
             b"application/json",
-            dumps(data, cls=FriendlyEncoderExtended, separators=(",", ":")).encode(
-                "utf8"
-            ),
+            dumps(data, cls=FriendlyEncoder, separators=(",", ":")).encode("utf8"),
         ),
     )
 
@@ -220,7 +208,7 @@ def pretty_json(
         None,
         Content(
             b"application/json",
-            dumps(data, cls=FriendlyEncoderExtended, indent=indent).encode("utf8"),
+            dumps(data, cls=FriendlyEncoder, indent=indent).encode("utf8"),
         ),
     )
 

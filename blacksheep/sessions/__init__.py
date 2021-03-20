@@ -129,7 +129,7 @@ class SessionMiddleware:
             )
         except BadSignature:
             # the client might be sending forged tokens
-            self._logger.info("The session signature verification failed.")
+            self._logger.info("Session signature verification failed.")
             return Session()
 
         # in this case, we don't try because if the signature verification worked,

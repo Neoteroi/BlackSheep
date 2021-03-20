@@ -273,3 +273,87 @@ async def test_session_middleware_with_encryptor():
 
     session_set_cookie = response.headers.get_first(b"Set-Cookie")
     assert session_set_cookie is None
+
+
+@pytest.mark.asyncio
+async def test_session_middleware_handling_of_invalid_signature():
+    app = FakeApplication()
+
+    app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
+
+    @app.router.get("/")
+    def home(request: Request):
+        session = request.session
+
+        assert isinstance(session, Session)
+        assert len(session) == 0
+        assert "user_id" not in session
+
+        return text("Hello, World")
+
+    await app.start()
+
+    # arrange invalid session cookie
+    impostor_middleware = SessionMiddleware("DOLOR_SIT_AMET")
+
+    forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [
+                [b"cookie", b"session=" + forged_cookie.encode()],
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_session_middleware_handling_of_invalid_encrypted_signature():
+    app = FakeApplication()
+
+    app.middlewares.append(
+        SessionMiddleware(
+            "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
+        )
+    )
+
+    @app.router.get("/")
+    def home(request: Request):
+        session = request.session
+
+        assert isinstance(session, Session)
+        assert len(session) == 0
+        assert "user_id" not in session
+
+        return text("Hello, World")
+
+    await app.start()
+
+    # arrange invalid session cookie
+    impostor_middleware = SessionMiddleware(
+        "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
+    )
+
+    forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [
+                [b"cookie", b"session=" + forged_cookie.encode()],
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200

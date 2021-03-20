@@ -40,6 +40,7 @@ setup(
         "blacksheep.client",
         "blacksheep.common",
         "blacksheep.common.files",
+        "blacksheep.sessions",
     ],
     ext_modules=[
         Extension(

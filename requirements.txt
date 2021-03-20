@@ -53,3 +53,5 @@ essentials-openapi==0.0.2
 python-dateutil==2.8.1
 uvloop==0.15.2; platform_system != "Windows"
 pytest-cov
+itsdangerous==1.1.0
+cryptography==3.4.6

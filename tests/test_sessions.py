@@ -1,0 +1,275 @@
+import pytest
+from urllib.parse import quote
+from blacksheep.cookies import parse_cookie
+from blacksheep.messages import Request
+from blacksheep.server.responses import text
+from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
+from blacksheep.sessions.crypto import FernetEncryptor
+from cryptography.fernet import Fernet
+
+from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
+
+
+def test_session_base_methods():
+    session = Session()
+
+    assert "foo" not in session
+
+    session["foo"] = "lorem ipsum"
+
+    assert "foo" in session
+    assert session["foo"] == "lorem ipsum"
+
+    del session["foo"]
+
+    assert "foo" not in session
+
+    session.set("foo", "lorem ipsum")
+    assert session.get("foo") == "lorem ipsum"
+
+    assert session.get("ufo", ...) is ...
+
+
+@pytest.mark.parametrize(
+    "values,expected_len",
+    [
+        [
+            {},
+            0,
+        ],
+        [
+            {
+                "a": 1,
+                "b": 2,
+            },
+            2,
+        ],
+        [
+            {
+                "a": 1,
+                "b": 2,
+                "c": 3,
+            },
+            3,
+        ],
+        [{"a": 1, "b": 2, "c": 3, "d": 4}, 4],
+    ],
+)
+def test_session_length(values, expected_len):
+    session = Session(values)
+    assert len(session) == expected_len
+
+
+def test_session_clear():
+    session = Session({"a": 1, "b": 2, "c": 3, "d": 4})
+
+    session.clear()
+    assert session.modified
+    assert len(session) == 0
+
+
+def test_session_to_dict():
+    value = {"a": 1, "b": 2, "c": 3, "d": 4}
+    session = Session(value)
+
+    assert session.to_dict() == value
+    assert session.to_dict() is not value
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {},
+        {"a": 1},
+        {"a": 1, "b": 2},
+        {"a": 1, "b": 2, "c": 3},
+        {"a": 1, "b": 2, "c": 3, "d": 4},
+    ],
+)
+def test_session_equality(values):
+    session = Session(values)
+
+    assert session == session
+    assert session == Session(values)
+    assert session == values
+
+    values["x"] = True
+
+    assert session != Session(values)
+    assert session != values
+
+
+def test_session_inequality():
+    session = Session()
+    assert (session == []) is False
+    assert (session == "") is False
+
+
+def test_session_modified():
+    session = Session()
+
+    assert session.modified is False
+
+    session["foo"] = "lorem ipsum"
+
+    assert session.modified is True
+
+    session = Session({"foo": "lorem ipsum"})
+
+    assert session.modified is False
+
+    # any set item marks the session as modified,
+    # it doesn't matter if the end values are the same
+    session["foo"] = "lorem ipsum"
+
+    assert session.modified is True
+
+
+def test_session_key_error():
+    session = Session()
+
+    with pytest.raises(KeyError):
+        session["foo"]
+
+
+@pytest.mark.parametrize(
+    "value,session",
+    [
+        ["{}", Session()],
+        ['{"lorem": "ipsum"}', Session({"lorem": "ipsum"})],
+        ['{"lorem": "ipsum ✨"}', Session({"lorem": "ipsum ✨"})],
+    ],
+)
+def test_session_json_serializer(value, session):
+    serializer = JSONSerializer()
+
+    assert serializer.write(session) == value
+    assert serializer.read(value) == session
+
+
+@pytest.mark.asyncio
+async def test_session_middleware_basics():
+    app = FakeApplication()
+
+    app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
+
+    @app.router.get("/")
+    def home(request: Request):
+        session = request.session
+
+        assert isinstance(session, Session)
+        session["foo"] = "Some value"
+
+        return text("Hello, World")
+
+    @app.router.get("/second")
+    def second(request: Request):
+        session = request.session
+
+        assert "foo" in session
+        assert session["foo"] == "Some value"
+
+        return text("Hello, World")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_single(b"Set-Cookie")
+    assert session_set_cookie is not None
+
+    cookie = parse_cookie(session_set_cookie)
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/second",
+            [
+                [b"cookie", b"session=" + cookie.value.encode()],
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_first(b"Set-Cookie")
+    assert session_set_cookie is None
+
+
+@pytest.mark.asyncio
+async def test_session_middleware_with_encryptor():
+    app = FakeApplication()
+
+    app.middlewares.append(
+        SessionMiddleware(
+            "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
+        )
+    )
+
+    @app.router.get("/")
+    def home(request: Request):
+        session = request.session
+
+        assert isinstance(session, Session)
+        session["foo"] = "Some value"
+
+        return text("Hello, World")
+
+    @app.router.get("/second")
+    def second(request: Request):
+        session = request.session
+
+        assert "foo" in session
+        assert session["foo"] == "Some value"
+
+        return text("Hello, World")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_single(b"Set-Cookie")
+    assert session_set_cookie is not None
+
+    cookie = parse_cookie(session_set_cookie)
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/second",
+            [
+                [b"cookie", b"session=" + cookie.value.encode()],
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_first(b"Set-Cookie")
+    assert session_set_cookie is None

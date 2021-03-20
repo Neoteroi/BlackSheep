@@ -92,7 +92,13 @@ setup(
         "essentials-openapi==0.1.1",
         "typing_extensions; python_version < '3.8'",
         "python-dateutil==2.8.1",
+        "itsdangerous==1.1.0",
     ],
+    extras_require={
+        "full": [
+            "cryptography==3.4.6",
+        ]
+    },
     include_package_data=True,
     zip_safe=False,
 )

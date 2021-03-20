@@ -1,7 +1,7 @@
 from .url cimport URL
 from .headers cimport Headers
 from .exceptions cimport BadRequestFormat, InvalidOperation, MessageAborted
-from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
+from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response, split_value
 from .contents cimport Content, MultiPartFormData, parse_www_form_urlencoded, multiparts_to_dictionary
 
 
@@ -338,7 +338,7 @@ cdef class Request(Message):
 
                 for fragment in pairs:
                     try:
-                        name, value = fragment.split(b'=')
+                        name, value = split_value(fragment, b"=")
                     except ValueError as unpack_error:
                         # discard cookie: in this case it's better to eat the exception
                         # than blocking a request just because a cookie is malformed

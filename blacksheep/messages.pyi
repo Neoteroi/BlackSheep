@@ -8,6 +8,7 @@ from .cookies import Cookie
 from .headers import Headers, HeaderType
 from .url import URL
 from .asgi import ASGIScopeInterface
+from .sessions import Session
 
 class Message:
     @property
@@ -65,6 +66,7 @@ class Request(Message):
         self.content: Optional[Content] = ...
         self.identity: Union[None, Identity, User] = ...
         self.scope: ASGIScopeInterface = ...
+        self._session: Optional[Session]
     @classmethod
     def incoming(
         cls, method: str, path: bytes, query: bytes, headers: List[HeaderType]
@@ -86,6 +88,10 @@ class Request(Message):
     def if_none_match(self) -> Optional[bytes]: ...
     def expect_100_continue(self) -> bool: ...
     def with_content(self, content: Content) -> "Request": ...
+    @property
+    def session(self) -> Session: ...
+    @session.setter
+    def session(self, value: Session) -> None: ...
 
 class Response(Message):
     def __init__(

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.1] - 2021-??-??
+- Adds a built-in implementation for [sessions](https://www.neoteroi.dev/blacksheep/sessions/)
+- Corrects a bug in cookie handling (#37!)
 - Fixes #90, i.e. missing CORS response headers when exception are used to
   control the request handler's flow.
 - Corrects URLs in the README to point to [Neoteroi](https://github.com/Neoteroi),

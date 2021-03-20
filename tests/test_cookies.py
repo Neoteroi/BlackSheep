@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import pytest
-from urllib.parse import unquote
 
 from blacksheep import (
     Cookie,

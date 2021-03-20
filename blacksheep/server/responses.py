@@ -1,4 +1,3 @@
-import dataclasses
 import ntpath
 from enum import Enum
 from functools import lru_cache

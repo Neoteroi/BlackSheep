@@ -50,14 +50,22 @@ cdef class BaseApplication:
             exc_info=exc
         )
 
-    async def log_handled_exc(self, request, HTTPException exc):
-        self.logger.info(
-            "HTTP %s - \"%s %s\". %s",
-            exc.status,
-            request.method,
-            request.url.value.decode(),
-            str(exc)
-        )
+    async def log_handled_exc(self, request, exc):
+        if isinstance(exc, HTTPException):
+            self.logger.info(
+                "HTTP %s - \"%s %s\". %s",
+                exc.status,
+                request.method,
+                request.url.value.decode(),
+                str(exc)
+            )
+        else:
+            self.logger.info(
+                "Handled error: \"%s %s\". %s",
+                request.method,
+                request.url.value.decode(),
+                str(exc)
+            )
 
     async def handle(self, Request request):
         cdef object route
@@ -87,7 +95,11 @@ cdef class BaseApplication:
             await self.log_handled_exc(request, exc)
             return await self.handle_http_exception(request, exc)
 
-        await self.log_unhandled_exc(request, exc)
+        if type(exc) in self.exceptions_handlers:
+            await self.log_handled_exc(request, exc)
+        else:
+            await self.log_unhandled_exc(request, exc)
+
         return await self.handle_exception(request, exc)
 
     cdef object get_http_exception_handler(self, HTTPException http_exception):

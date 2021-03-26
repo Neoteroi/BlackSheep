@@ -43,7 +43,7 @@ pytest==5.4.1
 pytest-asyncio==0.14.0
 pytest-cov==2.11.1
 python-dateutil==2.8.1
-PyYAML==5.3.1
+PyYAML==5.4
 regex==2020.4.4
 requests==2.22.0
 rodi==1.1.1

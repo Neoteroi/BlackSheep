@@ -1,6 +1,6 @@
 import pytest
 from typing import List
-from blacksheep import JsonContent, Request, StreamedContent
+from blacksheep import JSONContent, Request, StreamedContent
 from blacksheep.multipart import (
     parse_multipart,
     parse_content_disposition_values,
@@ -12,7 +12,7 @@ from blacksheep.contents import (
     FormPart,
     MultiPartFormData,
     TextContent,
-    HtmlContent,
+    HTMLContent,
 )
 from blacksheep.scribe import write_chunks, write_request_body_only
 
@@ -263,13 +263,13 @@ def test_extract_multipart_form_data_boundary(value, expected_result):
 
 
 def test_html_content_type():
-    content = HtmlContent("<html></html>")
+    content = HTMLContent("<html></html>")
     assert content.type == b"text/html; charset=utf-8"
 
 
 @pytest.mark.parametrize("html", ["<html>ø</html>"])
 def test_html_content_data(html):
-    content = HtmlContent(html)
+    content = HTMLContent(html)
     assert content.body == html.encode("utf8")
 
 
@@ -298,8 +298,8 @@ def test_text_content_data(text):
                     (b"content-type", b"application/json"),
                     (b"expect", b"100-continue"),
                 ],
-            ).with_content(JsonContent({"id": "1", "name": "foo"})),
-            [b'{"id": "1", "name": "foo"}'],
+            ).with_content(JSONContent({"id": "1", "name": "foo"})),
+            [b'{"id":"1","name":"foo"}'],
         ),
         (
             Request(

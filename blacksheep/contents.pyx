@@ -104,17 +104,19 @@ cdef class TextContent(Content):
         super().__init__(b'text/plain; charset=utf-8', text.encode('utf8'))
 
 
-cdef class HtmlContent(Content):
+cdef class HTMLContent(Content):
 
     def __init__(self, str html):
         super().__init__(b'text/html; charset=utf-8', html.encode('utf8'))
 
 
-# TODO: the default dumps function should include separators;
-# this is not an issue if higher level functions are used
-cdef class JsonContent(Content):
+def default_json_dumps(value):
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
-    def __init__(self, object data, dumps=json.dumps):
+
+cdef class JSONContent(Content):
+
+    def __init__(self, object data, dumps=default_json_dumps):
         super().__init__(b'application/json', dumps(data).encode('utf8'))
 
 

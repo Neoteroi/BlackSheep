@@ -6,7 +6,7 @@ from typing import Any, AnyStr, AsyncIterable, Callable, Union
 
 from essentials.json import FriendlyEncoder, dumps as friendly_dumps
 
-from blacksheep import Content, JsonContent, Response, StreamedContent, TextContent
+from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
 from blacksheep.common.files.asyncfs import FilesHandler
 
 
@@ -30,8 +30,8 @@ def _json_serialize(obj) -> str:
     return friendly_dumps(obj, cls=FriendlyEncoder, separators=(",", ":"))
 
 
-def _json_content(obj) -> JsonContent:
-    return JsonContent(obj, _json_serialize)
+def _json_content(obj) -> JSONContent:
+    return JSONContent(obj, _json_serialize)
 
 
 def _optional_content(message: Any = None) -> Content:

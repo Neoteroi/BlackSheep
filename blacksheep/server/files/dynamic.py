@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Dict, Iterable, Optional, Sequence, Set
 from urllib.parse import unquote
 
-from blacksheep import HtmlContent, Request, Response
+from blacksheep import HTMLContent, Request, Response
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.common.files.pathsutils import get_file_extension_from_name
 from blacksheep.exceptions import NotFound
@@ -91,7 +91,7 @@ def get_files_list_html_response(
     # TODO: use chunked encoding here, yielding HTML fragments
     return Response(
         200,
-        content=HtmlContent(template.format_map({"path": "/".join(p), "info": info})),
+        content=HTMLContent(template.format_map({"path": "/".join(p), "info": info})),
     )
 
 

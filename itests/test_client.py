@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from blacksheep import FormContent, FormPart, JsonContent, MultiPartFormData, Response
+from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Response
 
 from .client_fixtures import get_static_path
 from .client_fixtures import *  # NoQA
@@ -132,7 +132,7 @@ async def test_set_cookie(session, name, value):
     ],
 )
 async def test_post_json(session, data):
-    response = await session.post("/echo-posted-json", JsonContent(data))
+    response = await session.post("/echo-posted-json", JSONContent(data))
     ensure_success(response)
 
     assert await response.json() == data

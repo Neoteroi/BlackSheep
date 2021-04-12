@@ -261,10 +261,12 @@ cpdef bint method_without_body(str method):
 
 cdef class Request(Message):
 
-    def __init__(self,
-                 str method,
-                 bytes url,
-                 list headers):
+    def __init__(
+        self,
+        str method,
+        bytes url,
+        list headers
+    ):
         cdef URL _url = URL(url) if url else None
         self.__headers = headers or []
         self.method = method
@@ -388,10 +390,12 @@ cdef class Request(Message):
 
 cdef class Response(Message):
 
-    def __init__(self,
-                 int status,
-                 list headers = None,
-                 Content content = None):
+    def __init__(
+        self,
+        int status,
+        list headers = None,
+        Content content = None
+    ):
         self.__headers = headers or []
         self.status = status
         self.content = content

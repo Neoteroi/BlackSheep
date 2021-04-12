@@ -6,11 +6,11 @@ from .exceptions import HTTPException
 from .contents import (
     Content,
     StreamedContent,
-    JsonContent,
+    JSONContent,
     FormContent,
     FormPart,
     TextContent,
-    HtmlContent,
+    HTMLContent,
     MultiPartFormData,
     parse_www_form,
 )

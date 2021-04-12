@@ -12,7 +12,7 @@ from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
 from rodi import Container
 
-from blacksheep import HTTPException, JsonContent, Request, Response, TextContent
+from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
 from blacksheep.server import Application
 from blacksheep.server.bindings import (
     ClientInfo,
@@ -326,7 +326,7 @@ async def test_application_post_handler():
         data = await request.json()
         assert {"name": "Celine", "kind": "Persian"} == data
 
-        return Response(201, [(b"Server", b"Python/3.7")], JsonContent({"id": "123"}))
+        return Response(201, [(b"Server", b"Python/3.7")], JSONContent({"id": "123"}))
 
     content = b'{"name":"Celine","kind":"Persian"}'
 
@@ -431,7 +431,7 @@ async def test_application_middlewares_one():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, [(b"Server", b"Python/3.7")], JsonContent({"id": "123"}))
+        return Response(200, [(b"Server", b"Python/3.7")], JSONContent({"id": "123"}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -476,7 +476,7 @@ async def test_application_middlewares_as_classes():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, [(b"Server", b"Python/3.7")], JsonContent({"id": "123"}))
+        return Response(200, [(b"Server", b"Python/3.7")], JSONContent({"id": "123"}))
 
     app.middlewares.append(MiddlewareExample(calls, 0))
     app.middlewares.append(MiddlewareExample(calls, 2))
@@ -573,7 +573,7 @@ async def test_application_middlewares_two():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, [(b"Server", b"Python/3.7")], JsonContent({"id": "123"}))
+        return Response(200, [(b"Server", b"Python/3.7")], JSONContent({"id": "123"}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
@@ -623,7 +623,7 @@ async def test_application_middlewares_skip_handler():
     async def example(request):
         nonlocal calls
         calls.append(5)
-        return Response(200, [(b"Server", b"Python/3.7")], JsonContent({"id": "123"}))
+        return Response(200, [(b"Server", b"Python/3.7")], JSONContent({"id": "123"}))
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)

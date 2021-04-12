@@ -3,7 +3,7 @@ import http
 
 import pytest
 
-from blacksheep import HtmlContent, Response, TextContent, URL
+from blacksheep import HTMLContent, Response, TextContent, URL
 from blacksheep.client import (
     CircularRedirectError,
     ClientSession,
@@ -102,7 +102,7 @@ async def test_non_url_redirect(
         lambda status: [
             [
                 Response(status, [(b"Location", b"/a")]),
-                Response(200, None, HtmlContent("<h1>Hello, World!</h1>")),
+                Response(200, None, HTMLContent("<h1>Hello, World!</h1>")),
             ],
             "<h1>Hello, World!</h1>",
         ]

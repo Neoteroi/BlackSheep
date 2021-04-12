@@ -1,7 +1,7 @@
 import html
 import traceback
 
-from blacksheep.contents import HtmlContent
+from blacksheep.contents import HTMLContent
 from blacksheep.messages import Request, Response
 from blacksheep.server.asgi import get_request_url
 from blacksheep.server.resources import get_resource_file_content
@@ -32,7 +32,7 @@ class ServerErrorDetailsHandler:
         for item in tb:
             info += f"<li><pre>{html.escape(item)}</pre></li>"
 
-        content = HtmlContent(
+        content = HTMLContent(
             self._error_page_template.format_map(
                 {
                     "info": info,

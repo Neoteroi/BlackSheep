@@ -51,8 +51,10 @@ class HTMLContent(Content):
     def __init__(self, html: str):
         super().__init__(b"text/html; charset=utf-8", html.encode("utf8"))
 
+def default_json_dumps(value: Any) -> str: ...
+
 class JSONContent(Content):
-    def __init__(self, data: object, dumps: Callable[[Any], str] = json.dumps):
+    def __init__(self, data: object, dumps: Callable[[Any], str] = default_json_dumps):
         super().__init__(b"application/json", dumps(data).encode("utf8"))
 
 class FormContent(Content):

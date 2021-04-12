@@ -73,10 +73,11 @@ class InvalidValuePatternName(RouteException):
 
 class RouteMatch:
 
-    __slots__ = ("values", "handler")
+    __slots__ = ("values", "pattern", "handler")
 
     def __init__(self, route: "Route", values: Optional[Dict[str, bytes]]):
         self.handler = route.handler
+        self.pattern = route.pattern
         self.values: Optional[Dict[str, str]] = (
             {k: unquote(v.decode("utf8")) for k, v in values.items()}
             if values

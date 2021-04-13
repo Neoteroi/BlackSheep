@@ -311,12 +311,17 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         before it is serialized to JSON and YAML format.
         """
 
+    def get_ui_page_title(self) -> str:
+        return "API Docs"
+
     async def build_docs(self, app: Application) -> None:
         docs = self.generate_documentation(app)
         self.on_docs_generated(docs)
         serializer = Serializer()
 
-        ui_options = UIOptions(spec_url=self.get_spec_path())
+        ui_options = UIOptions(
+            spec_url=self.get_spec_path(), page_title=self.get_ui_page_title()
+        )
 
         for ui_provider in self.ui_providers:
             ui_provider.build_ui(ui_options)

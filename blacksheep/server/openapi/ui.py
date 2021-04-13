@@ -11,6 +11,7 @@ from blacksheep.server.resources import get_resource_file_content
 @dataclass
 class UIOptions:
     spec_url: str
+    page_title: str
 
 
 class UIProvider(ABC):
@@ -41,8 +42,40 @@ class SwaggerUIProvider(UIProvider):
         """
         Returns the HTML response to serve the Swagger UI.
         """
-        return get_resource_file_content("swagger-ui.html").replace(
-            "##SPEC_URL##", options.spec_url
+        return (
+            get_resource_file_content("swagger-ui.html")
+            .replace("##SPEC_URL##", options.spec_url)
+            .replace("##PAGE_TITLE##", options.page_title)
+        )
+
+    def build_ui(self, options: UIOptions) -> None:
+        self._ui_html = self.get_openapi_ui_html(options).encode("utf8")
+
+    def get_ui_handler(self) -> Callable[[Request], Response]:
+        current_time = datetime.utcnow().timestamp()
+
+        def get_open_api_ui(request: Request) -> Response:
+            return get_response_for_static_content(
+                request, b"text/html; charset=utf-8", self._ui_html, current_time
+            )
+
+        return get_open_api_ui
+
+
+class ReDocUIProvider(UIProvider):
+    def __init__(self, ui_path: str = "/redocs") -> None:
+        super().__init__(ui_path)
+
+        self._ui_html: bytes = b""
+
+    def get_openapi_ui_html(self, options: UIOptions) -> str:
+        """
+        Returns the HTML response to serve the Swagger UI.
+        """
+        return (
+            get_resource_file_content("redoc-ui.html")
+            .replace("##SPEC_URL##", options.spec_url)
+            .replace("##PAGE_TITLE##", options.page_title)
         )
 
     def build_ui(self, options: UIOptions) -> None:

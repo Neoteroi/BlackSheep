@@ -99,6 +99,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self.servers: List[Server] = []
         self.common_responses: Dict[ResponseStatusType, ResponseDoc] = {}
 
+    def get_ui_page_title(self) -> str:
+        return self.info.title
+
     def generate_documentation(self, app: Application) -> OpenAPI:
         return OpenAPI(
             info=self.info, paths=self.get_paths(app), components=self.components

@@ -47,14 +47,16 @@ def auth(
     return decorator
 
 
-def allow_anonymous() -> Callable[..., Any]:
+def allow_anonymous(value: bool = True) -> Callable[..., Any]:
     """
-    Configures a decorated request handler, to make it usable for all users:
-    anonymous and authenticated users.
+    If used without arguments, configures a decorated request handler to make it
+    usable for all users: anonymous and authenticated users.
+
+    Otherwise, enables anonymous access according to the given flag value.
     """
 
     def decorator(f):
-        f.allow_anonymous = True
+        f.allow_anonymous = value
         return f
 
     return decorator
@@ -66,7 +68,7 @@ def get_authorization_middleware(
     async def authorization_middleware(request, handler):
         identity = request.identity
 
-        if hasattr(handler, "allow_anonymous"):
+        if getattr(handler, "allow_anonymous", False) is True:
             return await handler(request)
 
         if hasattr(handler, "auth"):

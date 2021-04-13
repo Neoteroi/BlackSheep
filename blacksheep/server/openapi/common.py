@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, 
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application
+from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.responses import FriendlyEncoder
@@ -93,6 +94,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         json_spec_path: str = "/openapi.json",
         yaml_spec_path: str = "/openapi.yaml",
         preferred_format: Format = Format.JSON,
+        anonymous_access: bool = True,
     ) -> None:
         self._handlers_docs: Dict[Any, EndpointDocs] = {}
         self.use_docstrings: bool = True
@@ -104,6 +106,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._json_docs: bytes = b""
         self._yaml_docs: bytes = b""
         self.preferred_format = preferred_format
+        self.anonymous_access = anonymous_access
 
     def __call__(
         self,
@@ -174,11 +177,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 return doc.strip()
         return None
 
-    def ignore(self):
+    def ignore(self, value: bool = True):
         """Excludes a request handler from API documentation."""
 
         def decorator(fn):
-            self.get_handler_docs_or_set(fn).ignored = True
+            self.get_handler_docs_or_set(fn).ignored = value
             return fn
 
         return decorator
@@ -228,9 +231,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
     def is_deprecated(self, handler: Any) -> Optional[bool]:
         docs = self.get_handler_docs(handler)
-        if docs and docs.deprecated is not None:
-            return docs.deprecated
-        return None
+        return docs.deprecated if docs else None
 
     def router_to_paths_dict(
         self, router: Router, mapper: Callable[[Route], T]
@@ -282,6 +283,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         current_time = datetime.utcnow().timestamp()
 
         @self.ignore()
+        @allow_anonymous(self.anonymous_access)
         @app.route(self.ui_path, methods=["GET"])
         def get_open_api_ui(request: Request):
             return get_response_for_static_content(
@@ -292,6 +294,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         current_time = datetime.utcnow().timestamp()
 
         @self.ignore()
+        @allow_anonymous(self.anonymous_access)
         @app.route(self.json_spec_path, methods=["GET", "HEAD"])
         def get_open_api_json(request: Request):
             return get_response_for_static_content(
@@ -303,6 +306,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             )
 
         @self.ignore()
+        @allow_anonymous(self.anonymous_access)
         @app.route(self.yaml_spec_path, methods=["GET", "HEAD"])
         def get_open_api_yaml(request: Request):
             return get_response_for_static_content(

@@ -17,7 +17,7 @@ from blacksheep.server.bindings import (
     FromCookie,
     FromForm,
     FromHeader,
-    FromJson,
+    FromJSON,
     FromQuery,
 )
 from blacksheep.server.controllers import ApiController, delete, get, post
@@ -30,6 +30,7 @@ from blacksheep.server.openapi.common import (
     ResponseInfo,
 )
 from blacksheep.server.openapi.v3 import OpenAPIHandler
+from blacksheep.server.openapi.ui import ReDocUIProvider
 from dateutil.parser import parse as dateutil_parse
 from guardpost.authentication import Identity
 from guardpost.authorization import AuthorizationContext
@@ -51,6 +52,7 @@ app_two = Application()
 
 # OpenAPI v3 configuration:
 docs = OpenAPIHandler(info=Info(title="Cats API", version="0.0.1"))
+docs.ui_providers.append(ReDocUIProvider())
 
 # include only endpoints whose path starts with "/api/"
 docs.include = lambda path, _: path.startswith("/api/")
@@ -437,7 +439,7 @@ class Cats(ApiController):
 
     @post()
     @docs(create_cat_docs)
-    def create_cat(self, input: FromJson[CreateCatInput]) -> Response:
+    def create_cat(self, input: FromJSON[CreateCatInput]) -> Response:
         """
         Creates a new cat.
         """

@@ -312,7 +312,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         """
 
     def get_ui_page_title(self) -> str:
-        return "API Docs"
+        return "API Docs"  # pragma: no cover
 
     async def build_docs(self, app: Application) -> None:
         docs = self.generate_documentation(app)

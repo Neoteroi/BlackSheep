@@ -96,3 +96,6 @@ def parse_www_form(content: str) -> Dict[str, Union[str, List[str]]]:
 def write_www_form_urlencoded(
     data: Union[Dict[str, str], List[Tuple[str, str]]]
 ) -> bytes: ...
+
+HtmlContent = HTMLContent  # for backward compatibility
+JsonContent = JSONContent  # for backward compatibility

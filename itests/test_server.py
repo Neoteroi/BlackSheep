@@ -360,9 +360,9 @@ def test_open_api_ui(session_two):
 <!DOCTYPE html>
 <html>
 <head>
+    <title>Cats API</title>
     <link rel="icon" href="/favicon.png"/>
     <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui.css">
-    <title>Swagger UI</title>
 </head>
 <body>
     <div id="swagger-ui"></div>
@@ -383,6 +383,38 @@ def test_open_api_ui(session_two):
     })
     </script>
 </body>
+</html>
+""".strip()
+    )
+
+
+def test_open_api_redoc_ui(session_two):
+    response = session_two.get("/redocs")
+
+    assert response.status_code == 200
+    text = response.text
+    assert (
+        text.strip()
+        == """
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Cats API</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="/favicon.png"/>
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <redoc spec-url="/openapi.json"></redoc>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+  </body>
 </html>
 """.strip()
     )

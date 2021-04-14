@@ -258,3 +258,7 @@ cpdef bytes write_multipart_form_data(MultiPartFormData data):
     contents.extend(data.boundary)
     contents.extend(b'--\r\n')
     return bytes(contents)
+
+
+HtmlContent = HTMLContent  # for backward compatibility
+JsonContent = JSONContent  # for backward compatibility

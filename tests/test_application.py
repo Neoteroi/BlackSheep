@@ -20,7 +20,7 @@ from blacksheep.server.bindings import (
     FromCookie,
     FromFiles,
     FromHeader,
-    FromJson,
+    FromJSON,
     FromQuery,
     FromRoute,
     FromServices,
@@ -1603,7 +1603,7 @@ async def test_handler_from_json_parameter():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Item]):
+    async def home(item: FromJSON[Item]):
         assert item is not None
         value = item.value
         assert value.a == "Hello"
@@ -1628,7 +1628,7 @@ async def test_handler_from_json_without_annotation():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson):
+    async def home(item: FromJSON):
         assert item is not None
         assert isinstance(item.value, dict)
         value = item.value
@@ -1652,7 +1652,7 @@ async def test_handler_from_json_parameter_dict():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[dict]):
+    async def home(item: FromJSON[dict]):
         assert item is not None
         assert isinstance(item.value, dict)
         value = item.value
@@ -1676,7 +1676,7 @@ async def test_handler_from_json_parameter_dict_unannotated():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Dict]):
+    async def home(item: FromJSON[Dict]):
         assert item is not None
         assert isinstance(item.value, dict)
         value = item.value
@@ -1700,7 +1700,7 @@ async def test_handler_from_json_parameter_dict_annotated():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Dict[str, Any]]):
+    async def home(item: FromJSON[Dict[str, Any]]):
         assert item is not None
         assert isinstance(item.value, dict)
         value = item.value
@@ -1900,7 +1900,7 @@ async def test_handler_from_json_parameter_missing_property():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Item]):
+    async def home(item: FromJSON[Item]):
         ...
 
     # Note: the following example missing one of the properties
@@ -1929,7 +1929,7 @@ async def test_handler_from_json_parameter_missing_property_complex_type():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Foo]):
+    async def home(item: FromJSON[Foo]):
         ...
 
     # Note: the following example missing one of the properties
@@ -1958,7 +1958,7 @@ async def test_handler_from_json_parameter_missing_property_array():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[List[Item]]):
+    async def home(item: FromJSON[List[Item]]):
         ...
 
     # Note: the following example missing one of the properties
@@ -1987,7 +1987,7 @@ async def test_handler_from_json_parameter_handles_request_without_body():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Item]):
+    async def home(item: FromJSON[Item]):
         return Response(200)
 
     app.normalize_handlers()
@@ -2009,7 +2009,7 @@ async def test_handler_from_json_list_of_objects():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[List[Item]]):
+    async def home(item: FromJSON[List[Item]]):
         assert item is not None
         value = item.value
 
@@ -2108,7 +2108,7 @@ async def test_handler_from_json_list_of_primitives(
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[expected_type]):
+    async def home(item: FromJSON[expected_type]):
         assert item is not None
         value = item.value
         assert value == expected_result
@@ -2139,7 +2139,7 @@ async def test_handler_from_json_dataclass():
         ufo: bool
 
     @app.router.post("/")
-    async def home(item: FromJson[Foo]):
+    async def home(item: FromJSON[Foo]):
         assert item is not None
         value = item.value
         assert value.foo == "Hello"
@@ -2163,7 +2163,7 @@ async def test_handler_from_json_parameter_default():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Item] = FromJson(Item("One", "Two", 3))):
+    async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
         assert item is not None
         value = item.value
         assert value.a == "One"
@@ -2189,7 +2189,7 @@ async def test_handler_from_json_parameter_default_override():
     app = FakeApplication()
 
     @app.router.post("/")
-    async def home(item: FromJson[Item] = FromJson(Item("One", "Two", 3))):
+    async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
         assert item is not None
         value = item.value
         assert value.a == "Hello"
@@ -2262,7 +2262,7 @@ async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional():
     app = FakeApplication()
 
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
-    async def home(item: FromJson[Optional[Item]]):
+    async def home(item: FromJSON[Optional[Item]]):
         assert item.value is None
 
     app.normalize_handlers()
@@ -2285,7 +2285,7 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
     app = FakeApplication()
 
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
-    async def home(request, item: FromJson[Item]):
+    async def home(request, item: FromJSON[Item]):
         assert item.value is None
 
     app.normalize_handlers()
@@ -2300,7 +2300,7 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
         MockSend(),
     )
 
-    # 400 because the annotation FromJson[Item] makes the item REQUIRED;
+    # 400 because the annotation FromJSON[Item] makes the item REQUIRED;
     assert app.response.status == 400
     content = await app.response.text()
     assert content == "Bad Request: Expected request content"

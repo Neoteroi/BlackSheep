@@ -9,7 +9,7 @@ from blacksheep.server.routing import Route
 from blacksheep.server.bindings import (
     FromHeader,
     FromQuery,
-    FromJson,
+    FromJSON,
     FromRoute,
     FromServices,
     HeaderBinder,
@@ -246,7 +246,7 @@ def test_combination_of_sources():
     def handler(
         a: FromQuery[List[str]],
         b: FromServices[Dog],
-        c: FromJson[Cat],
+        c: FromJSON[Cat],
         d: FromRoute[str],
         e: FromHeader[str],
     ):

@@ -129,7 +129,7 @@ class FromServices(BoundValue[T]):
     """
 
 
-class FromJson(BoundValue[T]):
+class FromJSON(BoundValue[T]):
     """
     A parameter obtained from JSON request body.
     If value type is `dict`, `typing.Dict`, or not specified, the deserialized JSON
@@ -137,6 +137,9 @@ class FromJson(BoundValue[T]):
     """
 
     default_value_type = dict
+
+
+FromJson = FromJSON  # for backward compatibility
 
 
 class FromText(BoundValue[str]):
@@ -475,7 +478,7 @@ class BodyBinder(Binder):
 class JsonBinder(BodyBinder):
     """Extracts a model from JSON content"""
 
-    handle = FromJson
+    handle = FromJSON
 
     @property
     def content_type(self) -> str:

@@ -7,11 +7,13 @@ from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, 
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application
+from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files.static import get_response_for_static_content
-from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.responses import FriendlyEncoder
 from blacksheep.server.routing import Route, Router
 from openapidocs.common import Format, OpenAPIRoot, Serializer
+
+from .ui import UIOptions, UIProvider, SwaggerUIProvider
 
 T = TypeVar("T")
 
@@ -93,17 +95,18 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         json_spec_path: str = "/openapi.json",
         yaml_spec_path: str = "/openapi.yaml",
         preferred_format: Format = Format.JSON,
+        anonymous_access: bool = True,
     ) -> None:
         self._handlers_docs: Dict[Any, EndpointDocs] = {}
         self.use_docstrings: bool = True
         self.include: Optional[Callable[[str, Route], bool]] = None
-        self.ui_path = ui_path
         self.json_spec_path = json_spec_path
         self.yaml_spec_path = yaml_spec_path
-        self._ui_html: bytes = b""
         self._json_docs: bytes = b""
         self._yaml_docs: bytes = b""
         self.preferred_format = preferred_format
+        self.anonymous_access = anonymous_access
+        self.ui_providers: List[UIProvider] = [SwaggerUIProvider(ui_path)]
 
     def __call__(
         self,
@@ -174,11 +177,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 return doc.strip()
         return None
 
-    def ignore(self):
+    def ignore(self, value: bool = True):
         """Excludes a request handler from API documentation."""
 
         def decorator(fn):
-            self.get_handler_docs_or_set(fn).ignored = True
+            self.get_handler_docs_or_set(fn).ignored = value
             return fn
 
         return decorator
@@ -228,9 +231,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
     def is_deprecated(self, handler: Any) -> Optional[bool]:
         docs = self.get_handler_docs(handler)
-        if docs and docs.deprecated is not None:
-            return docs.deprecated
-        return None
+        return docs.deprecated if docs else None
 
     def router_to_paths_dict(
         self, router: Router, mapper: Callable[[Route], T]
@@ -270,28 +271,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             f"Unhandled preferred format {self.preferred_format}"
         )
 
-    def get_openapi_ui_html(self) -> str:
-        """
-        Returns the HTML response to serve the Swagger UI.
-        """
-        return get_resource_file_content("openapi-ui.html").replace(
-            "##SPEC_URL##", self.get_spec_path()
-        )
-
-    def register_docs_ui_handler(self, app: Application) -> None:
-        current_time = datetime.utcnow().timestamp()
-
-        @self.ignore()
-        @app.route(self.ui_path, methods=["GET"])
-        def get_open_api_ui(request: Request):
-            return get_response_for_static_content(
-                request, b"text/html; charset=utf-8", self._ui_html, current_time
-            )
-
     def register_docs_handler(self, app: Application) -> None:
         current_time = datetime.utcnow().timestamp()
 
         @self.ignore()
+        @allow_anonymous(self.anonymous_access)
         @app.route(self.json_spec_path, methods=["GET", "HEAD"])
         def get_open_api_json(request: Request):
             return get_response_for_static_content(
@@ -303,6 +287,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             )
 
         @self.ignore()
+        @allow_anonymous(self.anonymous_access)
         @app.route(self.yaml_spec_path, methods=["GET", "HEAD"])
         def get_open_api_yaml(request: Request):
             return get_response_for_static_content(
@@ -326,11 +311,21 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         before it is serialized to JSON and YAML format.
         """
 
+    def get_ui_page_title(self) -> str:
+        return "API Docs"  # pragma: no cover
+
     async def build_docs(self, app: Application) -> None:
         docs = self.generate_documentation(app)
         self.on_docs_generated(docs)
         serializer = Serializer()
-        self._ui_html = self.get_openapi_ui_html().encode("utf8")
+
+        ui_options = UIOptions(
+            spec_url=self.get_spec_path(), page_title=self.get_ui_page_title()
+        )
+
+        for ui_provider in self.ui_providers:
+            ui_provider.build_ui(ui_options)
+
         self._json_docs = serializer.to_json(docs).encode("utf8")
         self._yaml_docs = serializer.to_yaml(docs).encode("utf8")
 
@@ -341,7 +336,12 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 "Use this method before starting the application."
             )
 
-        self.register_docs_ui_handler(app)
+        for ui_provider in self.ui_providers:
+            ui_handler = ui_provider.get_ui_handler()
+            ui_handler = self.ignore()(ui_handler)
+            ui_handler = allow_anonymous(self.anonymous_access)(ui_handler)
+            app.router.add_get(ui_provider.ui_path, ui_handler)
+
         self.register_docs_handler(app)
 
         app.after_start += self.build_docs

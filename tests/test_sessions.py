@@ -150,8 +150,8 @@ def test_session_key_error():
     "value,session",
     [
         ["{}", Session()],
-        ['{"lorem": "ipsum"}', Session({"lorem": "ipsum"})],
-        ['{"lorem": "ipsum ✨"}', Session({"lorem": "ipsum ✨"})],
+        ['{"lorem":"ipsum"}', Session({"lorem": "ipsum"})],
+        ['{"lorem":"ipsum ✨"}', Session({"lorem": "ipsum ✨"})],
     ],
 )
 def test_session_json_serializer(value, session):

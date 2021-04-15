@@ -84,7 +84,7 @@ here](https://www.neoteroi.dev/blacksheep/requests/).
 ```python
 from dataclasses import dataclass
 
-from blacksheep.server.bindings import FromJson
+from blacksheep.server.bindings import FromJSON
 
 
 @dataclass
@@ -93,7 +93,7 @@ class CreateCatInput:
 
 
 @app.router.post("/api/cats")
-async def example(data: FromJson[CreateCatInput]):
+async def example(data: FromJSON[CreateCatInput]):
     # in this example, data is bound automatically reading the JSON
     # payload and creating an instance of `CreateCatInput`
     ...

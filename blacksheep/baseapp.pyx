@@ -67,11 +67,14 @@ cdef class BaseApplication:
                 str(exc)
             )
 
+    def get_route_match(self, Request request):
+        return self.router.get_match(request.method, request._path)
+
     async def handle(self, Request request):
         cdef object route
         cdef Response response
 
-        route = self.router.get_match(request.method, request._path)
+        route = self.get_route_match(request)
 
         if route:
             request.route_values = route.values

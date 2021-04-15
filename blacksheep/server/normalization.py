@@ -1,6 +1,6 @@
 import inspect
 from functools import wraps
-from inspect import Signature, _ParameterKind, _empty  # type: ignore
+from inspect import Signature, _empty, _ParameterKind  # type: ignore
 from typing import (
     Any,
     Awaitable,
@@ -18,12 +18,12 @@ from typing import (
 )
 from uuid import UUID
 
-from guardpost.authentication import Identity, User
-from rodi import Services
-
 from blacksheep import Request, Response
 from blacksheep.normalization import copy_special_attributes
+from blacksheep.server import responses
 from blacksheep.server.routing import Route
+from guardpost.authentication import Identity, User
+from rodi import Services
 
 from .bindings import (
     Binder,
@@ -32,7 +32,7 @@ from .bindings import (
     ControllerBinder,
     ExactBinder,
     IdentityBinder,
-    JsonBinder,
+    JSONBinder,
     QueryBinder,
     RequestBinder,
     RouteBinder,
@@ -272,7 +272,7 @@ def _get_parameter_binder(
         )
 
     # 6. from json body (last default)
-    return JsonBinder(annotation, name, True, required=not is_root_optional)
+    return JSONBinder(annotation, name, True, required=not is_root_optional)
 
 
 def get_parameter_binder(
@@ -440,6 +440,28 @@ def get_async_wrapper(
     return handler
 
 
+def get_async_wrapper_for_output(
+    method: Callable[[Request], Any],
+) -> Callable[[Request], Awaitable[Response]]:
+    @wraps(method)
+    async def handler(request: Request) -> Response:
+        result = await method(request)
+
+        if result is None:
+            # later the application defaults to 204 No Content
+            return result
+
+        if not isinstance(result, Response):
+            # default to a plain text or JSON response
+            if isinstance(result, str):
+                return responses.text(result)
+            return responses.json(result)
+
+        return result
+
+    return handler
+
+
 def normalize_handler(
     route: Route, services: Services
 ) -> Callable[[Request], Awaitable[Response]]:
@@ -455,10 +477,21 @@ def normalize_handler(
     ):
         raise UnsupportedSignatureError(method)
 
+    return_type = sig.return_annotation
+
+    # normalize input
     if inspect.iscoroutinefunction(method):
         normalized = get_async_wrapper(services, route, method, params, params_len)
     else:
         normalized = get_sync_wrapper(services, route, method, params, params_len)
+
+    # normalize output
+    if return_type is _empty or return_type is not Response:
+        if return_type is not _empty:
+            # this scenario enables a more accurate automatic generation of
+            # OpenAPI Documentation, for responses
+            setattr(route.handler, "return_type", return_type)
+        normalized = get_async_wrapper_for_output(normalized)
 
     if normalized is not method:
         setattr(normalized, "root_fn", method)

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2021-04-15 :rocket:
+- Applies normalization to return types, when a request handler doesn't return
+  an instance of `Response` class, defaulting to a `Response` with JSON body
+  in most cases, and plain/text if the request handler returns a string;
+  this enables more accurate _automatic_ generation of OpenAPI Documentation
+  (see #100)
+- Renames `HtmlContent`, `JsonContent`, `FromJson`, and `JsonBinder` classes to
+  respect Python naming conventions (to `HTMLContent`, `JSONContent`,
+  `FromJSON`, and `JSONBinder`); however, the previous names are kept as
+  aliases, for backward compatibility
+- Corrects a detail in the `JSONContent` class default dumps function
+- Adds support for logging the route pattern for each web request (for logging
+  purposes, see issue [#99](https://github.com/Neoteroi/BlackSheep/issues/99))
+- Adds support for OpenAPI Docs anonymous access, when a default authentication
+  policy requires an authenticated user
+- Adds support for [`ReDoc`](https://github.com/Redocly/redoc) UI (see [the
+  documentation](https://www.neoteroi.dev/blacksheep/openapi/))
+
 ## [1.0.1] - 2021-03-20 :cake:
 - Adds a built-in implementation for [sessions](https://www.neoteroi.dev/blacksheep/sessions/)
 - Corrects a bug in cookie handling (#37!)
@@ -32,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improves the code API to handle [response cookies](https://www.neoteroi.dev/blacksheep/responses/#setting-cookies)
 - Improves the default handling of authorization for request handlers (#69)
 - Adds more binders: `FromText`, `FromBytes`, `RequestMethod`, `RequestURL`
-- Improves `FromJson` binder to support returning the dictionary after JSON deserialization
+- Improves `FromJSON` binder to support returning the dictionary after JSON deserialization
 - Improves the default bad request response for invalid dataclass
 - Adds two more features to the OpenAPI Documentation:
 - - support defining common responses to be shared across all operations

@@ -1,8 +1,8 @@
 """
 This module implements a feature inspired by "Model Binding" in ASP.NET web framework.
 It provides a strategy to have request parameters read an injected into request
-handlers calls. This feature is also useful to generate OpenAPI Documentation (Swagger)
-automatically (not implemented, yet).
+handlers. This feature is also useful to generate OpenAPI Documentation (Swagger)
+automatically.
 
 See:
     https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
@@ -129,7 +129,7 @@ class FromServices(BoundValue[T]):
     """
 
 
-class FromJson(BoundValue[T]):
+class FromJSON(BoundValue[T]):
     """
     A parameter obtained from JSON request body.
     If value type is `dict`, `typing.Dict`, or not specified, the deserialized JSON
@@ -137,6 +137,9 @@ class FromJson(BoundValue[T]):
     """
 
     default_value_type = dict
+
+
+FromJson = FromJSON  # for backward compatibility
 
 
 class FromText(BoundValue[str]):
@@ -472,10 +475,10 @@ class BodyBinder(Binder):
             raise InvalidRequestBody(str(ve))
 
 
-class JsonBinder(BodyBinder):
+class JSONBinder(BodyBinder):
     """Extracts a model from JSON content"""
 
-    handle = FromJson
+    handle = FromJSON
 
     @property
     def content_type(self) -> str:
@@ -486,6 +489,9 @@ class JsonBinder(BodyBinder):
 
     async def read_data(self, request: Request) -> Any:
         return await request.json()
+
+
+JsonBinder = JSONBinder
 
 
 class FormBinder(BodyBinder):

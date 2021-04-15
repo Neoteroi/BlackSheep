@@ -1,8 +1,8 @@
 from blacksheep.messages import Request, Response
 from blacksheep.exceptions import HTTPException
 from blacksheep.server.application import Application
-from blacksheep.server.routing import Router
-from typing import Awaitable, Dict, Union, Type, Callable, TypeVar
+from blacksheep.server.routing import Router, RouteMatch
+from typing import Awaitable, Dict, Union, Type, Callable, TypeVar, Optional
 
 ExcT = TypeVar("ExcT", bound=Exception)
 
@@ -28,3 +28,4 @@ class BaseApplication:
     async def handle_request_handler_exception(
         self, request: Request, exc: Exception
     ) -> Response: ...
+    def get_route_match(self, request: Request) -> Optional[RouteMatch]: ...

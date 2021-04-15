@@ -84,18 +84,23 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         json_spec_path: str = "/openapi.json",
         yaml_spec_path: str = "/openapi.yaml",
         preferred_format: Format = Format.JSON,
+        anonymous_access: bool = True,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
             json_spec_path=json_spec_path,
             yaml_spec_path=yaml_spec_path,
             preferred_format=preferred_format,
+            anonymous_access=anonymous_access,
         )
         self.info = info
         self.components = Components()
         self._objects_references: Dict[Any, Reference] = {}
         self.servers: List[Server] = []
         self.common_responses: Dict[ResponseStatusType, ResponseDoc] = {}
+
+    def get_ui_page_title(self) -> str:
+        return self.info.title
 
     def generate_documentation(self, app: Application) -> OpenAPI:
         return OpenAPI(
@@ -468,13 +473,29 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         docs = self.get_handler_docs(handler)
         data = docs.responses if docs else None
 
+        # common responses (used by the whole application, like responses sent in case
+        # of error
         responses = {
             response_status_to_str(key): value
             for key, value in self.common_responses.items()
         }
 
         if not data:
-            return responses
+            # try to generate automatically from the handler's return type annotations
+            return_type = getattr(handler, "return_type", None)
+
+            if return_type is not None:
+                # automatically set response content for status 200,
+                # if the user wants major control, it's necessary to use the decorators
+                # responses[response_status_to_str(200)] = return_type
+                if data is None:
+                    data = {}
+
+                data["200"] = ResponseInfo(
+                    "Success response", content=[ContentInfo(return_type, examples=[])]
+                )
+            else:
+                return responses
 
         responses.update(
             {

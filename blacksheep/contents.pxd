@@ -24,11 +24,11 @@ cdef class TextContent(Content):
     pass
 
 
-cdef class HtmlContent(Content):
+cdef class HTMLContent(Content):
     pass
 
 
-cdef class JsonContent(Content):
+cdef class JSONContent(Content):
     pass
 
 

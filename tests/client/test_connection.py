@@ -3,7 +3,7 @@ from asyncio import TimeoutError
 from typing import AsyncIterable, List
 
 from httptools.parser.errors import HttpParserCallbackError, HttpParserError
-from blacksheep import JsonContent, Request, StreamedContent
+from blacksheep import JSONContent, Request, StreamedContent
 
 import pytest
 
@@ -144,7 +144,7 @@ async def test_connection_handle_expect_100_continue_and_1xx(
         "POST",
         b"/",
         headers=[(b"content-type", b"application/json"), (b"expect", b"100-continue")],
-    ).with_content(JsonContent({"id": "1", "name": "foo"}))
+    ).with_content(JSONContent({"id": "1", "name": "foo"}))
 
     # Arrange future response...
     connection.headers = get_example_headers()
@@ -165,7 +165,7 @@ async def test_connection_handle_expect_100_continue_and_1xx(
         connection.transport.messages[0]
         == b"POST / HTTP/1.1\r\ncontent-type: application/json\r\nexpect: 100-continue\r\n\r\n"
     )
-    assert connection.transport.messages[1] == b'{"id": "1", "name": "foo"}'
+    assert connection.transport.messages[1] == b'{"id":"1","name":"foo"}'
 
 
 class FakePoolThrowingOnRelease(ClientConnectionPool):

@@ -94,7 +94,7 @@ class JSONSerializer(SessionSerializer):
         return Session(json.loads(value))
 
     def write(self, session: Session) -> str:
-        return dumps(session.to_dict())
+        return dumps(session.to_dict(), separators=(",", ":"))
 
 
 class SessionMiddleware:

@@ -21,7 +21,7 @@ from blacksheep.server.bindings import (
     HeaderBinder,
     IdentityBinder,
     InvalidRequestBody,
-    JsonBinder,
+    JSONBinder,
     MissingBodyError,
     MissingConverterError,
     QueryBinder,
@@ -61,7 +61,7 @@ async def test_from_body_json_binding():
         JSONContent({"a": "world", "b": 9000})
     )
 
-    parameter = JsonBinder(ExampleOne)
+    parameter = JSONBinder(ExampleOne)
 
     value = await parameter.get_value(request)
 
@@ -83,7 +83,7 @@ async def test_from_body_json_binding_extra_parameters_strategy():
         )
     )
 
-    parameter = JsonBinder(ExampleTwo)
+    parameter = JSONBinder(ExampleTwo)
 
     value = await parameter.get_value(request)
 
@@ -108,7 +108,7 @@ async def test_from_body_json_with_converter():
     def convert(data):
         return ExampleOne(data.get("a"), data.get("b"))
 
-    parameter = JsonBinder(ExampleOne, converter=convert)
+    parameter = JSONBinder(ExampleOne, converter=convert)
 
     value = await parameter.get_value(request)
 
@@ -121,7 +121,7 @@ async def test_from_body_json_with_converter():
 async def test_from_body_json_binding_request_missing_content_type():
     request = Request("POST", b"/", [])
 
-    parameter = JsonBinder(ExampleOne)
+    parameter = JSONBinder(ExampleOne)
 
     value = await parameter.get_value(request)
 
@@ -134,7 +134,7 @@ async def test_from_body_json_binding_invalid_input():
         JSONContent({"c": 1, "d": 2})
     )
 
-    parameter = JsonBinder(ExampleOne)
+    parameter = JSONBinder(ExampleOne)
 
     with raises(BadRequest):
         await parameter.get_value(request)
@@ -614,7 +614,7 @@ async def test_body_binder_throws_bad_request_for_missing_body():
             Request("POST", b"/", [(b"content-type", b"application/json")])
         )
 
-    body_binder = JsonBinder(dict, required=True)
+    body_binder = JSONBinder(dict, required=True)
 
     with pytest.raises(MissingBodyError):
         await body_binder.get_value(Request("POST", b"/", []))
@@ -622,7 +622,7 @@ async def test_body_binder_throws_bad_request_for_missing_body():
 
 @pytest.mark.asyncio
 async def test_body_binder_throws_bad_request_for_value_error():
-    body_binder = JsonBinder(dict, required=True)
+    body_binder = JSONBinder(dict, required=True)
 
     def example_converter(value):
         raise ValueError("Invalid value")

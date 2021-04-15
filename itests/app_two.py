@@ -300,6 +300,19 @@ class CatPetModel(PetModel):
     laziness: float
 
 
+@dataclass
+class Foo:
+    id: UUID
+    name: str
+    cool: float
+
+
+@dataclass
+class FooList:
+    items: List[Foo]
+    total: int
+
+
 def on_polymorph_example_docs_created(
     docs: OpenAPIHandler, operation: Operation
 ) -> None:
@@ -387,6 +400,40 @@ class Cats(ApiController):
         """
         Returns a list of paginated cats.
         """
+
+    @get("foos")
+    def get_foos() -> FooList:
+        ...
+
+    @get("cats2")
+    def get_cats_alt(
+        self,
+        page: FromQuery[int] = FromQuery(1),
+        page_size: FromQuery[int] = FromQuery(30),
+        search: FromQuery[str] = FromQuery(""),
+    ) -> CatsList:
+        """
+        Alternative way to have the response type for status 200 documented.
+        """
+        return CatsList(
+            [
+                Cat(
+                    id=UUID("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+                    name="Foo",
+                    active=True,
+                    type=CatType.EUROPEAN,
+                    creation_time=dateutil_parse("2020-10-25T19:39:31.751652"),
+                ),
+                Cat(
+                    id=UUID("f212cabf-987c-48e6-8cad-71d1c041209a"),
+                    name="Frufru",
+                    active=True,
+                    type=CatType.PERSIAN,
+                    creation_time=dateutil_parse("2020-10-25T19:39:31.751652"),
+                ),
+            ],
+            1230,
+        )
 
     @docs.ignore()
     @get("/ignored")

@@ -14,7 +14,7 @@ from blacksheep.server.bindings import (
     FromServices,
     HeaderBinder,
     IdentityBinder,
-    JsonBinder,
+    JSONBinder,
     QueryBinder,
     RouteBinder,
     ServiceBinder,
@@ -123,7 +123,7 @@ def test_parameters_get_binders_from_body():
     assert len(binders) == 1
     binder = binders[0]
 
-    assert isinstance(binder, JsonBinder)
+    assert isinstance(binder, JSONBinder)
     assert binder.expected_type is Cat
     assert binder.required is True
 
@@ -136,7 +136,7 @@ def test_parameters_get_binders_from_body_optional():
     assert len(binders) == 1
     binder = binders[0]
 
-    assert isinstance(binder, JsonBinder)
+    assert isinstance(binder, JSONBinder)
     assert binder.expected_type is Cat
     assert binder.required is False
 
@@ -256,7 +256,7 @@ def test_combination_of_sources():
 
     assert isinstance(binders[0], QueryBinder)
     assert isinstance(binders[1], ServiceBinder)
-    assert isinstance(binders[2], JsonBinder)
+    assert isinstance(binders[2], JSONBinder)
     assert isinstance(binders[3], RouteBinder)
     assert isinstance(binders[4], HeaderBinder)
     assert binders[0].parameter_name == "a"
@@ -438,11 +438,10 @@ async def test_services_from_normalization():
 
     def handler(services):
         assert services is app_services
-        return services
+        return None
 
     method = normalize_handler(Route(b"/", handler), app_services)
-    services = await method(None)
-    assert services is app_services
+    await method(None)
 
 
 def test_raises_for_unsupported_signature():

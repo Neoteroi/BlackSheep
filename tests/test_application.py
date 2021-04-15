@@ -1593,6 +1593,13 @@ class Item:
         self.c = c
 
 
+@dataclass
+class Item2:
+    a: str
+    b: str
+    c: str
+
+
 class Foo:
     def __init__(self, item) -> None:
         self.item = Item(**item)
@@ -1922,6 +1929,81 @@ async def test_handler_from_json_parameter_missing_property():
         + b"or one of its subproperties. "
         + b"Error: missing 1 required parameter: 'c'"
     )
+
+
+@pytest.mark.asyncio
+async def test_handler_json_response_implicit():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def get_item() -> Item2:
+        return Item2("Hello", "World", "!")
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+    assert app.response.status == 200
+    data = await app.response.json()
+    assert data == Item2("Hello", "World", "!").__dict__
+
+
+@pytest.mark.asyncio
+async def test_handler_json_response_implicit_no_annotation():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def get_item():
+        return Item2("Hello", "World", "!")
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+    assert app.response.status == 200
+    data = await app.response.json()
+    assert data == Item2("Hello", "World", "!").__dict__
+
+
+@pytest.mark.asyncio
+async def test_handler_text_response_implicit():
+    app = FakeApplication()
+
+    @app.router.get("/")
+    async def get_lorem():
+        return "Lorem ipsum"
+
+    # Note: the following example missing one of the properties
+    # required by the constructor
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+    assert app.response.status == 200
+    data = await app.response.text()
+    assert data == "Lorem ipsum"
 
 
 @pytest.mark.asyncio

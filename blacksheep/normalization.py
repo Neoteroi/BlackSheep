@@ -9,7 +9,8 @@ def copy_special_attributes(source_method, wrapper) -> None:
         "__name__",
         "__doc__",
         "root_fn",
-        "binders"
+        "binders",
+        "return_type",
     }:
         if hasattr(source_method, name):
             setattr(wrapper, name, getattr(source_method, name))

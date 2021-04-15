@@ -5,10 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.2] - 2021-04-XX :cake:
-- Renames `HtmlContent`, `JsonContent`, and `FromJson` classes to respect
-  Python naming conventions (to `HTMLContent`, `JSONContent`, and `FromJSON`);
-  however, the previous names are kept as aliases, for backward compatibility
+## [1.0.2] - 2021-04-15 :rocket:
+- Applies normalization to return types, when a request handler doesn't return
+  an instance of `Response` class, defaulting to a `Response` with JSON body
+  in most cases, and plain/text if the request handler returns a string;
+  this enables more accurate _automatic_ generation of OpenAPI Documentation
+  (see #100)
+- Renames `HtmlContent`, `JsonContent`, `FromJson`, and `JsonBinder` classes to
+  respect Python naming conventions (to `HTMLContent`, `JSONContent`,
+  `FromJSON`, and `JSONBinder`); however, the previous names are kept as
+  aliases, for backward compatibility
 - Corrects a detail in the `JSONContent` class default dumps function
 - Adds support for logging the route pattern for each web request (for logging
   purposes, see issue [#99](https://github.com/Neoteroi/BlackSheep/issues/99))

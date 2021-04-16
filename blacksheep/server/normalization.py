@@ -1,4 +1,5 @@
 import inspect
+import sys
 from functools import wraps
 from inspect import Signature, _empty, _ParameterKind  # type: ignore
 from typing import (
@@ -15,6 +16,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    get_type_hints,
 )
 from uuid import UUID
 
@@ -292,8 +294,9 @@ def get_parameter_binder(
 def _get_binders_for_function(
     method: Callable[..., Any], services: Services, route: Optional[Route]
 ) -> List[Binder]:
-    signature = Signature.from_callable(method)
-    parameters = signature.parameters
+    # signature = Signature.from_callable(method)
+    # parameters = signature.parameters
+    parameters = _get_method_annotations_base(method)
     body_binder = None
 
     binders = []
@@ -375,7 +378,7 @@ def get_sync_wrapper(
     services: Services,
     route: Route,
     method: Callable[..., Any],
-    params: Mapping[str, inspect.Parameter],
+    params: Mapping[str, ParamInfo],
     params_len: int,
 ) -> Callable[[Request], Awaitable[Response]]:
     if params_len == 0:
@@ -411,7 +414,7 @@ def get_async_wrapper(
     services: Services,
     route: Route,
     method: Callable[..., Any],
-    params: Mapping[str, inspect.Parameter],
+    params: Mapping[str, ParamInfo],
     params_len: int,
 ) -> Callable[[Request], Awaitable[Response]]:
     if params_len == 0:
@@ -462,13 +465,66 @@ def get_async_wrapper_for_output(
     return handler
 
 
+# region PEP 563
+
+
+class ParamInfo:
+    __slots__ = ("name", "annotation", "kind", "default", "_str")
+
+    def __init__(self, name, annotation, kind, default, str_repr):
+        self.name = name
+        self.annotation = annotation
+        self.kind = kind
+        self.default = default
+        self._str = str_repr
+
+    def __str__(self) -> str:
+        return self._str
+
+
+def _get_method_annotations_or_throw(method):
+    method_locals = getattr(method, "_locals", None)
+    method_globals = getattr(method, "_globals", None)
+
+    try:
+        return get_type_hints(method, globalns=method_globals, localns=method_locals)
+    except TypeError:
+        if inspect.isclass(method) or hasattr(method, "__call__"):
+            # can be a callable class
+            return get_type_hints(
+                method.__call__, globalns=method_globals, localns=method_locals
+            )
+        raise
+
+
+def _get_method_annotations_base(method):
+    signature = Signature.from_callable(method)
+    params = {
+        key: ParamInfo(
+            value.name, value.annotation, value.kind, value.default, str(value)
+        )
+        for key, value in signature.parameters.items()
+    }
+
+    if sys.version_info >= (3, 10):  # pragma: no cover
+        # Python 3.10
+        annotations = _get_method_annotations_or_throw(method)
+        for key, value in params.items():
+            if key in annotations:
+                value.annotation = annotations[key]
+    return params
+
+
+# endregion
+
+
 def normalize_handler(
     route: Route, services: Services
 ) -> Callable[[Request], Awaitable[Response]]:
     method = route.handler
 
     sig = Signature.from_callable(method)
-    params = sig.parameters
+    params = _get_method_annotations_base(method)
     params_len = len(params)
 
     if any(
@@ -547,8 +603,7 @@ def normalize_middleware(
     ):
         raise ValueError("Middlewares must be asynchronous functions")
 
-    sig = Signature.from_callable(middleware)
-    params = sig.parameters
+    params = _get_method_annotations_base(middleware)
 
     if _is_basic_middleware_signature(params):
         return middleware

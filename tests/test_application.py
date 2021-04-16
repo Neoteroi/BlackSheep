@@ -10,7 +10,7 @@ import pkg_resources
 import pytest
 from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
-from rodi import Container
+from rodi import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
 from blacksheep.server import Application
@@ -1216,6 +1216,7 @@ async def test_handler_normalize_sync_method_from_header_name_compatible():
     class AcceptLanguageHeader(FromHeader[str]):
         name = "accept-language"
 
+    @inject()
     @app.router.get("/")
     def home(accept_language: AcceptLanguageHeader):
         assert accept_language.value == "en-US,en;q=0.9,it-IT;q=0.8,it;q=0.7"
@@ -1924,10 +1925,9 @@ async def test_handler_from_json_parameter_missing_property():
     )
     assert app.response.status == 400
     assert (
-        app.response.content.body
-        == b"Bad Request: invalid parameter in request payload, caused by type Item "
-        + b"or one of its subproperties. "
-        + b"Error: missing 1 required parameter: 'c'"
+        b"Bad Request: invalid parameter in request payload, caused by type Item "
+        + b"or one of its subproperties."
+        in app.response.content.body
     )
 
 
@@ -2010,6 +2010,7 @@ async def test_handler_text_response_implicit():
 async def test_handler_from_json_parameter_missing_property_complex_type():
     app = FakeApplication()
 
+    @inject()
     @app.router.post("/")
     async def home(item: FromJSON[Foo]):
         ...
@@ -2028,10 +2029,9 @@ async def test_handler_from_json_parameter_missing_property_complex_type():
     )
     assert app.response.status == 400
     assert (
-        app.response.content.body
-        == b"Bad Request: invalid parameter in request payload, caused by type Foo "
-        + b"or one of its subproperties. "
-        + b"Error: missing 1 required parameter: 'c'"
+        b"Bad Request: invalid parameter in request payload, caused by type Foo "
+        + b"or one of its subproperties."
+        in app.response.content.body
     )
 
 
@@ -2057,10 +2057,8 @@ async def test_handler_from_json_parameter_missing_property_array():
     )
     assert app.response.status == 400
     assert (
-        app.response.content.body
-        == b"Bad Request: invalid parameter in request payload, caused by type Item "
-        + b"or one of its subproperties. "
-        + b"Error: missing 1 required parameter: 'c'"
+        b"Bad Request: invalid parameter in request payload, caused by type Item"
+        in app.response.content.body
     )
 
 
@@ -2189,6 +2187,7 @@ async def test_handler_from_json_list_of_primitives(
 ):
     app = FakeApplication()
 
+    @inject()
     @app.router.post("/")
     async def home(item: FromJSON[expected_type]):
         assert item is not None
@@ -2220,6 +2219,7 @@ async def test_handler_from_json_dataclass():
         foo: str
         ufo: bool
 
+    @inject()
     @app.router.post("/")
     async def home(item: FromJSON[Foo]):
         assert item is not None
@@ -2420,6 +2420,7 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
 async def test_valid_query_parameter_parse(parameter_type, parameter, expected_value):
     app = FakeApplication()
 
+    @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         assert foo.value == expected_value
@@ -2468,6 +2469,7 @@ async def test_valid_query_parameter_parse(parameter_type, parameter, expected_v
 async def test_valid_cookie_parameter_parse(parameter_type, parameter, expected_value):
     app = FakeApplication()
 
+    @inject()
     @app.router.get("/")
     async def home(foo: FromCookie[parameter_type]):
         assert foo.value == expected_value
@@ -2513,6 +2515,7 @@ async def test_valid_query_parameter_list_parse(
 ):
     app = FakeApplication()
 
+    @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         assert foo.value == expected_value
@@ -2546,6 +2549,7 @@ async def test_valid_query_parameter_list_parse(
 async def test_invalid_query_parameter_400(parameter_type, parameter):
     app = FakeApplication()
 
+    @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         return status_code(200)
@@ -2590,6 +2594,7 @@ async def test_invalid_query_parameter_400(parameter_type, parameter):
 async def test_valid_route_parameter_parse(parameter_type, parameter, expected_value):
     app = FakeApplication()
 
+    @inject()
     @app.router.get("/:foo")
     async def home(foo: FromRoute[parameter_type]):
         assert foo.value == expected_value
@@ -2638,6 +2643,7 @@ async def test_valid_header_parameter_parse(parameter_type, parameter, expected_
     class XFooHeader(FromHeader[T]):
         name = "X-Foo"
 
+    @inject()
     @app.router.get("/")
     async def home(x_foo: XFooHeader[parameter_type]):
         assert x_foo.value == expected_value
@@ -2673,6 +2679,7 @@ async def test_valid_header_parameter_parse(parameter_type, parameter, expected_
 async def test_valid_query_parameter(parameter_type, parameter_one, parameter_two):
     app = FakeApplication()
 
+    @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         assert isinstance(foo.value, parameter_type)
@@ -2731,6 +2738,7 @@ async def test_valid_query_parameter_implicit(
 ):
     app = FakeApplication()
 
+    @inject()
     @app.router.get("/")
     async def home(request, foo: parameter_type):
         assert isinstance(foo, parameter_type)
@@ -3188,10 +3196,12 @@ async def test_client_server_info_bindings():
 async def test_service_bindings():
     container = Container()
 
+    @inject()
     class B:
         def __init__(self) -> None:
             self.foo = "foo"
 
+    @inject()
     class A:
         def __init__(self, b: B) -> None:
             self.dep = b
@@ -3201,6 +3211,7 @@ async def test_service_bindings():
 
     app = FakeApplication(services=container)
 
+    @inject()
     @app.router.get("/explicit")
     async def explicit(a: FromServices[A]):
         assert isinstance(a.value, A)
@@ -3208,6 +3219,7 @@ async def test_service_bindings():
         assert a.value.dep.foo == "foo"
         return text("OK")
 
+    @inject()
     @app.router.get("/implicit")
     async def implicit(a: A):
         assert isinstance(a, A)
@@ -3246,6 +3258,7 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature():
     app = FakeApplication(services=container)
     app.middlewares.append(dependency_injection_middleware)
 
+    @inject()
     @app.router.get("/")
     async def home(a: OperationContext, b: OperationContext):
         assert a is b
@@ -3283,6 +3296,7 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
     container.add_exact_scoped(OperationContext)
     app = FakeApplication(services=container)
 
+    @inject()
     @app.router.get("/")
     async def home(a: OperationContext, b: OperationContext):
         assert a is not b
@@ -3312,12 +3326,14 @@ async def test_service_bindings_default():
         def __init__(self) -> None:
             self.foo = "foo"
 
+    @inject()
     class A:
         def __init__(self, b: B) -> None:
             self.dep = b
 
     app = FakeApplication(services=container)
 
+    @inject()
     @app.router.get("/explicit")
     async def explicit(a: FromServices[A] = FromServices(A(B()))):
         assert isinstance(a.value, A)
@@ -3325,6 +3341,7 @@ async def test_service_bindings_default():
         assert a.value.dep.foo == "foo"
         return text("OK")
 
+    @inject()
     @app.router.get("/implicit")
     async def implicit(a: A = A(B())):
         assert isinstance(a, A)
@@ -3353,10 +3370,12 @@ async def test_service_bindings_default_override():
     # Extremely unlikely, but still supported if the user defines a default service
     container = Container()
 
+    @inject()
     class B:
         def __init__(self, value: str) -> None:
             self.foo = value
 
+    @inject()
     class A:
         def __init__(self, b: B) -> None:
             self.dep = b
@@ -3367,6 +3386,7 @@ async def test_service_bindings_default_override():
 
     app = FakeApplication(services=container)
 
+    @inject()
     @app.router.get("/explicit")
     async def explicit(a: FromServices[A] = FromServices(A(B("foo")))):
         assert isinstance(a.value, A)
@@ -3374,6 +3394,7 @@ async def test_service_bindings_default_override():
         assert a.value.dep.foo == "ufo"
         return text("OK")
 
+    @inject()
     @app.router.get("/implicit")
     async def implicit(a: A = A(B("foo"))):
         assert isinstance(a, A)

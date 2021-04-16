@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import wraps
 from tests.test_files_serving import get_file_path
 from typing import Optional
@@ -10,7 +11,7 @@ from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
 from blacksheep.utils import ensure_str
 from guardpost.authentication import User
-from rodi import Services
+from rodi import inject, Services
 
 from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
 
@@ -311,6 +312,7 @@ async def test_controller_with_dependency(value):
         def __init__(self, greetings: str):
             self.greetings = greetings
 
+    @inject()
     class Home(Controller):
         def __init__(self, settings: Settings):
             assert isinstance(settings, Settings)
@@ -344,6 +346,7 @@ async def test_many_controllers(value):
         def __init__(self, greetings: str):
             self.greetings = greetings
 
+    @inject()
     class Home(Controller):
         def __init__(self, settings: Settings):
             self.settings = settings
@@ -878,3 +881,47 @@ async def test_controller_return_file():
     with open(file_path, mode="rt", encoding="utf8") as f:
         contents = f.read()
         assert contents == text
+
+
+@dataclass
+class Foo:
+    name: str
+    value: float
+
+
+@pytest.mark.asyncio
+async def test_handler_through_controller_default_type():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+        @get("/")
+        async def index(self) -> Foo:
+            return Foo("Hello", 5.5)
+
+    app.setup_controllers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    data = await app.response.json()
+    assert data == {"name": "Hello", "value": 5.5}
+
+
+@pytest.mark.asyncio
+async def test_handler_through_controller_default_str():
+    app = FakeApplication()
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+        @get("/")
+        async def index(self) -> str:
+            return "Hello World"
+
+    app.setup_controllers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    data = await app.response.text()
+    assert data == "Hello World"

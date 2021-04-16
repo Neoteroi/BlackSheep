@@ -354,7 +354,7 @@ def get_default_class_converter(expected_type):
             return expected_type(**data)
         except TypeError as type_error:
             raise BadRequest(
-                f"invalid parameter in request payload, "
+                "invalid parameter in request payload, "
                 + f"caused by type {_try_get_type_name(expected_type)} or "
                 + "one of its subproperties. Error: "
                 + _generalize_init_type_error_message(type_error)

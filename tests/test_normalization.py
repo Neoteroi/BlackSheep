@@ -23,7 +23,6 @@ from blacksheep.server.normalization import (
     AmbiguousMethodSignatureError,
     NormalizationError,
     RouteBinderMismatch,
-    UnsupportedForwardRefInSignatureError,
     UnsupportedSignatureError,
     _check_union,
     _get_raw_bound_value_type,

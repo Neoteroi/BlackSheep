@@ -182,6 +182,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
             if isinstance(child_type, str):
                 # this is a forward reference
+                child_type = child_type.strip("'")
                 properties[field.name] = Reference(f"#/components/schemas/{child_type}")
             else:
                 properties[field.name] = self.get_schema_by_type(child_type)

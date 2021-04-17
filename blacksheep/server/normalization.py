@@ -1,5 +1,4 @@
 import inspect
-import sys
 from functools import wraps
 from inspect import Signature, _empty, _ParameterKind  # type: ignore
 from typing import (

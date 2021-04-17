@@ -410,7 +410,7 @@ class BodyBinder(Binder):
         generic_type = self.get_type_for_generic_iterable(expected_type)
         item_type = self.generic_iterable_annotation_item_type(expected_type)
 
-        if isinstance(item_type, ForwardRef):
+        if isinstance(item_type, ForwardRef):  # pragma: no cover
             from blacksheep.server.normalization import (
                 UnsupportedForwardRefInSignatureError,
             )

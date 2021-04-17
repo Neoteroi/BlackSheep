@@ -215,29 +215,25 @@ def test_throw_for_ambiguous_binder_multiple_from_body():
         get_binders(Route(b"/", handler), Services())
 
 
-def test_throw_for_forward_ref():
+def test_does_not_throw_for_forward_ref():
     def handler(a: "Cat"):
         ...
 
-    # with pytest.raises(UnsupportedForwardRefInSignatureError):
     get_binders(Route(b"/", handler), Services())
 
     def handler(a: List["str"]):
         ...
 
-    # with pytest.raises(UnsupportedForwardRefInSignatureError):
     get_binders(Route(b"/", handler), Services())
 
     def handler(a: Optional[List["Cat"]]):
         ...
 
-    # with pytest.raises(UnsupportedForwardRefInSignatureError):
     get_binders(Route(b"/", handler), Services())
 
     def handler(a: FromQuery["str"]):
         ...
 
-    # with pytest.raises(UnsupportedForwardRefInSignatureError):
     get_binders(Route(b"/", handler), Services())
 
 

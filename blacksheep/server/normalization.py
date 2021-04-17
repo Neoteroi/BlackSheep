@@ -75,7 +75,7 @@ def _get_method_annotations_or_throw(method):
             return get_type_hints(
                 method.__call__, globalns=method_globals, localns=method_locals
             )
-        raise
+        raise  # pragma: no cover
 
 
 def _get_method_annotations_base(method):
@@ -87,12 +87,10 @@ def _get_method_annotations_base(method):
         for key, value in signature.parameters.items()
     }
 
-    if sys.version_info >= (3, 10):  # pragma: no cover
-        # Python 3.10
-        annotations = _get_method_annotations_or_throw(method)
-        for key, value in params.items():
-            if key in annotations:
-                value.annotation = annotations[key]
+    annotations = _get_method_annotations_or_throw(method)
+    for key, value in params.items():
+        if key in annotations:
+            value.annotation = annotations[key]
     return params
 
 
@@ -115,7 +113,7 @@ class UnsupportedSignatureError(NormalizationError):
 
 class UnsupportedForwardRefInSignatureError(NormalizationError):
     def __init__(self, unsupported_type):
-        super().__init__(
+        super().__init__(  # pragma: no cover
             f"Cannot normalize method `{unsupported_type}` because its "
             f"signature contains a forward reference (type annotation as string). "
             f"Use type annotations to exact types to fix this error. "
@@ -275,7 +273,7 @@ def _get_parameter_binder(
     # unwrap the Optional[] annotation, if present:
     is_root_optional, annotation = _check_union(parameter, original_annotation, method)
 
-    if isinstance(annotation, (str, ForwardRef)):
+    if isinstance(annotation, (str, ForwardRef)):  # pragma: no cover
         raise UnsupportedForwardRefInSignatureError(original_annotation)
 
     # 1. is the type annotation of BoundValue[T] type?
@@ -285,7 +283,7 @@ def _get_parameter_binder(
 
         is_optional, expected_type = _check_union(parameter, expected_type, method)
 
-        if isinstance(expected_type, (str, ForwardRef)):
+        if isinstance(expected_type, (str, ForwardRef)):  # pragma: no cover
             raise UnsupportedForwardRefInSignatureError(expected_type)
 
         parameter_name = annotation.name or name

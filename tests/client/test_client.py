@@ -9,6 +9,7 @@ from blacksheep.client.exceptions import UnsupportedRedirect
 @pytest.mark.parametrize(
     "value,result",
     [
+        ["", b"/"],
         ["/?hello=world", b"/?hello=world"],
         ["https://foo.org", b"https://foo.org"],
         ["https://foo.org/?hello=world", b"https://foo.org/?hello=world"],

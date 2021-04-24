@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import datetime
 from urllib.parse import quote, unquote
 from cpython.datetime cimport datetime
+from email.utils import parsedate_to_datetime
 
 
 cpdef bytes datetime_to_cookie_format(datetime value):
@@ -9,11 +10,7 @@ cpdef bytes datetime_to_cookie_format(datetime value):
 
 
 cpdef datetime datetime_from_cookie_format(bytes value):
-    value_str = value.decode()
-    try:
-        return datetime.strptime(value_str, '%a, %d %b %Y %H:%M:%S GMT')
-    except ValueError:
-        return datetime.strptime(value_str, '%a, %d-%b-%Y %H:%M:%S GMT')
+    return parsedate_to_datetime(value.decode()).replace(tzinfo=None)
 
 
 cdef class Cookie:

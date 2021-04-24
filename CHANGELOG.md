@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds support for Python 3.10 and PEP 563 (however, it works with `httptools`
   built from its current default branch, because the version of `httptools`
   currently in `PyPi` does not support Python 3.10)
+- Fixes bug [#109](https://github.com/Neoteroi/BlackSheep/issues/109) (client
+  not handling properly various formats for Cookie time representations)
 
 ## [1.0.2] - 2021-04-15 :rocket:
 - Applies normalization to return types, when a request handler doesn't return

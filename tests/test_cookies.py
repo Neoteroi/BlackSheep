@@ -193,6 +193,11 @@ def test_parse_cookie(
         [b"Sun, 27-Jan-2019 20:40:54 GMT", datetime(2019, 1, 27, 20, 40, 54)],
         [b"Sun, 27 Jan 2019 20:40:54 GMT", datetime(2019, 1, 27, 20, 40, 54)],
         [b"Wed, 21 Oct 2015 07:28:00 GMT", datetime(2015, 10, 21, 7, 28, 00)],
+        [b"Thu, 31-Dec-37 23:55:55 GMT", datetime(2037, 12, 31, 23, 55, 55)],
+        [b"Tuesday, 08-Feb-94 14:15:29 GMT", datetime(1994, 2, 8, 14, 15, 29)],
+        [b"09 Feb 1994 22:23:32 GMT", datetime(1994, 2, 9, 22, 23, 32)],
+        [b"08-Feb-94 14:15:29 GMT", datetime(1994, 2, 8, 14, 15, 29)],
+        [b"08-Feb-1994 14:15:29 GMT", datetime(1994, 2, 8, 14, 15, 29)],
     ],
 )
 def test_datetime_from_cookie_format(value, expected_result):
@@ -207,7 +212,7 @@ def test_datetime_from_cookie_format(value, expected_result):
         [b"Wed, 21 Oct 2015 07:28:00 GMT", datetime(2015, 10, 21, 7, 28, 00)],
     ],
 )
-def test_datetime_from_cookie_format_2(expected_result, value):
+def test_datetime_to_cookie_format(expected_result, value):
     bytes_value = datetime_to_cookie_format(value)
     assert bytes_value == expected_result
 

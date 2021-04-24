@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   currently in `PyPi` does not support Python 3.10)
 - Fixes bug [#109](https://github.com/Neoteroi/BlackSheep/issues/109) (client
   not handling properly various formats for Cookie time representations)
+- Improves a detail in the client session URL handling (doesn't cause exception
+  for an empty string URL, defaults to "/")
 
 ## [1.0.2] - 2021-04-15 :rocket:
 - Applies normalization to return types, when a request handler doesn't return

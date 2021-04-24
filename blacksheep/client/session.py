@@ -185,6 +185,8 @@ class ClientSession:
             url = url.encode()
 
         if not isinstance(url, URL):
+            if url == b"":
+                url = b"/"
             url = URL(url)
 
         if url.is_absolute:

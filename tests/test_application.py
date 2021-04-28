@@ -855,6 +855,38 @@ async def test_user_defined_exception_handlers_called_in_application_context():
 
 
 @pytest.mark.asyncio
+async def test_application_exception_handler_decorator():
+    app = FakeApplication()
+
+    class CustomException(Exception):
+        pass
+
+    @app.exception_handler(CustomException)
+    async def exception_handler(
+        self: Application, request: Request, exc: CustomException
+    ) -> Response:
+        nonlocal app
+        assert self is app
+        assert isinstance(exc, CustomException)
+        return Response(200, content=TextContent("Called"))
+
+    @app.router.get("/")
+    async def home(request):
+        raise CustomException()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response is not None
+    text = await response.text()
+    assert text == "Called", (
+        "The response is the one returned by " "defined http exception handler"
+    )
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_value",
     [("a", "a"), ("foo", "foo"), ("Hello%20World!!%3B%3B", "Hello World!!;;")],

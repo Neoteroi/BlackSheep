@@ -13,7 +13,6 @@ from guardpost.authentication import Identity, User
 from rodi import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
-from blacksheep.server import Application
 from blacksheep.server.bindings import (
     ClientInfo,
     FromBytes,
@@ -30,39 +29,36 @@ from blacksheep.server.bindings import (
 )
 from blacksheep.server.di import dependency_injection_middleware
 from blacksheep.server.responses import status_code, text
-from tests.utils import ensure_folder
+from tests.utils.folder import ensure_folder
+from tests.utils.application import FakeApplication
 
 
-class FakeApplication(Application):
-    def __init__(self, *args, **kwargs):
-        super().__init__(show_error_details=True, *args, **kwargs)
-        self.request = None
-        self.response = None
+class Item:
+    def __init__(self, a, b, c):
+        self.a = a
+        self.b = b
+        self.c = c
 
-    def normalize_handlers(self):
-        if self._service_provider is None:
-            self.build_services()
-        super().normalize_handlers()
 
-    def setup_controllers(self):
-        self.use_controllers()
-        self.build_services()
-        self.normalize_handlers()
+@dataclass
+class Item2:
+    a: str
+    b: str
+    c: str
 
-    async def handle(self, request):
-        self.request = request
-        response = await super().handle(request)
-        self.response = response
-        return response
 
-    def prepare(self):
-        self.normalize_handlers()
-        self.configure_middlewares()
+class Foo:
+    def __init__(self, item) -> None:
+        self.item = Item(**item)
+
+
+@pytest.fixture
+def app():
+    return FakeApplication()
 
 
 @pytest.mark.asyncio
-async def test_application_supports_dynamic_attributes():
-    app = FakeApplication()
+async def test_application_supports_dynamic_attributes(app):
     foo = object()
 
     assert (
@@ -73,9 +69,7 @@ async def test_application_supports_dynamic_attributes():
 
 
 @pytest.mark.asyncio
-async def test_application_service_provider_throws_for_missing_value():
-    app = FakeApplication()
-
+async def test_application_service_provider_throws_for_missing_value(app):
     assert app._service_provider is None
 
     with pytest.raises(TypeError):
@@ -169,9 +163,7 @@ class MockSend:
 
 
 @pytest.mark.asyncio
-async def test_application_get_handler():
-    app = FakeApplication()
-
+async def test_application_get_handler(app):
     @app.router.get("/")
     async def home(request):
         pass
@@ -195,9 +187,7 @@ async def test_application_get_handler():
 
 
 @pytest.mark.asyncio
-async def test_application_post_multipart_formdata():
-    app = FakeApplication()
-
+async def test_application_post_multipart_formdata(app):
     @app.router.post("/files/upload")
     async def upload_files(request):
         data = await request.multipart()
@@ -309,9 +299,7 @@ async def test_application_post_multipart_formdata():
 
 
 @pytest.mark.asyncio
-async def test_application_post_handler():
-    app = FakeApplication()
-
+async def test_application_post_handler(app):
     called_times = 0
 
     @app.router.post("/api/cat")
@@ -348,9 +336,7 @@ async def test_application_post_handler():
 
 
 @pytest.mark.asyncio
-async def test_application_post_json_handles_missing_body():
-    app = FakeApplication()
-
+async def test_application_post_json_handles_missing_body(app):
     @app.router.post("/api/cat")
     async def create_cat(request):
         assert request is not None
@@ -380,9 +366,7 @@ async def test_application_post_json_handles_missing_body():
 
 
 @pytest.mark.asyncio
-async def test_application_returns_400_for_invalid_json():
-    app = FakeApplication()
-
+async def test_application_returns_400_for_invalid_json(app):
     @app.router.post("/api/cat")
     async def create_cat(request):
         await request.json()
@@ -408,9 +392,7 @@ async def test_application_returns_400_for_invalid_json():
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_one():
-    app = FakeApplication()
-
+async def test_application_middlewares_one(app):
     calls = []
 
     async def middleware_one(request, handler):
@@ -452,9 +434,7 @@ async def test_application_middlewares_one():
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_as_classes():
-    app = FakeApplication()
-
+async def test_application_middlewares_as_classes(app):
     calls = []
 
     class MiddlewareExample:
@@ -497,14 +477,12 @@ async def test_application_middlewares_as_classes():
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_are_applied_only_once():
+async def test_application_middlewares_are_applied_only_once(app):
     """
     This test checks that the same request handled bound to several routes
     is normalized only once with middlewares, and that more calls to
     configure_middlewares don't apply several times the chain of middlewares.
     """
-    app = FakeApplication()
-
     calls = []
 
     async def example(request: Request):
@@ -543,9 +521,7 @@ async def test_application_middlewares_are_applied_only_once():
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_two():
-    app = FakeApplication()
-
+async def test_application_middlewares_two(app):
     calls = []
 
     async def middleware_one(request, handler):
@@ -595,9 +571,7 @@ async def test_application_middlewares_two():
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_skip_handler():
-    app = FakeApplication()
-
+async def test_application_middlewares_skip_handler(app):
     calls = []
 
     async def middleware_one(request, handler):
@@ -645,9 +619,7 @@ async def test_application_middlewares_skip_handler():
 
 
 @pytest.mark.asyncio
-async def test_application_post_multipart_formdata_files_handler():
-    app = FakeApplication()
-
+async def test_application_post_multipart_formdata_files_handler(app):
     ensure_folder("out")
     ensure_folder("tests/out")
 
@@ -729,9 +701,7 @@ async def test_application_post_multipart_formdata_files_handler():
 
 
 @pytest.mark.asyncio
-async def test_application_http_exception_handlers():
-    app = FakeApplication()
-
+async def test_application_http_exception_handlers(app):
     called = False
 
     async def exception_handler(self, request, http_exception):
@@ -761,9 +731,7 @@ async def test_application_http_exception_handlers():
 
 
 @pytest.mark.asyncio
-async def test_application_http_exception_handlers_called_in_application_context():
-    app = FakeApplication()
-
+async def test_application_http_exception_handlers_called_in_application_context(app):
     async def exception_handler(self, request, http_exception):
         nonlocal app
         assert self is app
@@ -787,9 +755,7 @@ async def test_application_http_exception_handlers_called_in_application_context
 
 
 @pytest.mark.asyncio
-async def test_application_user_defined_exception_handlers():
-    app = FakeApplication()
-
+async def test_application_user_defined_exception_handlers(app):
     called = False
 
     class CustomException(Exception):
@@ -822,14 +788,12 @@ async def test_application_user_defined_exception_handlers():
 
 
 @pytest.mark.asyncio
-async def test_user_defined_exception_handlers_called_in_application_context():
-    app = FakeApplication()
-
+async def test_user_defined_exception_handlers_called_in_application_context(app):
     class CustomException(Exception):
         pass
 
     async def exception_handler(
-        self: Application, request: Request, exc: CustomException
+        self: FakeApplication, request: Request, exc: CustomException
     ) -> Response:
         nonlocal app
         assert self is app
@@ -855,9 +819,7 @@ async def test_user_defined_exception_handlers_called_in_application_context():
 
 
 @pytest.mark.asyncio
-async def test_application_exception_handler_decorator_by_custom_exception():
-    app = FakeApplication()
-
+async def test_application_exception_handler_decorator_by_custom_exception(app):
     expected_handler_response_text = "Called"
 
     class CustomException(Exception):
@@ -865,7 +827,7 @@ async def test_application_exception_handler_decorator_by_custom_exception():
 
     @app.exception_handler(CustomException)
     async def exception_handler(
-        self: Application, request: Request, exc: CustomException
+        self: FakeApplication, request: Request, exc: CustomException
     ) -> Response:
         nonlocal app
         assert self is app
@@ -887,9 +849,7 @@ async def test_application_exception_handler_decorator_by_custom_exception():
 
 
 @pytest.mark.asyncio
-async def test_application_exception_handler_decorator_by_http_status_code():
-    app = FakeApplication()
-
+async def test_application_exception_handler_decorator_by_http_status_code(app):
     expected_exception_status_code = 519
     expected_handler_response_text = "Called"
 
@@ -920,9 +880,7 @@ async def test_application_exception_handler_decorator_by_http_status_code():
     "parameter,expected_value",
     [("a", "a"), ("foo", "foo"), ("Hello%20World!!%3B%3B", "Hello World!!;;")],
 )
-async def test_handler_route_value_binding_single(parameter, expected_value):
-    app = FakeApplication()
-
+async def test_handler_route_value_binding_single(parameter, expected_value, app):
     called = False
 
     @app.router.get("/:value")
@@ -947,9 +905,7 @@ async def test_handler_route_value_binding_single(parameter, expected_value):
         ("Hello%20World!!%3B%3B/another", "Hello World!!;;", "another"),
     ],
 )
-async def test_handler_route_value_binding_two(parameter, expected_a, expected_b):
-    app = FakeApplication()
-
+async def test_handler_route_value_binding_two(parameter, expected_a, expected_b, app):
     @app.router.get("/:a/:b")
     async def home(request, a, b):
         assert a == expected_a
@@ -964,9 +920,7 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
 @pytest.mark.parametrize(
     "parameter,expected_value", [("12", 12), ("0", 0), ("16549", 16549)]
 )
-async def test_handler_route_value_binding_single_int(parameter, expected_value):
-    app = FakeApplication()
-
+async def test_handler_route_value_binding_single_int(parameter, expected_value, app):
     called = False
 
     @app.router.get("/:value")
@@ -984,9 +938,7 @@ async def test_handler_route_value_binding_single_int(parameter, expected_value)
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("parameter", ["xx", "x"])
-async def test_handler_route_value_binding_single_int_invalid(parameter):
-    app = FakeApplication()
-
+async def test_handler_route_value_binding_single_int_invalid(parameter, app):
     called = False
 
     @app.router.get("/:value")
@@ -1004,9 +956,7 @@ async def test_handler_route_value_binding_single_int_invalid(parameter):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("parameter", ["xx", "x"])
-async def test_handler_route_value_binding_single_float_invalid(parameter):
-    app = FakeApplication()
-
+async def test_handler_route_value_binding_single_float_invalid(parameter, app):
     called = False
 
     @app.router.get("/:value")
@@ -1026,9 +976,7 @@ async def test_handler_route_value_binding_single_float_invalid(parameter):
 @pytest.mark.parametrize(
     "parameter,expected_value", [("12", 12.0), ("0", 0.0), ("16549.55", 16549.55)]
 )
-async def test_handler_route_value_binding_single_float(parameter, expected_value):
-    app = FakeApplication()
-
+async def test_handler_route_value_binding_single_float(parameter, expected_value, app):
     called = False
 
     @app.router.get("/:value")
@@ -1054,10 +1002,8 @@ async def test_handler_route_value_binding_single_float(parameter, expected_valu
     ],
 )
 async def test_handler_route_value_binding_mixed_types(
-    parameter, expected_a, expected_b, expected_c
+    parameter, expected_a, expected_b, expected_c, app
 ):
-    app = FakeApplication()
-
     @app.router.get("/:a/:b/:c")
     async def home(request, a: str, b: int, c: float):
         assert a == expected_a
@@ -1078,9 +1024,7 @@ async def test_handler_route_value_binding_mixed_types(
         (b"a=Hello%20World!!%3B%3B", ["Hello World!!;;"]),
     ],
 )
-async def test_handler_query_value_binding_single(query, expected_value):
-    app = FakeApplication()
-
+async def test_handler_query_value_binding_single(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a):
         assert a == expected_value
@@ -1096,9 +1040,7 @@ async def test_handler_query_value_binding_single(query, expected_value):
 @pytest.mark.parametrize(
     "query,expected_value", [(b"a=10", 10), (b"b=20", None), (b"", None)]
 )
-async def test_handler_query_value_binding_optional_int(query, expected_value):
-    app = FakeApplication()
-
+async def test_handler_query_value_binding_optional_int(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: Optional[int]):
         assert a == expected_value
@@ -1119,9 +1061,7 @@ async def test_handler_query_value_binding_optional_int(query, expected_value):
         (b"", None),
     ],
 )
-async def test_handler_query_value_binding_optional_float(query, expected_value):
-    app = FakeApplication()
-
+async def test_handler_query_value_binding_optional_float(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: Optional[float]):
         assert a == expected_value
@@ -1143,9 +1083,7 @@ async def test_handler_query_value_binding_optional_float(query, expected_value)
         (b"", None),
     ],
 )
-async def test_handler_query_value_binding_optional_list(query, expected_value):
-    app = FakeApplication()
-
+async def test_handler_query_value_binding_optional_list(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: Optional[List[float]]):
         assert a == expected_value
@@ -1165,10 +1103,8 @@ async def test_handler_query_value_binding_optional_list(query, expected_value):
     ],
 )
 async def test_handler_query_value_binding_mixed_types(
-    query, expected_a, expected_b, expected_c
+    query, expected_a, expected_b, expected_c, app
 ):
-    app = FakeApplication()
-
     @app.router.get("/")
     async def home(request, a: str, b: int, c: float):
         assert a == expected_a
@@ -1190,9 +1126,7 @@ async def test_handler_query_value_binding_mixed_types(
         ),
     ],
 )
-async def test_handler_query_value_binding_list(query, expected_value):
-    app = FakeApplication()
-
+async def test_handler_query_value_binding_list(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a):
         assert a == expected_value
@@ -1207,9 +1141,7 @@ async def test_handler_query_value_binding_list(query, expected_value):
     "query,expected_value",
     [(b"a=2", [2]), (b"a=2&a=44", [2, 44]), (b"a=1&a=5&a=18", [1, 5, 18])],
 )
-async def test_handler_query_value_binding_list_of_ints(query, expected_value):
-    app = FakeApplication()
-
+async def test_handler_query_value_binding_list_of_ints(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: List[int]):
         assert a == expected_value
@@ -1228,9 +1160,7 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_value):
         (b"a=1&a=5.55556&a=18.656", [1, 5.55556, 18.656]),
     ],
 )
-async def test_handler_query_value_binding_list_of_floats(query, expected_value):
-    app = FakeApplication()
-
+async def test_handler_query_value_binding_list_of_floats(query, expected_value, app):
     @app.router.get("/")
     async def home(a: List[float]):
         assert a == expected_value
@@ -1241,9 +1171,7 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_value)
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method(app):
     @app.router.get("/")
     def home(request):
         pass
@@ -1254,9 +1182,7 @@ async def test_handler_normalize_sync_method():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_header():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_from_header(app):
     @app.router.get("/")
     def home(request, xx: FromHeader[str]):
         assert xx.value == "Hello World"
@@ -1271,9 +1197,7 @@ async def test_handler_normalize_sync_method_from_header():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_header_name_compatible():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_from_header_name_compatible(app):
     class AcceptLanguageHeader(FromHeader[str]):
         name = "accept-language"
 
@@ -1292,9 +1216,7 @@ async def test_handler_normalize_sync_method_from_header_name_compatible():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_from_query(app):
     @app.router.get("/")
     def home(xx: FromQuery[int]):
         assert xx.value == 20
@@ -1305,9 +1227,7 @@ async def test_handler_normalize_sync_method_from_query():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_implicit_default():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_from_query_implicit_default(app):
     @app.router.get("/")
     def get_products(
         page: int = 1,
@@ -1359,9 +1279,7 @@ async def test_handler_normalize_sync_method_from_query_implicit_default():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_default():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_from_query_default(app):
     @app.router.get("/")
     def get_products(
         page: FromQuery[int] = FromQuery(1),
@@ -1413,9 +1331,7 @@ async def test_handler_normalize_sync_method_from_query_default():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_list_sync_method_from_query_default():
-    app = FakeApplication()
-
+async def test_handler_normalize_list_sync_method_from_query_default(app):
     @app.router.get("/")
     def example(
         a: FromQuery[List[int]] = FromQuery([1, 2, 3]),
@@ -1467,9 +1383,7 @@ async def test_handler_normalize_list_sync_method_from_query_default():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_without_arguments():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_without_arguments(app):
     @app.router.get("/")
     def home():
         return
@@ -1480,9 +1394,7 @@ async def test_handler_normalize_sync_method_without_arguments():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_optional():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_from_query_optional(app):
     @app.router.get("/")
     def home(xx: FromQuery[Optional[int]], yy: FromQuery[Optional[int]]):
         assert xx.value is None
@@ -1494,9 +1406,7 @@ async def test_handler_normalize_sync_method_from_query_optional():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_optional_binder():
-    app = FakeApplication()
-
+async def test_handler_normalize_optional_binder(app):
     @app.router.get("/1")
     def home1(xx: Optional[FromQuery[int]], yy: Optional[FromQuery[int]]):
         assert xx is None
@@ -1524,9 +1434,7 @@ async def test_handler_normalize_optional_binder():
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_optional_list():
-    app = FakeApplication()
-
+async def test_handler_normalize_sync_method_from_query_optional_list(app):
     @app.router.get("/")
     def home(xx: FromQuery[Optional[List[int]]], yy: FromQuery[Optional[List[int]]]):
         assert xx.value is None
@@ -1551,10 +1459,8 @@ async def test_handler_normalize_sync_method_from_query_optional_list():
     ],
 )
 async def test_handler_normalize_sync_method_from_query_default_type(
-    query, expected_values
+    query, expected_values, app
 ):
-    app = FakeApplication()
-
     @app.router.get("/")
     def home(request, xx: FromQuery):
         assert xx.value == expected_values
@@ -1565,9 +1471,7 @@ async def test_handler_normalize_sync_method_from_query_default_type(
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_method_without_input():
-    app = FakeApplication()
-
+async def test_handler_normalize_method_without_input(app):
     @app.router.get("/")
     async def home():
         pass
@@ -1582,9 +1486,7 @@ async def test_handler_normalize_method_without_input():
     "value,expected_value",
     [["dashboard", "dashboard"], ["hello_world", "hello_world"]],
 )
-async def test_handler_from_route(value, expected_value):
-    app = FakeApplication()
-
+async def test_handler_from_route(value, expected_value, app):
     @app.router.get("/:area")
     async def home(request, area: FromRoute[str]):
         assert area.value == expected_value
@@ -1603,10 +1505,12 @@ async def test_handler_from_route(value, expected_value):
     ],
 )
 async def test_handler_two_routes_parameters(
-    value_one: str, value_two: str, expected_value_one: str, expected_value_two: str
+    value_one: str,
+    value_two: str,
+    expected_value_one: str,
+    expected_value_two: str,
+    app,
 ):
-    app = FakeApplication()
-
     @app.router.get("/:culture_code/:area")
     async def home(culture_code: FromRoute[str], area: FromRoute[str]):
         assert culture_code.value == expected_value_one
@@ -1630,10 +1534,12 @@ async def test_handler_two_routes_parameters(
     ],
 )
 async def test_handler_two_routes_parameters_implicit(
-    value_one: str, value_two: str, expected_value_one: str, expected_value_two: str
+    value_one: str,
+    value_two: str,
+    expected_value_one: str,
+    expected_value_two: str,
+    app,
 ):
-    app = FakeApplication()
-
     @app.router.get("/:culture_code/:area")
     async def home(culture_code, area):
         assert culture_code == expected_value_one
@@ -1648,29 +1554,8 @@ async def test_handler_two_routes_parameters_implicit(
     assert app.response.status == 204
 
 
-class Item:
-    def __init__(self, a, b, c):
-        self.a = a
-        self.b = b
-        self.c = c
-
-
-@dataclass
-class Item2:
-    a: str
-    b: str
-    c: str
-
-
-class Foo:
-    def __init__(self, item) -> None:
-        self.item = Item(**item)
-
-
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
         assert item is not None
@@ -1693,9 +1578,7 @@ async def test_handler_from_json_parameter():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_without_annotation():
-    app = FakeApplication()
-
+async def test_handler_from_json_without_annotation(app):
     @app.router.post("/")
     async def home(item: FromJSON):
         assert item is not None
@@ -1717,9 +1600,7 @@ async def test_handler_from_json_without_annotation():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_dict():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_dict(app):
     @app.router.post("/")
     async def home(item: FromJSON[dict]):
         assert item is not None
@@ -1741,9 +1622,7 @@ async def test_handler_from_json_parameter_dict():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_dict_unannotated():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_dict_unannotated(app):
     @app.router.post("/")
     async def home(item: FromJSON[Dict]):
         assert item is not None
@@ -1765,9 +1644,7 @@ async def test_handler_from_json_parameter_dict_unannotated():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_dict_annotated():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_dict_annotated(app):
     @app.router.post("/")
     async def home(item: FromJSON[Dict[str, Any]]):
         assert item is not None
@@ -1797,9 +1674,7 @@ async def test_handler_from_json_parameter_dict_annotated():
     ],
 )
 @pytest.mark.asyncio
-async def test_handler_from_text_parameter(value: str):
-    app = FakeApplication()
-
+async def test_handler_from_text_parameter(value: str, app):
     @app.router.post("/")
     async def home(text: FromText):
         assert text.value == value
@@ -1829,9 +1704,7 @@ async def test_handler_from_text_parameter(value: str):
     ],
 )
 @pytest.mark.asyncio
-async def test_handler_from_bytes_parameter(value: bytes):
-    app = FakeApplication()
-
+async def test_handler_from_bytes_parameter(value: bytes, app):
     @app.router.post("/")
     async def home(text: FromBytes):
         assert text.value == value
@@ -1853,9 +1726,7 @@ async def test_handler_from_bytes_parameter(value: bytes):
 
 
 @pytest.mark.asyncio
-async def test_handler_from_files():
-    app = FakeApplication()
-
+async def test_handler_from_files(app):
     @app.router.post("/")
     async def home(files: FromFiles):
         assert files is not None
@@ -1941,9 +1812,7 @@ async def test_handler_from_files():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_files_handles_empty_body():
-    app = FakeApplication()
-
+async def test_handler_from_files_handles_empty_body(app):
     @app.router.post("/")
     async def home(files: FromFiles):
         assert files.value == []
@@ -1965,9 +1834,7 @@ async def test_handler_from_files_handles_empty_body():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_missing_property():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_missing_property(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
         ...
@@ -1993,9 +1860,7 @@ async def test_handler_from_json_parameter_missing_property():
 
 
 @pytest.mark.asyncio
-async def test_handler_json_response_implicit():
-    app = FakeApplication()
-
+async def test_handler_json_response_implicit(app):
     @app.router.get("/")
     async def get_item() -> Item2:
         return Item2("Hello", "World", "!")
@@ -2018,9 +1883,7 @@ async def test_handler_json_response_implicit():
 
 
 @pytest.mark.asyncio
-async def test_handler_json_response_implicit_no_annotation():
-    app = FakeApplication()
-
+async def test_handler_json_response_implicit_no_annotation(app):
     @app.router.get("/")
     async def get_item():
         return Item2("Hello", "World", "!")
@@ -2043,9 +1906,7 @@ async def test_handler_json_response_implicit_no_annotation():
 
 
 @pytest.mark.asyncio
-async def test_handler_text_response_implicit():
-    app = FakeApplication()
-
+async def test_handler_text_response_implicit(app):
     @app.router.get("/")
     async def get_lorem():
         return "Lorem ipsum"
@@ -2068,9 +1929,7 @@ async def test_handler_text_response_implicit():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_missing_property_complex_type():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_missing_property_complex_type(app):
     @inject()
     @app.router.post("/")
     async def home(item: FromJSON[Foo]):
@@ -2097,9 +1956,7 @@ async def test_handler_from_json_parameter_missing_property_complex_type():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_missing_property_array():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_missing_property_array(app):
     @app.router.post("/")
     async def home(item: FromJSON[List[Item]]):
         ...
@@ -2124,9 +1981,7 @@ async def test_handler_from_json_parameter_missing_property_array():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_handles_request_without_body():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_handles_request_without_body(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
         return Response(200)
@@ -2146,9 +2001,7 @@ async def test_handler_from_json_parameter_handles_request_without_body():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_list_of_objects():
-    app = FakeApplication()
-
+async def test_handler_from_json_list_of_objects(app):
     @app.router.post("/")
     async def home(item: FromJSON[List[Item]]):
         assert item is not None
@@ -2244,10 +2097,8 @@ async def test_handler_from_json_list_of_objects():
 )
 @pytest.mark.asyncio
 async def test_handler_from_json_list_of_primitives(
-    expected_type, request_body, expected_result
+    expected_type, request_body, expected_result, app
 ):
-    app = FakeApplication()
-
     @inject()
     @app.router.post("/")
     async def home(item: FromJSON[expected_type]):
@@ -2272,9 +2123,7 @@ async def test_handler_from_json_list_of_primitives(
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_dataclass():
-    app = FakeApplication()
-
+async def test_handler_from_json_dataclass(app):
     @dataclass
     class Foo:
         foo: str
@@ -2302,9 +2151,7 @@ async def test_handler_from_json_dataclass():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_default():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_default(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
         assert item is not None
@@ -2328,9 +2175,7 @@ async def test_handler_from_json_parameter_default():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_default_override():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_default_override(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
         assert item is not None
@@ -2353,9 +2198,7 @@ async def test_handler_from_json_parameter_default_override():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_implicit():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_implicit(app):
     @app.router.post("/")
     async def home(item: Item):
         assert item is not None
@@ -2377,9 +2220,7 @@ async def test_handler_from_json_parameter_implicit():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_implicit_default():
-    app = FakeApplication()
-
+async def test_handler_from_json_parameter_implicit_default(app):
     @app.router.post("/")
     async def home(item: Item = Item(1, 2, 3)):
         assert item is not None
@@ -2401,9 +2242,7 @@ async def test_handler_from_json_parameter_implicit_default():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional():
-    app = FakeApplication()
-
+async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(item: FromJSON[Optional[Item]]):
         assert item.value is None
@@ -2424,9 +2263,7 @@ async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional():
 
 
 @pytest.mark.asyncio
-async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
-    app = FakeApplication()
-
+async def test_handler_from_wrong_method_json_parameter_gets_bad_request(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(request, item: FromJSON[Item]):
         assert item.value is None
@@ -2478,9 +2315,9 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request():
         ],
     ],
 )
-async def test_valid_query_parameter_parse(parameter_type, parameter, expected_value):
-    app = FakeApplication()
-
+async def test_valid_query_parameter_parse(
+    parameter_type, parameter, expected_value, app
+):
     @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
@@ -2527,9 +2364,9 @@ async def test_valid_query_parameter_parse(parameter_type, parameter, expected_v
         ],
     ],
 )
-async def test_valid_cookie_parameter_parse(parameter_type, parameter, expected_value):
-    app = FakeApplication()
-
+async def test_valid_cookie_parameter_parse(
+    parameter_type, parameter, expected_value, app
+):
     @inject()
     @app.router.get("/")
     async def home(foo: FromCookie[parameter_type]):
@@ -2572,10 +2409,8 @@ async def test_valid_cookie_parameter_parse(parameter_type, parameter, expected_
     ],
 )
 async def test_valid_query_parameter_list_parse(
-    parameter_type, parameters, expected_value
+    parameter_type, parameters, expected_value, app
 ):
-    app = FakeApplication()
-
     @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
@@ -2607,9 +2442,7 @@ async def test_valid_query_parameter_list_parse(
         [UUID, "nope"],
     ],
 )
-async def test_invalid_query_parameter_400(parameter_type, parameter):
-    app = FakeApplication()
-
+async def test_invalid_query_parameter_400(parameter_type, parameter, app):
     @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
@@ -2652,9 +2485,9 @@ async def test_invalid_query_parameter_400(parameter_type, parameter):
         ],
     ],
 )
-async def test_valid_route_parameter_parse(parameter_type, parameter, expected_value):
-    app = FakeApplication()
-
+async def test_valid_route_parameter_parse(
+    parameter_type, parameter, expected_value, app
+):
     @inject()
     @app.router.get("/:foo")
     async def home(foo: FromRoute[parameter_type]):
@@ -2696,8 +2529,9 @@ async def test_valid_route_parameter_parse(parameter_type, parameter, expected_v
         ],
     ],
 )
-async def test_valid_header_parameter_parse(parameter_type, parameter, expected_value):
-    app = FakeApplication()
+async def test_valid_header_parameter_parse(
+    parameter_type, parameter, expected_value, app
+):
 
     T = TypeVar("T")
 
@@ -2737,9 +2571,7 @@ async def test_valid_header_parameter_parse(parameter_type, parameter, expected_
         ],
     ],
 )
-async def test_valid_query_parameter(parameter_type, parameter_one, parameter_two):
-    app = FakeApplication()
-
+async def test_valid_query_parameter(parameter_type, parameter_one, parameter_two, app):
     @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
@@ -2795,10 +2627,8 @@ async def test_valid_query_parameter(parameter_type, parameter_one, parameter_tw
     ],
 )
 async def test_valid_query_parameter_implicit(
-    parameter_type, parameter_one, parameter_two
+    parameter_type, parameter_one, parameter_two, app
 ):
-    app = FakeApplication()
-
     @inject()
     @app.router.get("/")
     async def home(request, foo: parameter_type):
@@ -2831,8 +2661,7 @@ async def test_valid_query_parameter_implicit(
 
 
 @pytest.mark.asyncio
-async def test_valid_query_parameter_list_of_int():
-    app = FakeApplication()
+async def test_valid_query_parameter_list_of_int(app):
     expected_values_1 = [1349]
     expected_values_2 = [1349, 164]
 
@@ -2864,9 +2693,7 @@ async def test_valid_query_parameter_list_of_int():
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_int():
-    app = FakeApplication()
-
+async def test_invalid_query_parameter_int(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[int]):
         ...
@@ -2915,9 +2742,7 @@ async def test_invalid_query_parameter_int():
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_float():
-    app = FakeApplication()
-
+async def test_invalid_query_parameter_float(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[float]):
         ...
@@ -2966,9 +2791,7 @@ async def test_invalid_query_parameter_float():
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_bool():
-    app = FakeApplication()
-
+async def test_invalid_query_parameter_bool(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[bool]):
         ...
@@ -3017,9 +2840,7 @@ async def test_invalid_query_parameter_bool():
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_uuid():
-    app = FakeApplication()
-
+async def test_invalid_query_parameter_uuid(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[UUID]):
         return text(f"Got: {foo.value}")
@@ -3066,9 +2887,7 @@ async def test_valid_route_parameter_uuid():
 
 
 @pytest.mark.asyncio
-async def test_valid_route_parameter_uuid_2():
-    app = FakeApplication()
-
+async def test_valid_route_parameter_uuid_2(app):
     @app.router.get("/:a_id/:b_id")
     async def home(request, a_id: FromRoute[UUID], b_id: FromRoute[UUID]):
         return text(f"Got: {a_id.value} and {b_id.value}")
@@ -3090,9 +2909,7 @@ async def test_valid_route_parameter_uuid_2():
 
 
 @pytest.mark.asyncio
-async def test_valid_header_parameter_uuid_list():
-    app = FakeApplication()
-
+async def test_valid_header_parameter_uuid_list(app):
     @app.router.get("/")
     async def home(request, x_foo: FromHeader[List[UUID]]):
         return text(f"Got: {x_foo.value}")
@@ -3118,9 +2935,7 @@ async def test_valid_header_parameter_uuid_list():
 
 
 @pytest.mark.asyncio
-async def test_invalid_route_parameter_uuid():
-    app = FakeApplication()
-
+async def test_invalid_route_parameter_uuid(app):
     @app.router.get("/:document_id")
     async def home(request, document_id: FromRoute[UUID]):
         return text(f"Got: {document_id.value}")
@@ -3144,9 +2959,7 @@ async def test_invalid_route_parameter_uuid():
 
 
 @pytest.mark.asyncio
-async def test_valid_route_parameter_uuid_implicit():
-    app = FakeApplication()
-
+async def test_valid_route_parameter_uuid_implicit(app):
     @app.router.get("/:foo")
     async def home(request, foo: UUID):
         return text(f"Got: {foo}")
@@ -3167,9 +2980,7 @@ async def test_valid_route_parameter_uuid_implicit():
 
 
 @pytest.mark.asyncio
-async def test_route_resolution_order():
-    app = FakeApplication()
-
+async def test_route_resolution_order(app):
     @app.router.get("/:id")
     async def example_a():
         return text("A")
@@ -3230,9 +3041,7 @@ async def test_route_resolution_order():
 
 
 @pytest.mark.asyncio
-async def test_client_server_info_bindings():
-    app = FakeApplication()
-
+async def test_client_server_info_bindings(app):
     @app.router.get("/")
     async def home(client: ClientInfo, server: ServerInfo):
         return text(f"Client: {client.value}; Server: {server.value}")
@@ -3480,9 +3289,7 @@ async def test_service_bindings_default_override():
 
 
 @pytest.mark.asyncio
-async def test_user_binding():
-    app = FakeApplication()
-
+async def test_user_binding(app):
     class MockAuthHandler(AuthenticationHandler):
         async def authenticate(self, context):
             header_value = context.get_first_header(b"Authorization")
@@ -3535,9 +3342,7 @@ async def test_user_binding():
 
 
 @pytest.mark.asyncio
-async def test_use_auth_raises_if_app_is_already_started():
-    app = FakeApplication()
-
+async def test_use_auth_raises_if_app_is_already_started(app):
     class MockAuthHandler(AuthenticationHandler):
         async def authenticate(self, context):
             header_value = context.get_first_header(b"Authorization")
@@ -3558,8 +3363,7 @@ async def test_use_auth_raises_if_app_is_already_started():
 
 
 @pytest.mark.asyncio
-async def test_default_headers():
-    app = FakeApplication()
+async def test_default_headers(app):
     app.default_headers = (("Example", "Foo"),)
 
     assert app.default_headers == (("Example", "Foo"),)
@@ -3582,27 +3386,25 @@ async def test_default_headers():
 
 
 @pytest.mark.asyncio
-async def test_start_stop_events():
-    app = FakeApplication()
-
+async def test_start_stop_events(app):
     on_start_called = False
     on_after_start_called = False
     on_stop_called = False
 
-    async def before_start(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def before_start(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_start_called
         on_start_called = True
 
-    async def after_start(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def after_start(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_after_start_called
         on_after_start_called = True
 
-    async def on_stop(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def on_stop(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_stop_called
         on_stop_called = True
@@ -3625,38 +3427,36 @@ async def test_start_stop_events():
 
 
 @pytest.mark.asyncio
-async def test_start_stop_multiple_events():
-    app = FakeApplication()
-
+async def test_start_stop_multiple_events(app):
     on_start_count = 0
     on_stop_count = 0
 
-    async def before_start_1(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def before_start_1(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_start_count
         on_start_count += 1
 
-    async def before_start_2(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def before_start_2(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_start_count
         on_start_count += 1
 
-    async def before_start_3(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def before_start_3(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_start_count
         on_start_count += 1
 
-    async def on_stop_1(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def on_stop_1(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_stop_count
         on_stop_count += 1
 
-    async def on_stop_2(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def on_stop_2(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_stop_count
         on_stop_count += 1
@@ -3679,32 +3479,30 @@ async def test_start_stop_multiple_events():
 
 
 @pytest.mark.asyncio
-async def test_start_stop_remove_event_handlers():
-    app = FakeApplication()
-
+async def test_start_stop_remove_event_handlers(app):
     on_start_count = 0
     on_stop_count = 0
 
-    async def before_start_1(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def before_start_1(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_start_count
         on_start_count += 1
 
-    async def before_start_2(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def before_start_2(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_start_count
         on_start_count += 1
 
-    async def on_stop_1(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def on_stop_1(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_stop_count
         on_stop_count += 1
 
-    async def on_stop_2(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def on_stop_2(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_stop_count
         on_stop_count += 1
@@ -3729,13 +3527,11 @@ async def test_start_stop_remove_event_handlers():
 
 
 @pytest.mark.asyncio
-async def test_start_runs_once():
-    app = FakeApplication()
-
+async def test_start_runs_once(app):
     on_start_count = 0
 
-    async def before_start(application: Application) -> None:
-        assert isinstance(application, Application)
+    async def before_start(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
         assert application is app
         nonlocal on_start_count
         on_start_count += 1
@@ -3753,10 +3549,8 @@ async def test_start_runs_once():
 
 
 @pytest.mark.asyncio
-async def test_handles_on_start_error_asgi_lifespan():
-    app = FakeApplication()
-
-    async def before_start(application: Application) -> None:
+async def test_handles_on_start_error_asgi_lifespan(app):
+    async def before_start(application: FakeApplication) -> None:
         raise RuntimeError("Crash!")
 
     app.on_start += before_start
@@ -3776,7 +3570,5 @@ async def test_handles_on_start_error_asgi_lifespan():
     assert mock_send.messages[0] == {"type": "lifespan.startup.failed"}
 
 
-def test_register_controller_types_handle_empty_list():
-    app = FakeApplication()
-
+def test_register_controller_types_handle_empty_list(app):
     assert app.register_controllers([]) is None

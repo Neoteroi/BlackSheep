@@ -855,6 +855,67 @@ async def test_user_defined_exception_handlers_called_in_application_context():
 
 
 @pytest.mark.asyncio
+async def test_application_exception_handler_decorator_by_custom_exception():
+    app = FakeApplication()
+
+    expected_handler_response_text = "Called"
+
+    class CustomException(Exception):
+        pass
+
+    @app.exception_handler(CustomException)
+    async def exception_handler(
+        self: Application, request: Request, exc: CustomException
+    ) -> Response:
+        nonlocal app
+        assert self is app
+        assert isinstance(exc, CustomException)
+        return Response(200, content=TextContent("Called"))
+
+    @app.router.get("/")
+    async def home(request):
+        raise CustomException()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response
+    actual_response_text = await response.text()
+    assert actual_response_text == expected_handler_response_text
+
+
+@pytest.mark.asyncio
+async def test_application_exception_handler_decorator_by_http_status_code():
+    app = FakeApplication()
+
+    expected_exception_status_code = 519
+    expected_handler_response_text = "Called"
+
+    @app.exception_handler(519)
+    async def exception_handler(self, request: Request, exc: HTTPException) -> Response:
+        assert isinstance(exc, HTTPException)
+        assert exc.status == expected_exception_status_code
+        return Response(200, content=TextContent("Called"))
+
+    @app.router.get("/")
+    async def home(request):
+        raise HTTPException(519)
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response
+    response: Response = app.response
+
+    assert response
+
+    actual_response_text = await response.text()
+
+    assert actual_response_text == expected_handler_response_text
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_value",
     [("a", "a"), ("foo", "foo"), ("Hello%20World!!%3B%3B", "Hello World!!;;")],

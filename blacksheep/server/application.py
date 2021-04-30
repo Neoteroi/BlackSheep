@@ -327,6 +327,18 @@ class Application(BaseApplication):
 
         return decorator
 
+    def exception_handler(
+            self, exception: Union[int, Type[Exception]]
+    ) -> Callable[..., Any]:
+        """
+        Registers an exception handler function in the application exception handler.
+        """
+        def decorator(f):
+            self.exceptions_handlers[exception] = f
+            return f
+
+        return decorator
+
     def serve_files(
         self,
         source_folder: str,

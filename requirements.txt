@@ -33,7 +33,7 @@ packaging==19.2
 parso==0.6.2
 pathspec==0.8.0
 pluggy==0.13.1
-py==1.8.0
+py==1.10.0
 pycodestyle==2.5.0
 pycparser==2.20
 pydantic==1.6.1

@@ -31,7 +31,7 @@ from blacksheep.server.responses import status_code, text
 from tests.utils.folder import ensure_folder
 from tests.utils.application import FakeApplication
 from tests.utils.scopes import get_example_scope
-from tests.utils.messages import MockReceive, MockMessage, MockSend
+from tests.utils.messages import MockMessage
 
 
 class Item:
@@ -51,26 +51,6 @@ class Item2:
 class Foo:
     def __init__(self, item) -> None:
         self.item = Item(**item)
-
-
-@pytest.fixture
-def app():
-    return FakeApplication()
-
-
-@pytest.fixture
-def mock_send():
-    return MockSend()
-
-
-@pytest.fixture
-def mock_receive():
-    def decorator(content=None):
-        if content is None:
-            return MockReceive()
-        return MockReceive(content)
-
-    return decorator
 
 
 @pytest.mark.asyncio

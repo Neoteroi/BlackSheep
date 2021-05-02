@@ -1,14 +1,9 @@
+import http
+import logging
+
 from .messages cimport Request, Response
 from .contents cimport TextContent
 from .exceptions cimport HTTPException
-
-
-import os
-import html
-import http
-import logging
-import traceback
-
 
 async def handle_not_found(app, Request request, HTTPException http_exception):
     return Response(404, content=TextContent('Resource not found'))

@@ -1,3 +1,5 @@
+import http
+
 from .url cimport URL
 from .contents cimport Content
 from .cookies cimport Cookie, write_cookie_for_response
@@ -5,10 +7,6 @@ from .messages cimport Request, Response
 
 
 include "includes/consts.pxi"
-
-
-import http
-from urllib.parse import quote
 
 
 cdef bytes write_header(tuple header):

@@ -17,6 +17,7 @@ from rodi import inject, Services
 from tests.utils.scopes import get_example_scope
 from tests.utils.application import FakeApplication
 
+
 # NB: the following is an example of generic decorator (defined using *args and **kwargs)
 # it is used to demonstrate that decorators can be used with normalized methods; however
 # functools.@wraps is required,

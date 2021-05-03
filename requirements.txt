@@ -13,7 +13,7 @@ cryptography==3.4.6
 decorator==4.4.1
 entrypoints==0.3
 essentials==1.1.4
-essentials-openapi==0.1.1
+essentials-openapi==0.1.2
 flake8==3.7.9
 Flask==1.1.1
 guardpost==0.0.7

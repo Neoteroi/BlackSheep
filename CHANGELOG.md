@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handler functions
 - Corrects stubs for cookies: `Response.unset_cookie`, and `Cookie` same site
   annotation
+- Updates `essentials-openapi` dependency to its next minor version, thus
+  upgrading `PyYAML` dependency to `5.4.1`
 
 ## [1.0.3] - 2021-04-24 :cookie:
 - Adds support for Python 3.10 and PEP 563 (however, it works with `httptools`

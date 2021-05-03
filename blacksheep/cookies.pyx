@@ -1,7 +1,7 @@
-from typing import Optional
 from datetime import datetime
 from urllib.parse import quote, unquote
 from cpython.datetime cimport datetime
+
 from email.utils import parsedate_to_datetime
 
 

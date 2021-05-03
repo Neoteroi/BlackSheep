@@ -1,15 +1,15 @@
-cimport cython
-from .exceptions cimport MessageAborted
+from typing import Union, List, Optional, Tuple, Dict
 
 import uuid
 import json
+
 from inspect import isasyncgenfunction
 from collections.abc import MutableSequence
-from typing import Union, List, Optional, Callable, Any, Tuple, Dict
+
 from urllib.parse import parse_qsl
 from urllib.parse import quote_plus
-from blacksheep.multipart import parse_multipart
 
+from .exceptions cimport MessageAborted
 
 cdef class Content:
 

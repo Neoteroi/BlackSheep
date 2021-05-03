@@ -8,7 +8,7 @@ from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
 from blacksheep.sessions.crypto import FernetEncryptor
 from cryptography.fernet import Fernet
 
-from .test_application import FakeApplication, MockReceive, MockSend, get_example_scope
+from tests.utils.scopes import get_example_scope
 
 
 def test_friendly_exception_for_request_without_session():
@@ -162,9 +162,7 @@ def test_session_json_serializer(value, session):
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_basics():
-    app = FakeApplication()
-
+async def test_session_middleware_basics(app, mock_receive, mock_send):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
 
     @app.router.get("/")
@@ -192,8 +190,8 @@ async def test_session_middleware_basics():
             "GET",
             "/",
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -212,8 +210,8 @@ async def test_session_middleware_basics():
                 [b"cookie", b"session=" + cookie.value.encode()],
             ],
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -224,9 +222,7 @@ async def test_session_middleware_basics():
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_use_method():
-    app = FakeApplication()
-
+async def test_session_middleware_use_method(app, mock_receive, mock_send):
     app.use_sessions("LOREM_IPSUM")
 
     @app.router.get("/")
@@ -254,8 +250,8 @@ async def test_session_middleware_use_method():
             "GET",
             "/",
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -274,8 +270,8 @@ async def test_session_middleware_use_method():
                 [b"cookie", b"session=" + cookie.value.encode()],
             ],
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -286,9 +282,7 @@ async def test_session_middleware_use_method():
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_with_encryptor():
-    app = FakeApplication()
-
+async def test_session_middleware_with_encryptor(app, mock_receive, mock_send):
     app.middlewares.append(
         SessionMiddleware(
             "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
@@ -320,8 +314,8 @@ async def test_session_middleware_with_encryptor():
             "GET",
             "/",
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -340,8 +334,8 @@ async def test_session_middleware_with_encryptor():
                 [b"cookie", b"session=" + cookie.value.encode()],
             ],
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -352,9 +346,9 @@ async def test_session_middleware_with_encryptor():
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_handling_of_invalid_signature():
-    app = FakeApplication()
-
+async def test_session_middleware_handling_of_invalid_signature(
+    app, mock_receive, mock_send
+):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
 
     @app.router.get("/")
@@ -382,8 +376,8 @@ async def test_session_middleware_handling_of_invalid_signature():
                 [b"cookie", b"session=" + forged_cookie.encode()],
             ],
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -391,9 +385,9 @@ async def test_session_middleware_handling_of_invalid_signature():
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_handling_of_expired_signature():
-    app = FakeApplication()
-
+async def test_session_middleware_handling_of_expired_signature(
+    app, mock_receive, mock_send
+):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM", session_max_age=1))
 
     @app.router.get("/")
@@ -420,8 +414,8 @@ async def test_session_middleware_handling_of_expired_signature():
             "GET",
             "/",
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -442,8 +436,8 @@ async def test_session_middleware_handling_of_expired_signature():
                 [b"cookie", b"session=" + cookie.value.encode()],
             ],
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response
@@ -454,9 +448,9 @@ async def test_session_middleware_handling_of_expired_signature():
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_handling_of_invalid_encrypted_signature():
-    app = FakeApplication()
-
+async def test_session_middleware_handling_of_invalid_encrypted_signature(
+    app, mock_receive, mock_send
+):
     app.middlewares.append(
         SessionMiddleware(
             "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
@@ -490,8 +484,8 @@ async def test_session_middleware_handling_of_invalid_encrypted_signature():
                 [b"cookie", b"session=" + forged_cookie.encode()],
             ],
         ),
-        MockReceive(),
-        MockSend(),
+        mock_receive(),
+        mock_send,
     )
 
     response = app.response

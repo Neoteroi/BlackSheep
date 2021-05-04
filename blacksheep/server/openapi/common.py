@@ -2,8 +2,20 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from http import HTTPStatus
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application
@@ -13,15 +25,42 @@ from blacksheep.server.responses import FriendlyEncoder
 from blacksheep.server.routing import Route, Router
 from openapidocs.common import Format, OpenAPIRoot, Serializer
 
-from .ui import UIOptions, UIProvider, SwaggerUIProvider
+from .ui import SwaggerUIProvider, UIOptions, UIProvider
 
 T = TypeVar("T")
+
+
+class ParameterSource(Enum):
+    QUERY = "query"
+    HEADER = "header"
+    PATH = "path"
+    COOKIE = "cookie"
 
 
 @dataclass
 class RequestBodyInfo:
     description: Optional[str] = None
     examples: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class ParameterExample:
+    value: Any
+    name: Optional[str] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+
+
+@dataclass
+class ParameterInfo:
+    description: str
+    value_type: Optional[Type] = None
+    source: Optional[ParameterSource] = None
+    required: Optional[bool] = None
+    deprecated: Optional[bool] = None
+    allow_empty_value: Optional[bool] = None
+    example: Optional[Any] = None
+    examples: Optional[Dict[str, ParameterExample]] = None
 
 
 @dataclass
@@ -69,6 +108,7 @@ class EndpointDocs:
     summary: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[List[str]] = None
+    parameters: Optional[Mapping[str, ParameterInfo]] = None
     request_body: Optional[RequestBodyInfo] = None
     responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None
     ignored: Optional[bool] = None
@@ -115,6 +155,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        parameters: Optional[Mapping[str, ParameterInfo]] = None,
         request_body: Optional[RequestBodyInfo] = None,
         responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None,
         ignored: Optional[bool] = None,
@@ -132,6 +173,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 tags=tags,
                 request_body=request_body,
                 responses=responses,
+                parameters=parameters,
                 ignored=ignored,
                 deprecated=deprecated,
                 on_created=on_created,

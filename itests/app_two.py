@@ -25,6 +25,7 @@ from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
     HeaderInfo,
+    ParameterInfo,
     RequestBodyInfo,
     ResponseExample,
     ResponseInfo,
@@ -354,6 +355,9 @@ def on_polymorph_example_docs_created_pydantic(
 class Cats(ApiController):
     @get()
     @docs(
+        parameters={
+            "page": ParameterInfo(description="Page number"),
+        },
         responses={
             HTTPStatus.OK: ResponseInfo(
                 "A paginated set of Cats",
@@ -389,7 +393,7 @@ class Cats(ApiController):
                 ],
             ),
             "400": "Bad Request",
-        }
+        },
     )
     def get_cats(
         self,

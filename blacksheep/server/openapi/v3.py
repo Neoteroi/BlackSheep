@@ -7,7 +7,7 @@ import inspect
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, ForwardRef
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union, ForwardRef
 from uuid import UUID
 
 from blacksheep.server.bindings import (
@@ -43,6 +43,7 @@ from .common import (
     APIDocsHandler,
     HeaderInfo,
     ContentInfo,
+    ParameterSource,
     ResponseExample,
     ResponseInfo,
     ResponseStatusType,
@@ -374,13 +375,21 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return ParameterLocation.HEADER
         return None
 
+    def _parameter_source_to_openapi_obj(
+        self, value: ParameterSource
+    ) -> ParameterLocation:
+        return ParameterLocation[value.value.upper()]
+
     def get_parameters(
         self, handler: Any
     ) -> Optional[List[Union[Parameter, Reference]]]:
         if not hasattr(handler, "binders"):
             return None
         binders: List[Binder] = handler.binders
-        parameters: List[Union[Parameter, Reference]] = []
+        parameters: Mapping[str, Union[Parameter, Reference]] = {}
+
+        docs = self.get_handler_docs(handler)
+        parameters_info = (docs.parameters if docs else None) or dict()
 
         for binder in binders:
             location = self.get_parameter_location_for_binder(binder)
@@ -395,17 +404,34 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else:
                 required = binder.required and binder.default is empty
 
-            parameters.append(
-                Parameter(
-                    name=binder.parameter_name,
-                    in_=location,
-                    required=required or None,
-                    schema=self.get_schema_by_type(binder.expected_type),
-                    description="",
-                )
+            # did the user specified information about the parameter?
+            param_info = parameters_info.get(binder.parameter_name)
+
+            parameters[binder.parameter_name] = Parameter(
+                name=binder.parameter_name,
+                in_=location,
+                required=required or None,
+                schema=self.get_schema_by_type(binder.expected_type),
+                description=param_info.description if param_info else "",
+                example=param_info.example if param_info else None,
             )
 
-        return parameters
+        for key, param_info in parameters_info.items():
+            if key not in parameters:
+                parameters[key] = Parameter(
+                    name=key,
+                    in_=self._parameter_source_to_openapi_obj(
+                        param_info.source or ParameterSource.QUERY
+                    ),
+                    required=param_info.required,
+                    schema=self.get_schema_by_type(param_info.value_type)
+                    if param_info.value_type
+                    else None,
+                    description=param_info.description,
+                    example=param_info.example,
+                )
+
+        return list(parameters.values())
 
     def _get_media_type_from_content_doc(self, content_doc: ContentInfo) -> MediaType:
         media_type = MediaType()

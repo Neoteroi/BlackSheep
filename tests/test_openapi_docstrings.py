@@ -7,7 +7,6 @@ from blacksheep.server.openapi.docstrings import (
     NumpydocDialect,
     ReStructuredTextDialect,
     collapse,
-    type_repr_to_type,
 )
 
 

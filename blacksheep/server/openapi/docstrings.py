@@ -11,7 +11,7 @@ library by itself!
 See
 * https://www.neoteroi.dev/blacksheep/openapi/
 * http://epydoc.sourceforge.net/manual-epytext.html#the-epytext-markup-language
-* https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings
+* https://github.com/google/styleguide/blob/gh-pages/pyguide.md
 * https://numpydoc.readthedocs.io/en/latest/format.html
 * https://www.sphinx-doc.org/en/master/
 * tests/test_openapi_docstrings.py

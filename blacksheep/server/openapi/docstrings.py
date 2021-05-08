@@ -5,23 +5,37 @@ OpenAPI Documentation. The framework also provides the possibility to control th
 configuration directly: if simple parsing doesn't work, the user should use the @docs
 decorator.
 
+These are not meant to be a complete parsing solution, that would be worth a whole
+library by itself.
+
 See
 * https://www.neoteroi.dev/blacksheep/openapi/
 * http://epydoc.sourceforge.net/manual-epytext.html#the-epytext-markup-language
 * tests/test_openapi_docstrings.py
 
-These are not meant to be a complete parsing solution, that would be worth a whole
-library by itself.
 """
 import re
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, datetime
 from textwrap import dedent
-from typing import Any, Dict, Optional, Sequence, Type
+from typing import Any, Dict, List, Optional, Sequence, Type
 from uuid import UUID
 
 from .common import ParameterInfo
+
+
+@dataclass
+class FunctionInfo:
+    summary: str
+    description: str
+
+
+@dataclass
+class ReturnInfo:
+    return_type: Any
+    return_description: str
 
 
 @dataclass
@@ -48,7 +62,12 @@ class DocstringDialect(ABC):
         ...
 
 
-_TYPE_REPRS = {
+# TODO: should we support also arrays?
+# since blacksheep supports automatic mapping of arrays from parameters, it makes
+# sense to support also, for example: `str[]` or `Array<str>` / `List[str]`
+TYPE_REPRS = {
+    "bool": bool,
+    "boolean": bool,
     "number": float,
     "integer": int,
     "int": int,
@@ -57,24 +76,52 @@ _TYPE_REPRS = {
     "datetime": datetime,
     "uuid": UUID,
     "guid": UUID,
+    "string": str,
+    "str": str,
 }
 
 
-def _type_repr_to_type(type_repr: str) -> Type:
-    if type_repr in _TYPE_REPRS:
-        return _TYPE_REPRS[type_repr]
+def type_repr_to_type(type_repr: str) -> Type:
+    if type_repr in TYPE_REPRS:
+        return TYPE_REPRS[type_repr]
+
+    warnings.warn(
+        f"The type representation '{type_repr}' used in docstrings is not "
+        + "recognized; the parameter type will be mapped to a `str` (default). "
+        + "This feature is used for automatic generation of OpenAPI Documentation. "
+        + f"To improve the situation, please map '{type_repr}' to the desired type in "
+        + "`blacksheep.server.openapi.docstrings.TYPE_REPRS` singleton."
+    )
+
     return str
 
 
-def _collapse(value: str) -> str:
+def collapse(value: str) -> str:
+    if not value:
+        return value
     return " ".join(dedent(value).split())
 
 
-def _handle_type_repr(parameter_info: ParameterInfo, type_repr: str) -> None:
+def handle_type_repr(parameter_info: ParameterInfo, type_repr: str) -> None:
+    if not type_repr:
+        return
+
     if " or None" in type_repr or type_repr.endswith("?"):
         parameter_info.required = False
         type_repr = type_repr.replace(" or None", "").replace("?", "")
-    parameter_info.value_type = _type_repr_to_type(type_repr)
+
+    if ", optional" in type_repr:
+        parameter_info.required = False
+        type_repr = type_repr.replace(", optional", "")
+
+    parameter_info.value_type = type_repr_to_type(type_repr)
+
+
+def get_summary(description: str) -> str:
+    if "\n\n" in description:
+        return description.split("\n\n")[0]
+    else:
+        return description
 
 
 @dataclass
@@ -91,12 +138,9 @@ class PatternsDocstringDialect(DocstringDialect):
         super().__init__()
         self._options = options
 
-    def parse_docstring(self, docstring: str) -> DocstringInfo:
+    def get_parameters_info(self, docstring: str) -> Dict[str, ParameterInfo]:
         parameters: Dict[str, ParameterInfo] = {}
         types: Dict[str, Any] = {}
-        return_description = None
-
-        docstring = dedent(docstring).strip("\n")
 
         for m in self._options.param_rx.finditer(docstring):
             param_name = m.group("param_name").strip()
@@ -111,7 +155,7 @@ class PatternsDocstringDialect(DocstringDialect):
                 param_name = name
 
             parameters[param_name] = ParameterInfo(
-                description=_collapse(m.group("param_desc"))
+                description=collapse(m.group("param_desc"))
             )
 
         for m in self._options.param_type_rx.finditer(docstring):
@@ -120,7 +164,14 @@ class PatternsDocstringDialect(DocstringDialect):
         for key, value in types.items():
             if key in parameters:
                 parameter_info = parameters[key]
-                _handle_type_repr(parameter_info, value)
+                handle_type_repr(parameter_info, value)
+
+        return parameters
+
+    def parse_docstring(self, docstring: str) -> DocstringInfo:
+        return_description = None
+
+        docstring = dedent(docstring).strip("\n")
 
         m = self._options.return_rx.search(docstring)
         if m:
@@ -128,7 +179,7 @@ class PatternsDocstringDialect(DocstringDialect):
 
         m = self._options.return_type_rx.search(docstring)
         if m:
-            return_type = _type_repr_to_type(m.group("type_repr").strip())
+            return_type = type_repr_to_type(m.group("type_repr").strip())
         else:
             return_type = None
 
@@ -139,20 +190,19 @@ class PatternsDocstringDialect(DocstringDialect):
         else:
             description = ""
 
-        if "\n\n" in description:
-            summary = description.split("\n\n")[0]
-        else:
-            summary = description
-
         return DocstringInfo(
-            summary=_collapse(summary),
-            description=_collapse(description),
-            parameters=parameters,
+            summary=collapse(get_summary(description)),
+            description=collapse(description),
+            parameters=self.get_parameters_info(docstring),
             return_type=return_type,
-            return_description=_collapse(return_description)
+            return_description=collapse(return_description)
             if return_description
             else None,
         )
+
+
+class IndentDocstringDialect(DocstringDialect):
+    ...
 
 
 class EpytextDialect(PatternsDocstringDialect):
@@ -199,17 +249,121 @@ class ReStructuredTextDialect(PatternsDocstringDialect):
         return ":param" in docstring
 
 
+@dataclass
+class SectionFragment:
+    header: str
+    value: str
+
+    def add(self, part: str) -> None:
+        self.value = (self.value or "") + part
+
+
 class NumpydocDialect(DocstringDialect):
     def is_match(self, docstring: str) -> bool:
-        return "Parameters" in docstring
+        return "\nParameters" in docstring or "\nParams" in docstring
+
+    def get_section(self, docstring: str, section_name: str) -> List[SectionFragment]:
+        fragments: List[SectionFragment] = []
+
+        section_started = False
+        open_fragment: Optional[SectionFragment] = None
+
+        for line in docstring.splitlines():
+            if re.match(r"^[-\s]+$", line):
+                continue
+
+            if section_started:
+                if line == "":
+                    # sections are separated by \n\n
+                    break
+
+                if open_fragment is None:
+                    open_fragment = SectionFragment(line, "")
+                else:
+                    if re.match(r"^\s+", line):
+                        open_fragment.add(line)
+                    else:
+                        fragments.append(open_fragment)
+                        open_fragment = SectionFragment(line, "")
+
+            elif line == section_name:
+                section_started = True
+
+        if open_fragment is not None and open_fragment not in fragments:
+            fragments.append(open_fragment)
+
+        return fragments
+
+    _sections = {"Parameters", "Params", "Returns", "Return", "Raises"}
+
+    def get_description(self, docstring: str) -> FunctionInfo:
+        lines: List[str] = []
+
+        for line in docstring.splitlines():
+            if line.strip() in self._sections:
+                break
+            lines.append(line)
+
+        description = "\n".join(lines)
+
+        return FunctionInfo(summary=get_summary(description), description=description)
+
+    def get_return_info(self, docstring: str) -> Optional[ReturnInfo]:
+        section = self.get_section(docstring, "Returns") or self.get_section(
+            docstring, "Return"
+        )
+
+        if not section:
+            return None
+
+        fragment = section[0]
+
+        return ReturnInfo(
+            return_type=type_repr_to_type(fragment.header),
+            return_description=collapse(fragment.value),
+        )
+
+    def get_parameters_info(self, docstring: str) -> Dict[str, ParameterInfo]:
+        parameters: Dict[str, ParameterInfo] = {}
+
+        parameters_section = self.get_section(
+            docstring, "Parameters"
+        ) or self.get_section(docstring, "Params")
+
+        for fragment in parameters_section:
+            if ":" not in fragment.header:
+                warnings.warn(
+                    f"Invalid parameter definition in docstring: {fragment.header}"
+                )
+                continue
+            name_part, type_part = re.split(r"\s*:\s*", fragment.header)
+
+            parameters[name_part] = ParameterInfo(
+                description=collapse(fragment.value),
+            )
+            handle_type_repr(parameters[name_part], type_part)
+
+        return parameters
 
     def parse_docstring(self, docstring: str) -> DocstringInfo:
-        ...
+        docstring = dedent(docstring)
+        info = self.get_description(docstring)
+        return_info = self.get_return_info(docstring)
+
+        return DocstringInfo(
+            summary=collapse(info.summary),
+            description=collapse(info.description),
+            parameters=self.get_parameters_info(docstring),
+            return_type=return_info.return_type if return_info else None,
+            return_description=collapse(return_info.return_description)
+            if return_info
+            else None,
+        )
 
 
 class GoogleDocDialect(DocstringDialect):
     def is_match(self, docstring: str) -> bool:
-        return "Args:" in docstring
+        return "\nArgs:" in docstring
 
     def parse_docstring(self, docstring: str) -> DocstringInfo:
         ...

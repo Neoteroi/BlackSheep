@@ -1,7 +1,15 @@
 import pytest
 from blacksheep.server.openapi.common import ParameterInfo
-from blacksheep.server.openapi.docstrings import EpytextDialect, ReStructuredTextDialect
-from blacksheep.server.openapi.docstrings import DocstringInfo, _collapse
+from blacksheep.server.openapi.docstrings import (
+    EpytextDialect,
+    ReStructuredTextDialect,
+    NumpydocDialect,
+)
+from blacksheep.server.openapi.docstrings import (
+    DocstringInfo,
+    collapse,
+    type_repr_to_type,
+)
 
 
 @pytest.mark.parametrize(
@@ -161,14 +169,14 @@ from blacksheep.server.openapi.docstrings import DocstringInfo, _collapse
             are separated by blank lines.
             """,
             DocstringInfo(
-                summary=_collapse(
+                summary=collapse(
                     """
                     This is a paragraph. Paragraphs can
                     span multiple lines, and can contain
                     I{inline markup}.
                     """
                 ),
-                description=_collapse(
+                description=collapse(
                     """
                     This is a paragraph. Paragraphs can
                     span multiple lines, and can contain
@@ -273,3 +281,160 @@ def test_rest_dialect(docstring, expected_info):
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info
+
+
+@pytest.mark.parametrize(
+    "docstring,expected_info",
+    [
+        (
+            """
+            My numpydoc description of a kind
+            of very exhautive numpydoc format docstring.
+
+            Parameters
+            ----------
+            first : str
+                the 1st param name `first`
+            second :
+                the 2nd param
+            third : int, optional
+                the 3rd param, by default 'value'
+
+            Returns
+            -------
+            string
+                a value in a string
+
+            Raises
+            ------
+            KeyError
+                when a key error
+            OtherError
+                when an other error
+            """,
+            DocstringInfo(
+                summary="My numpydoc description of a kind of very exhautive "
+                + "numpydoc format docstring.",
+                description="My numpydoc description of a kind of very exhautive "
+                + "numpydoc format docstring.",
+                parameters={
+                    "first": ParameterInfo(
+                        "the 1st param name `first`", value_type=str
+                    ),
+                    "second": ParameterInfo("the 2nd param", value_type=None),
+                    "third": ParameterInfo(
+                        "the 3rd param, by default 'value'",
+                        value_type=int,
+                        required=False,
+                    ),
+                },
+                return_type=str,
+                return_description="a value in a string",
+            ),
+        ),
+        (
+            """
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+            tempor incididunt ut labore et dolore magna aliqua.
+
+            Ut enim ad minim  veniam, quis nostrud exercitation ullamco laboris nisi ut
+            aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in
+            voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint
+            occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit
+            anim id est laborum.
+
+            Parameters
+            ----------
+            lorem : str
+                A very long description spanning across multiple lines;
+                Ut enim ad minim  veniam, quis nostrud exercitation ullamco laboris nisi
+                ut aliquip ex ea commodo consequat. Duis aute irure dolor in
+                reprehenderit.
+            """,
+            DocstringInfo(
+                summary="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed "
+                + "do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+                description="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed "
+                + "do eiusmod tempor incididunt ut labore et dolore magna aliqua. "
+                + "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris "
+                + "nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in "
+                + "reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+                + "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in "
+                + "culpa qui officia deserunt mollit anim id est laborum.",
+                parameters={
+                    "lorem": ParameterInfo(
+                        collapse(
+                            """
+                            A very long description spanning across multiple lines;
+                            Ut enim ad minim veniam, quis nostrud exercitation ullamco
+                            laboris nisi ut aliquip ex ea commodo consequat. Duis aute
+                            irure dolor in reprehenderit."""
+                        ),
+                        value_type=str,
+                    ),
+                },
+                return_type=None,
+                return_description=None,
+            ),
+        ),
+        (
+            """
+            My numpydoc description of a kind
+            of very exhautive numpydoc format docstring.
+
+            Params
+            ----------
+            first : str
+                the 1st param name `first`
+            second :
+                the 2nd param
+            third : int, optional
+                the 3rd param, by default 'value'
+
+            Returns
+            -------
+            string
+                a value in a string
+
+            Raises
+            ------
+            KeyError
+                when a key error
+            OtherError
+                when an other error
+            """,
+            DocstringInfo(
+                summary="My numpydoc description of a kind of very exhautive "
+                + "numpydoc format docstring.",
+                description="My numpydoc description of a kind of very exhautive "
+                + "numpydoc format docstring.",
+                parameters={
+                    "first": ParameterInfo(
+                        "the 1st param name `first`", value_type=str
+                    ),
+                    "second": ParameterInfo("the 2nd param", value_type=None),
+                    "third": ParameterInfo(
+                        "the 3rd param, by default 'value'",
+                        value_type=int,
+                        required=False,
+                    ),
+                },
+                return_type=str,
+                return_description="a value in a string",
+            ),
+        ),
+    ],
+)
+def test_numpydoc_dialect(docstring, expected_info):
+    dialect = NumpydocDialect()
+
+    info = dialect.parse_docstring(docstring)
+    assert expected_info == info
+
+
+def test_emits_warning_for_unmapped_type_repr():
+    with pytest.warns(
+        UserWarning,
+        match="The type representation 'foo' used in docstrings is not recognized;",
+    ):
+        type_repr_to_type("foo")

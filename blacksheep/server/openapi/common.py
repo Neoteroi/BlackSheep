@@ -208,6 +208,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             return summary
 
         if self.use_docstrings:
+            # TODO: parse docstrings!! Store parsed value in a single place!
             doc = handler.__doc__
             if doc:
                 assert isinstance(doc, str)
@@ -222,6 +223,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             return description
 
         if self.use_docstrings:
+            # TODO: parse docstrings!! Store parsed value in a single place!
             doc = handler.__doc__
             if doc:
                 return doc.strip()

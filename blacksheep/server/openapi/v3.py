@@ -1,13 +1,12 @@
-from openapidocs.common import Format
-from blacksheep.server.openapi.exceptions import (
-    DuplicatedContentTypeDocsException,
-    UnsupportedUnionTypeException,
+from blacksheep.server.openapi.docstrings import (
+    DocstringInfo,
+    get_handler_docstring_info,
 )
 import inspect
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union, ForwardRef
+from typing import Any, Dict, ForwardRef, List, Mapping, Optional, Tuple, Type, Union
 from uuid import UUID
 
 from blacksheep.server.bindings import (
@@ -19,12 +18,17 @@ from blacksheep.server.bindings import (
     RouteBinder,
     empty,
 )
+from blacksheep.server.openapi.exceptions import (
+    DuplicatedContentTypeDocsException,
+    UnsupportedUnionTypeException,
+)
 from blacksheep.server.routing import Router
+from openapidocs.common import Format
 from openapidocs.v3 import (
     Components,
     Example,
-    Info,
     Header,
+    Info,
     MediaType,
     OpenAPI,
     Operation,
@@ -33,16 +37,17 @@ from openapidocs.v3 import (
     PathItem,
     Reference,
     RequestBody,
-    Server,
 )
 from openapidocs.v3 import Response as ResponseDoc
-from openapidocs.v3 import Schema, ValueFormat, ValueType
+from openapidocs.v3 import Schema, Server, ValueFormat, ValueType
 
 from ..application import Application
 from .common import (
     APIDocsHandler,
-    HeaderInfo,
     ContentInfo,
+    EndpointDocs,
+    HeaderInfo,
+    ParameterInfo,
     ParameterSource,
     ResponseExample,
     ResponseInfo,
@@ -543,6 +548,33 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def on_docs_generated(self, docs: OpenAPI) -> None:
         docs.servers = self.servers
 
+    def _merge_documentation(
+        self,
+        endpoint_docs: EndpointDocs,
+        docstring_info: DocstringInfo,
+    ) -> None:
+        if not endpoint_docs.description and docstring_info.description:
+            endpoint_docs.description = docstring_info.description
+
+        if not endpoint_docs.summary and docstring_info.summary:
+            endpoint_docs.summary = docstring_info.summary
+
+        for param_name, param_info in docstring_info.parameters.items():
+            if endpoint_docs.parameters is None:
+                endpoint_docs.parameters = {}
+            matching_parameter = endpoint_docs.parameters.get(param_name)
+
+            if matching_parameter is None:
+                assert isinstance(endpoint_docs.parameters, dict)
+                endpoint_docs.parameters[param_name] = ParameterInfo(
+                    value_type=param_info.value_type,
+                    required=param_info.required,
+                    description=param_info.description,
+                    source=param_info.source or ParameterSource.QUERY,
+                )
+            else:
+                matching_parameter.description = param_info.description
+
     def get_routes_docs(self, router: Router) -> Dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""
         paths_doc: Dict[str, PathItem] = {}
@@ -553,7 +585,14 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
             for method, route in conf.items():
                 handler = self._get_request_handler(route)
+                # extract information from docstrings
+                docstring_info = get_handler_docstring_info(handler)
                 docs = self.get_handler_docs(handler)
+
+                if docstring_info is not None:
+                    if docs is None:
+                        docs = self.get_handler_docs_or_set(handler)
+                    self._merge_documentation(docs, docstring_info)
 
                 operation = Operation(
                     description=self.get_description(handler),

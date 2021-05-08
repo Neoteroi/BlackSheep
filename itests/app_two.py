@@ -403,6 +403,10 @@ class Cats(ApiController):
     ) -> Response:
         """
         Returns a list of paginated cats.
+
+        :param int page: Page number
+        :param int page_size: Number of items per page
+        :param str search: Optional search filter
         """
 
     @get("foos")
@@ -418,6 +422,15 @@ class Cats(ApiController):
     ) -> CatsList:
         """
         Alternative way to have the response type for status 200 documented.
+
+        Parameters
+        ----------
+        page : int
+            Page number.
+        page_size : int
+            Number of items per page.
+        search : str
+            Optional search filter.
         """
         return CatsList(
             [

@@ -25,6 +25,7 @@ from datetime import date, datetime
 from textwrap import dedent
 from typing import Any, Dict, List, Optional, Sequence, Type
 from uuid import UUID
+from weakref import WeakKeyDictionary
 
 from .common import ParameterInfo
 
@@ -58,11 +59,16 @@ def _ensure_docstring(value: str) -> None:
 class DocstringDialect(ABC):
     @abstractmethod
     def is_match(self, docstring: str) -> bool:
-        ...
+        """
+        Returns a value indicating whether the docstring
+        seems to be written in this format.
+        """
 
     @abstractmethod
     def parse_docstring(self, docstring: str) -> DocstringInfo:
-        ...
+        """
+        Parses the docstring into an instance of DocstringInfo
+        """
 
 
 # TODO: should we support also arrays?
@@ -307,7 +313,9 @@ class ReStructuredTextDialect(PatternsDocstringDialect):
 
 class NumpydocDialect(IndentDocstringDialect):
     def is_match(self, docstring: str) -> bool:
-        return "\nParameters" in docstring or "\nParams" in docstring
+        return (
+            "Parameters" in docstring or "Params" in docstring
+        ) and "--" in docstring
 
     _sections = {"Parameters", "Params", "Returns", "Return", "Raises"}
 
@@ -399,7 +407,7 @@ class NumpydocDialect(IndentDocstringDialect):
 
 class GoogleDocDialect(IndentDocstringDialect):
     def is_match(self, docstring: str) -> bool:
-        return "\nArgs:\n" in docstring or "\nArgs\n" in docstring
+        return re.search(r"^([\s\t]*Args:?)", docstring) is not None
 
     _sections = {"Args", "Returns", "Raises"}
 
@@ -501,3 +509,18 @@ def parse_docstring(
             return dialect.parse_docstring(docstring)
 
     return dialects[0].parse_docstring(docstring)
+
+
+_handlers_docstring_info = WeakKeyDictionary()
+
+
+def get_handler_docstring_info(handler) -> DocstringInfo:
+    if handler not in _handlers_docstring_info:
+        docs = handler.__doc__
+
+        if docs:
+            docstring_info = parse_docstring(docs)
+        else:
+            docstring_info = None
+        _handlers_docstring_info[handler] = docstring_info
+    return _handlers_docstring_info[handler]

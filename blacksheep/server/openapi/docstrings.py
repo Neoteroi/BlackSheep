@@ -6,7 +6,7 @@ configuration directly: if simple parsing doesn't work, the user should use the 
 decorator.
 
 These are not meant to be a complete parsing solution, that would be worth a whole
-library by itself.
+library by itself!
 
 See
 * https://www.neoteroi.dev/blacksheep/openapi/
@@ -110,9 +110,10 @@ def handle_type_repr(parameter_info: ParameterInfo, type_repr: str) -> None:
         parameter_info.required = False
         type_repr = type_repr.replace(" or None", "").replace("?", "")
 
-    if ", optional" in type_repr:
-        parameter_info.required = False
-        type_repr = type_repr.replace(", optional", "")
+    for value in {", optional", "; optional"}:
+        if value in type_repr:
+            parameter_info.required = False
+            type_repr = type_repr.replace(value, "")
 
     parameter_info.value_type = type_repr_to_type(type_repr)
 
@@ -146,6 +147,7 @@ class PatternsDocstringDialect(DocstringDialect):
             param_name = m.group("param_name").strip()
 
             if " " in param_name:
+                # TODO: support the same in Googledoc and Numpydoc
                 # handle optional type in the param_name, like:
                 # @param int foo:
                 # @param int or None foo:
@@ -201,8 +203,67 @@ class PatternsDocstringDialect(DocstringDialect):
         )
 
 
+@dataclass
+class SectionFragment:
+    header: str
+    value: str
+
+    def add(self, part: str) -> None:
+        self.value = (self.value or "") + part
+
+
+def get_indentation(line: str) -> int:
+    m = re.match(r"^([\s\t]+)", line)
+    if not m:
+        return -1
+    return len(m.group(1))
+
+
 class IndentDocstringDialect(DocstringDialect):
-    ...
+    def is_section_separator(self, line: str) -> bool:
+        return False
+
+    def get_section(self, docstring: str, section_name: str) -> List[SectionFragment]:
+        fragments: List[SectionFragment] = []
+
+        section_started = False
+        current_indentation = -1  # indentation of the current section
+        open_fragment: Optional[SectionFragment] = None
+
+        for line in docstring.splitlines():
+            if line == "":
+                continue
+
+            if self.is_section_separator(line) and fragments:
+                return fragments
+
+            if re.match(r"^[-\s\t]+$", line):
+                continue
+
+            line_indentation = get_indentation(line)
+
+            if line_indentation < current_indentation:
+                break
+
+            if section_started:
+                if open_fragment is None:
+                    open_fragment = SectionFragment(line, "")
+                    current_indentation = get_indentation(line)
+                else:
+                    if line_indentation > current_indentation:
+                        open_fragment.add(line)
+                    else:
+                        fragments.append(open_fragment)
+                        open_fragment = SectionFragment(line, "")
+                        current_indentation = get_indentation(line)
+
+            elif line == section_name or line == f"{section_name}:":
+                section_started = True
+
+        if open_fragment is not None and open_fragment not in fragments:
+            fragments.append(open_fragment)
+
+        return fragments
 
 
 class EpytextDialect(PatternsDocstringDialect):
@@ -249,57 +310,22 @@ class ReStructuredTextDialect(PatternsDocstringDialect):
         return ":param" in docstring
 
 
-@dataclass
-class SectionFragment:
-    header: str
-    value: str
-
-    def add(self, part: str) -> None:
-        self.value = (self.value or "") + part
-
-
-class NumpydocDialect(DocstringDialect):
+class NumpydocDialect(IndentDocstringDialect):
     def is_match(self, docstring: str) -> bool:
         return "\nParameters" in docstring or "\nParams" in docstring
 
-    def get_section(self, docstring: str, section_name: str) -> List[SectionFragment]:
-        fragments: List[SectionFragment] = []
-
-        section_started = False
-        open_fragment: Optional[SectionFragment] = None
-
-        for line in docstring.splitlines():
-            if re.match(r"^[-\s]+$", line):
-                continue
-
-            if section_started:
-                if line == "":
-                    # sections are separated by \n\n
-                    break
-
-                if open_fragment is None:
-                    open_fragment = SectionFragment(line, "")
-                else:
-                    if re.match(r"^\s+", line):
-                        open_fragment.add(line)
-                    else:
-                        fragments.append(open_fragment)
-                        open_fragment = SectionFragment(line, "")
-
-            elif line == section_name:
-                section_started = True
-
-        if open_fragment is not None and open_fragment not in fragments:
-            fragments.append(open_fragment)
-
-        return fragments
-
     _sections = {"Parameters", "Params", "Returns", "Return", "Raises"}
+
+    def is_section_separator(self, line: str) -> bool:
+        return re.match(r"^[-\s\t]+$", line) is not None
 
     def get_description(self, docstring: str) -> FunctionInfo:
         lines: List[str] = []
 
         for line in docstring.splitlines():
+            if self.is_section_separator(line.strip()):
+                lines = lines[:-1]
+                break
             if line.strip() in self._sections:
                 break
             lines.append(line)
@@ -338,7 +364,10 @@ class NumpydocDialect(DocstringDialect):
                 continue
             name_part, type_part = re.split(r"\s*:\s*", fragment.header)
 
-            parameters[name_part] = ParameterInfo(
+            # TODO: support name_part containing type information, e.g.
+            # param1 int: some description!
+
+            parameters[name_part.strip()] = ParameterInfo(
                 description=collapse(fragment.value),
             )
             handle_type_repr(parameters[name_part], type_part)
@@ -361,12 +390,86 @@ class NumpydocDialect(DocstringDialect):
         )
 
 
-class GoogleDocDialect(DocstringDialect):
+class GoogleDocDialect(IndentDocstringDialect):
     def is_match(self, docstring: str) -> bool:
-        return "\nArgs:" in docstring
+        return "\nArgs:\n" in docstring or "\nArgs\n" in docstring
+
+    _sections = {"Args", "Returns", "Raises"}
+
+    def is_section_start(self, line: str) -> bool:
+        return line.strip(":") in self._sections
+
+    def get_description(self, docstring: str) -> FunctionInfo:
+        lines: List[str] = []
+
+        for line in docstring.splitlines():
+            if self.is_section_start(line.strip()):
+                lines = lines[:-1]
+                break
+            if line.strip() in self._sections:
+                break
+            lines.append(line)
+
+        description = "\n".join(lines)
+
+        return FunctionInfo(summary=get_summary(description), description=description)
+
+    def get_parameters_info(self, docstring: str) -> Dict[str, ParameterInfo]:
+        parameters: Dict[str, ParameterInfo] = {}
+
+        parameters_section = self.get_section(docstring, "Args")
+
+        for fragment in parameters_section:
+            if ":" not in fragment.header:
+                warnings.warn(
+                    f"Invalid parameter definition in docstring: {fragment.header}"
+                )
+                continue
+            name_part, header_part = re.split(r"\s*:\s*", fragment.header)
+
+            description = header_part + " " + fragment.value
+
+            # TODO: support name_part containing type information, e.g.
+            # param1 int: some description!
+
+            parameters[name_part.strip()] = ParameterInfo(
+                description=collapse(description),
+            )
+            # Note: the type is not currently supported in Google docstrings;
+            # the user can anyway specify the arguments types using type annotations,
+            # which is a better way in any case.
+
+        return parameters
+
+    def get_return_info(self, docstring: str) -> Optional[ReturnInfo]:
+        section = self.get_section(docstring, "Returns")
+
+        if not section:
+            return None
+
+        description = " ".join(
+            fragment.header + " " + fragment.value for fragment in section
+        )
+
+        return ReturnInfo(
+            return_type=None,
+            return_description=collapse(description),
+        )
 
     def parse_docstring(self, docstring: str) -> DocstringInfo:
-        ...
+        docstring = dedent(docstring)
+        info = self.get_description(docstring)
+        return_info = self.get_return_info(docstring)
+
+        return DocstringInfo(
+            summary=collapse(info.summary),
+            description=collapse(info.description),
+            parameters=self.get_parameters_info(docstring),
+            return_type=return_info.return_type if return_info else None,
+            return_description=collapse(return_info.return_description)
+            if return_info
+            else None,
+        )
 
 
 default_dialects = [
@@ -388,8 +491,6 @@ def parse_docstring(
 
     for dialect in dialects:
         if dialect.is_match(docstring):
-            # use this dialect to extract available
-            # information from the docstring
-            ...
+            return dialect.parse_docstring(docstring)
 
-    raise Exception("Not implemented")
+    return dialects[0].parse_docstring(docstring)

@@ -1,12 +1,11 @@
 import pytest
 from blacksheep.server.openapi.common import ParameterInfo
 from blacksheep.server.openapi.docstrings import (
-    EpytextDialect,
-    ReStructuredTextDialect,
-    NumpydocDialect,
-)
-from blacksheep.server.openapi.docstrings import (
     DocstringInfo,
+    EpytextDialect,
+    GoogleDocDialect,
+    NumpydocDialect,
+    ReStructuredTextDialect,
     collapse,
     type_repr_to_type,
 )
@@ -427,6 +426,110 @@ def test_rest_dialect(docstring, expected_info):
 )
 def test_numpydoc_dialect(docstring, expected_info):
     dialect = NumpydocDialect()
+
+    info = dialect.parse_docstring(docstring)
+    assert expected_info == info
+
+
+@pytest.mark.parametrize(
+    "docstring,expected_info",
+    [
+        (
+            """
+            This is an example of Google style.
+
+            Args:
+                param1: This is the first param.
+                param2: This is a second param.
+
+            Returns:
+                This is a description of what is returned.
+
+            Raises:
+                KeyError: Raises an exception.
+            """,
+            DocstringInfo(
+                summary="This is an example of Google style.",
+                description="This is an example of Google style.",
+                parameters={
+                    "param1": ParameterInfo("This is the first param."),
+                    "param2": ParameterInfo("This is a second param."),
+                },
+                return_type=None,
+                return_description="This is a description of what is returned.",
+            ),
+        ),
+        (
+            """
+            Fetches rows from a Smalltable.
+
+            Retrieves rows pertaining to the given keys from the Table instance
+            represented by table_handle. String keys will be UTF-8 encoded.
+
+            Args:
+                table_handle:
+                    An open smalltable.Table instance.
+                keys:
+                    A sequence of strings representing the key of each table row to
+                    fetch. String keys will be UTF-8 encoded.
+                require_all_keys:
+                    Optional; If require_all_keys is True only rows with values set
+                    for all keys will be returned.
+
+            Returns:
+                A dict mapping keys to the corresponding table row data
+                fetched. Each row is represented as a tuple of strings. For
+                example:
+
+                {b'Serak': ('Rigel VII', 'Preparer'),
+                b'Zim': ('Irk', 'Invader'),
+                b'Lrrr': ('Omicron Persei 8', 'Emperor')}
+
+                Returned keys are always bytes. If a key from the keys argument is
+                missing from the dictionary, then that row was not found in the
+                table (and require_all_keys must have been False).
+
+            Raises:
+                IOError: An error occurred accessing the smalltable.
+            """,
+            DocstringInfo(
+                summary="Fetches rows from a Smalltable.",
+                description="Fetches rows from a Smalltable. Retrieves rows "
+                + "pertaining to the given keys from the Table instance represented "
+                + "by table_handle. String keys will be UTF-8 encoded.",
+                parameters={
+                    "table_handle": ParameterInfo("An open smalltable.Table instance."),
+                    "keys": ParameterInfo(
+                        "A sequence of strings representing the key of each table "
+                        "row to fetch. String keys will be UTF-8 encoded."
+                    ),
+                    "require_all_keys": ParameterInfo(
+                        "Optional; If require_all_keys is True only rows with values set for "
+                        "all keys will be returned.",
+                    ),
+                },
+                return_type=None,
+                return_description=collapse(
+                    """
+                    A dict mapping keys to the corresponding table row data
+                    fetched. Each row is represented as a tuple of strings. For
+                    example:
+
+                    {b'Serak': ('Rigel VII', 'Preparer'),
+                    b'Zim': ('Irk', 'Invader'),
+                    b'Lrrr': ('Omicron Persei 8', 'Emperor')}
+
+                    Returned keys are always bytes. If a key from the keys argument is
+                    missing from the dictionary, then that row was not found in the
+                    table (and require_all_keys must have been False).
+                    """
+                ),
+            ),
+        ),
+    ],
+)
+def test_googledoc_dialect(docstring, expected_info):
+    dialect = GoogleDocDialect()
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info

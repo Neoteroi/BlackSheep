@@ -11,6 +11,9 @@ library by itself!
 See
 * https://www.neoteroi.dev/blacksheep/openapi/
 * http://epydoc.sourceforge.net/manual-epytext.html#the-epytext-markup-language
+* https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings
+* https://numpydoc.readthedocs.io/en/latest/format.html
+* https://www.sphinx-doc.org/en/master/
 * tests/test_openapi_docstrings.py
 
 """
@@ -81,19 +84,11 @@ TYPE_REPRS = {
 }
 
 
-def type_repr_to_type(type_repr: str) -> Type:
+def type_repr_to_type(type_repr: str) -> Optional[Type]:
     if type_repr in TYPE_REPRS:
         return TYPE_REPRS[type_repr]
 
-    warnings.warn(
-        f"The type representation '{type_repr}' used in docstrings is not "
-        + "recognized; the parameter type will be mapped to a `str` (default). "
-        + "This feature is used for automatic generation of OpenAPI Documentation. "
-        + f"To improve the situation, please map '{type_repr}' to the desired type in "
-        + "`blacksheep.server.openapi.docstrings.TYPE_REPRS` singleton."
-    )
-
-    return str
+    return None
 
 
 def collapse(value: str) -> str:
@@ -366,11 +361,23 @@ class NumpydocDialect(IndentDocstringDialect):
 
             # TODO: support name_part containing type information, e.g.
             # param1 int: some description!
-
-            parameters[name_part.strip()] = ParameterInfo(
+            parameter_info = ParameterInfo(
                 description=collapse(fragment.value),
             )
-            handle_type_repr(parameters[name_part], type_part)
+            parameters[name_part.strip()] = parameter_info
+            handle_type_repr(parameter_info, type_part)
+
+            # if the type representation is not recognized, fallback to add it as
+            # description
+            if (
+                parameter_info.value_type is None or not parameter_info.description
+            ) and type_part:
+                if parameter_info.description:
+                    parameter_info.description = (
+                        parameter_info.description + f"({type_part})"
+                    )
+                else:
+                    parameter_info.description = type_part
 
         return parameters
 

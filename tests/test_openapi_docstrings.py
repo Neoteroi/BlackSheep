@@ -422,6 +422,46 @@ def test_rest_dialect(docstring, expected_info):
                 return_description="a value in a string",
             ),
         ),
+        (
+            """
+            Lorem ipsum dolor sit amet.
+
+            Parameters
+            ----------
+            filename : str
+            copy : bool
+            dtype : data-type
+            iterable : iterable object
+            shape : int or tuple of int
+            files : list of str
+
+            Returns
+            -------
+            string
+                a value in a string
+
+            Raises
+            ------
+            KeyError
+                when a key error
+            OtherError
+                when an other error
+            """,
+            DocstringInfo(
+                summary="Lorem ipsum dolor sit amet.",
+                description="Lorem ipsum dolor sit amet.",
+                parameters={
+                    "filename": ParameterInfo("str", value_type=str),
+                    "copy": ParameterInfo("bool", value_type=bool),
+                    "dtype": ParameterInfo("data-type", value_type=None),
+                    "iterable": ParameterInfo("iterable object", value_type=None),
+                    "shape": ParameterInfo("int or tuple of int", value_type=None),
+                    "files": ParameterInfo("list of str", value_type=None),
+                },
+                return_type=str,
+                return_description="a value in a string",
+            ),
+        ),
     ],
 )
 def test_numpydoc_dialect(docstring, expected_info):
@@ -533,11 +573,3 @@ def test_googledoc_dialect(docstring, expected_info):
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info
-
-
-def test_emits_warning_for_unmapped_type_repr():
-    with pytest.warns(
-        UserWarning,
-        match="The type representation 'foo' used in docstrings is not recognized;",
-    ):
-        type_repr_to_type("foo")

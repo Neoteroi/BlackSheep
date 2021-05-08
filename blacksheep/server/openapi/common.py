@@ -1,3 +1,11 @@
+"""
+This module provides common classes to document APIs.
+
+The purpose of these classes is to provide an abstraction layer on top of a specific
+set of rules to document APIs. For example, it should be possible to generate both
+OpenAPI Documentation v2 and v3 (currently only v3 is supported) from these types, and
+potentially in the future v4, if it will be so different from v3.
+"""
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

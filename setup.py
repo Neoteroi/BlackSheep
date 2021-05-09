@@ -21,6 +21,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Environment :: Web Environment",
         "Operating System :: OS Independent",
         "Framework :: AsyncIO",
@@ -83,7 +84,7 @@ setup(
         ),
     ],
     install_requires=[
-        "httptools==0.1.*",
+        "httptools==0.2.*",
         "Jinja2==2.11.3",
         "certifi>=2020.12.5",
         "cchardet~=2.1.5",

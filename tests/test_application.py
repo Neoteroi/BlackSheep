@@ -2318,7 +2318,7 @@ async def test_valid_query_parameter_parse(
 async def test_valid_cookie_parameter_parse(
     parameter_type, parameter, expected_value, app, mock_send, mock_receive
 ):
-    @inject
+    @inject()
     @app.router.get("/")
     async def home(foo: FromCookie[parameter_type]):
         assert foo.value == expected_value
@@ -2362,7 +2362,7 @@ async def test_valid_cookie_parameter_parse(
 async def test_valid_query_parameter_list_parse(
     parameter_type, parameters, expected_value, app, mock_send, mock_receive
 ):
-    @inject
+    @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         assert foo.value == expected_value
@@ -2396,7 +2396,7 @@ async def test_valid_query_parameter_list_parse(
 async def test_invalid_query_parameter_400(
     parameter_type, parameter, app, mock_send, mock_receive
 ):
-    @inject
+    @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         return status_code(200)
@@ -2441,7 +2441,7 @@ async def test_invalid_query_parameter_400(
 async def test_valid_route_parameter_parse(
     parameter_type, parameter, expected_value, app, mock_send, mock_receive
 ):
-    @inject
+    @inject()
     @app.router.get("/:foo")
     async def home(foo: FromRoute[parameter_type]):
         assert foo.value == expected_value
@@ -2491,7 +2491,7 @@ async def test_valid_header_parameter_parse(
     class XFooHeader(FromHeader[T]):
         name = "X-Foo"
 
-    @inject
+    @inject()
     @app.router.get("/")
     async def home(x_foo: XFooHeader[parameter_type]):
         assert x_foo.value == expected_value
@@ -3042,7 +3042,7 @@ async def test_service_bindings(mock_send, mock_receive):
         assert a.value.dep.foo == "foo"
         return text("OK")
 
-    @inject
+    @inject()
     @app.router.get("/implicit")
     async def implicit(a: A):
         assert isinstance(a, A)
@@ -3083,7 +3083,7 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature(
     app = FakeApplication(services=container)
     app.middlewares.append(dependency_injection_middleware)
 
-    @inject
+    @inject()
     @app.router.get("/")
     async def home(a: OperationContext, b: OperationContext):
         assert a is b
@@ -3123,7 +3123,7 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
     container.add_exact_scoped(OperationContext)
     app = FakeApplication(services=container)
 
-    @inject
+    @inject()
     @app.router.get("/")
     async def home(a: OperationContext, b: OperationContext):
         assert a is not b

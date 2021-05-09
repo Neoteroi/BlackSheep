@@ -1,3 +1,4 @@
+from blacksheep.cookies import CookieValueExceedsMaximumLength
 from datetime import datetime
 
 import pytest
@@ -259,3 +260,12 @@ def test_parse_cookie_separators(value, expected_name, expected_value, expected_
     assert cookie.name == expected_name
     assert cookie.value == expected_value
     assert cookie.path == expected_path
+
+
+def test_raise_for_value_exceeding_length():
+
+    with pytest.raises(CookieValueExceedsMaximumLength):
+        Cookie("crash", "A" * 4967)
+
+    with pytest.raises(CookieValueExceedsMaximumLength):
+        Cookie("crash", "A" * 5000)

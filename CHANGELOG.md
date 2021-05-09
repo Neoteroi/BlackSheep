@@ -5,13 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.4] - 2021-05-09 :crown:
 - Adds the `Application.exception_handler` decorator which registers exception
   handler functions
+- Adds support for documenting parameters' descriptions, with support for
+  various `docstring` formats: `Epytext`, `reStructuredText`, `Google`,
+  `Numpydoc` (fixes #124, see discussion
+  [#123](https://github.com/Neoteroi/BlackSheep/discussions/123))
 - Corrects stubs for cookies: `Response.unset_cookie`, and `Cookie` same site
   annotation
 - Updates `essentials-openapi` dependency to its next minor version, thus
   upgrading `PyYAML` dependency to `5.4.1`
+- Updates `httptools` dependency to version `0.2.0`
+- Throws exception for cookies whose value exceeds the standard length (#96)
 
 ## [1.0.3] - 2021-04-24 :cookie:
 - Adds support for Python 3.10 and PEP 563 (however, it works with `httptools`

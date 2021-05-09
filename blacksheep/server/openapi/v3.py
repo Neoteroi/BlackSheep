@@ -1,13 +1,12 @@
-from openapidocs.common import Format
-from blacksheep.server.openapi.exceptions import (
-    DuplicatedContentTypeDocsException,
-    UnsupportedUnionTypeException,
+from blacksheep.server.openapi.docstrings import (
+    DocstringInfo,
+    get_handler_docstring_info,
 )
 import inspect
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, ForwardRef
+from typing import Any, Dict, ForwardRef, List, Mapping, Optional, Tuple, Type, Union
 from uuid import UUID
 
 from blacksheep.server.bindings import (
@@ -19,12 +18,17 @@ from blacksheep.server.bindings import (
     RouteBinder,
     empty,
 )
+from blacksheep.server.openapi.exceptions import (
+    DuplicatedContentTypeDocsException,
+    UnsupportedUnionTypeException,
+)
 from blacksheep.server.routing import Router
+from openapidocs.common import Format
 from openapidocs.v3 import (
     Components,
     Example,
-    Info,
     Header,
+    Info,
     MediaType,
     OpenAPI,
     Operation,
@@ -33,16 +37,18 @@ from openapidocs.v3 import (
     PathItem,
     Reference,
     RequestBody,
-    Server,
 )
 from openapidocs.v3 import Response as ResponseDoc
-from openapidocs.v3 import Schema, ValueFormat, ValueType
+from openapidocs.v3 import Schema, Server, ValueFormat, ValueType
 
 from ..application import Application
 from .common import (
     APIDocsHandler,
-    HeaderInfo,
     ContentInfo,
+    EndpointDocs,
+    HeaderInfo,
+    ParameterInfo,
+    ParameterSource,
     ResponseExample,
     ResponseInfo,
     ResponseStatusType,
@@ -374,13 +380,21 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return ParameterLocation.HEADER
         return None
 
+    def _parameter_source_to_openapi_obj(
+        self, value: ParameterSource
+    ) -> ParameterLocation:
+        return ParameterLocation[value.value.upper()]
+
     def get_parameters(
         self, handler: Any
     ) -> Optional[List[Union[Parameter, Reference]]]:
         if not hasattr(handler, "binders"):
             return None
         binders: List[Binder] = handler.binders
-        parameters: List[Union[Parameter, Reference]] = []
+        parameters: Mapping[str, Union[Parameter, Reference]] = {}
+
+        docs = self.get_handler_docs(handler)
+        parameters_info = (docs.parameters if docs else None) or dict()
 
         for binder in binders:
             location = self.get_parameter_location_for_binder(binder)
@@ -395,17 +409,34 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else:
                 required = binder.required and binder.default is empty
 
-            parameters.append(
-                Parameter(
-                    name=binder.parameter_name,
-                    in_=location,
-                    required=required or None,
-                    schema=self.get_schema_by_type(binder.expected_type),
-                    description="",
-                )
+            # did the user specified information about the parameter?
+            param_info = parameters_info.get(binder.parameter_name)
+
+            parameters[binder.parameter_name] = Parameter(
+                name=binder.parameter_name,
+                in_=location,
+                required=required or None,
+                schema=self.get_schema_by_type(binder.expected_type),
+                description=param_info.description if param_info else "",
+                example=param_info.example if param_info else None,
             )
 
-        return parameters
+        for key, param_info in parameters_info.items():
+            if key not in parameters:
+                parameters[key] = Parameter(
+                    name=key,
+                    in_=self._parameter_source_to_openapi_obj(
+                        param_info.source or ParameterSource.QUERY
+                    ),
+                    required=param_info.required,
+                    schema=self.get_schema_by_type(param_info.value_type)
+                    if param_info.value_type
+                    else None,
+                    description=param_info.description,
+                    example=param_info.example,
+                )
+
+        return list(parameters.values())
 
     def _get_media_type_from_content_doc(self, content_doc: ContentInfo) -> MediaType:
         media_type = MediaType()
@@ -517,6 +548,49 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def on_docs_generated(self, docs: OpenAPI) -> None:
         docs.servers = self.servers
 
+    def _merge_documentation(
+        self,
+        endpoint_docs: EndpointDocs,
+        docstring_info: DocstringInfo,
+    ) -> None:
+        if not endpoint_docs.description and docstring_info.description:
+            endpoint_docs.description = docstring_info.description
+
+        if not endpoint_docs.summary and docstring_info.summary:
+            endpoint_docs.summary = docstring_info.summary
+
+        for param_name, param_info in docstring_info.parameters.items():
+            if endpoint_docs.parameters is None:
+                endpoint_docs.parameters = {}
+            matching_parameter = endpoint_docs.parameters.get(param_name)
+
+            if matching_parameter is None:
+                assert isinstance(endpoint_docs.parameters, dict)
+                endpoint_docs.parameters[param_name] = ParameterInfo(
+                    value_type=param_info.value_type,
+                    required=param_info.required,
+                    description=param_info.description,
+                    source=param_info.source or ParameterSource.QUERY,
+                )
+            else:
+                matching_parameter.description = param_info.description
+
+                if (
+                    matching_parameter.value_type is None
+                    and param_info.value_type is not None
+                ):
+                    matching_parameter.value_type = param_info.value_type
+
+    def _apply_docstring(self, handler, docs: Optional[EndpointDocs]) -> None:
+        if not self.use_docstrings:  # pragma: no cover
+            return
+        docstring_info = get_handler_docstring_info(handler)
+
+        if docstring_info is not None:
+            if docs is None:
+                docs = self.get_handler_docs_or_set(handler)
+            self._merge_documentation(docs, docstring_info)
+
     def get_routes_docs(self, router: Router) -> Dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""
         paths_doc: Dict[str, PathItem] = {}
@@ -528,6 +602,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             for method, route in conf.items():
                 handler = self._get_request_handler(route)
                 docs = self.get_handler_docs(handler)
+                self._apply_docstring(handler, docs)
 
                 operation = Operation(
                     description=self.get_description(handler),

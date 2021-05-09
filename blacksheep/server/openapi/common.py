@@ -1,9 +1,29 @@
+"""
+This module provides common classes to document APIs.
+
+The purpose of these classes is to provide an abstraction layer on top of a specific
+set of rules to document APIs. For example, it should be possible to generate both
+OpenAPI Documentation v2 and v3 (currently only v3 is supported) from these types, and
+potentially in the future v4, if it will be so different from v3.
+"""
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from http import HTTPStatus
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application
@@ -13,15 +33,42 @@ from blacksheep.server.responses import FriendlyEncoder
 from blacksheep.server.routing import Route, Router
 from openapidocs.common import Format, OpenAPIRoot, Serializer
 
-from .ui import UIOptions, UIProvider, SwaggerUIProvider
+from .ui import SwaggerUIProvider, UIOptions, UIProvider
 
 T = TypeVar("T")
+
+
+class ParameterSource(Enum):
+    QUERY = "query"
+    HEADER = "header"
+    PATH = "path"
+    COOKIE = "cookie"
 
 
 @dataclass
 class RequestBodyInfo:
     description: Optional[str] = None
     examples: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class ParameterExample:
+    value: Any
+    name: Optional[str] = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+
+
+@dataclass
+class ParameterInfo:
+    description: str
+    value_type: Optional[Type] = None
+    source: Optional[ParameterSource] = None
+    required: Optional[bool] = None
+    deprecated: Optional[bool] = None
+    allow_empty_value: Optional[bool] = None
+    example: Optional[Any] = None
+    examples: Optional[Dict[str, ParameterExample]] = None
 
 
 @dataclass
@@ -69,6 +116,7 @@ class EndpointDocs:
     summary: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[List[str]] = None
+    parameters: Optional[Mapping[str, ParameterInfo]] = None
     request_body: Optional[RequestBodyInfo] = None
     responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None
     ignored: Optional[bool] = None
@@ -115,6 +163,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        parameters: Optional[Mapping[str, ParameterInfo]] = None,
         request_body: Optional[RequestBodyInfo] = None,
         responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None,
         ignored: Optional[bool] = None,
@@ -132,6 +181,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 tags=tags,
                 request_body=request_body,
                 responses=responses,
+                parameters=parameters,
                 ignored=ignored,
                 deprecated=deprecated,
                 on_created=on_created,
@@ -152,30 +202,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
     def get_summary(self, handler: Any) -> Optional[str]:
         docs = self.get_handler_docs(handler)
-        summary = docs.summary if docs else None
-
-        if summary:
-            return summary
-
-        if self.use_docstrings:
-            doc = handler.__doc__
-            if doc:
-                assert isinstance(doc, str)
-                return doc.strip().splitlines()[0]
-        return None
+        return docs.summary if docs else None
 
     def get_description(self, handler: Any) -> Optional[str]:
         docs = self.get_handler_docs(handler)
-        description = docs.description if docs else None
-
-        if description:
-            return description
-
-        if self.use_docstrings:
-            doc = handler.__doc__
-            if doc:
-                return doc.strip()
-        return None
+        return docs.description if docs else None
 
     def ignore(self, value: bool = True):
         """Excludes a request handler from API documentation."""

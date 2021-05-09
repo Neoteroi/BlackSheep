@@ -13,6 +13,22 @@ cpdef datetime datetime_from_cookie_format(bytes value):
     return parsedate_to_datetime(value.decode()).replace(tzinfo=None)
 
 
+cdef class CookieError(Exception):
+
+    def __init__(self, str message):
+        super().__init__(message)
+
+
+cdef class CookieValueExceedsMaximumLength(CookieError):
+
+    def __init__(self):
+        super().__init__(
+            "The length of the cookie value exceeds the maximum "
+            "length of 4096 bytes, and it would be ignored or truncated "
+            "by clients. See: https://tools.ietf.org/html/rfc6265#section-6.1"
+        )
+
+
 cdef class Cookie:
 
     def __init__(
@@ -27,8 +43,6 @@ cdef class Cookie:
         int max_age=-1,
         CookieSameSiteMode same_site=CookieSameSiteMode.UNDEFINED
     ):
-        if not name:
-            raise ValueError('A cookie name is required')
         self.name = name
         self.value = value
         self.expires = expires
@@ -38,6 +52,26 @@ cdef class Cookie:
         self.secure = secure
         self.max_age = max_age
         self.same_site = same_site
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if not value:
+            raise ValueError("A cookie name is required")
+        self._name = value
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        if value and len(value.encode()) > 4096:
+            raise CookieValueExceedsMaximumLength()
+        self._value = value
 
     cpdef Cookie clone(self):
         return Cookie(

@@ -15,9 +15,8 @@ cpdef enum CookieSameSiteMode:
 
 
 cdef class Cookie:
-    cdef object _expiration
-    cdef public str name
-    cdef public str value
+    cdef str _name
+    cdef str _value
     cdef public datetime expires
     cdef public str domain
     cdef public str path

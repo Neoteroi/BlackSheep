@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updates `essentials-openapi` dependency to its next minor version, thus
   upgrading `PyYAML` dependency to `5.4.1`
 - Updates `httptools` dependency to version `0.2.0`
-- Adds `3.10.0-beta.1` to the list of tested Python versions
 - Throws exception for cookies whose value exceeds the standard length (#96)
 
 ## [1.0.3] - 2021-04-24 :cookie:

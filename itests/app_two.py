@@ -310,6 +310,13 @@ class Foo:
 
 
 @dataclass
+class UpdateFooInput:
+    name: str
+    cool: float
+    etag: Optional[str]
+
+
+@dataclass
 class FooList:
     items: List[Foo]
     total: int
@@ -494,6 +501,35 @@ class Cats(ApiController):
         @return:  a paginated set of cats.
         """
         ...
+
+    @post("/foo")
+    async def update_foo(self, foo_id: UUID, data: UpdateFooInput) -> Foo:
+        """
+        Updates an album by id.
+
+        @param album_id: the id of the album to update.
+        @param data: input for the update operation.
+        """
+
+    @docs(
+        request_body=RequestBodyInfo(
+            examples={
+                "basic": UpdateFooInput(
+                    name="Foo 2",
+                    cool=9000,
+                    etag="aaaaaaaa",
+                )
+            },
+        ),
+    )
+    @post("/foo2")
+    async def update_foo2(self, foo_id: UUID, data: UpdateFooInput) -> Foo:
+        """
+        Updates an album by id.
+
+        @param album_id: the id of the album to update.
+        @param data: input for the update operation.
+        """
 
     @docs.ignore()
     @get("/ignored")

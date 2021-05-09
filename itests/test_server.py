@@ -552,14 +552,136 @@ def test_open_api_deprecated(session_two):
     assert deprecated_api == {
         "get": {
             "responses": {},
-            "tags": [
-                "Cats",
-                "Deprecated"
-            ],
+            "tags": ["Cats", "Deprecated"],
             "operationId": "deprecated_api",
             "summary": "Some deprecated API",
             "description": "This endpoint is deprecated.",
             "parameters": [],
-            "deprecated": True
+            "deprecated": True,
+        }
+    }
+
+
+def test_open_api_request_body_description_from_docstring(session_two):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    paths = data.get("paths")
+    update_foo = paths.get("/api/cats/foo")
+
+    assert update_foo == {
+        "post": {
+            "responses": {
+                "200": {
+                    "description": "Success response",
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/Foo"}
+                        }
+                    },
+                }
+            },
+            "tags": ["Cats"],
+            "operationId": "update_foo",
+            "summary": "Updates an album by id.",
+            "description": "Updates an album by id.",
+            "parameters": [
+                {
+                    "name": "foo_id",
+                    "in": "query",
+                    "schema": {"type": "string", "format": "uuid", "nullable": False},
+                    "description": "",
+                    "required": True,
+                },
+                {
+                    "name": "album_id",
+                    "in": "query",
+                    "description": "the id of the album to update.",
+                },
+                {
+                    "name": "data",
+                    "in": "query",
+                    "description": "input for the update operation.",
+                },
+            ],
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/UpdateFooInput"}
+                    }
+                },
+                "required": True,
+                "description": "input for the update operation.",
+            },
+        }
+    }
+
+
+def test_open_api_request_body_description_from_docstring_with_request_body(
+    session_two,
+):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    paths = data.get("paths")
+    update_foo = paths.get("/api/cats/foo2")
+
+    assert update_foo == {
+        "post": {
+            "responses": {
+                "200": {
+                    "description": "Success response",
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/Foo"}
+                        }
+                    },
+                }
+            },
+            "tags": ["Cats"],
+            "operationId": "update_foo2",
+            "summary": "Updates an album by id.",
+            "description": "Updates an album by id.",
+            "parameters": [
+                {
+                    "name": "foo_id",
+                    "in": "query",
+                    "schema": {"type": "string", "format": "uuid", "nullable": False},
+                    "description": "",
+                    "required": True,
+                },
+                {
+                    "name": "album_id",
+                    "in": "query",
+                    "description": "the id of the album to update.",
+                },
+                {
+                    "name": "data",
+                    "in": "query",
+                    "description": "input for the update operation.",
+                },
+            ],
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/UpdateFooInput"},
+                        "examples": {
+                            "basic": {
+                                "value": {
+                                    "name": "Foo 2",
+                                    "cool": 9000,
+                                    "etag": "aaaaaaaa",
+                                }
+                            }
+                        },
+                    }
+                },
+                "required": True,
+                "description": "input for the update operation.",
+            },
         }
     }

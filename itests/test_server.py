@@ -585,26 +585,16 @@ def test_open_api_request_body_description_from_docstring(session_two):
             },
             "tags": ["Cats"],
             "operationId": "update_foo",
-            "summary": "Updates an album by id.",
-            "description": "Updates an album by id.",
+            "summary": "Updates a foo by id.",
+            "description": "Updates a foo by id.",
             "parameters": [
                 {
                     "name": "foo_id",
                     "in": "query",
                     "schema": {"type": "string", "format": "uuid", "nullable": False},
-                    "description": "",
-                    "required": True,
-                },
-                {
-                    "name": "album_id",
-                    "in": "query",
                     "description": "the id of the album to update.",
-                },
-                {
-                    "name": "data",
-                    "in": "query",
-                    "description": "input for the update operation.",
-                },
+                    "required": True,
+                }
             ],
             "requestBody": {
                 "content": {
@@ -644,26 +634,16 @@ def test_open_api_request_body_description_from_docstring_with_request_body(
             },
             "tags": ["Cats"],
             "operationId": "update_foo2",
-            "summary": "Updates an album by id.",
-            "description": "Updates an album by id.",
+            "summary": "Updates a foo by id.",
+            "description": "Updates a foo by id.",
             "parameters": [
                 {
                     "name": "foo_id",
                     "in": "query",
                     "schema": {"type": "string", "format": "uuid", "nullable": False},
-                    "description": "",
+                    "description": "the id of the foo to update.",
                     "required": True,
-                },
-                {
-                    "name": "album_id",
-                    "in": "query",
-                    "description": "the id of the album to update.",
-                },
-                {
-                    "name": "data",
-                    "in": "query",
-                    "description": "input for the update operation.",
-                },
+                }
             ],
             "requestBody": {
                 "content": {

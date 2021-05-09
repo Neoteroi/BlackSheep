@@ -578,6 +578,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                         )
                     elif not endpoint_docs.request_body.description:
                         endpoint_docs.request_body.description = param_info.description
+                    continue
 
                 assert isinstance(endpoint_docs.parameters, dict)
                 endpoint_docs.parameters[param_name] = ParameterInfo(

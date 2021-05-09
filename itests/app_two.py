@@ -505,9 +505,9 @@ class Cats(ApiController):
     @post("/foo")
     async def update_foo(self, foo_id: UUID, data: UpdateFooInput) -> Foo:
         """
-        Updates an album by id.
+        Updates a foo by id.
 
-        @param album_id: the id of the album to update.
+        @param foo_id: the id of the album to update.
         @param data: input for the update operation.
         """
 
@@ -525,9 +525,9 @@ class Cats(ApiController):
     @post("/foo2")
     async def update_foo2(self, foo_id: UUID, data: UpdateFooInput) -> Foo:
         """
-        Updates an album by id.
+        Updates a foo by id.
 
-        @param album_id: the id of the album to update.
+        @param foo_id: the id of the foo to update.
         @param data: input for the update operation.
         """
 

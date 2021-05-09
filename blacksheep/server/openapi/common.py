@@ -202,32 +202,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
     def get_summary(self, handler: Any) -> Optional[str]:
         docs = self.get_handler_docs(handler)
-        summary = docs.summary if docs else None
-
-        if summary:
-            return summary
-
-        if self.use_docstrings:
-            # TODO: parse docstrings!! Store parsed value in a single place!
-            doc = handler.__doc__
-            if doc:
-                assert isinstance(doc, str)
-                return doc.strip().splitlines()[0]
-        return None
+        return docs.summary if docs else None
 
     def get_description(self, handler: Any) -> Optional[str]:
         docs = self.get_handler_docs(handler)
-        description = docs.description if docs else None
-
-        if description:
-            return description
-
-        if self.use_docstrings:
-            # TODO: parse docstrings!! Store parsed value in a single place!
-            doc = handler.__doc__
-            if doc:
-                return doc.strip()
-        return None
+        return docs.description if docs else None
 
     def ignore(self, value: bool = True):
         """Excludes a request handler from API documentation."""

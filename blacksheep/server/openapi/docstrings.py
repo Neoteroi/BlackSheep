@@ -51,11 +51,6 @@ class DocstringInfo:
     return_description: Optional[str] = None
 
 
-def _ensure_docstring(value: str) -> None:
-    if not value:
-        raise ValueError("Missing docstring")
-
-
 class DocstringDialect(ABC):
     @abstractmethod
     def is_match(self, docstring: str) -> bool:
@@ -71,9 +66,6 @@ class DocstringDialect(ABC):
         """
 
 
-# TODO: should we support also arrays?
-# since blacksheep supports automatic mapping of arrays from parameters, it makes
-# sense to support also, for example: `str[]` or `Array<str>` / `List[str]`
 TYPE_REPRS = {
     "bool": bool,
     "boolean": bool,
@@ -90,7 +82,23 @@ TYPE_REPRS = {
 }
 
 
+_array_rx = re.compile(
+    r"(?P<type_name1>[a-zA-Z]+)\[\]|"
+    r"([lL]ist|[aA]rray|[sS]equence)\[(?P<type_name2>[a-zA-Z]+)\]"
+)
+
+
 def type_repr_to_type(type_repr: str) -> Optional[Type]:
+
+    array_match = _array_rx.match(type_repr)
+
+    if array_match:
+        type_repr = array_match.group("type_name1") or array_match.group("type_name2")
+
+        if type_repr in TYPE_REPRS:
+            value_type = TYPE_REPRS[type_repr]
+            return List[value_type]
+
     if type_repr in TYPE_REPRS:
         return TYPE_REPRS[type_repr]
 
@@ -117,6 +125,12 @@ def handle_type_repr(parameter_info: ParameterInfo, type_repr: str) -> None:
             type_repr = type_repr.replace(value, "")
 
     parameter_info.value_type = type_repr_to_type(type_repr)
+
+    if parameter_info.value_type is None:
+        if parameter_info.description:
+            parameter_info.description = parameter_info.description + f" ({type_repr})"
+        else:
+            parameter_info.description = type_repr
 
 
 def get_summary(description: str) -> str:
@@ -190,7 +204,8 @@ class PatternsDocstringDialect(DocstringDialect):
 
         if description_m:
             description = description_m.group("description").strip()
-        else:
+        else:  # pragma: no cover
+            # this is not expected
             description = ""
 
         return DocstringInfo(
@@ -375,18 +390,6 @@ class NumpydocDialect(IndentDocstringDialect):
             parameters[name_part.strip()] = parameter_info
             handle_type_repr(parameter_info, type_part)
 
-            # if the type representation is not recognized, fallback to add it as
-            # description
-            if (
-                parameter_info.value_type is None or not parameter_info.description
-            ) and type_part:
-                if parameter_info.description:
-                    parameter_info.description = (
-                        parameter_info.description + f"({type_part})"
-                    )
-                else:
-                    parameter_info.description = type_part
-
         return parameters
 
     def parse_docstring(self, docstring: str) -> DocstringInfo:
@@ -412,16 +415,14 @@ class GoogleDocDialect(IndentDocstringDialect):
     _sections = {"Args", "Returns", "Raises"}
 
     def is_section_start(self, line: str) -> bool:
-        return line.strip(":") in self._sections
+        return line.strip(" :") in self._sections
 
     def get_description(self, docstring: str) -> FunctionInfo:
         lines: List[str] = []
 
         for line in docstring.splitlines():
-            if self.is_section_start(line.strip()):
+            if self.is_section_start(line):
                 lines = lines[:-1]
-                break
-            if line.strip() in self._sections:
                 break
             lines.append(line)
 
@@ -437,7 +438,8 @@ class GoogleDocDialect(IndentDocstringDialect):
         for fragment in parameters_section:
             if ":" not in fragment.header:
                 warnings.warn(
-                    f"Invalid parameter definition in docstring: {fragment.header}"
+                    "Invalid parameter definition in docstring: "
+                    f"{fragment.header.strip()}"
                 )
                 continue
             name_part, header_part = re.split(r"\s*:\s*", fragment.header)
@@ -499,7 +501,7 @@ def parse_docstring(
     docstring: str,
     dialects: Optional[Sequence[DocstringDialect]] = None,
 ) -> DocstringInfo:
-    _ensure_docstring(docstring)
+    assert bool(docstring), "a docstring is required"
 
     if not dialects:
         dialects = default_dialects

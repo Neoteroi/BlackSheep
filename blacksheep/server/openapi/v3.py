@@ -575,6 +575,22 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else:
                 matching_parameter.description = param_info.description
 
+                if (
+                    matching_parameter.value_type is None
+                    and param_info.value_type is not None
+                ):
+                    matching_parameter.value_type = param_info.value_type
+
+    def _apply_docstring(self, handler, docs: Optional[EndpointDocs]) -> None:
+        if not self.use_docstrings:  # pragma: no cover
+            return
+        docstring_info = get_handler_docstring_info(handler)
+
+        if docstring_info is not None:
+            if docs is None:
+                docs = self.get_handler_docs_or_set(handler)
+            self._merge_documentation(docs, docstring_info)
+
     def get_routes_docs(self, router: Router) -> Dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""
         paths_doc: Dict[str, PathItem] = {}
@@ -585,14 +601,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
             for method, route in conf.items():
                 handler = self._get_request_handler(route)
-                # extract information from docstrings
-                docstring_info = get_handler_docstring_info(handler)
                 docs = self.get_handler_docs(handler)
-
-                if docstring_info is not None:
-                    if docs is None:
-                        docs = self.get_handler_docs_or_set(handler)
-                    self._merge_documentation(docs, docstring_info)
+                self._apply_docstring(handler, docs)
 
                 operation = Operation(
                     description=self.get_description(handler),

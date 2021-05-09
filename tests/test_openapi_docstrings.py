@@ -1,4 +1,5 @@
 import pytest
+from typing import List
 from blacksheep.server.openapi.common import ParameterInfo
 from blacksheep.server.openapi.docstrings import (
     DocstringInfo,
@@ -13,6 +14,45 @@ from blacksheep.server.openapi.docstrings import (
 @pytest.mark.parametrize(
     "docstring,expected_info",
     [
+        (
+            """
+            Example with lists of values.
+
+            @param List[str] a: list of str
+            @param int[] b: list of int
+            @param str[] c: list of str
+            """,
+            DocstringInfo(
+                summary="Example with lists of values.",
+                description="Example with lists of values.",
+                parameters={
+                    "a": ParameterInfo("list of str", value_type=List[str]),
+                    "b": ParameterInfo("list of int", value_type=List[int]),
+                    "c": ParameterInfo("list of str", value_type=List[str]),
+                },
+            ),
+        ),
+        (
+            """
+            Example with lists of values.
+
+            @param a: list of str
+            @param b: list of int
+            @param c: list of str
+            @type a: List[str]
+            @type b: int[]
+            @type c: str[]
+            """,
+            DocstringInfo(
+                summary="Example with lists of values.",
+                description="Example with lists of values.",
+                parameters={
+                    "a": ParameterInfo("list of str", value_type=List[str]),
+                    "b": ParameterInfo("list of int", value_type=List[int]),
+                    "c": ParameterInfo("list of str", value_type=List[str]),
+                },
+            ),
+        ),
         (
             """
             Return the x intercept of the line M{y=m*x+b}. The X{x intercept}
@@ -201,6 +241,59 @@ def test_epytext_dialect(docstring, expected_info):
     [
         (
             """
+            Example with lists of values.
+
+            :param List[str] a: list of str
+            :param int[] b: list of int
+            :param str[] c: list of str
+            """,
+            DocstringInfo(
+                summary="Example with lists of values.",
+                description="Example with lists of values.",
+                parameters={
+                    "a": ParameterInfo("list of str", value_type=List[str]),
+                    "b": ParameterInfo("list of int", value_type=List[int]),
+                    "c": ParameterInfo("list of str", value_type=List[str]),
+                },
+            ),
+        ),
+        (
+            """
+            Example with unrecognized type.
+
+            :param foo a: some unrecognized type
+            """,
+            DocstringInfo(
+                summary="Example with unrecognized type.",
+                description="Example with unrecognized type.",
+                parameters={
+                    "a": ParameterInfo("some unrecognized type (foo)", value_type=None),
+                },
+            ),
+        ),
+        (
+            """
+            Example with lists of values.
+
+            :param a: list of str
+            :param b: list of int
+            :param c: list of str
+            :type a: List[str]
+            :type b: int[]
+            :type c: str[]
+            """,
+            DocstringInfo(
+                summary="Example with lists of values.",
+                description="Example with lists of values.",
+                parameters={
+                    "a": ParameterInfo("list of str", value_type=List[str]),
+                    "b": ParameterInfo("list of int", value_type=List[int]),
+                    "c": ParameterInfo("list of str", value_type=List[str]),
+                },
+            ),
+        ),
+        (
+            """
             Send a message to a recipient
 
             :param sender: The person sending the message
@@ -332,6 +425,29 @@ def test_rest_dialect(docstring, expected_info):
         ),
         (
             """
+            Example with lists of values.
+
+            Parameters
+            ----------
+            a : List[str]
+                list of str
+            b : int[]
+                list of int
+            c : str[]
+                list of str
+            """,
+            DocstringInfo(
+                summary="Example with lists of values.",
+                description="Example with lists of values.",
+                parameters={
+                    "a": ParameterInfo("list of str", value_type=List[str]),
+                    "b": ParameterInfo("list of int", value_type=List[int]),
+                    "c": ParameterInfo("list of str", value_type=List[str]),
+                },
+            ),
+        ),
+        (
+            """
             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
             tempor incididunt ut labore et dolore magna aliqua.
 
@@ -423,7 +539,7 @@ def test_rest_dialect(docstring, expected_info):
         ),
         (
             """
-            Lorem ipsum dolor sit amet.
+            Lorem ipsum dolor sit amet 2.
 
             Parameters
             ----------
@@ -447,11 +563,11 @@ def test_rest_dialect(docstring, expected_info):
                 when an other error
             """,
             DocstringInfo(
-                summary="Lorem ipsum dolor sit amet.",
-                description="Lorem ipsum dolor sit amet.",
+                summary="Lorem ipsum dolor sit amet 2.",
+                description="Lorem ipsum dolor sit amet 2.",
                 parameters={
-                    "filename": ParameterInfo("str", value_type=str),
-                    "copy": ParameterInfo("bool", value_type=bool),
+                    "filename": ParameterInfo("", value_type=str),
+                    "copy": ParameterInfo("", value_type=bool),
                     "dtype": ParameterInfo("data-type", value_type=None),
                     "iterable": ParameterInfo("iterable object", value_type=None),
                     "shape": ParameterInfo("int or tuple of int", value_type=None),
@@ -461,6 +577,20 @@ def test_rest_dialect(docstring, expected_info):
                 return_description="a value in a string",
             ),
         ),
+        (
+            """
+            Lorem ipsum dolor sit amet.
+
+            Custom
+            ----------
+            Hello World!
+            """,
+            DocstringInfo(
+                summary="Lorem ipsum dolor sit amet.",
+                description="Lorem ipsum dolor sit amet.",
+                parameters={},
+            ),
+        ),
     ],
 )
 def test_numpydoc_dialect(docstring, expected_info):
@@ -468,6 +598,41 @@ def test_numpydoc_dialect(docstring, expected_info):
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info
+
+
+def test_numpydoc_dialect_warns_about_invalid_parameter():
+    docstring = """
+    Lorem ipsum dolor sit amet.
+
+    Parameters
+    ----------
+    something_invalid
+    """
+
+    with pytest.warns(
+        UserWarning,
+        match="Invalid parameter definition in docstring: something_invalid",
+    ):
+        dialect = NumpydocDialect()
+        info = dialect.parse_docstring(docstring)
+        assert info is not None
+
+
+def test_googledoc_dialect_warns_about_invalid_parameter():
+    docstring = """
+    Lorem ipsum dolor sit amet.
+
+    Args:
+        something_invalid
+    """
+
+    with pytest.warns(
+        UserWarning,
+        match="Invalid parameter definition in docstring: something_invalid",
+    ):
+        dialect = GoogleDocDialect()
+        info = dialect.parse_docstring(docstring)
+        assert info is not None
 
 
 @pytest.mark.parametrize(
@@ -496,6 +661,47 @@ def test_numpydoc_dialect(docstring, expected_info):
                 },
                 return_type=None,
                 return_description="This is a description of what is returned.",
+            ),
+        ),
+        (
+            """
+            This is an example of Google style.
+
+            Args:
+                param1: This is the first param.
+                param2: This is a second param.
+
+            Raises:
+                KeyError: Raises an exception.
+            """,
+            DocstringInfo(
+                summary="This is an example of Google style.",
+                description="This is an example of Google style.",
+                parameters={
+                    "param1": ParameterInfo("This is the first param."),
+                    "param2": ParameterInfo("This is a second param."),
+                },
+                return_type=None,
+                return_description=None,
+            ),
+        ),
+        (
+            """
+            This is an example of Google style.
+
+            Args:
+                param1: This is the first param.
+                param2: This is a second param.
+            """,
+            DocstringInfo(
+                summary="This is an example of Google style.",
+                description="This is an example of Google style.",
+                parameters={
+                    "param1": ParameterInfo("This is the first param."),
+                    "param2": ParameterInfo("This is a second param."),
+                },
+                return_type=None,
+                return_description=None,
             ),
         ),
         (

@@ -434,3 +434,132 @@ def test_open_api_yaml(session_two):
     assert response.status_code == 200
     text = response.text
     assert yaml.safe_load(text) is not None
+
+
+def test_open_api_json_parameters_docs(session_two):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    paths = data.get("paths")
+    cats3 = paths.get("/api/cats/cats3")
+
+    assert cats3 == {
+        "get": {
+            "responses": {
+                "200": {
+                    "description": "Success response",
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/CatsList"}
+                        }
+                    },
+                }
+            },
+            "tags": ["Cats"],
+            "operationId": "get_cats_alt3",
+            "summary": "Note: in this scenario, query parameters can be read from the request object",
+            "description": "Note: in this scenario, query parameters can be read from the request object",
+            "parameters": [
+                {
+                    "name": "page",
+                    "in": "query",
+                    "schema": {"type": "integer", "format": "int64", "nullable": False},
+                    "description": "Optional page number (default 1)",
+                    "required": False,
+                },
+                {
+                    "name": "page_size",
+                    "in": "query",
+                    "schema": {"type": "integer", "format": "int64", "nullable": False},
+                    "description": "Optional page size (default 30)",
+                    "required": False,
+                },
+                {
+                    "name": "search",
+                    "in": "query",
+                    "schema": {"type": "string", "nullable": False},
+                    "description": "Optional search filter",
+                    "required": False,
+                },
+            ],
+        }
+    }
+
+
+def test_open_api_json_parameters_docs_from_epytext_docstring(session_two):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    paths = data.get("paths")
+    cats4 = paths.get("/api/cats/cats4")
+
+    assert cats4 == {
+        "get": {
+            "responses": {
+                "200": {
+                    "description": "Success response",
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/CatsList"}
+                        }
+                    },
+                }
+            },
+            "tags": ["Cats"],
+            "operationId": "get_cats_alt4",
+            "summary": "Returns a paginated set of cats.",
+            "description": "Returns a paginated set of cats.",
+            "parameters": [
+                {
+                    "name": "page",
+                    "in": "query",
+                    "schema": {"type": "integer", "format": "int64", "nullable": False},
+                    "description": "Optional page number (default 1).",
+                    "required": False,
+                },
+                {
+                    "name": "page_size",
+                    "in": "query",
+                    "schema": {"type": "integer", "format": "int64", "nullable": False},
+                    "description": "Optional page size (default 30).",
+                    "required": False,
+                },
+                {
+                    "name": "search",
+                    "in": "query",
+                    "schema": {"type": "string", "nullable": False},
+                    "description": "Optional search filter.",
+                    "required": False,
+                },
+            ],
+        }
+    }
+
+
+def test_open_api_deprecated(session_two):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    paths = data.get("paths")
+    deprecated_api = paths.get("/api/cats/deprecated")
+
+    assert deprecated_api == {
+        "get": {
+            "responses": {},
+            "tags": [
+                "Cats",
+                "Deprecated"
+            ],
+            "operationId": "deprecated_api",
+            "summary": "Some deprecated API",
+            "description": "This endpoint is deprecated.",
+            "parameters": [],
+            "deprecated": True
+        }
+    }

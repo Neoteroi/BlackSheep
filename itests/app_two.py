@@ -26,6 +26,7 @@ from blacksheep.server.openapi.common import (
     EndpointDocs,
     HeaderInfo,
     ParameterInfo,
+    ParameterSource,
     RequestBodyInfo,
     ResponseExample,
     ResponseInfo,
@@ -414,7 +415,7 @@ class Cats(ApiController):
         ...
 
     @get("cats2")
-    def get_cats_alt(
+    def get_cats_alt2(
         self,
         page: FromQuery[int] = FromQuery(1),
         page_size: FromQuery[int] = FromQuery(30),
@@ -451,6 +452,48 @@ class Cats(ApiController):
             ],
             1230,
         )
+
+    @docs(
+        parameters={
+            "page": ParameterInfo(
+                "Optional page number (default 1)",
+                source=ParameterSource.QUERY,
+                value_type=int,
+                required=False,
+            ),
+            "page_size": ParameterInfo(
+                "Optional page size (default 30)",
+                source=ParameterSource.QUERY,
+                value_type=int,
+                required=False,
+            ),
+            "search": ParameterInfo(
+                "Optional search filter",
+                source=ParameterSource.QUERY,
+                value_type=str,
+                required=False,
+            ),
+        }
+    )
+    @get("cats3")
+    def get_cats_alt3(self, request) -> CatsList:
+        """
+        Note: in this scenario, query parameters can be read from the request object
+        """
+        ...
+
+    @get("cats4")
+    def get_cats_alt4(self, request) -> CatsList:
+        """
+        Returns a paginated set of cats.
+
+        @param int or None page: Optional page number (default 1).
+        @param int or None page_size: Optional page size (default 30).
+        @param str or None search: Optional search filter.
+        @rtype:   CatsList
+        @return:  a paginated set of cats.
+        """
+        ...
 
     @docs.ignore()
     @get("/ignored")

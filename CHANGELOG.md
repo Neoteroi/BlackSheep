@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.4] - 2021-05-0?? :crown:
+## [1.0.4] - 2021-05-09 :crown:
 - Adds the `Application.exception_handler` decorator which registers exception
   handler functions
 - Adds support for documenting parameters' descriptions, with support for
@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   upgrading `PyYAML` dependency to `5.4.1`
 - Updates `httptools` dependency to version `0.2.0`
 - Adds `3.10.0-beta.1` to the list of tested Python versions
+- Throws exception for cookies whose value exceeds the standard length (#96)
 
 ## [1.0.3] - 2021-04-24 :cookie:
 - Adds support for Python 3.10 and PEP 563 (however, it works with `httptools`

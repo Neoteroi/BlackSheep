@@ -1,15 +1,13 @@
+from dataclasses import dataclass
 from inspect import Parameter, _ParameterKind
-import pytest
-from pytest import raises
-from typing import List, Sequence, Optional, Union
+from typing import List, Optional, Sequence, Union
 
-from rodi import Services, inject
+import pytest
 from blacksheep import Request
-from blacksheep.server.routing import Route
 from blacksheep.server.bindings import (
     FromHeader,
-    FromQuery,
     FromJSON,
+    FromQuery,
     FromRoute,
     FromServices,
     HeaderBinder,
@@ -21,18 +19,21 @@ from blacksheep.server.bindings import (
 )
 from blacksheep.server.normalization import (
     AmbiguousMethodSignatureError,
+    ExactBinder,
     NormalizationError,
+    RequestBinder,
     RouteBinderMismatch,
     UnsupportedSignatureError,
     _check_union,
     _get_raw_bound_value_type,
     get_binders,
-    RequestBinder,
-    ExactBinder,
     normalize_handler,
     normalize_middleware,
 )
+from blacksheep.server.routing import Route
 from guardpost.authentication import Identity, User
+from pytest import raises
+from rodi import Container, Services, inject
 
 
 class Pet:
@@ -46,6 +47,11 @@ class Cat(Pet):
 
 class Dog(Pet):
     ...
+
+
+@dataclass
+class SomeService:
+    pass
 
 
 def test_parameters_get_binders_default_query():
@@ -583,3 +589,27 @@ def test_get_raw_bound_value_type_fallsback_to_str():
         ...
 
     assert _get_raw_bound_value_type(Foo) is str  # type: ignore
+
+
+def test_normalization_with_service_json_route_param():
+    def handler(
+        foo_id: str,
+        data: FromJSON[Cat],
+        some_service: SomeService,
+    ):
+        ...
+
+    container = Container()
+    container.add_transient(SomeService)
+
+    binders = get_binders(Route("/{foo_id}", handler), container.build_provider())
+    assert len(binders) == 3
+
+    assert isinstance(binders[0], RouteBinder)
+    assert binders[0].expected_type is str
+
+    assert isinstance(binders[1], JSONBinder)
+    assert binders[1].expected_type is Cat
+
+    assert isinstance(binders[2], ServiceBinder)
+    assert binders[2].expected_type is SomeService

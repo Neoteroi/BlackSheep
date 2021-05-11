@@ -723,7 +723,7 @@ class RouteBinder(SyncBinder):
         expected_type: T = str,
         name: str = None,
         implicit: bool = False,
-        required: bool = False,
+        required: bool = True,
         converter: Optional[Callable] = None,
     ):
         super().__init__(expected_type, name or "route", implicit, required, converter)

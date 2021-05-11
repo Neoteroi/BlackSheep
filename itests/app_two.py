@@ -19,6 +19,7 @@ from blacksheep.server.bindings import (
     FromHeader,
     FromJSON,
     FromQuery,
+    FromServices,
 )
 from blacksheep.server.controllers import ApiController, delete, get, post
 from blacksheep.server.openapi.common import (
@@ -71,6 +72,14 @@ async def handle_test_exception(app, request, http_exception):
 
 
 app_two.exceptions_handlers[HandledException] = handle_test_exception
+
+
+@dataclass
+class SomeService:
+    pass
+
+
+app_two.services.add_transient(SomeService)
 
 
 class AdminRequirement(Requirement):
@@ -310,6 +319,13 @@ class Foo:
 
 
 @dataclass
+class UpdateFooInput:
+    name: str
+    cool: float
+    etag: Optional[str]
+
+
+@dataclass
 class FooList:
     items: List[Foo]
     total: int
@@ -494,6 +510,42 @@ class Cats(ApiController):
         @return:  a paginated set of cats.
         """
         ...
+
+    @post("/foo")
+    async def update_foo(self, foo_id: UUID, data: UpdateFooInput) -> Foo:
+        """
+        Updates a foo by id.
+
+        @param foo_id: the id of the album to update.
+        @param data: input for the update operation.
+        """
+
+    @docs(
+        request_body=RequestBodyInfo(
+            examples={
+                "basic": UpdateFooInput(
+                    name="Foo 2",
+                    cool=9000,
+                    etag="aaaaaaaa",
+                )
+            },
+        ),
+    )
+    @post("/foo2/{foo_id}")
+    async def update_foo2(
+        self,
+        foo_id: UUID,
+        data: UpdateFooInput,
+        some_service: FromServices[SomeService],
+    ) -> Foo:
+        """
+        Updates a foo by id.
+
+        @param foo_id: the id of the foo to update.
+        @param data: input for the update operation.
+        @param some_service: a service injected by dependency injection and used for
+               some reason.
+        """
 
     @docs.ignore()
     @get("/ignored")

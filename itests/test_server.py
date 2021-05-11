@@ -552,14 +552,116 @@ def test_open_api_deprecated(session_two):
     assert deprecated_api == {
         "get": {
             "responses": {},
-            "tags": [
-                "Cats",
-                "Deprecated"
-            ],
+            "tags": ["Cats", "Deprecated"],
             "operationId": "deprecated_api",
             "summary": "Some deprecated API",
             "description": "This endpoint is deprecated.",
             "parameters": [],
-            "deprecated": True
+            "deprecated": True,
+        }
+    }
+
+
+def test_open_api_request_body_description_from_docstring(session_two):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    paths = data.get("paths")
+    update_foo = paths.get("/api/cats/foo")
+
+    assert update_foo == {
+        "post": {
+            "responses": {
+                "200": {
+                    "description": "Success response",
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/Foo"}
+                        }
+                    },
+                }
+            },
+            "tags": ["Cats"],
+            "operationId": "update_foo",
+            "summary": "Updates a foo by id.",
+            "description": "Updates a foo by id.",
+            "parameters": [
+                {
+                    "name": "foo_id",
+                    "in": "query",
+                    "schema": {"type": "string", "format": "uuid", "nullable": False},
+                    "description": "the id of the album to update.",
+                    "required": True,
+                }
+            ],
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/UpdateFooInput"}
+                    }
+                },
+                "required": True,
+                "description": "input for the update operation.",
+            },
+        }
+    }
+
+
+def test_open_api_request_body_description_from_docstring_with_request_body(
+    session_two,
+):
+    response = session_two.get("/openapi.json")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    paths = data.get("paths")
+    update_foo = paths.get("/api/cats/foo2/{foo_id}")
+
+    assert update_foo == {
+        "post": {
+            "responses": {
+                "200": {
+                    "description": "Success response",
+                    "content": {
+                        "application/json": {
+                            "schema": {"$ref": "#/components/schemas/Foo"}
+                        }
+                    },
+                }
+            },
+            "tags": ["Cats"],
+            "operationId": "update_foo2",
+            "summary": "Updates a foo by id.",
+            "description": "Updates a foo by id.",
+            "parameters": [
+                {
+                    "name": "foo_id",
+                    "in": "path",
+                    "schema": {"type": "string", "format": "uuid", "nullable": False},
+                    "description": "the id of the foo to update.",
+                    "required": True,
+                }
+            ],
+            "requestBody": {
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/UpdateFooInput"},
+                        "examples": {
+                            "basic": {
+                                "value": {
+                                    "name": "Foo 2",
+                                    "cool": 9000,
+                                    "etag": "aaaaaaaa",
+                                }
+                            }
+                        },
+                    }
+                },
+                "required": True,
+                "description": "input for the update operation.",
+            },
         }
     }

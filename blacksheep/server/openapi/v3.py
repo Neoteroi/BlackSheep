@@ -49,6 +49,7 @@ from .common import (
     HeaderInfo,
     ParameterInfo,
     ParameterSource,
+    RequestBodyInfo,
     ResponseExample,
     ResponseInfo,
     ResponseStatusType,
@@ -73,6 +74,23 @@ def check_union(object_type: Any) -> Tuple[bool, Any]:
                 continue
             return True, possible_type
     return False, object_type
+
+
+def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> bool:
+    # if a binder is used, handle only those that can be mapped to a type of
+    # OpenAPI Documentation parameter's location
+    if matching_binder and not isinstance(
+        matching_binder,
+        (
+            QueryBinder,
+            RouteBinder,
+            HeaderBinder,
+            CookieBinder,
+        ),
+    ):
+        return True
+
+    return param_name == "request" or param_name == "services"
 
 
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
@@ -335,14 +353,22 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING, enum=[v.value for v in object_type])
         return None
 
+    def _get_body_binder(self, handler: Any) -> Optional[BodyBinder]:
+        return next(
+            (binder for binder in handler.binders if isinstance(binder, BodyBinder)),
+            None,
+        )
+
+    def _get_binder_by_name(self, handler: Any, name: str) -> Optional[Binder]:
+        return next(
+            (binder for binder in handler.binders if binder.parameter_name == name),
+            None,
+        )
+
     def get_request_body(self, handler: Any) -> Union[None, RequestBody, Reference]:
         if not hasattr(handler, "binders"):
             return None
-        binders: List[Binder] = handler.binders
-
-        body_binder = next(
-            (binder for binder in binders if isinstance(binder, BodyBinder)), None
-        )
+        body_binder = self._get_body_binder(handler)
 
         if body_binder is None:
             return None
@@ -550,6 +576,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def _merge_documentation(
         self,
+        handler,
         endpoint_docs: EndpointDocs,
         docstring_info: DocstringInfo,
     ) -> None:
@@ -562,9 +589,26 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         for param_name, param_info in docstring_info.parameters.items():
             if endpoint_docs.parameters is None:
                 endpoint_docs.parameters = {}
+
+            # did the user specify parameter information explicitly, using @docs?
             matching_parameter = endpoint_docs.parameters.get(param_name)
 
             if matching_parameter is None:
+                matching_binder = self._get_binder_by_name(handler, param_name)
+
+                if isinstance(matching_binder, BodyBinder):
+                    if endpoint_docs.request_body is None:
+                        endpoint_docs.request_body = RequestBodyInfo(
+                            description=param_info.description
+                        )
+                    elif not endpoint_docs.request_body.description:
+                        endpoint_docs.request_body.description = param_info.description
+                    continue
+
+                if is_ignored_parameter(param_name, matching_binder):
+                    # this must not be documented in OpenAPI Documentation!
+                    continue
+
                 assert isinstance(endpoint_docs.parameters, dict)
                 endpoint_docs.parameters[param_name] = ParameterInfo(
                     value_type=param_info.value_type,
@@ -589,7 +633,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if docstring_info is not None:
             if docs is None:
                 docs = self.get_handler_docs_or_set(handler)
-            self._merge_documentation(docs, docstring_info)
+            self._merge_documentation(handler, docs, docstring_info)
 
     def get_routes_docs(self, router: Router) -> Dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""

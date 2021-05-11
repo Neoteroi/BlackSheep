@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.4], [1.0.5] - 2021-05-11 :crown:
+## [1.0.5] - 2021-05-11 :crown:
+- Corrects details for documenting docstring parameters; i.e. supports
+  documenting `request_body` in the same way a s `parameters`, and properly
+  ignoring parameters handled by dependency injection and other kinds of bound
+  values that should not appera in OpenAPI Documentation.
+
+## [1.0.4] - 2021-05-09 :crown:
 - Adds the `Application.exception_handler` decorator which registers exception
   handler functions
 - Adds support for documenting parameters' descriptions, with support for

@@ -14,8 +14,12 @@ from blacksheep.server.bindings import (
     BodyBinder,
     CookieBinder,
     HeaderBinder,
+    IdentityBinder,
     QueryBinder,
+    RequestBinder,
     RouteBinder,
+    ServiceBinder,
+    SyncBinder,
     empty,
 )
 from blacksheep.server.openapi.exceptions import (
@@ -74,6 +78,23 @@ def check_union(object_type: Any) -> Tuple[bool, Any]:
                 continue
             return True, possible_type
     return False, object_type
+
+
+def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> bool:
+    # if a binder is used, handle only those that can be mapped to a type of
+    # OpenAPI Documentation parameter's location
+    if matching_binder and not isinstance(
+        matching_binder,
+        (
+            QueryBinder,
+            RouteBinder,
+            HeaderBinder,
+            CookieBinder,
+        ),
+    ):
+        return True
+
+    return param_name == "request" or param_name == "services"
 
 
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
@@ -342,6 +363,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             None,
         )
 
+    def _get_binder_by_name(self, handler: Any, name: str) -> Optional[Binder]:
+        return next(
+            (binder for binder in handler.binders if binder.parameter_name == name),
+            None,
+        )
+
     def get_request_body(self, handler: Any) -> Union[None, RequestBody, Reference]:
         if not hasattr(handler, "binders"):
             return None
@@ -566,18 +593,24 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         for param_name, param_info in docstring_info.parameters.items():
             if endpoint_docs.parameters is None:
                 endpoint_docs.parameters = {}
+
+            # did the user specify parameter information explicitly, using @docs?
             matching_parameter = endpoint_docs.parameters.get(param_name)
 
             if matching_parameter is None:
-                body_binder = self._get_body_binder(handler)
+                matching_binder = self._get_binder_by_name(handler, param_name)
 
-                if body_binder is not None and body_binder.parameter_name == param_name:
+                if isinstance(matching_binder, BodyBinder):
                     if endpoint_docs.request_body is None:
                         endpoint_docs.request_body = RequestBodyInfo(
                             description=param_info.description
                         )
                     elif not endpoint_docs.request_body.description:
                         endpoint_docs.request_body.description = param_info.description
+                    continue
+
+                if is_ignored_parameter(param_name, matching_binder):
+                    # this must not be documented in OpenAPI Documentation!
                     continue
 
                 assert isinstance(endpoint_docs.parameters, dict)

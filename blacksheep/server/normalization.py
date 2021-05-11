@@ -344,8 +344,6 @@ def get_parameter_binder(
 def _get_binders_for_function(
     method: Callable[..., Any], services: Services, route: Optional[Route]
 ) -> List[Binder]:
-    # signature = Signature.from_callable(method)
-    # parameters = signature.parameters
     parameters = _get_method_annotations_base(method)
     body_binder = None
 

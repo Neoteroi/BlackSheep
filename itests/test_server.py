@@ -618,7 +618,7 @@ def test_open_api_request_body_description_from_docstring_with_request_body(
     data = response.json()
 
     paths = data.get("paths")
-    update_foo = paths.get("/api/cats/foo2")
+    update_foo = paths.get("/api/cats/foo2/{foo_id}")
 
     assert update_foo == {
         "post": {
@@ -639,7 +639,7 @@ def test_open_api_request_body_description_from_docstring_with_request_body(
             "parameters": [
                 {
                     "name": "foo_id",
-                    "in": "query",
+                    "in": "path",
                     "schema": {"type": "string", "format": "uuid", "nullable": False},
                     "description": "the id of the foo to update.",
                     "required": True,

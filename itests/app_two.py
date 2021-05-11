@@ -19,6 +19,7 @@ from blacksheep.server.bindings import (
     FromHeader,
     FromJSON,
     FromQuery,
+    FromServices,
 )
 from blacksheep.server.controllers import ApiController, delete, get, post
 from blacksheep.server.openapi.common import (
@@ -71,6 +72,14 @@ async def handle_test_exception(app, request, http_exception):
 
 
 app_two.exceptions_handlers[HandledException] = handle_test_exception
+
+
+@dataclass
+class SomeService:
+    pass
+
+
+app_two.services.add_transient(SomeService)
 
 
 class AdminRequirement(Requirement):
@@ -522,13 +531,20 @@ class Cats(ApiController):
             },
         ),
     )
-    @post("/foo2")
-    async def update_foo2(self, foo_id: UUID, data: UpdateFooInput) -> Foo:
+    @post("/foo2/{foo_id}")
+    async def update_foo2(
+        self,
+        foo_id: UUID,
+        data: UpdateFooInput,
+        some_service: FromServices[SomeService],
+    ) -> Foo:
         """
         Updates a foo by id.
 
         @param foo_id: the id of the foo to update.
         @param data: input for the update operation.
+        @param some_service: a service injected by dependency injection and used for
+               some reason.
         """
 
     @docs.ignore()

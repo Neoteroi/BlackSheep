@@ -1,20 +1,8 @@
----
-name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
-assignees: ''
+##### _Note: consider using [Discussions](https://github.com/Neoteroi/BlackSheep/discussions) to open a conversation about new features…_
 
----
+## 🚀 Feature Request
 
----
-name: "🚀 Feature Request"
-about: "I have a suggestion (and may want to implement it \U0001F642)!"
-title: '''
-
----
-
-## Feature Request
+###  Description
 
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I have an issue when [...]

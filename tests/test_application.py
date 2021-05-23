@@ -2,15 +2,12 @@ import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
+from functools import wraps
 from typing import Any, Dict, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pkg_resources
 import pytest
-from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity, User
-from rodi import Container, inject
-
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
 from blacksheep.server.bindings import (
     ClientInfo,
@@ -27,11 +24,16 @@ from blacksheep.server.bindings import (
     ServerInfo,
 )
 from blacksheep.server.di import dependency_injection_middleware
+from blacksheep.server.normalization import ensure_response
 from blacksheep.server.responses import status_code, text
-from tests.utils.folder import ensure_folder
+from guardpost.asynchronous.authentication import AuthenticationHandler
+from guardpost.authentication import Identity, User
+from rodi import Container, inject
+
 from tests.utils.application import FakeApplication
-from tests.utils.scopes import get_example_scope
+from tests.utils.folder import ensure_folder
 from tests.utils.messages import MockMessage
+from tests.utils.scopes import get_example_scope
 
 
 class Item:
@@ -3528,3 +3530,76 @@ async def test_handles_on_start_error_asgi_lifespan(app, mock_send, mock_receive
 
 def test_register_controller_types_handle_empty_list(app):
     assert app.register_controllers([]) is None
+
+
+@pytest.mark.asyncio
+async def test_response_normalization_wrapped(app, mock_receive, mock_send):
+    app.use_cors(
+        allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
+    )
+
+    def headers(additional_headers):
+        def decorator(next_handler):
+            @wraps(next_handler)
+            async def wrapped(*args, **kwargs) -> Response:
+                response = ensure_response(await next_handler(*args, **kwargs))
+
+                for (name, value) in additional_headers:
+                    response.add_header(name.encode(), value.encode())
+
+                return response
+
+            return wrapped
+
+        return decorator
+
+    @app.router.get("/")
+    @headers((("X-Foo", "Foo"),))
+    async def home():
+        return "Hello, World"
+
+    await app.start()
+
+    await app(
+        get_example_scope("GET", "/", []),
+        mock_receive(),
+        mock_send,
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert response.headers.get_single(b"X-Foo") == b"Foo"
+    assert response.content.body == b"Hello, World"
+
+
+@pytest.mark.asyncio
+async def test_response_normalization_with_cors(app, mock_receive, mock_send):
+    app.use_cors(
+        allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
+    )
+
+    @app.router.get("/")
+    async def home():
+        return "Hello, World"
+
+    await app.start()
+
+    await app(
+        get_example_scope("GET", "/", []),
+        mock_receive(),
+        mock_send,
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert response.content.body == b"Hello, World"
+
+    await app(
+        get_example_scope("GET", "/", [(b"Origin", b"https://www.neoteroi.dev")]),
+        mock_receive(),
+        mock_send,
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert response.content.body == b"Hello, World"

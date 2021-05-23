@@ -177,6 +177,30 @@ async def test_cors_request(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
+async def test_cors_request_response_normalization(app, mock_receive, mock_send):
+    app.use_cors(
+        allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
+    )
+
+    @app.router.get("/")
+    async def home():
+        return "Hello, World"
+
+    await app.start()
+
+    for headers in ([], [(b"Origin", b"https://www.neoteroi.dev")]):
+        await app(
+            get_example_scope("GET", "/", headers),
+            mock_receive(),
+            mock_send,
+        )
+
+        response = app.response
+        assert response.status == 200
+        assert response.content.body == b"Hello, World"
+
+
+@pytest.mark.asyncio
 async def test_response_to_cors_request_contains_cors_headers(
     app, mock_receive, mock_send
 ):

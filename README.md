@@ -234,4 +234,4 @@ loop.run_until_complete(client_example(loop))
 Please refer to the [documentation website](https://www.neoteroi.dev/blacksheep/).
 
 ## Communication
-[BlackSheep community in Gitter](https://gitter.im/Neoteroi/BlackSheep)
+[BlackSheep community in Gitter](https://gitter.im/Neoteroi/BlackSheep).

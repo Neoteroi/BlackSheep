@@ -36,7 +36,7 @@ pluggy==0.13.1
 py==1.10.0
 pycodestyle==2.5.0
 pycparser==2.20
-pydantic==1.6.1
+pydantic==1.6.2
 pyflakes==2.1.1
 pyparsing==2.4.5
 pytest==6.2.4

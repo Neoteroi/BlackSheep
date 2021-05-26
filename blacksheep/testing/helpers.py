@@ -1,11 +1,4 @@
-from typing import Optional, List
-
-class MockSend:
-    def __init__(self):
-        self.messages = []
-
-    async def __call__(self, message):
-        self.messages.append(message)
+from typing import List, Optional
 
 
 def get_example_scope(

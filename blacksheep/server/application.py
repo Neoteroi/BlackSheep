@@ -595,6 +595,7 @@ class Application(BaseApplication):
         request = Request.incoming(
             scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
         )
+
         request.scope = scope
         request.content = ASGIContent(receive)
 

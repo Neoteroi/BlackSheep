@@ -1,9 +1,10 @@
 import abc
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from urllib import parse
 
 from blacksheep.contents import Content
 from blacksheep.messages import Request
+from blacksheep.server.application import Application
 from blacksheep.server.responses import Response
 from blacksheep.testing.helpers import get_example_scope
 
@@ -14,6 +15,7 @@ def _create_scope(
     headers: Optional[Dict[str, str]] = None,
     query: Optional[Dict[str, str]] = b"",
 ) -> Dict:
+    """Creates a mocked ASGI scope"""
     if headers is not None:
         headers = [(key.encode(), value.encode()) for key, value in headers.items()]
 
@@ -25,6 +27,8 @@ def _create_scope(
 
 
 class AbstractTestSimulator:
+    """An abstract class for custom Test simulator clients"""
+
     @abc.abstractmethod
     async def send_request(
         self,
@@ -34,11 +38,27 @@ class AbstractTestSimulator:
         query: Optional[Dict[str, str]] = b"",
         content: Optional[Content] = None,
     ):
+        """Entrypoint for all HTTP methods
+
+        The method is main entrypoint for all TestClient methods
+            - get
+            - post
+            - patch
+            - put
+            - delete
+        Then you can define an own TestClient, with the custom logic.
+        """
         pass
 
 
 class TestSimulator(AbstractTestSimulator):
-    def __init__(self, app):
+    """Base Test simulator class
+
+    The class introduces a fast "tests" for your server-side application,
+    it means that all incoming requests are mocked.
+    """
+
+    def __init__(self, app: Application):
         self.app = app
         self._prepare_application()
 
@@ -50,7 +70,6 @@ class TestSimulator(AbstractTestSimulator):
         query: Optional[Dict[str, str]] = b"",
         content: Optional[Content] = None,
     ) -> Response:
-
         scope = _create_scope(method, path, headers, query)
         request = Request.incoming(
             scope["method"],

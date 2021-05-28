@@ -38,7 +38,7 @@ from blacksheep.server.responses import (
 )
 from blacksheep.server.routing import RoutesRegistry
 from tests.test_files_serving import get_file_path
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 
 STATUS_METHODS_OPTIONAL_BODY = [
     (ok, 200),

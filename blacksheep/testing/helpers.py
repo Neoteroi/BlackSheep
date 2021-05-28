@@ -9,6 +9,8 @@ def get_example_scope(
     scheme: str = "http",
     server: Optional[List] = None,
 ):
+    """Returns mocked ASGI scope"""
+
     if "?" in path:
         raise ValueError("The path in ASGI messages does not contain query string")
     if query.startswith(b""):

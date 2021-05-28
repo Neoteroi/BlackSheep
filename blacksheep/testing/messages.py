@@ -27,3 +27,11 @@ class MockReceive:
             if (len(self.messages) == self.index or not message)
             else True,
         }
+
+
+class MockSend:
+    def __init__(self):
+        self.messages = []
+
+    async def __call__(self, message):
+        self.messages.append(message)

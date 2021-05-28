@@ -20,7 +20,7 @@ from pytest import raises
 
 from tests.test_files_serving import get_folder_path
 
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 
 
 class MockAuthHandler(AuthenticationHandler):

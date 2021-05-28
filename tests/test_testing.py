@@ -1,10 +1,26 @@
+from typing import Dict, Optional
+
 import pytest
 
+from blacksheep import Content
+from blacksheep.contents import JSONContent
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromHeader
-from blacksheep.contents import JSONContent
 from blacksheep.server.responses import Response
-from blacksheep.testing import TestClient
+from blacksheep.testing import AbstractTestSimulator, TestClient
+
+
+class CustomTestSimulator(AbstractTestSimulator):
+    async def send_request(
+        self,
+        method: str,
+        path: str,
+        headers: Optional[Dict[str, str]] = None,
+        query: Optional[Dict[str, str]] = b"",
+        content: Optional[Content] = None,
+    ):
+        if method == "GET":
+            return {"custom": "true"}
 
 
 @pytest.fixture
@@ -82,3 +98,13 @@ async def test_client_content_raise_error_if_incorrect_type(test_app):
     with pytest.raises(ValueError):
         test_client = TestClient(test_app)
         await test_client.post("/", content={"foo": "bar"})
+
+
+@pytest.mark.asyncio
+async def test_custom_test_simulator(test_app):
+    test_client = TestClient(test_app, test_simulator=CustomTestSimulator())
+
+    actual_response = await test_client.get("/")
+    expected_response = {"custom": "true"}
+
+    assert actual_response == expected_response

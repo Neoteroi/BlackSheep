@@ -30,8 +30,8 @@ from blacksheep.server.di import dependency_injection_middleware
 from blacksheep.server.responses import status_code, text
 from tests.utils.folder import ensure_folder
 from tests.utils.application import FakeApplication
-from tests.utils.scopes import get_example_scope
-from tests.utils.messages import MockMessage
+from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockMessage
 
 
 class Item:

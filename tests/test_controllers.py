@@ -14,7 +14,7 @@ from blacksheep.utils import ensure_str
 from guardpost.authentication import User
 from rodi import inject, Services
 
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 from tests.utils.application import FakeApplication
 
 

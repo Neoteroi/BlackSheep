@@ -1,13 +1,11 @@
 import abc
-import json
-from typing import Any, Dict, Optional
+from typing import Dict, List, Optional
 from urllib import parse
 
-from blacksheep.contents import ASGIContent
+from blacksheep.contents import Content
 from blacksheep.messages import Request
 from blacksheep.server.responses import Response
 from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive
 
 
 def _create_scope(
@@ -34,7 +32,7 @@ class AbstractTestSimulator:
         path: str,
         headers: Optional[Dict[str, str]] = None,
         query: Optional[Dict[str, str]] = b"",
-        content: Dict[str, Any] = None,
+        content: Optional[Content] = None,
     ):
         pass
 
@@ -50,7 +48,7 @@ class TestSimulator(AbstractTestSimulator):
         path: str,
         headers: Optional[Dict[str, str]] = None,
         query: Optional[Dict[str, str]] = b"",
-        content: Optional[Dict[str, Any]] = None,
+        content: Optional[Content] = None,
     ) -> Response:
 
         scope = _create_scope(method, path, headers, query)
@@ -64,8 +62,12 @@ class TestSimulator(AbstractTestSimulator):
         request.scope = scope
 
         if content is not None:
-            encoded_content = json.dumps(content).encode()
-            request.content = ASGIContent(MockReceive([encoded_content]))
+            if not isinstance(content, Content):
+                raise ValueError(
+                    "The content argument should be an instance of Content class"
+                )
+
+            request.content = content
 
         response = await self.app.handle(request)
 

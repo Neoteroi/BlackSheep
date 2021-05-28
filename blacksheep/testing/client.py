@@ -1,11 +1,16 @@
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
+from blacksheep.contents import Content
 from blacksheep.server.application import Application
 from blacksheep.server.responses import Response
 from blacksheep.testing.simulator import AbstractTestSimulator, TestSimulator
 
 
 class TestClient:
+    # Setting this dunder variable
+    # We tell to pytest don't discover this up
+    __test__ = False
+
     def __init__(
         self, app: Application, test_simulator: Optional[AbstractTestSimulator] = None
     ):
@@ -18,7 +23,11 @@ class TestClient:
         query: Optional[Dict[str, str]] = b"",
     ) -> Response:
         return await self._test_simulator.send_request(
-            method="GET", path=path, headers=headers, query=query, content=None
+            method="GET",
+            path=path,
+            headers=headers,
+            query=query,
+            content=None,
         )
 
     async def post(
@@ -26,10 +35,14 @@ class TestClient:
         path: str,
         headers: Optional[Dict[str, str]] = None,
         query: Optional[Dict[str, str]] = b"",
-        content: Optional[Dict[str, Any]] = None,
+        content: Optional[Content] = None,
     ) -> Response:
         return await self._test_simulator.send_request(
-            method="POST", path=path, headers=headers, query=query, content=content
+            method="POST",
+            path=path,
+            headers=headers,
+            query=query,
+            content=content,
         )
 
     async def patch(
@@ -37,10 +50,14 @@ class TestClient:
         path: str,
         headers: Optional[Dict[str, str]] = None,
         query: Optional[Dict[str, str]] = b"",
-        content: Optional[Dict[str, Any]] = None,
+        content: Optional[Content] = None,
     ) -> Response:
         return await self._test_simulator.send_request(
-            method="PATCH", path=path, headers=headers, query=query, content=content
+            method="PATCH",
+            path=path,
+            headers=headers,
+            query=query,
+            content=content,
         )
 
     async def put(
@@ -48,10 +65,14 @@ class TestClient:
         path: str,
         headers: Optional[Dict[str, str]] = None,
         query: Optional[Dict[str, str]] = b"",
-        content: Optional[Dict[str, Any]] = None,
+        content: Optional[Content] = None,
     ) -> Response:
         return await self._test_simulator.send_request(
-            method="PUT", path=path, headers=headers, query=query, content=content
+            method="PUT",
+            path=path,
+            headers=headers,
+            query=query,
+            content=content,
         )
 
     async def delete(
@@ -59,8 +80,12 @@ class TestClient:
         path: str,
         headers: Optional[Dict[str, str]] = None,
         query: Optional[Dict[str, str]] = b"",
-        content: Optional[Dict[str, Any]] = None,
+        content: Optional[Content] = None,
     ) -> Response:
         return await self._test_simulator.send_request(
-            method="DELETE", path=path, headers=headers, query=query, content=content
+            method="DELETE",
+            path=path,
+            headers=headers,
+            query=query,
+            content=content,
         )

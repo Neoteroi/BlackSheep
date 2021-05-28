@@ -513,7 +513,7 @@ def get_async_wrapper(
     return handler
 
 
-def get_async_wrapper_for_output(
+def _get_async_wrapper_for_output(
     method: Callable[[Request], Any],
 ) -> Callable[[Request], Awaitable[Response]]:
     @wraps(method)
@@ -552,7 +552,7 @@ def normalize_handler(
             # this scenario enables a more accurate automatic generation of
             # OpenAPI Documentation, for responses
             setattr(route.handler, "return_type", return_type)
-        normalized = get_async_wrapper_for_output(normalized)
+        normalized = _get_async_wrapper_for_output(normalized)
 
     if normalized is not method:
         setattr(normalized, "root_fn", method)

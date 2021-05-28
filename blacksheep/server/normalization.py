@@ -96,6 +96,27 @@ def _get_method_annotations_base(method):
 # endregion
 
 
+def ensure_response(result) -> Response:
+    """
+    When a request handler returns a result that is not an instance of Response,
+    this method normalizes the output of the method to be either `None`. or an instance
+    of `blacksheep.messages.Response` class.
+
+    Use this method in custom decorators for request handlers.
+    """
+    if result is None:
+        # later the application defaults to 204 No Content
+        return result
+
+    if not isinstance(result, Response):
+        # default to a plain text or JSON response
+        if isinstance(result, str):
+            return responses.text(result)
+        return responses.json(result)
+
+    return result
+
+
 class NormalizationError(Exception):
     ...
 
@@ -467,6 +488,7 @@ def get_async_wrapper(
 ) -> Callable[[Request], Awaitable[Response]]:
     if params_len == 0:
         # the user defined a request handler with no input
+        @wraps(method)
         async def handler(_):
             return await method()
 
@@ -491,24 +513,12 @@ def get_async_wrapper(
     return handler
 
 
-def get_async_wrapper_for_output(
+def _get_async_wrapper_for_output(
     method: Callable[[Request], Any],
 ) -> Callable[[Request], Awaitable[Response]]:
     @wraps(method)
     async def handler(request: Request) -> Response:
-        result = await method(request)
-
-        if result is None:
-            # later the application defaults to 204 No Content
-            return result
-
-        if not isinstance(result, Response):
-            # default to a plain text or JSON response
-            if isinstance(result, str):
-                return responses.text(result)
-            return responses.json(result)
-
-        return result
+        return ensure_response(await method(request))
 
     return handler
 
@@ -542,7 +552,7 @@ def normalize_handler(
             # this scenario enables a more accurate automatic generation of
             # OpenAPI Documentation, for responses
             setattr(route.handler, "return_type", return_type)
-        normalized = get_async_wrapper_for_output(normalized)
+        normalized = _get_async_wrapper_for_output(normalized)
 
     if normalized is not method:
         setattr(normalized, "root_fn", method)

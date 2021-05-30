@@ -63,7 +63,8 @@ jobs:
 
       - name: Test Hypercorn
         run: |
-          ASGI_SERVER=hypercorn pytest itests/test_server.py
+          export ASGI_SERVER=hypercorn
+          pytest itests/test_server.py
 
   build:
     strategy:

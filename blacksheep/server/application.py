@@ -594,7 +594,10 @@ class Application(BaseApplication):
         assert scope["type"] == "http"
 
         request = Request.incoming(
-            scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+            scope["method"],
+            scope["raw_path"],
+            scope["query_string"],
+            list(scope["headers"]),
         )
         request.scope = scope
         request.content = ASGIContent(receive)

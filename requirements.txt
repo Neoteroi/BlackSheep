@@ -52,9 +52,10 @@ toml==0.10.1
 typed-ast==1.4.3
 typing-extensions==3.7.4.1
 urllib3==1.25.8
-uvicorn==0.13.0
+uvicorn==0.13.4
 wcwidth==0.1.7
 websockets==8.1
 Werkzeug==0.16.0
 zipp==0.6.0
 uvloop==0.15.2; platform_system != "Windows"
+Hypercorn==0.11.2

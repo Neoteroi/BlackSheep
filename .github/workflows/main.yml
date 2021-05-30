@@ -61,6 +61,11 @@ jobs:
           flake8 tests
           pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
 
+      - name: Test Hypercorn
+        run: |
+          SET ASGI_SERVER=hypercorn
+          pytest itests/test_server.py
+
   build:
     strategy:
       fail-fast: false
@@ -104,6 +109,10 @@ jobs:
           flake8 blacksheep
           flake8 tests
           pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+
+      - name: Test Hypercorn
+        run: |
+          ASGI_SERVER=hypercorn pytest itests/test_server.py
 
       - name: Upload pytest test results
         uses: actions/upload-artifact@master

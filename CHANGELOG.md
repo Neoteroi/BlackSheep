@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   working (double leading "/" in `href`)
 - Provides a way to normalize request handlers' response type when using custom
   decorators (issue #135)
+- Adds support for testing Hypercorn and adds tests Hypercorn in GitHub Actions
 
 ## [1.0.5] - 2021-05-11 :crown:
 - Corrects details for documenting docstring parameters; i.e. supports

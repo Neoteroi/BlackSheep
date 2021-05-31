@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2021-??-??
+- Fixes bug [#156](https://github.com/Neoteroi/BlackSheep/issues/156),
+  preventing route parameters to work when the user doesn't follow Python
+  naming conventions
+
+
 ## [1.0.6] - 2021-05-30 :birthday:
 - Fixes bug [#153](https://github.com/Neoteroi/BlackSheep/issues/153),
   reintroducing compatibility with [Hypercorn](https://pgjones.gitlab.io/hypercorn/index.html)

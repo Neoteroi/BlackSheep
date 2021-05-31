@@ -236,7 +236,7 @@ class Route:
         if len(raw_pattern) > 1 and raw_pattern.endswith(b"/"):
             raw_pattern = raw_pattern.rstrip(b"/")
 
-        return raw_pattern.lower()
+        return raw_pattern
 
     def __repr__(self) -> str:
         return f"<Route {self.pattern.decode('utf8')}>"

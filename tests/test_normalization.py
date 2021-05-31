@@ -613,3 +613,23 @@ def test_normalization_with_service_json_route_param():
 
     assert isinstance(binders[2], ServiceBinder)
     assert binders[2].expected_type is SomeService
+
+
+def test_camel_case_route_parameter():
+    def handler(statusKey: FromRoute[str]):
+        ...
+
+    binders = get_binders(Route(b"/:statusKey", handler), Container().build_provider())
+
+    assert isinstance(binders[0], RouteBinder)
+    assert binders[0].parameter_name == "statusKey"
+
+
+def test_pascal_case_route_parameter():
+    def handler(StatusKey: FromRoute[str]):
+        ...
+
+    binders = get_binders(Route(b"/:StatusKey", handler), Container().build_provider())
+
+    assert isinstance(binders[0], RouteBinder)
+    assert binders[0].parameter_name == "StatusKey"

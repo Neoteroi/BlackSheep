@@ -51,7 +51,7 @@ six==1.13.0
 toml==0.10.1
 typed-ast==1.4.3
 typing-extensions==3.7.4.1
-urllib3==1.25.8
+urllib3==1.26.5
 uvicorn==0.13.4
 wcwidth==0.1.7
 websockets==8.1

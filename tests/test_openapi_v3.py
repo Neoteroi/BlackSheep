@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import ForwardRef, Optional, Union
-from openapidocs.common import Format
+from typing import ForwardRef, Generic, List, Optional, TypeVar, Union
 
 import pytest
 from blacksheep.server.application import Application
@@ -15,7 +14,27 @@ from blacksheep.server.openapi.exceptions import (
     UnsupportedUnionTypeException,
 )
 from blacksheep.server.openapi.v3 import OpenAPIHandler, check_union
+from openapidocs.common import Format
 from openapidocs.v3 import Info, Reference, Schema, ValueType
+
+T = TypeVar("T")
+
+
+@dataclass
+class PaginatedSet(Generic[T]):
+    items: List[T]
+    total: int
+
+
+@dataclass
+class Validated(Generic[T]):
+    data: T
+    error: str
+
+
+@dataclass
+class SubValidated(Generic[T]):
+    sub: Validated[T]
 
 
 class FooLevel(IntEnum):
@@ -217,3 +236,59 @@ def test_get_spec_path_raises_for_unsupported_preferred_format():
 
     with pytest.raises(OpenAPIEndpointException):
         docs.get_spec_path()
+
+
+def test_register_schema_for_generic_with_list():
+    docs = OpenAPIHandler(info=Info("Example", "0.0.1"))
+
+    docs.register_schema_for_type(PaginatedSet[Foo])
+
+    assert docs.components.schemas is not None
+    schema = docs.components.schemas["PaginatedSet<Foo>"]
+
+    assert isinstance(schema, Schema)
+
+    assert schema is not None
+
+
+def test_register_schema_for_multiple_generic_with_list():
+    docs = OpenAPIHandler(info=Info("Example", "0.0.1"))
+
+    docs.register_schema_for_type(PaginatedSet[Foo])
+    docs.register_schema_for_type(PaginatedSet[Ufo])
+
+    assert docs.components.schemas is not None
+    schema = docs.components.schemas["PaginatedSet<Foo>"]
+    assert isinstance(schema, Schema)
+
+    schema = docs.components.schemas["PaginatedSet<Ufo>"]
+    assert isinstance(schema, Schema)
+
+    assert schema is not None
+
+
+def test_register_schema_for_generic_with_property():
+    docs = OpenAPIHandler(info=Info("Example", "0.0.1"))
+
+    docs.register_schema_for_type(Validated[Foo])
+
+    assert docs.components.schemas is not None
+    schema = docs.components.schemas["Validated<Foo>"]
+
+    assert isinstance(schema, Schema)
+
+    assert schema is not None
+
+
+def test_register_schema_for_generic_sub_property():
+    docs = OpenAPIHandler(info=Info("Example", "0.0.1"))
+
+    docs.register_schema_for_type(Validated[Foo])
+    docs.register_schema_for_type(SubValidated[Foo])
+
+    assert docs.components.schemas is not None
+    schema = docs.components.schemas["SubValidated<Foo>"]
+
+    assert isinstance(schema, Schema)
+
+    assert schema is not None

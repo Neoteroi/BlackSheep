@@ -1,12 +1,22 @@
-from blacksheep.server.openapi.docstrings import (
-    DocstringInfo,
-    get_handler_docstring_info,
-)
 import inspect
+from collections.abc import Iterable
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import Any, Dict, ForwardRef, List, Mapping, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    ForwardRef,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    get_origin,
+    _GenericAlias as GenericAlias,
+)
 from uuid import UUID
 
 from blacksheep.server.bindings import (
@@ -17,6 +27,10 @@ from blacksheep.server.bindings import (
     QueryBinder,
     RouteBinder,
     empty,
+)
+from blacksheep.server.openapi.docstrings import (
+    DocstringInfo,
+    get_handler_docstring_info,
 )
 from blacksheep.server.openapi.exceptions import (
     DuplicatedContentTypeDocsException,
@@ -93,6 +107,21 @@ def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> 
     return param_name == "request" or param_name == "services"
 
 
+def _get_type_name(
+    object_type, context_type_args: Optional[Dict[Any, Type]] = None
+) -> str:
+    if context_type_args and object_type in context_type_args:
+        object_type = context_type_args.get(object_type)
+    if hasattr(object_type, "__name__"):
+        return object_type.__name__
+    if isinstance(object_type, GenericAlias):
+        origin = get_origin(object_type)
+        args = object_type.__args__
+        args_repr = ", ".join(_get_type_name(arg, context_type_args) for arg in args)
+        return f"{_get_type_name(origin)}<{args_repr}>"
+    return str(object_type)
+
+
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     """
     Handles the automatic generation of OpenAPI Documentation, specification v3
@@ -135,8 +164,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return self.get_routes_docs(app.router)
 
     def register_schema_for_type(self, object_type: Type) -> Reference:
-        if object_type in self._objects_references:
-            return self._objects_references[object_type]
+        stored_ref = self._get_stored_reference(object_type, None)
+        if stored_ref:
+            return stored_ref
 
         schema = self.get_schema_by_type(object_type)
         if isinstance(schema, Schema):
@@ -173,10 +203,15 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         """
         Method that implements automatic support for subclasses, handling Schema.allOf
         """
-        assert inspect.isclass(object_type)
+        if not inspect.isclass(object_type):
+            # can be a generic type - which is not a class in Python
+            if isinstance(object_type, GenericAlias):
+                object_type = get_origin(object_type)
+            else:
+                raise ValueError("Not supported")
         direct_parent = object_type.__mro__[1]
 
-        if direct_parent is object:
+        if direct_parent is object or direct_parent is Generic:
             return schema
 
         direct_parent_ref = self.register_schema_for_type(direct_parent)
@@ -189,11 +224,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             self.register_schema_for_type(inherited_class)
         return Schema(all_of=[direct_parent_ref, schema])
 
-    def _get_shema_for_dataclass(self, object_type: Type) -> Reference:
+    def _get_schema_for_dataclass(self, object_type: Type) -> Reference:
         assert is_dataclass(object_type)
 
-        if object_type in self._objects_references:
-            return self._objects_references[object_type]
+        stored_ref = self._get_stored_reference(object_type, None)
+        if stored_ref:
+            return stored_ref
 
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
@@ -211,6 +247,16 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else:
                 properties[field.name] = self.get_schema_by_type(child_type)
 
+        return self._handle_object_type(object_type, properties, required)
+
+    def _handle_object_type(
+        self,
+        object_type: Type,
+        properties: Dict[str, Union[Schema, Reference]],
+        required: List[str],
+        context_type_args: Optional[Dict[Any, Type]] = None,
+    ) -> Reference:
+        type_name = _get_type_name(object_type, context_type_args)
         reference = self._register_schema(
             self._handle_subclasses(
                 Schema(
@@ -220,18 +266,36 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 ),
                 object_type,
             ),
-            object_type.__name__,
+            type_name,
         )
         self._objects_references[object_type] = reference
+        self._objects_references[type_name] = reference
         return reference
+
+    def _get_stored_reference(
+        self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
+    ) -> Optional[Reference]:
+        if object_type in self._objects_references:
+            # if object_type is a generic, it can be like
+            # Example[~T] while type_args can have the information: {~T: Foo}
+            # in such case; check
+            return self._objects_references[object_type]
+
+        if type_args:
+            type_name = _get_type_name(object_type, type_args)
+            if type_name in self._objects_references:
+                return self._objects_references[type_name]
+
+        return None
 
     def _get_schema_for_pydantic_model(self, object_type: Type) -> Reference:
         assert BaseModel is not ..., "pydantic must be installed to use this method"
         assert issubclass(object_type, BaseModel)  # type: ignore
         assert hasattr(object_type, "__fields__")
 
-        if object_type in self._objects_references:
-            return self._objects_references[object_type]
+        stored_ref = self._get_stored_reference(object_type, None)
+        if stored_ref:
+            return stored_ref
 
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
@@ -243,31 +307,27 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 required.append(field.name)
             properties[field.name] = self.get_schema_by_type(child_type)
 
-        reference = self._register_schema(
-            self._handle_subclasses(
-                Schema(
-                    type=ValueType.OBJECT,
-                    required=required or None,
-                    properties=properties,
-                ),
-                object_type,
-            ),
-            object_type.__name__,
-        )
-        self._objects_references[object_type] = reference
-        return reference
+        return self._handle_object_type(object_type, properties, required)
 
-    def get_schema_by_type(self, object_type: Type[Any]) -> Union[Schema, Reference]:
+    def get_schema_by_type(
+        self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
+    ) -> Union[Schema, Reference]:
+        stored_ref = self._get_stored_reference(object_type, type_args)
+        if stored_ref:
+            return stored_ref
+
         is_optional, child_type = check_union(object_type)
-        schema = self._get_schema_by_type(child_type)
+        schema = self._get_schema_by_type(child_type, type_args)
         if isinstance(schema, Schema) and not is_optional:
             schema.nullable = is_optional
         return schema
 
-    def _get_schema_by_type(self, object_type: Type[Any]) -> Union[Schema, Reference]:
+    def _get_schema_by_type(
+        self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
+    ) -> Union[Schema, Reference]:
         # check_union
         if is_dataclass(object_type):
-            return self._get_shema_for_dataclass(object_type)
+            return self._get_schema_for_dataclass(object_type)
 
         if (
             BaseModel is not ...
@@ -280,7 +340,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             # Note: this code does not support different classes with the same name
             # but defined in different modules as contracts of the API
 
-            # Note: this is not supported in Swagger UI
+            # This is not supported in Swagger UI
             # https://github.com/swagger-api/swagger-ui/issues/3325
             ref_name = object_type.__forward_arg__  # type: ignore
             return Reference(f"#/components/schemas/{ref_name}")
@@ -289,9 +349,15 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if schema:
             return schema
 
-        schema = self._try_get_schema_for_iterable(object_type)
+        # List, Set, Tuple are handled first than GenericAlias
+        schema = self._try_get_schema_for_iterable(object_type, type_args)
         if schema:
             return schema
+
+        if isinstance(object_type, GenericAlias):
+            schema = self._try_get_schema_for_generic(object_type, type_args)
+            if schema:
+                return schema
 
         if inspect.isclass(object_type):
             schema = self._try_get_schema_for_enum(object_type)
@@ -322,29 +388,78 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         return None
 
-    def _try_get_schema_for_iterable(self, object_type: Type) -> Optional[Schema]:
+    def _try_get_schema_for_iterable(
+        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
+    ) -> Optional[Schema]:
         if object_type in {list, set, tuple}:
             # the user didn't specify the item type
             return Schema(type=ValueType.ARRAY, items=Schema(type=ValueType.STRING))
 
-        try:
-            object_type.__origin__  # type: ignore
-        except AttributeError:
-            pass
-        else:
-            # can be List, List[str] or list[str] (Python 3.9),
-            # note: it could also be union if it wasn't handled above for dataclasses
-            try:
-                type_args = object_type.__args__  # type: ignore
-            except AttributeError:  # pragma: no cover
-                item_type = str
-            else:
-                item_type = next(iter(type_args), str)
+        origin = get_origin(object_type)
 
-            return Schema(
-                type=ValueType.ARRAY, items=self.get_schema_by_type(item_type)
-            )
-        return None
+        if not origin or origin not in {list, set, tuple}:
+            return None
+
+        # can be List, List[str] or list[str] (Python 3.9),
+        # note: it could also be union if it wasn't handled above for dataclasses
+        try:
+            type_args = object_type.__args__  # type: ignore
+        except AttributeError:  # pragma: no cover
+            item_type = str
+        else:
+            item_type = next(iter(type_args), str)
+
+        # TODO: support mapping ~T to a parent context!!
+
+        if context_type_args and item_type in context_type_args:
+            item_type = context_type_args.get(item_type)
+
+        return Schema(
+            type=ValueType.ARRAY,
+            items=self.get_schema_by_type(item_type, context_type_args),
+        )
+
+    def _try_get_schema_for_generic(
+        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
+    ) -> Optional[Reference]:
+        origin = get_origin(object_type)
+
+        stored_ref = self._get_stored_reference(object_type, context_type_args)
+        if stored_ref:
+            return stored_ref
+
+        required: List[str] = []
+        properties: Dict[str, Union[Schema, Reference]] = {}
+
+        args = object_type.__args__
+        parameters = origin.__parameters__
+        type_args = dict(zip(parameters, args))
+
+        if context_type_args:
+            type_args.update(context_type_args)
+
+        # handle optional
+        for field in fields(origin):
+            is_optional, child_type = check_union(field.type)
+            if not is_optional:
+                required.append(field.name)
+
+            if child_type in type_args:
+                # example:
+                # class Foo(Generic[T]):
+                #    item: T
+                child_type = type_args.get(child_type)
+
+            if isinstance(child_type, str):
+                # this is a forward reference
+                child_type = child_type.strip("'")
+                properties[field.name] = Reference(f"#/components/schemas/{child_type}")
+            else:
+                properties[field.name] = self.get_schema_by_type(child_type, type_args)
+
+        return self._handle_object_type(
+            object_type, properties, required, context_type_args
+        )
 
     def _try_get_schema_for_enum(self, object_type: Type) -> Optional[Schema]:
         if issubclass(object_type, IntEnum):

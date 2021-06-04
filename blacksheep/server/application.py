@@ -226,7 +226,7 @@ class Application(BaseApplication):
         # stop the chain of middlewares and prevent extra logic from executing for
         # preflight requests (e.g. authentication logic)
         @self.router.options("*")
-        async def options_handler(request):
+        async def options_handler(request: Request) -> Response:
             return Response(404)
 
         # User defined catch-all OPTIONS request handlers are not supported when the
@@ -328,11 +328,12 @@ class Application(BaseApplication):
         return decorator
 
     def exception_handler(
-            self, exception: Union[int, Type[Exception]]
+        self, exception: Union[int, Type[Exception]]
     ) -> Callable[..., Any]:
         """
         Registers an exception handler function in the application exception handler.
         """
+
         def decorator(f):
             self.exceptions_handlers[exception] = f
             return f
@@ -593,7 +594,10 @@ class Application(BaseApplication):
         assert scope["type"] == "http"
 
         request = Request.incoming(
-            scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+            scope["method"],
+            scope["raw_path"],
+            scope["query_string"],
+            list(scope["headers"]),
         )
 
         request.scope = scope

@@ -78,7 +78,7 @@ def get_files_list_html_response(
         full_rel_path = html.escape(
             join_fragments(root_path, parent_folder_path, rel_path)
         )
-        info_lines.append(f'<li><a href="/{full_rel_path}">{rel_path}</a></li>')
+        info_lines.append(f'<li><a href="{full_rel_path}">{rel_path}</a></li>')
     info = "".join(info_lines)
     p = []
     whole_p = [root_path]
@@ -86,7 +86,7 @@ def get_files_list_html_response(
         if fragment:
             whole_p.append(html.escape(fragment))
             fragment_path = "/".join(whole_p)
-            p.append(f'<a href="/{fragment_path}">{html.escape(fragment)}</a>')
+            p.append(f'<a href="{fragment_path}">{html.escape(fragment)}</a>')
 
     # TODO: use chunked encoding here, yielding HTML fragments
     return Response(

@@ -20,7 +20,7 @@ class TestClient:
         self,
         path: str,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        query: Optional[Dict[str, str]] = None,
     ) -> Response:
         """Simulates HTTP GET method"""
         return await self._test_simulator.send_request(
@@ -35,7 +35,7 @@ class TestClient:
         self,
         path: str,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        query: Optional[Dict[str, str]] = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP POST method"""
@@ -51,7 +51,7 @@ class TestClient:
         self,
         path: str,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        query: Optional[Dict[str, str]] = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP PATCH method"""
@@ -67,7 +67,7 @@ class TestClient:
         self,
         path: str,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        query: Optional[Dict[str, str]] = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP PUT method"""
@@ -83,7 +83,7 @@ class TestClient:
         self,
         path: str,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        query: Optional[Dict[str, str]] = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP DELETE method"""

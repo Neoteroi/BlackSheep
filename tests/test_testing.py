@@ -23,6 +23,10 @@ class CustomTestSimulator(AbstractTestSimulator):
             return {"custom": "true"}
 
 
+async def _start_application(app):
+    await app.start()
+
+
 @pytest.fixture
 def test_app():
     return Application(show_error_details=True)
@@ -33,6 +37,8 @@ async def test_client_response(test_app):
     @test_app.route("/")
     async def home(request):
         return {"foo": "bar"}
+
+    await _start_application(test_app)
 
     test_client = TestClient(test_app)
     response = await test_client.get("/")
@@ -53,6 +59,8 @@ async def test_client_headers(test_app):
     async def home(request, test_header: FromTestHeader):
         return test_header.value
 
+    await _start_application(test_app)
+
     test_client = TestClient(test_app)
     response = await test_client.get("/", headers={"test_header": "foo"})
 
@@ -69,6 +77,8 @@ async def test_client_content(test_app):
         json_data = await request.json()
         return json_data
 
+    await _start_application(test_app)
+
     test_client = TestClient(test_app)
     response = await test_client.post("/", content=JSONContent({"foo": "bar"}))
 
@@ -84,6 +94,8 @@ async def test_client_queries(test_app):
     async def home(request):
         return request.query
 
+    await _start_application(test_app)
+
     test_client = TestClient(test_app)
     response = await test_client.get("/", query={"foo": "bar"})
 
@@ -96,8 +108,17 @@ async def test_client_queries(test_app):
 @pytest.mark.asyncio
 async def test_client_content_raise_error_if_incorrect_type(test_app):
     with pytest.raises(ValueError):
+        await _start_application(test_app)
+
         test_client = TestClient(test_app)
+
         await test_client.post("/", content={"foo": "bar"})
+
+
+@pytest.mark.asyncio
+async def test_client_application_not_started_error(test_app):
+    with pytest.raises(AssertionError):
+        TestClient(test_app)
 
 
 @pytest.mark.asyncio
@@ -108,3 +129,29 @@ async def test_custom_test_simulator(test_app):
     expected_response = {"custom": "true"}
 
     assert actual_response == expected_response
+
+
+@pytest.mark.parametrize(
+    "method, expected_method",
+    [
+        ("GET", "GET"),
+        ("POST", "POST"),
+        ("PATCH", "PATCH"),
+        ("PUT", "PUT"),
+        ("DELETE", "DELETE"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_client_methods(test_app, method, expected_method):
+    @test_app.route("/", methods=[method])
+    async def home(request):
+        return request.method
+
+    await _start_application(test_app)
+
+    client = TestClient(test_app)
+    response = await getattr(client, method.lower())("/")
+
+    actual_method = await response.text()
+
+    assert actual_method == expected_method

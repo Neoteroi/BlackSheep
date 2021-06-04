@@ -13,14 +13,13 @@ def _create_scope(
     method: str,
     path: str,
     headers: Optional[Dict[str, str]] = None,
-    query: Optional[Dict[str, str]] = b"",
+    query: Optional[Dict[str, str]] = None,
 ) -> Dict:
     """Creates a mocked ASGI scope"""
     if headers is not None:
         headers = [(key.encode(), value.encode()) for key, value in headers.items()]
 
-    if query:
-        query = parse.urlencode(query).encode()
+    query = parse.urlencode(query).encode() if query else b""
 
     scope = get_example_scope(method, path, extra_headers=headers, query=query)
     return scope
@@ -35,7 +34,7 @@ class AbstractTestSimulator:
         method: str,
         path: str,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        query: Optional[Dict[str, str]] = None,
         content: Optional[Content] = None,
     ):
         """Entrypoint for all HTTP methods
@@ -60,14 +59,14 @@ class TestSimulator(AbstractTestSimulator):
 
     def __init__(self, app: Application):
         self.app = app
-        self._prepare_application()
+        self._is_started_app()
 
     async def send_request(
         self,
         method: str,
         path: str,
         headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        query: Optional[Dict[str, str]] = None,
         content: Optional[Content] = None,
     ) -> Response:
         scope = _create_scope(method, path, headers, query)
@@ -92,9 +91,7 @@ class TestSimulator(AbstractTestSimulator):
 
         return response
 
-    def _prepare_application(self):
-        if self.app._service_provider is None:
-            self.app.build_services()
-            self.app.normalize_handlers()
-            self.app.use_controllers()
-            self.app.configure_middlewares()
+    def _is_started_app(self):
+        assert (
+            self.app.started
+        ), "The BlackSheep application is not started, use Application.start method"

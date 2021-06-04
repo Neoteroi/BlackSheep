@@ -38,7 +38,6 @@ from blacksheep.testing.messages import MockMessage
 from tests.utils.folder import ensure_folder
 
 
-
 class Item:
     def __init__(self, a, b, c):
         self.a = a

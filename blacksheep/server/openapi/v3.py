@@ -1,4 +1,5 @@
 import inspect
+import warnings
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
@@ -15,6 +16,7 @@ from typing import (
     Union,
     get_origin,
     _GenericAlias as GenericAlias,
+    get_type_hints,
 )
 from uuid import UUID
 
@@ -161,7 +163,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 self.get_type_name(arg, context_type_args) for arg in args
             )
             return f"{self.get_type_name(origin)}<{args_repr}>"
-        return str(object_type)
+        raise ValueError(
+            f"Cannot obtain a name for object_type parameter: {object_type!r}"
+        )
 
     def register_schema_for_type(self, object_type: Type) -> Reference:
         stored_ref = self._get_stored_reference(object_type, None)
@@ -170,7 +174,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         schema = self.get_schema_by_type(object_type)
         if isinstance(schema, Schema):
-            return self._register_schema(schema, object_type.__name__)
+            return self._register_schema(schema, self.get_type_name(object_type))
         return schema
 
     def _register_schema(self, schema: Schema, name: str) -> Reference:
@@ -227,25 +231,22 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def _get_schema_for_dataclass(self, object_type: Type) -> Reference:
         assert is_dataclass(object_type)
 
-        stored_ref = self._get_stored_reference(object_type, None)
-        if stored_ref:
-            return stored_ref
-
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
 
-        # handle optional
         for field in fields(object_type):
             is_optional, child_type = check_union(field.type)
             if not is_optional:
                 required.append(field.name)
 
             if isinstance(child_type, str):
-                # this is a forward reference
-                child_type = child_type.strip("'")
-                properties[field.name] = Reference(f"#/components/schemas/{child_type}")
-            else:
-                properties[field.name] = self.get_schema_by_type(child_type)
+                # this is a forward reference, we need to obtain a full type here
+                annotations = get_type_hints(object_type)
+
+                if field.name in annotations:
+                    child_type = annotations[field.name]
+
+            properties[field.name] = self.get_schema_by_type(child_type)
 
         return self._handle_object_type(object_type, properties, required)
 
@@ -292,10 +293,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         assert BaseModel is not ..., "pydantic must be installed to use this method"
         assert issubclass(object_type, BaseModel)  # type: ignore
         assert hasattr(object_type, "__fields__")
-
-        stored_ref = self._get_stored_reference(object_type, None)
-        if stored_ref:
-            return stored_ref
 
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
@@ -409,8 +406,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         else:
             item_type = next(iter(type_args), str)
 
-        # TODO: support mapping ~T to a parent context!!
-
         if context_type_args and item_type in context_type_args:
             item_type = context_type_args.get(item_type)
 
@@ -424,10 +419,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> Optional[Reference]:
         origin = get_origin(object_type)
 
-        stored_ref = self._get_stored_reference(object_type, context_type_args)
-        if stored_ref:
-            return stored_ref
-
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
 
@@ -435,14 +426,21 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         parameters = origin.__parameters__
         type_args = dict(zip(parameters, args))
 
-        if context_type_args:
-            type_args.update(context_type_args)
-
-        # handle optional
         for field in fields(origin):
             is_optional, child_type = check_union(field.type)
             if not is_optional:
                 required.append(field.name)
+
+            if isinstance(child_type, str):
+                warnings.warn(
+                    f"The return type {object_type!r} contains a forward reference "
+                    f"for {field.name}. Forward references in Generic types are not "
+                    "supported for automatic generation of OpenAPI Documentation. "
+                    "For more information see "
+                    "https://www.neoteroi.dev/blacksheep/openapi/",
+                    UserWarning,
+                )
+                return None
 
             if child_type in type_args:
                 # example:
@@ -450,12 +448,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 #    item: T
                 child_type = type_args.get(child_type)
 
-            if isinstance(child_type, str):
-                # this is a forward reference
-                child_type = child_type.strip("'")
-                properties[field.name] = Reference(f"#/components/schemas/{child_type}")
-            else:
-                properties[field.name] = self.get_schema_by_type(child_type, type_args)
+            properties[field.name] = self.get_schema_by_type(child_type, type_args)
 
         return self._handle_object_type(
             object_type, properties, required, context_type_args

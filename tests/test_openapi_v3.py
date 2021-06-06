@@ -70,6 +70,17 @@ class Ufo:
     c: str
 
 
+@dataclass
+class ForwardRefExample:
+    value: "PaginatedSet[Cat]"
+
+
+@dataclass
+class GenericWithForwardRefExample(Generic[T]):
+    ufo: "Ufo"
+    value: "PaginatedSet[T]"
+
+
 @pytest.fixture
 def app() -> Application:
     app = Application()
@@ -596,3 +607,169 @@ components:
                     $ref: '#/components/schemas/Foo'
 """.strip()
     )
+
+
+@pytest.mark.asyncio
+async def test_register_schema_for_generic_with_list_reusing_ref(
+    app: Application, docs: OpenAPIHandler, serializer: Serializer
+):
+    @app.route("/one")
+    def one() -> PaginatedSet[Cat]:
+        ...
+
+    @app.route("/two")
+    def two() -> PaginatedSet[Cat]:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /one:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSet<Cat>'
+            operationId: one
+    /two:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSet<Cat>'
+            operationId: two
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSet<Cat>:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+""".strip()
+    )
+
+
+def test_get_type_name_raises_for_invalid_object_type(docs: OpenAPIHandler):
+    with pytest.raises(ValueError):
+        docs.get_type_name(10)
+
+
+@pytest.mark.asyncio
+async def test_handling_of_forward_references(
+    app: Application, docs: OpenAPIHandler, serializer: Serializer
+):
+    @app.route("/")
+    def forward_ref_example() -> ForwardRefExample:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ForwardRefExample'
+            operationId: forward_ref_example
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSet<Cat>:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        ForwardRefExample:
+            type: object
+            required:
+            - value
+            properties:
+                value:
+                    $ref: '#/components/schemas/PaginatedSet<Cat>'
+""".strip()
+    )
+
+
+def test_handling_of_generic_with_forward_references(docs: OpenAPIHandler):
+    with pytest.warns(UserWarning):
+        docs.register_schema_for_type(GenericWithForwardRefExample[Cat])
+
+
+def test_handle_subclasses_raises_for_invalid_value(docs: OpenAPIHandler):
+    with pytest.raises(ValueError):
+        docs._handle_subclasses(Schema(), "foo")  # type: ignore

@@ -29,7 +29,7 @@ def get_example_headers():
         ),
         (
             b"accept",
-            (b"text/html,application/xhtml+xml," b"application/xml;q=0.9,*/*;q=0.8"),
+            b"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         ),
         (b"accept-language", b"en-US,en;q=0.9,it-IT;q=0.8,it;q=0.7"),
         (b"accept-encoding", b"gzip, deflate"),
@@ -142,7 +142,7 @@ async def test_connection_handle_expect_100_continue_and_1xx(
 
     request = Request(
         "POST",
-        b"/",
+        b"https://www.neoteroi.dev/foo",
         headers=[(b"content-type", b"application/json"), (b"expect", b"100-continue")],
     ).with_content(JSONContent({"id": "1", "name": "foo"}))
 
@@ -163,7 +163,7 @@ async def test_connection_handle_expect_100_continue_and_1xx(
 
     assert (
         connection.transport.messages[0]
-        == b"POST / HTTP/1.1\r\ncontent-type: application/json\r\nexpect: 100-continue\r\n\r\n"
+        == b"POST /foo HTTP/1.1\r\ncontent-type: application/json\r\nexpect: 100-continue\r\nhost: www.neoteroi.dev\r\n\r\n"
     )
     assert connection.transport.messages[1] == b'{"id":"1","name":"foo"}'
 

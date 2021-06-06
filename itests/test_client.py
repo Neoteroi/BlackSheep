@@ -18,7 +18,7 @@ def ensure_success(response: Response):
 
 
 @pytest.mark.asyncio
-async def test_get_plain_text(session, event_loop):
+async def test_get_plain_text(session):
     for _ in range(5):
         response = await session.get("/hello-world")
         ensure_success(response)
@@ -36,7 +36,7 @@ async def test_get_wikipedia_home(session):
 
 
 @pytest.mark.asyncio
-async def test_get_plain_text_stream(session, event_loop):
+async def test_get_plain_text_stream(session):
     response = await session.get("/hello-world")
     ensure_success(response)
 

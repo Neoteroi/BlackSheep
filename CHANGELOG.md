@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixes bug [#156](https://github.com/Neoteroi/BlackSheep/issues/156),
   preventing route parameters to work when the user doesn't follow Python
   naming conventions
+- Adds support for automatic generation of OpenAPI Documentation for `Generic`
+  types
 
 ## [1.0.6] - 2021-05-30 :birthday:
 - Fixes bug [#153](https://github.com/Neoteroi/BlackSheep/issues/153),

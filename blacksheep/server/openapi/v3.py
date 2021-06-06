@@ -1,5 +1,4 @@
 import inspect
-from collections.abc import Iterable
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
@@ -107,21 +106,6 @@ def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> 
     return param_name == "request" or param_name == "services"
 
 
-def _get_type_name(
-    object_type, context_type_args: Optional[Dict[Any, Type]] = None
-) -> str:
-    if context_type_args and object_type in context_type_args:
-        object_type = context_type_args.get(object_type)
-    if hasattr(object_type, "__name__"):
-        return object_type.__name__
-    if isinstance(object_type, GenericAlias):
-        origin = get_origin(object_type)
-        args = object_type.__args__
-        args_repr = ", ".join(_get_type_name(arg, context_type_args) for arg in args)
-        return f"{_get_type_name(origin)}<{args_repr}>"
-    return str(object_type)
-
-
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     """
     Handles the automatic generation of OpenAPI Documentation, specification v3
@@ -162,6 +146,22 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def get_paths(self, app: Application) -> Dict[str, PathItem]:
         return self.get_routes_docs(app.router)
+
+    def get_type_name(
+        self, object_type, context_type_args: Optional[Dict[Any, Type]] = None
+    ) -> str:
+        if context_type_args and object_type in context_type_args:
+            object_type = context_type_args.get(object_type)
+        if hasattr(object_type, "__name__"):
+            return object_type.__name__
+        if isinstance(object_type, GenericAlias):
+            origin = get_origin(object_type)
+            args = object_type.__args__
+            args_repr = ", ".join(
+                self.get_type_name(arg, context_type_args) for arg in args
+            )
+            return f"{self.get_type_name(origin)}<{args_repr}>"
+        return str(object_type)
 
     def register_schema_for_type(self, object_type: Type) -> Reference:
         stored_ref = self._get_stored_reference(object_type, None)
@@ -256,7 +256,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         required: List[str],
         context_type_args: Optional[Dict[Any, Type]] = None,
     ) -> Reference:
-        type_name = _get_type_name(object_type, context_type_args)
+        type_name = self.get_type_name(object_type, context_type_args)
         reference = self._register_schema(
             self._handle_subclasses(
                 Schema(
@@ -282,7 +282,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return self._objects_references[object_type]
 
         if type_args:
-            type_name = _get_type_name(object_type, type_args)
+            type_name = self.get_type_name(object_type, type_args)
             if type_name in self._objects_references:
                 return self._objects_references[type_name]
 

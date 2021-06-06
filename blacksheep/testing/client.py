@@ -94,3 +94,51 @@ class TestClient:
             query=query,
             content=content,
         )
+
+    async def options(
+        self,
+        path: str,
+        headers: Optional[Dict[str, str]] = None,
+        query: Optional[Dict[str, str]] = None,
+        content: Optional[Content] = None,
+    ) -> Response:
+        """Simulates HTTP OPTIONS method"""
+        return await self._test_simulator.send_request(
+            method="OPTIONS",
+            path=path,
+            headers=headers,
+            query=query,
+            content=content,
+        )
+
+    async def head(
+        self,
+        path: str,
+        headers: Optional[Dict[str, str]] = None,
+        query: Optional[Dict[str, str]] = None,
+        content: Optional[Content] = None,
+    ) -> Response:
+        """Simulates HTTP HEAD method"""
+        return await self._test_simulator.send_request(
+            method="HEAD",
+            path=path,
+            headers=headers,
+            query=query,
+            content=content,
+        )
+
+    async def trace(
+        self,
+        path: str,
+        headers: Optional[Dict[str, str]] = None,
+        query: Optional[Dict[str, str]] = None,
+        content: Optional[Content] = None,
+    ) -> Response:
+        """Simulates HTTP TRACE method"""
+        return await self._test_simulator.send_request(
+            method="TRACE",
+            path=path,
+            headers=headers,
+            query=query,
+            content=content,
+        )

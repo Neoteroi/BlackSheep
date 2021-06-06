@@ -8,6 +8,7 @@ from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromHeader
 from blacksheep.server.responses import Response
 from blacksheep.testing import AbstractTestSimulator, TestClient
+from blacksheep.testing.helpers import get_example_scope
 
 
 class CustomTestSimulator(AbstractTestSimulator):
@@ -139,6 +140,9 @@ async def test_custom_test_simulator(test_app):
         ("PATCH", "PATCH"),
         ("PUT", "PUT"),
         ("DELETE", "DELETE"),
+        ("OPTIONS", "OPTIONS"),
+        ("TRACE", "TRACE"),
+        ("HEAD", "HEAD"),
     ],
 )
 @pytest.mark.asyncio
@@ -155,3 +159,8 @@ async def test_client_methods(test_app, method, expected_method):
     actual_method = await response.text()
 
     assert actual_method == expected_method
+
+
+def test_get_example_scope_raise_error_if_query_provided():
+    with pytest.raises(ValueError):
+        get_example_scope("GET", "/test?")

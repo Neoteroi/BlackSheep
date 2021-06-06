@@ -47,7 +47,6 @@ class AbstractTestSimulator:
             - delete
         Then you can define an own TestClient, with the custom logic.
         """
-        pass
 
 
 class TestSimulator(AbstractTestSimulator):

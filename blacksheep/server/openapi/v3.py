@@ -1,6 +1,7 @@
 import inspect
 import warnings
-from dataclasses import fields, is_dataclass
+import collections.abc as collections_abc
+from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
 from typing import (
@@ -108,6 +109,22 @@ def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> 
     return param_name == "request" or param_name == "services"
 
 
+@dataclass
+class FieldInfo:
+    name: str
+    type: Type
+
+
+def _is_pydantic_model(object_type: Any) -> bool:
+    if (
+        BaseModel is not ...
+        and inspect.isclass(object_type)
+        and issubclass(object_type, BaseModel)  # type: ignore
+    ):
+        return True
+    return False
+
+
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     """
     Handles the automatic generation of OpenAPI Documentation, specification v3
@@ -192,15 +209,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return Reference(f"#/components/schemas/{name}")
 
     def _is_handled_object_type(self, object_type) -> bool:
-        if is_dataclass(object_type):
+        # TODO: put in a dedicated handler class, so that the user of the library
+        # can implement more objects handlers!
+        if is_dataclass(object_type) or _is_pydantic_model(object_type):
             return True
 
-        if (
-            BaseModel is not ...
-            and inspect.isclass(object_type)
-            and issubclass(object_type, BaseModel)  # type: ignore
-        ):
-            return True
         return False
 
     def _handle_subclasses(self, schema: Schema, object_type: Type) -> Schema:
@@ -215,7 +228,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 raise ValueError("Not supported")
         direct_parent = object_type.__mro__[1]
 
-        if direct_parent is object or direct_parent is Generic:
+        if (
+            direct_parent is object
+            or direct_parent is Generic
+            or direct_parent is BaseModel
+        ):
             return schema
 
         direct_parent_ref = self.register_schema_for_type(direct_parent)
@@ -228,13 +245,15 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             self.register_schema_for_type(inherited_class)
         return Schema(all_of=[direct_parent_ref, schema])
 
-    def _get_schema_for_dataclass(self, object_type: Type) -> Reference:
-        assert is_dataclass(object_type)
+    def _get_schema_for_dataclass_or_pydantic_model(
+        self, object_type: Type
+    ) -> Reference:
+        assert is_dataclass(object_type) or _is_pydantic_model(object_type)
 
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
 
-        for field in fields(object_type):
+        for field in self._get_fields(object_type):
             is_optional, child_type = check_union(field.type)
             if not is_optional:
                 required.append(field.name)
@@ -289,23 +308,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         return None
 
-    def _get_schema_for_pydantic_model(self, object_type: Type) -> Reference:
-        assert BaseModel is not ..., "pydantic must be installed to use this method"
-        assert issubclass(object_type, BaseModel)  # type: ignore
-        assert hasattr(object_type, "__fields__")
-
-        required: List[str] = []
-        properties: Dict[str, Union[Schema, Reference]] = {}
-        fields = object_type.__fields__  # type: ignore
-
-        for field in fields.values():
-            is_optional, child_type = check_union(field.type_)
-            if not is_optional:
-                required.append(field.name)
-            properties[field.name] = self.get_schema_by_type(child_type)
-
-        return self._handle_object_type(object_type, properties, required)
-
     def get_schema_by_type(
         self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
     ) -> Union[Schema, Reference]:
@@ -324,14 +326,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> Union[Schema, Reference]:
         # check_union
         if is_dataclass(object_type):
-            return self._get_schema_for_dataclass(object_type)
+            return self._get_schema_for_dataclass_or_pydantic_model(object_type)
 
-        if (
-            BaseModel is not ...
-            and inspect.isclass(object_type)
-            and issubclass(object_type, BaseModel)  # type: ignore
-        ):
-            return self._get_schema_for_pydantic_model(object_type)
+        if _is_pydantic_model(object_type):
+            return self._get_schema_for_dataclass_or_pydantic_model(object_type)
 
         if isinstance(object_type, ForwardRef):
             # Note: this code does not support different classes with the same name
@@ -394,7 +392,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         origin = get_origin(object_type)
 
-        if not origin or origin not in {list, set, tuple}:
+        if not origin or origin not in {list, set, tuple, collections_abc.Sequence}:
             return None
 
         # can be List, List[str] or list[str] (Python 3.9),
@@ -414,6 +412,19 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             items=self.get_schema_by_type(item_type, context_type_args),
         )
 
+    def _get_fields(self, object_type: Any) -> List[FieldInfo]:
+        if is_dataclass(object_type):
+            return [FieldInfo(field.name, field.type) for field in fields(object_type)]
+
+        if _is_pydantic_model(object_type):
+            type_fields = object_type.__fields__  # type: ignore
+            return [
+                FieldInfo(field.name, field.outer_type_)
+                for field in type_fields.values()
+            ]
+
+        return []
+
     def _try_get_schema_for_generic(
         self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
     ) -> Optional[Reference]:
@@ -426,7 +437,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         parameters = origin.__parameters__
         type_args = dict(zip(parameters, args))
 
-        for field in fields(origin):
+        for field in self._get_fields(origin):
             is_optional, child_type = check_union(field.type)
             if not is_optional:
                 required.append(field.name)

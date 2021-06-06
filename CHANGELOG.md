@@ -6,11 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.7] - 2021-??-??
+- Adds a `TestClient` class that simplifies testing of applications
 - Fixes bug [#156](https://github.com/Neoteroi/BlackSheep/issues/156),
   preventing route parameters to work when the user doesn't follow Python
   naming conventions
 - Adds support for automatic generation of OpenAPI Documentation for `Generic`
   types
+- Improves generation of OpenAPI Documentation for `pydantic` types
 
 ## [1.0.6] - 2021-05-30 :birthday:
 - Fixes bug [#153](https://github.com/Neoteroi/BlackSheep/issues/153),

@@ -1,7 +1,6 @@
-from blacksheep.server.routing import RoutesRegistry
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import ForwardRef, Generic, List, Optional, TypeVar, Union
+from typing import ForwardRef, Generic, List, Optional, Sequence, TypeVar, Union
 
 import pytest
 from blacksheep.server.application import Application
@@ -15,11 +14,28 @@ from blacksheep.server.openapi.exceptions import (
     UnsupportedUnionTypeException,
 )
 from blacksheep.server.openapi.v3 import OpenAPIHandler, check_union
+from blacksheep.server.routing import RoutesRegistry
 from openapidocs.common import Format, Serializer
 from openapidocs.v3 import Info, Reference, Schema, ValueType
+from pydantic import BaseModel
 
 T = TypeVar("T")
 U = TypeVar("U")
+
+
+class PydCat(BaseModel):
+    id: int
+    name: str
+
+
+class PydPaginatedSet(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+
+
+class PlainClass:
+    id: int
+    name: str
 
 
 @dataclass
@@ -761,6 +777,231 @@ components:
             properties:
                 value:
                     $ref: '#/components/schemas/PaginatedSet<Cat>'
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handling_of_normal_class(
+    app: Application, docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    Plain classes are simply ignored, since their handling would be ambiguous:
+    should the library inspect type annotations, __dict__?
+    (in fact, the built-in json module throws for them).
+    """
+
+    @app.route("/")
+    def plain_class() -> PlainClass:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                nullable: false
+            operationId: plain_class
+components: {}
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handling_of_pydantic_generic_class(
+    app: Application, docs: OpenAPIHandler, serializer: Serializer
+):
+    @app.route("/")
+    def home() -> PydPaginatedSet[Cat]:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydPaginatedSet<Cat>'
+            operationId: home
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PydPaginatedSet<Cat>:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handling_of_pydantic_class_in_generic(
+    app: Application, docs: OpenAPIHandler, serializer: Serializer
+):
+    @app.route("/")
+    def home() -> PaginatedSet[PydCat]:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSet<PydCat>'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSet<PydCat>:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handling_of_sequence(
+    app: Application, docs: OpenAPIHandler, serializer: Serializer
+):
+    @app.route("/")
+    def home() -> Sequence[Cat]:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                nullable: false
+                                items:
+                                    $ref: '#/components/schemas/Cat'
+            operationId: home
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
 """.strip()
     )
 

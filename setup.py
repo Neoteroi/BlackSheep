@@ -38,10 +38,13 @@ setup(
         "blacksheep.server",
         "blacksheep.server.files",
         "blacksheep.server.res",
+        "blacksheep.server.openapi",
         "blacksheep.client",
         "blacksheep.common",
         "blacksheep.common.files",
         "blacksheep.sessions",
+        "blacksheep.testing",
+        "blacksheep.utils",
     ],
     ext_modules=[
         Extension(

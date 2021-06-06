@@ -22,7 +22,7 @@ from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
 from essentials.folders import get_file_extension
 
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 
 
 def get_folder_path(folder_name: str) -> str:

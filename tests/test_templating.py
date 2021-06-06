@@ -14,9 +14,9 @@ from blacksheep.server.templating import (
 from jinja2 import PackageLoader
 from pydantic import BaseModel
 
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 from tests.utils.application import FakeApplication
-from tests.utils.messages import MockReceive, MockSend
+from blacksheep.testing.messages import MockReceive, MockSend
 
 
 def get_app(enable_async):

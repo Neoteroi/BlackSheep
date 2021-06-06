@@ -8,7 +8,7 @@ from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
 from blacksheep.sessions.crypto import FernetEncryptor
 from cryptography.fernet import Fernet
 
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 
 
 def test_friendly_exception_for_request_without_session():

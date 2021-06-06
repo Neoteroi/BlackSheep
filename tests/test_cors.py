@@ -11,7 +11,7 @@ from blacksheep.server.cors import (
 from blacksheep.server.responses import text
 from blacksheep.server.routing import Router
 
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 
 
 def test_app_raises_type_error_for_cors_property(app):

@@ -31,9 +31,11 @@ from guardpost.authentication import Identity, User
 from rodi import Container, inject
 
 from tests.utils.application import FakeApplication
+
+from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockMessage
+
 from tests.utils.folder import ensure_folder
-from tests.utils.messages import MockMessage
-from tests.utils.scopes import get_example_scope
 
 
 class Item:

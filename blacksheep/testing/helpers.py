@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List, Optional
 
 
 def get_example_scope(
@@ -9,6 +9,8 @@ def get_example_scope(
     scheme: str = "http",
     server: Optional[List] = None,
 ):
+    """Returns mocked ASGI scope"""
+
     if "?" in path:
         raise ValueError("The path in ASGI messages does not contain query string")
     if query.startswith(b""):

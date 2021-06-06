@@ -7,7 +7,7 @@ from blacksheep.server.asgi import get_request_url
 from blacksheep.url import URL
 
 
-from tests.utils.scopes import get_example_scope
+from blacksheep.testing.helpers import get_example_scope
 
 
 def test_request_supports_dynamic_attributes():

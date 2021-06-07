@@ -6,6 +6,7 @@ from blacksheep import Content
 from blacksheep.contents import JSONContent
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromHeader
+from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.responses import Response
 from blacksheep.testing import AbstractTestSimulator, TestClient
 from blacksheep.testing.helpers import get_example_scope
@@ -164,3 +165,69 @@ async def test_client_methods(test_app, method, expected_method):
 def test_get_example_scope_raise_error_if_query_provided():
     with pytest.raises(ValueError):
         get_example_scope("GET", "/test?")
+
+
+@pytest.mark.asyncio
+async def test_app_controller_handle_correct_method(test_app):
+    test_app.controllers_router = RoutesRegistry()
+    get = test_app.controllers_router.get
+
+    class Home(Controller):
+        @get("/")
+        async def index(self, request):
+            assert isinstance(self, Home)
+            return request.method
+
+    await _start_application(test_app)
+
+    client = TestClient(test_app)
+    response = await client.get("/")
+
+    expected_method = "GET"
+    actual_method = await response.text()
+
+    assert actual_method == expected_method
+
+
+@pytest.mark.asyncio
+async def test_app_controller_get_correct_post_body(test_app):
+    test_app.controllers_router = RoutesRegistry()
+    post = test_app.controllers_router.post
+
+    class Home(Controller):
+        @post("/")
+        async def index(self, request):
+            assert isinstance(self, Home)
+            return await request.json()
+
+    await _start_application(test_app)
+
+    client = TestClient(test_app)
+    response = await client.post("/", content=JSONContent({"foo": "bar"}))
+
+    expected_json_body = {"foo": "bar"}
+    actual_json_body = await response.json()
+
+    assert actual_json_body == expected_json_body
+
+
+@pytest.mark.asyncio
+async def test_app_controller_get_correct_query_parameters(test_app):
+    test_app.controllers_router = RoutesRegistry()
+    get = test_app.controllers_router.get
+
+    class Home(Controller):
+        @get("/")
+        async def index(self, request):
+            assert isinstance(self, Home)
+            return request.query
+
+    await _start_application(test_app)
+
+    client = TestClient(test_app)
+    response = await client.get("/", query={"foo": "bar"})
+
+    expected_query = {"foo": ["bar"]}
+    actual_query = await response.json()
+
+    assert actual_query == expected_query

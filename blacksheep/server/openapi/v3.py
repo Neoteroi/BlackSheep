@@ -14,7 +14,6 @@ from typing import (
     Tuple,
     Type,
     Union,
-    get_origin,
     _GenericAlias as GenericAlias,
     get_type_hints,
 )
@@ -76,6 +75,10 @@ try:
 except ImportError:  # pragma: no cover
     # noqa
     BaseModel = ...  # type: ignore
+
+
+def get_origin(object_type):
+    return getattr(object_type, "__origin__", None)
 
 
 def check_union(object_type: Any) -> Tuple[bool, Any]:

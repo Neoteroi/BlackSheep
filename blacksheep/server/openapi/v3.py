@@ -8,7 +8,6 @@ from typing import (
     Any,
     Dict,
     ForwardRef,
-    Generic,
     List,
     Mapping,
     Optional,
@@ -166,6 +165,27 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_paths(self, app: Application) -> Dict[str, PathItem]:
         return self.get_routes_docs(app.router)
 
+    def get_type_name_for_generic(
+        self,
+        object_type: GenericAlias,
+        context_type_args: Optional[Dict[Any, Type]] = None,
+    ) -> str:
+        """
+        This method returns a type name for a generic type.
+        """
+        assert isinstance(object_type, GenericAlias), "This method requires a generic"
+        # Note: by default returns a string respectful of this requirement:
+        # $ref values must be RFC3986-compliant percent-encoded URIs
+        # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
+        # and C# or TypeScript Example<Foo, Bar>
+        # Becomes here represented as: ExampleOfFooAndBar
+        origin = get_origin(object_type)
+        args = object_type.__args__
+        args_repr = "And".join(
+            self.get_type_name(arg, context_type_args) for arg in args
+        )
+        return f"{self.get_type_name(origin)}Of{args_repr}"
+
     def get_type_name(
         self, object_type, context_type_args: Optional[Dict[Any, Type]] = None
     ) -> str:
@@ -174,12 +194,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if hasattr(object_type, "__name__"):
             return object_type.__name__
         if isinstance(object_type, GenericAlias):
-            origin = get_origin(object_type)
-            args = object_type.__args__
-            args_repr = ", ".join(
-                self.get_type_name(arg, context_type_args) for arg in args
-            )
-            return f"{self.get_type_name(origin)}<{args_repr}>"
+            return self.get_type_name_for_generic(object_type, context_type_args)
         raise ValueError(
             f"Cannot obtain a name for object_type parameter: {object_type!r}"
         )
@@ -207,43 +222,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         self.components.schemas[name] = schema
         return Reference(f"#/components/schemas/{name}")
-
-    def _is_handled_object_type(self, object_type) -> bool:
-        # TODO: put in a dedicated handler class, so that the user of the library
-        # can implement more objects handlers!
-        if is_dataclass(object_type) or _is_pydantic_model(object_type):
-            return True
-
-        return False
-
-    def _handle_subclasses(self, schema: Schema, object_type: Type) -> Schema:
-        """
-        Method that implements automatic support for subclasses, handling Schema.allOf
-        """
-        if not inspect.isclass(object_type):
-            # can be a generic type - which is not a class in Python
-            if isinstance(object_type, GenericAlias):
-                object_type = get_origin(object_type)
-            else:
-                raise ValueError("Not supported")
-        direct_parent = object_type.__mro__[1]
-
-        if (
-            direct_parent is object
-            or direct_parent is Generic
-            or direct_parent is BaseModel
-        ):
-            return schema
-
-        direct_parent_ref = self.register_schema_for_type(direct_parent)
-
-        for inherited_class in object_type.__mro__[2:]:
-            if inherited_class is object or not self._is_handled_object_type(
-                inherited_class
-            ):
-                continue
-            self.register_schema_for_type(inherited_class)
-        return Schema(all_of=[direct_parent_ref, schema])
 
     def _get_schema_for_dataclass_or_pydantic_model(
         self, object_type: Type
@@ -278,13 +256,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> Reference:
         type_name = self.get_type_name(object_type, context_type_args)
         reference = self._register_schema(
-            self._handle_subclasses(
-                Schema(
-                    type=ValueType.OBJECT,
-                    required=required or None,
-                    properties=properties,
-                ),
-                object_type,
+            Schema(
+                type=ValueType.OBJECT,
+                required=required or None,
+                properties=properties,
             ),
             type_name,
         )
@@ -650,7 +625,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         docs = self.get_handler_docs(handler)
         data = docs.responses if docs else None
 
-        # common responses (used by the whole application, like responses sent in case
+        # common responses used by the whole application, like responses sent in case
         # of error
         responses = {
             response_status_to_str(key): value
@@ -659,18 +634,24 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         if not data:
             # try to generate automatically from the handler's return type annotations
-            return_type = getattr(handler, "return_type", None)
+            return_type = getattr(handler, "return_type", ...)
 
-            if return_type is not None:
+            if return_type is not ...:
                 # automatically set response content for status 200,
                 # if the user wants major control, it's necessary to use the decorators
                 # responses[response_status_to_str(200)] = return_type
                 if data is None:
                     data = {}
 
-                data["200"] = ResponseInfo(
-                    "Success response", content=[ContentInfo(return_type, examples=[])]
-                )
+                if return_type is None:
+                    # the user explicitly marked the request handler as returning None,
+                    # document therefore HTTP 204 No Content
+                    data["204"] = ResponseInfo("Success response", content=[])
+                else:
+                    data["200"] = ResponseInfo(
+                        "Success response",
+                        content=[ContentInfo(return_type, examples=[])],
+                    )
             else:
                 return responses
 
@@ -754,6 +735,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 docs = self.get_handler_docs_or_set(handler)
             self._merge_documentation(handler, docs, docstring_info)
 
+    def get_operation_id(self, docs: Optional[EndpointDocs], handler) -> str:
+        return handler.__name__
+
     def get_routes_docs(self, router: Router) -> Dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""
         paths_doc: Dict[str, PathItem] = {}
@@ -771,7 +755,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                     description=self.get_description(handler),
                     summary=self.get_summary(handler),
                     responses=self.get_responses(handler) or {},
-                    operation_id=handler.__name__,
+                    operation_id=self.get_operation_id(docs, handler),
                     parameters=self.get_parameters(handler),
                     request_body=self.get_request_body(handler),
                     deprecated=self.is_deprecated(handler),

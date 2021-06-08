@@ -6,6 +6,7 @@ import pytest
 from blacksheep.server.application import Application
 from blacksheep.server.openapi.common import (
     ContentInfo,
+    EndpointDocs,
     OpenAPIEndpointException,
     ResponseInfo,
 )
@@ -42,6 +43,24 @@ class PlainClass:
 class Cat:
     id: int
     name: str
+
+
+@dataclass
+class CreateCatInput:
+    name: str
+
+
+@dataclass
+class CatOwner:
+    id: int
+    first_name: str
+    last_name: str
+
+
+@dataclass
+class CatDetails(Cat):
+    owner: CatOwner
+    friends: List[int]
 
 
 @dataclass
@@ -97,17 +116,52 @@ class GenericWithForwardRefExample(Generic[T]):
     value: "PaginatedSet[T]"
 
 
-@pytest.fixture
-def app() -> Application:
+def get_app() -> Application:
     app = Application()
     app.controllers_router = RoutesRegistry()
     return app
 
 
-@pytest.fixture
+def get_cats_api() -> Application:
+    app = Application()
+    app.controllers_router = RoutesRegistry()
+    get = app.router.get
+    post = app.router.post
+    delete = app.router.delete
+
+    @get("/api/cats")
+    def get_cats() -> PaginatedSet[Cat]:
+        ...
+
+    @get("/api/cats/{cat_id}")
+    def get_cat_details(cat_id: int) -> CatDetails:
+        ...
+
+    @post("/api/cats")
+    def create_cat(input: CreateCatInput) -> Cat:
+        ...
+
+    @delete("/api/cats/{cat_id}")
+    def delete_cat(cat_id: int) -> None:
+        ...
+
+    return app
+
+
+@pytest.fixture(scope="function")
 def docs() -> OpenAPIHandler:
     # example documentation
     return OpenAPIHandler(info=Info("Example", "0.0.1"))
+
+
+class CapitalizeOperationDocs(OpenAPIHandler):
+    def get_operation_id(self, docs: Optional[EndpointDocs], handler) -> str:
+        return handler.__name__.capitalize().replace("_", " ")
+
+
+@pytest.fixture
+def capitalize_operation_id_docs() -> CapitalizeOperationDocs:
+    return CapitalizeOperationDocs(info=Info("Example", "0.0.1"))
 
 
 @pytest.fixture
@@ -126,7 +180,9 @@ async def test_raises_for_started_app(docs):
 
 
 @pytest.mark.asyncio
-async def test_raises_for_duplicated_content_example(docs, app):
+async def test_raises_for_duplicated_content_example(docs):
+    app = get_app()
+
     @app.router.get("/")
     @docs(
         responses={
@@ -282,7 +338,7 @@ def test_register_schema_for_generic_with_list(
     docs.register_schema_for_type(PaginatedSet[Foo])
 
     assert docs.components.schemas is not None
-    schema = docs.components.schemas["PaginatedSet<Foo>"]
+    schema = docs.components.schemas["PaginatedSetOfFoo"]
 
     assert isinstance(schema, Schema)
 
@@ -317,7 +373,7 @@ components:
                     - 1
                     - 2
                     - 3
-        PaginatedSet<Foo>:
+        PaginatedSetOfFoo:
             type: object
             required:
             - items
@@ -343,10 +399,10 @@ def test_register_schema_for_multiple_generic_with_list(
     docs.register_schema_for_type(PaginatedSet[Ufo])
 
     assert docs.components.schemas is not None
-    schema = docs.components.schemas["PaginatedSet<Foo>"]
+    schema = docs.components.schemas["PaginatedSetOfFoo"]
     assert isinstance(schema, Schema)
 
-    schema = docs.components.schemas["PaginatedSet<Ufo>"]
+    schema = docs.components.schemas["PaginatedSetOfUfo"]
     assert isinstance(schema, Schema)
 
     yaml = serializer.to_yaml(docs.generate_documentation(Application()))
@@ -380,7 +436,7 @@ components:
                     - 1
                     - 2
                     - 3
-        PaginatedSet<Foo>:
+        PaginatedSetOfFoo:
             type: object
             required:
             - items
@@ -407,7 +463,7 @@ components:
                 c:
                     type: string
                     nullable: false
-        PaginatedSet<Ufo>:
+        PaginatedSetOfUfo:
             type: object
             required:
             - items
@@ -432,7 +488,7 @@ def test_register_schema_for_generic_with_property(
     docs.register_schema_for_type(Validated[Foo])
 
     assert docs.components.schemas is not None
-    schema = docs.components.schemas["Validated<Foo>"]
+    schema = docs.components.schemas["ValidatedOfFoo"]
 
     assert isinstance(schema, Schema)
 
@@ -467,7 +523,7 @@ components:
                     - 1
                     - 2
                     - 3
-        Validated<Foo>:
+        ValidatedOfFoo:
             type: object
             required:
             - data
@@ -489,7 +545,7 @@ def test_register_schema_for_generic_sub_property(
     docs.register_schema_for_type(SubValidated[Foo])
 
     assert docs.components.schemas is not None
-    schema = docs.components.schemas["SubValidated<Foo>"]
+    schema = docs.components.schemas["SubValidatedOfFoo"]
 
     assert isinstance(schema, Schema)
 
@@ -524,7 +580,7 @@ components:
                     - 1
                     - 2
                     - 3
-        Validated<Foo>:
+        ValidatedOfFoo:
             type: object
             required:
             - data
@@ -535,21 +591,23 @@ components:
                 error:
                     type: string
                     nullable: false
-        SubValidated<Foo>:
+        SubValidatedOfFoo:
             type: object
             required:
             - sub
             properties:
                 sub:
-                    $ref: '#/components/schemas/Validated<Foo>'
+                    $ref: '#/components/schemas/ValidatedOfFoo'
 """.strip()
     )
 
 
 @pytest.mark.asyncio
 async def test_register_schema_for_multi_generic(
-    app: Application, docs: OpenAPIHandler, serializer: Serializer
+    docs: OpenAPIHandler, serializer: Serializer
 ):
+    app = get_app()
+
     @app.route("/combo")
     def combo_example() -> Combo[Cat, Foo]:
         ...
@@ -575,7 +633,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/Combo<Cat, Foo>'
+                                $ref: '#/components/schemas/ComboOfCatAndFoo'
             operationId: combo_example
 components:
     schemas:
@@ -611,7 +669,7 @@ components:
                     - 1
                     - 2
                     - 3
-        Combo<Cat, Foo>:
+        ComboOfCatAndFoo:
             type: object
             required:
             - item_one
@@ -627,8 +685,10 @@ components:
 
 @pytest.mark.asyncio
 async def test_register_schema_for_generic_with_list_reusing_ref(
-    app: Application, docs: OpenAPIHandler, serializer: Serializer
+    docs: OpenAPIHandler, serializer: Serializer
 ):
+    app = get_app()
+
     @app.route("/one")
     def one() -> PaginatedSet[Cat]:
         ...
@@ -658,7 +718,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/PaginatedSet<Cat>'
+                                $ref: '#/components/schemas/PaginatedSetOfCat'
             operationId: one
     /two:
         get:
@@ -668,7 +728,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/PaginatedSet<Cat>'
+                                $ref: '#/components/schemas/PaginatedSetOfCat'
             operationId: two
 components:
     schemas:
@@ -685,7 +745,7 @@ components:
                 name:
                     type: string
                     nullable: false
-        PaginatedSet<Cat>:
+        PaginatedSetOfCat:
             type: object
             required:
             - items
@@ -711,8 +771,10 @@ def test_get_type_name_raises_for_invalid_object_type(docs: OpenAPIHandler):
 
 @pytest.mark.asyncio
 async def test_handling_of_forward_references(
-    app: Application, docs: OpenAPIHandler, serializer: Serializer
+    docs: OpenAPIHandler, serializer: Serializer
 ):
+    app = get_app()
+
     @app.route("/")
     def forward_ref_example() -> ForwardRefExample:
         ...
@@ -755,7 +817,7 @@ components:
                 name:
                     type: string
                     nullable: false
-        PaginatedSet<Cat>:
+        PaginatedSetOfCat:
             type: object
             required:
             - items
@@ -776,20 +838,19 @@ components:
             - value
             properties:
                 value:
-                    $ref: '#/components/schemas/PaginatedSet<Cat>'
+                    $ref: '#/components/schemas/PaginatedSetOfCat'
 """.strip()
     )
 
 
 @pytest.mark.asyncio
-async def test_handling_of_normal_class(
-    app: Application, docs: OpenAPIHandler, serializer: Serializer
-):
+async def test_handling_of_normal_class(docs: OpenAPIHandler, serializer: Serializer):
     """
     Plain classes are simply ignored, since their handling would be ambiguous:
     should the library inspect type annotations, __dict__?
     (in fact, the built-in json module throws for them).
     """
+    app = get_app()
 
     @app.route("/")
     def plain_class() -> PlainClass:
@@ -825,8 +886,10 @@ components: {}
 
 @pytest.mark.asyncio
 async def test_handling_of_pydantic_generic_class(
-    app: Application, docs: OpenAPIHandler, serializer: Serializer
+    docs: OpenAPIHandler, serializer: Serializer
 ):
+    app = get_app()
+
     @app.route("/")
     def home() -> PydPaginatedSet[Cat]:
         ...
@@ -852,7 +915,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/PydPaginatedSet<Cat>'
+                                $ref: '#/components/schemas/PydPaginatedSetOfCat'
             operationId: home
 components:
     schemas:
@@ -869,7 +932,7 @@ components:
                 name:
                     type: string
                     nullable: false
-        PydPaginatedSet<Cat>:
+        PydPaginatedSetOfCat:
             type: object
             required:
             - items
@@ -890,8 +953,10 @@ components:
 
 @pytest.mark.asyncio
 async def test_handling_of_pydantic_class_in_generic(
-    app: Application, docs: OpenAPIHandler, serializer: Serializer
+    docs: OpenAPIHandler, serializer: Serializer
 ):
+    app = get_app()
+
     @app.route("/")
     def home() -> PaginatedSet[PydCat]:
         ...
@@ -917,7 +982,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/PaginatedSet<PydCat>'
+                                $ref: '#/components/schemas/PaginatedSetOfPydCat'
             operationId: home
 components:
     schemas:
@@ -934,7 +999,7 @@ components:
                 name:
                     type: string
                     nullable: false
-        PaginatedSet<PydCat>:
+        PaginatedSetOfPydCat:
             type: object
             required:
             - items
@@ -954,9 +1019,9 @@ components:
 
 
 @pytest.mark.asyncio
-async def test_handling_of_sequence(
-    app: Application, docs: OpenAPIHandler, serializer: Serializer
-):
+async def test_handling_of_sequence(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+
     @app.route("/")
     def home() -> Sequence[Cat]:
         ...
@@ -1011,6 +1076,322 @@ def test_handling_of_generic_with_forward_references(docs: OpenAPIHandler):
         docs.register_schema_for_type(GenericWithForwardRefExample[Cat])
 
 
-def test_handle_subclasses_raises_for_invalid_value(docs: OpenAPIHandler):
-    with pytest.raises(ValueError):
-        docs._handle_subclasses(Schema(), "foo")  # type: ignore
+@pytest.mark.asyncio
+async def test_cats_api(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_cats_api()
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /api/cats:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfCat'
+            operationId: get_cats
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Cat'
+            operationId: create_cat
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatInput'
+                required: true
+    /api/cats/{cat_id}:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CatDetails'
+            operationId: get_cat_details
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+        delete:
+            responses:
+                '204':
+                    description: Success response
+            operationId: delete_cat
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        CreateCatInput:
+            type: object
+            required:
+            - name
+            properties:
+                name:
+                    type: string
+                    nullable: false
+        CatOwner:
+            type: object
+            required:
+            - id
+            - first_name
+            - last_name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                first_name:
+                    type: string
+                    nullable: false
+                last_name:
+                    type: string
+                    nullable: false
+        CatDetails:
+            type: object
+            required:
+            - id
+            - name
+            - owner
+            - friends
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                owner:
+                    $ref: '#/components/schemas/CatOwner'
+                friends:
+                    type: array
+                    nullable: false
+                    items:
+                        type: integer
+                        format: int64
+                        nullable: false
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_cats_api_capital_operations_ids(
+    capitalize_operation_id_docs: CapitalizeOperationDocs,
+    serializer: Serializer,
+):
+    app = get_cats_api()
+    docs = capitalize_operation_id_docs
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /api/cats:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfCat'
+            operationId: Get cats
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Cat'
+            operationId: Create cat
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatInput'
+                required: true
+    /api/cats/{cat_id}:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CatDetails'
+            operationId: Get cat details
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+        delete:
+            responses:
+                '204':
+                    description: Success response
+            operationId: Delete cat
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        CreateCatInput:
+            type: object
+            required:
+            - name
+            properties:
+                name:
+                    type: string
+                    nullable: false
+        CatOwner:
+            type: object
+            required:
+            - id
+            - first_name
+            - last_name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                first_name:
+                    type: string
+                    nullable: false
+                last_name:
+                    type: string
+                    nullable: false
+        CatDetails:
+            type: object
+            required:
+            - id
+            - name
+            - owner
+            - friends
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                owner:
+                    $ref: '#/components/schemas/CatOwner'
+                friends:
+                    type: array
+                    nullable: false
+                    items:
+                        type: integer
+                        format: int64
+                        nullable: false
+""".strip()
+    )

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import ForwardRef, Generic, List, Optional, Sequence, TypeVar, Union
+from typing import Generic, List, Optional, Sequence, TypeVar, Union
 
 import pytest
 from blacksheep.server.application import Application

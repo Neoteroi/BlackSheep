@@ -243,3 +243,10 @@ async def test_download_file(session, url_path, file_path):
         value.extend(chunk)
 
     assert get_file_bytes(file_path) == bytes(value)
+
+
+@pytest.mark.asyncio
+async def test_close_connection(session):
+    for _ in range(3):
+        response = await session.get("/close-connection")
+        ensure_success(response)

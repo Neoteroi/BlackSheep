@@ -14,7 +14,12 @@ from blacksheep.server.openapi.exceptions import (
     DuplicatedContentTypeDocsException,
     UnsupportedUnionTypeException,
 )
-from blacksheep.server.openapi.v3 import OpenAPIHandler, check_union
+from blacksheep.server.openapi.v3 import (
+    DataClassTypeHandler,
+    OpenAPIHandler,
+    PydanticModelTypeHandler,
+    check_union,
+)
 from blacksheep.server.routing import RoutesRegistry
 from openapidocs.common import Format, Serializer
 from openapidocs.v3 import Info, Reference, Schema, ValueType
@@ -298,10 +303,14 @@ def test_get_content_from_response_info_returns_none_for_missing_content(docs):
     assert docs._get_content_from_response_info(None) is None
 
 
-def test_get_schema_by_type_returns_reference_for_forward_ref(docs):
-    assert docs._get_schema_by_type(ForwardRef("Foo")) == Reference(
-        "#/components/schemas/Foo"
-    )
+def test_open_api_handler_object_handlers(docs: OpenAPIHandler):
+    assert docs.object_types_handlers is not None
+    assert isinstance(docs.object_types_handlers[0], DataClassTypeHandler)
+    assert isinstance(docs.object_types_handlers[1], PydanticModelTypeHandler)
+
+
+def test_open_api_handler_get_fields(docs: OpenAPIHandler):
+    assert docs.get_fields(None) == []
 
 
 @pytest.mark.parametrize(

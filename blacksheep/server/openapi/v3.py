@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import inspect
 import warnings
 import collections.abc as collections_abc
@@ -7,7 +8,6 @@ from enum import Enum, IntEnum
 from typing import (
     Any,
     Dict,
-    ForwardRef,
     List,
     Mapping,
     Optional,
@@ -114,14 +114,48 @@ class FieldInfo:
     type: Type
 
 
-def _is_pydantic_model(object_type: Any) -> bool:
-    if (
-        BaseModel is not ...
-        and inspect.isclass(object_type)
-        and issubclass(object_type, BaseModel)  # type: ignore
-    ):
-        return True
-    return False
+class ObjectTypeHandler(ABC):
+    """
+    Abstract class describing the interface used to generate an OpenAPI Documentation
+    schema for an object type.
+    """
+
+    @abstractmethod
+    def handles_type(self, object_type) -> bool:
+        """
+        Returns a value indicating whether the given type is handled but this
+        object type handler.
+        """
+
+    def get_type_fields(self, object_type) -> List[FieldInfo]:
+        """
+        Returns a set of fields to be used for the handled type.
+        """
+
+
+class DataClassTypeHandler(ObjectTypeHandler):
+    def handles_type(self, object_type) -> bool:
+        return is_dataclass(object_type)
+
+    def get_type_fields(self, object_type) -> List[FieldInfo]:
+        return [FieldInfo(field.name, field.type) for field in fields(object_type)]
+
+
+class PydanticModelTypeHandler(ObjectTypeHandler):
+    def handles_type(self, object_type) -> bool:
+        if (
+            BaseModel is not ...
+            and inspect.isclass(object_type)
+            and issubclass(object_type, BaseModel)  # type: ignore
+        ):
+            return True
+        return False
+
+    def get_type_fields(self, object_type) -> List[FieldInfo]:
+        type_fields = object_type.__fields__  # type: ignore
+        return [
+            FieldInfo(field.name, field.outer_type_) for field in type_fields.values()
+        ]
 
 
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
@@ -153,6 +187,14 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self._objects_references: Dict[Any, Reference] = {}
         self.servers: List[Server] = []
         self.common_responses: Dict[ResponseStatusType, ResponseDoc] = {}
+        self._object_types_handlers: List[ObjectTypeHandler] = [
+            DataClassTypeHandler(),
+            PydanticModelTypeHandler(),
+        ]
+
+    @property
+    def object_types_handlers(self) -> List[ObjectTypeHandler]:
+        return self._object_types_handlers
 
     def get_ui_page_title(self) -> str:
         return self.info.title
@@ -223,15 +265,17 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self.components.schemas[name] = schema
         return Reference(f"#/components/schemas/{name}")
 
-    def _get_schema_for_dataclass_or_pydantic_model(
-        self, object_type: Type
-    ) -> Reference:
-        assert is_dataclass(object_type) or _is_pydantic_model(object_type)
+    def _can_handle_class_type(self, object_type: Type) -> bool:
+        return any(
+            handler.handles_type(object_type) for handler in self._object_types_handlers
+        )
 
+    def _get_schema_for_class(self, object_type: Type) -> Reference:
+        assert self._can_handle_class_type(object_type)
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
 
-        for field in self._get_fields(object_type):
+        for field in self.get_fields(object_type):
             is_optional, child_type = check_union(field.type)
             if not is_optional:
                 required.append(field.name)
@@ -299,21 +343,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def _get_schema_by_type(
         self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
     ) -> Union[Schema, Reference]:
-        # check_union
-        if is_dataclass(object_type):
-            return self._get_schema_for_dataclass_or_pydantic_model(object_type)
-
-        if _is_pydantic_model(object_type):
-            return self._get_schema_for_dataclass_or_pydantic_model(object_type)
-
-        if isinstance(object_type, ForwardRef):
-            # Note: this code does not support different classes with the same name
-            # but defined in different modules as contracts of the API
-
-            # This is not supported in Swagger UI
-            # https://github.com/swagger-api/swagger-ui/issues/3325
-            ref_name = object_type.__forward_arg__  # type: ignore
-            return Reference(f"#/components/schemas/{ref_name}")
+        if self._can_handle_class_type(object_type):
+            return self._get_schema_for_class(object_type)
 
         schema = self._try_get_schema_for_simple_type(object_type)
         if schema:
@@ -387,16 +418,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             items=self.get_schema_by_type(item_type, context_type_args),
         )
 
-    def _get_fields(self, object_type: Any) -> List[FieldInfo]:
-        if is_dataclass(object_type):
-            return [FieldInfo(field.name, field.type) for field in fields(object_type)]
-
-        if _is_pydantic_model(object_type):
-            type_fields = object_type.__fields__  # type: ignore
-            return [
-                FieldInfo(field.name, field.outer_type_)
-                for field in type_fields.values()
-            ]
+    def get_fields(self, object_type: Any) -> List[FieldInfo]:
+        for handler in self._object_types_handlers:
+            if handler.handles_type(object_type):
+                return handler.get_type_fields(object_type)
 
         return []
 
@@ -412,7 +437,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         parameters = origin.__parameters__
         type_args = dict(zip(parameters, args))
 
-        for field in self._get_fields(origin):
+        for field in self.get_fields(origin):
             is_optional, child_type = check_union(field.type)
             if not is_optional:
                 required.append(field.name)

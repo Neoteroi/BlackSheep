@@ -308,13 +308,20 @@ class ClientConnection(asyncio.Protocol):
             # the connection can be returned to its pool
             self.loop.call_soon(self.release)
 
+    def should_keep_alive(self) -> bool:
+        assert self.response is not None
+        connection_header = self.response.headers[b"connection"]
+        if not connection_header:
+            return True
+        return connection_header[0].lower() != b"close"
+
     def release(self) -> None:
         if not self.open or self._upgraded:
             # if the connection was upgraded, its transport is used for
             # web sockets, it cannot return to its pool for other cycles
             return
 
-        if self.parser.should_keep_alive():
+        if self.should_keep_alive():
             self.reset()
             pool = self.pool()
 

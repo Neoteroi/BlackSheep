@@ -18,6 +18,13 @@ def echo_headers():
     return "", 200, {name: value for name, value in headers.items()}
 
 
+@app.route("/close-connection")
+def close_connection():
+    response = Response("Hello World", 200, mimetype="text/plain")
+    response.headers["Connection"] = "close"
+    return response
+
+
 @app.route("/echo-cookies")
 def echo_cookies():
     cookies = request.cookies

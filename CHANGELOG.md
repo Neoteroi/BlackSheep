@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   naming conventions
 - Adds support for automatic generation of OpenAPI Documentation for `Generic`
   types
-- Improves generation of OpenAPI Documentation for `pydantic` types
+- Improves the generation of OpenAPI Documentation for `pydantic` types and to
+  support more object types
 
 ## [1.0.6] - 2021-05-30 :birthday:
 - Fixes bug [#153](https://github.com/Neoteroi/BlackSheep/issues/153),

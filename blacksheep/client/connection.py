@@ -152,12 +152,12 @@ class ClientConnection(asyncio.Protocol):
     async def _wait_response(self) -> Response:
         await self.response_ready.wait()
 
+        response = self.response
+        assert response is not None
+
         self._pending_task = False
         if self._can_release:
             self.loop.call_soon(self.release)
-
-        response = self.response
-        assert response is not None
 
         if 99 < response.status < 200:
             # Handle 1xx informational

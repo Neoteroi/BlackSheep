@@ -152,6 +152,9 @@ class ClientConnection(asyncio.Protocol):
     async def _wait_response(self) -> Response:
         await self.response_ready.wait()
 
+        if self._connection_lost:
+            raise ConnectionResetError()
+
         response = self.response
         assert response is not None
 
@@ -309,6 +312,9 @@ class ClientConnection(asyncio.Protocol):
             self.loop.call_soon(self.release)
 
     def should_keep_alive(self) -> bool:
+        if self._connection_lost:
+            return False
+
         assert self.response is not None
         connection_header = self.response.headers[b"connection"]
         if not connection_header:

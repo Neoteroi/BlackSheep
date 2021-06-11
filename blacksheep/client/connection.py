@@ -152,7 +152,7 @@ class ClientConnection(asyncio.Protocol):
     async def _wait_response(self) -> Response:
         await self.response_ready.wait()
 
-        if self._connection_lost:
+        if self._connection_lost:  # pragma: no cover
             raise ConnectionResetError()
 
         response = self.response
@@ -312,7 +312,7 @@ class ClientConnection(asyncio.Protocol):
             self.loop.call_soon(self.release)
 
     def should_keep_alive(self) -> bool:
-        if self._connection_lost:
+        if self._connection_lost or not self.open:  # pragma: no cover
             return False
 
         assert self.response is not None

@@ -119,7 +119,7 @@ async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_
     request = Request("POST", b"/", [])
 
     request.with_content(
-        Content(b"text/html", b'{"hello":')
+        Content(b"application/json", b'{"hello":')
     )  # broken json; broken content-type
 
     with pytest.raises(BadRequestFormat):

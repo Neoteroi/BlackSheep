@@ -125,7 +125,7 @@ cdef class Message:
 
     async def read(self):
         if self.content:
-            # TODO: return content.body if not instance of StreamedContent?
+            # TODO: return content.body if not an instance of StreamedContent?
             return await self.content.read()
         return None
 
@@ -216,6 +216,9 @@ cdef class Message:
         return [part for part in data if part.file_name]
 
     async def json(self, loads=json_loads):
+        if not self.declares_json():
+            return None
+
         text = await self.text()
 
         if text is None or text == "":

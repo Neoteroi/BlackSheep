@@ -155,6 +155,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self.preferred_format = preferred_format
         self.anonymous_access = anonymous_access
         self.ui_providers: List[UIProvider] = [SwaggerUIProvider(ui_path)]
+        self._types_schemas = {}
 
     def __call__(
         self,
@@ -189,6 +190,27 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             return fn
 
         return decorator
+
+    def register(self, schema) -> Any:
+        """
+        Registers a schema for a class. When the documentation handler needs
+        to obtain a schema for the decorated type, it uses the explicity schema rather
+        than an auto-generated schema.
+        """
+
+        def class_decorator(cls):
+            self.set_type_schema(cls, schema)
+            return cls
+
+        return class_decorator
+
+    def set_type_schema(self, object_type, schema) -> None:
+        """
+        Sets a schema to be used for a class. When the documentation handler needs
+        to obtain a schema for the decorated type, it uses the explicity schema rather
+        than an auto-generated schema.
+        """
+        self._types_schemas[object_type] = schema
 
     def get_handler_docs(self, obj: Any) -> Optional[EndpointDocs]:
         return self._handlers_docs.get(obj)

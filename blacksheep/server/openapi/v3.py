@@ -114,7 +114,7 @@ def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> 
 @dataclass
 class FieldInfo:
     name: str
-    type: Type
+    type: Union[Type, Schema]
 
 
 class ObjectTypeHandler(ABC):
@@ -146,6 +146,13 @@ class DataClassTypeHandler(ObjectTypeHandler):
 
 class PydanticModelTypeHandler(ObjectTypeHandler):
     def handles_type(self, object_type) -> bool:
+        if isinstance(object_type, GenericAlias):
+            # support for Generic BaseModel here is better since it can extract items
+            # type, skip this;
+            # anyway using Generic with BaseModel doesn't seem to be recommended by
+            # pydantic:
+            # https://pydantic-docs.helpmanual.io/usage/types/#generic-classes-as-types
+            return False
         if (
             BaseModel is not ...
             and inspect.isclass(object_type)
@@ -154,10 +161,80 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
             return True
         return False
 
+    def _open_api_v2_field_schema_to_type(
+        self, field_info, schema
+    ) -> Union[Type, Schema]:
+        if "$ref" in schema:
+            return field_info.outer_type_
+
+        value_type = schema.get("type")
+        nullable = field_info.allow_none if field_info is not None else False
+
+        if value_type == "string":
+            return Schema(
+                type=ValueType.STRING,
+                min_length=schema.get("minLength"),
+                max_length=schema.get("maxLength"),
+                format=schema.get("format"),
+                nullable=nullable,
+            )
+
+        if value_type == "boolean":
+            return bool
+
+        if value_type == "file":
+            # TODO: improve support for file type,
+            # see "Considerations for File Uploads"
+            # at https://swagger.io/specification/
+            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
+
+        if value_type == "number":
+            return Schema(
+                type=ValueType.NUMBER,
+                minimum=schema.get("exclusiveMinimum"),
+                maximum=schema.get("exclusiveMaximum"),
+                format=ValueFormat.FLOAT,
+                nullable=nullable,
+            )
+
+        if value_type == "integer":
+            return Schema(
+                type=ValueType.INTEGER,
+                minimum=schema.get("exclusiveMinimum"),
+                maximum=schema.get("exclusiveMaximum"),
+                format=ValueFormat.INT64,
+                nullable=nullable,
+            )
+
+        if value_type == "array":
+            if field_info is not None:
+                return field_info.outer_type_
+            else:
+                return list
+
+        return Schema()
+
     def get_type_fields(self, object_type) -> List[FieldInfo]:
-        type_fields = object_type.__fields__  # type: ignore
+        # to support all pydantic special types, here we rely on its schema,
+        # but since we want to be able to generate OpenAPI Documentation V3 (or V2 for
+        # that matter), we extract basic information we need; also using the type's
+        # __fields__ when available
+        schema = object_type.schema()
+        properties = schema["properties"]
+
+        try:
+            fields_info = object_type.__fields__
+        except AttributeError:
+            fields_info = dict()
+
         return [
-            FieldInfo(field.name, field.outer_type_) for field in type_fields.values()
+            FieldInfo(
+                name,
+                self._open_api_v2_field_schema_to_type(
+                    fields_info.get(name, None), value
+                ),
+            )
+            for name, value in properties.items()
         ]
 
 
@@ -269,12 +346,31 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return Reference(f"#/components/schemas/{name}")
 
     def _can_handle_class_type(self, object_type: Type) -> bool:
-        return any(
-            handler.handles_type(object_type) for handler in self._object_types_handlers
+        return (
+            any(
+                handler.handles_type(object_type)
+                for handler in self._object_types_handlers
+            )
+            or object_type in self._types_schemas
         )
+
+    def _handle_type_having_explicit_schema(self, object_type: Type) -> Reference:
+        schema = self._types_schemas[object_type]
+        type_name = self.get_type_name(object_type, {})
+        reference = self._register_schema(
+            schema,
+            type_name,
+        )
+        self._objects_references[object_type] = reference
+        self._objects_references[type_name] = reference
+        return reference
 
     def _get_schema_for_class(self, object_type: Type) -> Reference:
         assert self._can_handle_class_type(object_type)
+
+        if object_type in self._types_schemas:
+            return self._handle_type_having_explicit_schema(object_type)
+
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
 
@@ -331,8 +427,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return None
 
     def get_schema_by_type(
-        self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
+        self,
+        object_type: Union[Type, Schema],
+        type_args: Optional[Dict[Any, Type]] = None,
     ) -> Union[Schema, Reference]:
+        if isinstance(object_type, Schema):
+            return object_type
+
         stored_ref = self._get_stored_reference(object_type, type_args)
         if stored_ref:
             return stored_ref
@@ -372,7 +473,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING)
 
         if object_type is int:
-            # TODO: support control over format
             return Schema(type=ValueType.INTEGER, format=ValueFormat.INT64)
 
         if object_type is float:

@@ -228,7 +228,12 @@ async def test_application_post_handler(app, mock_send, mock_receive):
 
     await app(
         get_example_scope(
-            "POST", "/api/cat", [(b"content-length", str(len(content)).encode())]
+            "POST",
+            "/api/cat",
+            [
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"application/json"),
+            ],
         ),
         mock_receive([content]),
         mock_send,
@@ -238,6 +243,46 @@ async def test_application_post_handler(app, mock_send, mock_receive):
     assert called_times == 1
     response_data = await response.json()
     assert {"id": "123"} == response_data
+
+
+@pytest.mark.asyncio
+async def test_application_post_handler_invalid_content_type(
+    app, mock_send, mock_receive
+):
+    called_times = 0
+
+    @app.router.post("/api/cat")
+    async def create_cat(request):
+        nonlocal called_times
+        called_times += 1
+        assert request is not None
+
+        content = await request.read()
+        assert b'{"name":"Celine","kind":"Persian"}' == content
+
+        data = await request.json()
+        assert data is None
+
+        return Response(400)
+
+    content = b'{"name":"Celine","kind":"Persian"}'
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/api/cat",
+            [
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"text/plain"),
+            ],
+        ),
+        mock_receive([content]),
+        mock_send,
+    )
+
+    response: Response = app.response
+    assert called_times == 1
+    assert response.status == 400
 
 
 @pytest.mark.asyncio
@@ -279,7 +324,12 @@ async def test_application_returns_400_for_invalid_json(app, mock_send, mock_rec
 
     await app(
         get_example_scope(
-            "POST", "/api/cat", [(b"content-length", str(len(content)).encode())]
+            "POST",
+            "/api/cat",
+            [
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"application/json"),
+            ],
         ),
         mock_receive([content]),
         mock_send,
@@ -287,7 +337,10 @@ async def test_application_returns_400_for_invalid_json(app, mock_send, mock_rec
 
     response = app.response
     assert response.status == 400
-    assert response.content.body == b"Bad Request: Cannot parse content as JSON"
+    assert response.content.body == (
+        b"Bad Request: Declared Content-Type is application/json but "
+        b"the content cannot be parsed as JSON."
+    )
 
 
 @pytest.mark.asyncio

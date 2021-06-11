@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date, datetime
 from enum import IntEnum
 from typing import Generic, List, Optional, Sequence, TypeVar, Union
 
@@ -22,11 +23,23 @@ from blacksheep.server.openapi.v3 import (
 )
 from blacksheep.server.routing import RoutesRegistry
 from openapidocs.common import Format, Serializer
-from openapidocs.v3 import Info, Reference, Schema, ValueType
-from pydantic import BaseModel
+from openapidocs.v3 import Info, Reference, Schema, ValueFormat, ValueType
+from pydantic import BaseModel, HttpUrl, validator
+from pydantic.generics import GenericModel
+from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 T = TypeVar("T")
 U = TypeVar("U")
+
+
+@dataclass
+class DateTest:
+    one: date
+    two: datetime
+
+
+class PydExampleWithSpecificTypes(BaseModel):
+    url: HttpUrl
 
 
 class PydCat(BaseModel):
@@ -34,9 +47,14 @@ class PydCat(BaseModel):
     name: str
 
 
-class PydPaginatedSet(BaseModel, Generic[T]):
-    items: List[T]
+class PydPaginatedSetOfCat(BaseModel):
+    items: List[PydCat]
     total: int
+
+
+class PydTypeWithChildModels(BaseModel):
+    child: PydPaginatedSetOfCat
+    friend: PydExampleWithSpecificTypes
 
 
 class PlainClass:
@@ -119,6 +137,42 @@ class ForwardRefExample:
 class GenericWithForwardRefExample(Generic[T]):
     ufo: "Ufo"
     value: "PaginatedSet[T]"
+
+
+class Error(BaseModel):
+    code: int
+    message: str
+
+
+class DataModel(BaseModel):
+    numbers: List[int]
+    people: List[str]
+
+
+class PydResponse(GenericModel, Generic[T]):
+    data: Optional[T]
+    error: Optional[Error]
+
+    @validator("error", always=True)
+    def check_consistency(cls, v, values):
+        if v is not None and values["data"] is not None:
+            raise ValueError("must not provide both data and error")
+        if v is None and values.get("data") is None:
+            raise ValueError("must provide data or error")
+        return v
+
+
+class PydConstrained(BaseModel):
+
+    a: PositiveInt
+    b: NegativeFloat
+    big_int: conint(gt=1000, lt=1024)
+
+    big_float: confloat(gt=1000, lt=1024)
+    unit_interval: confloat(ge=0, le=1)
+
+    decimal_positive: condecimal(gt=0)
+    decimal_negative: condecimal(lt=0)
 
 
 def get_app() -> Application:
@@ -339,6 +393,44 @@ def test_get_spec_path_raises_for_unsupported_preferred_format(docs):
 
     with pytest.raises(OpenAPIEndpointException):
         docs.get_spec_path()
+
+
+def test_dates_handling(docs: OpenAPIHandler, serializer: Serializer):
+    docs.register_schema_for_type(DateTest)
+
+    assert docs.components.schemas is not None
+    schema = docs.components.schemas["DateTest"]
+
+    assert isinstance(schema, Schema)
+
+    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths: {}
+components:
+    schemas:
+        DateTest:
+            type: object
+            required:
+            - one
+            - two
+            properties:
+                one:
+                    type: string
+                    format: date
+                    nullable: false
+                two:
+                    type: string
+                    format: date-time
+                    nullable: false
+""".strip()
+    )
 
 
 def test_register_schema_for_generic_with_list(
@@ -894,13 +986,13 @@ components: {}
 
 
 @pytest.mark.asyncio
-async def test_handling_of_pydantic_generic_class(
+async def test_handling_of_pydantic_class_with_generic(
     docs: OpenAPIHandler, serializer: Serializer
 ):
     app = get_app()
 
     @app.route("/")
-    def home() -> PydPaginatedSet[Cat]:
+    def home() -> PydPaginatedSetOfCat:
         ...
 
     docs.bind_app(app)
@@ -928,7 +1020,7 @@ paths:
             operationId: home
 components:
     schemas:
-        Cat:
+        PydCat:
             type: object
             required:
             - id
@@ -951,11 +1043,99 @@ components:
                     type: array
                     nullable: false
                     items:
-                        $ref: '#/components/schemas/Cat'
+                        $ref: '#/components/schemas/PydCat'
                 total:
                     type: integer
                     format: int64
                     nullable: false
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handling_of_pydantic_class_with_child_models(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    app = get_app()
+
+    @app.route("/")
+    def home() -> PydTypeWithChildModels:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydTypeWithChildModels'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PydPaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        PydExampleWithSpecificTypes:
+            type: object
+            required:
+            - url
+            properties:
+                url:
+                    type: string
+                    format: uri
+                    maxLength: 2083
+                    minLength: 1
+                    nullable: false
+        PydTypeWithChildModels:
+            type: object
+            required:
+            - child
+            - friend
+            properties:
+                child:
+                    $ref: '#/components/schemas/PydPaginatedSetOfCat'
+                friend:
+                    $ref: '#/components/schemas/PydExampleWithSpecificTypes'
 """.strip()
     )
 
@@ -1402,5 +1582,309 @@ components:
                         type: integer
                         format: int64
                         nullable: false
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handling_of_pydantic_types(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+
+    @app.route("/")
+    def home() -> PydExampleWithSpecificTypes:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+            operationId: home
+components:
+    schemas:
+        PydExampleWithSpecificTypes:
+            type: object
+            required:
+            - url
+            properties:
+                url:
+                    type: string
+                    format: uri
+                    maxLength: 2083
+                    minLength: 1
+                    nullable: false
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+
+    @app.route("/")
+    def home() -> PydResponse[PydCat]:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydResponse[PydCat]'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        Error:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+                code:
+                    type: integer
+                    format: int64
+                    nullable: false
+                message:
+                    type: string
+                    nullable: false
+        PydResponse[PydCat]:
+            type: object
+            required:
+            - data
+            - error
+            properties:
+                data:
+                    $ref: '#/components/schemas/PydCat'
+                error:
+                    $ref: '#/components/schemas/Error'
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+
+    @app.route("/")
+    def home() -> PydConstrained:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydConstrained'
+            operationId: home
+components:
+    schemas:
+        PydConstrained:
+            type: object
+            required:
+            - a
+            - b
+            - big_int
+            - big_float
+            - unit_interval
+            - decimal_positive
+            - decimal_negative
+            properties:
+                a:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    nullable: false
+                b:
+                    type: number
+                    format: float
+                    maximum: 0
+                    nullable: false
+                big_int:
+                    type: integer
+                    format: int64
+                    maximum: 1024
+                    minimum: 1000
+                    nullable: false
+                big_float:
+                    type: number
+                    format: float
+                    maximum: 1024
+                    minimum: 1000
+                    nullable: false
+                unit_interval:
+                    type: number
+                    format: float
+                    nullable: false
+                decimal_positive:
+                    type: number
+                    format: float
+                    minimum: 0
+                    nullable: false
+                decimal_negative:
+                    type: number
+                    format: float
+                    maximum: 0
+                    nullable: false
+""".strip()
+    )
+
+
+def test_pydantic_model_handler_does_not_raise_for_array_without_field_info():
+    handler = PydanticModelTypeHandler()
+    assert handler._open_api_v2_field_schema_to_type(None, {"type": "array"}) is list
+
+
+def test_pydantic_model_handler_does_not_raise_for_file_type():
+    handler = PydanticModelTypeHandler()
+    assert handler._open_api_v2_field_schema_to_type(None, {"type": "file"}) == Schema(
+        type=ValueType.STRING, format=ValueFormat.BINARY
+    )
+
+
+def test_pydantic_model_handler_defaults_to_empty_schema():
+    handler = PydanticModelTypeHandler()
+    assert (
+        handler._open_api_v2_field_schema_to_type(None, {"type": "unknown"}) == Schema()
+    )
+
+
+def test_pydantic_model_handler_handles_type_without__fields__():
+    handler = PydanticModelTypeHandler()
+
+    class Foo:
+        @staticmethod
+        def schema():
+            return {"properties": {"foo": {"type": "boolean"}}}
+
+    handler.get_type_fields(Foo)
+
+
+@pytest.mark.asyncio
+async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer):
+    @docs.register(
+        Schema(
+            type=ValueType.OBJECT,
+            required=["foo"],
+            properties={
+                "foo": Schema(
+                    ValueType.INTEGER, minimum=10, maximum=100, nullable=False
+                ),
+                "ufo": Schema(
+                    ValueType.STRING, min_length=5, max_length=10, nullable=False
+                ),
+            },
+        )
+    )
+    class A:
+        ...
+
+    app = get_app()
+
+    @app.route("/")
+    def home() -> A:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/A'
+            operationId: home
+components:
+    schemas:
+        A:
+            type: object
+            required:
+            - foo
+            properties:
+                foo:
+                    type: integer
+                    maximum: 100
+                    minimum: 10
+                    nullable: false
+                ufo:
+                    type: string
+                    maxLength: 10
+                    minLength: 5
+                    nullable: false
 """.strip()
     )

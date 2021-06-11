@@ -153,7 +153,7 @@ class ClientConnection(asyncio.Protocol):
         await self.response_ready.wait()
 
         if self._connection_lost:  # pragma: no cover
-            raise ConnectionResetError()
+            raise ConnectionClosedError(True)
 
         response = self.response
         assert response is not None

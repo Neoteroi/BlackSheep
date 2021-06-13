@@ -152,12 +152,15 @@ class ClientConnection(asyncio.Protocol):
     async def _wait_response(self) -> Response:
         await self.response_ready.wait()
 
-        self._pending_task = False
-        if self._can_release:
-            self.loop.call_soon(self.release)
+        if self._connection_lost:  # pragma: no cover
+            raise ConnectionClosedError(True)
 
         response = self.response
         assert response is not None
+
+        self._pending_task = False
+        if self._can_release:
+            self.loop.call_soon(self.release)
 
         if 99 < response.status < 200:
             # Handle 1xx informational
@@ -309,6 +312,9 @@ class ClientConnection(asyncio.Protocol):
             self.loop.call_soon(self.release)
 
     def should_keep_alive(self) -> bool:
+        if self._connection_lost or not self.open:  # pragma: no cover
+            return False
+
         assert self.response is not None
         connection_header = self.response.headers[b"connection"]
         if not connection_header:

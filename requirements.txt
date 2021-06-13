@@ -54,7 +54,7 @@ typing-extensions==3.7.4.1
 urllib3==1.26.5
 uvicorn==0.13.4
 wcwidth==0.1.7
-websockets==8.1
+websockets==9.1
 Werkzeug==0.16.0
 zipp==0.6.0
 uvloop==0.15.2; platform_system != "Windows"

@@ -3,7 +3,7 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, AnyStr, Union
+from typing import Any, Callable, Dict, List, Optional, AnyStr, Union, Awaitable
 from urllib.parse import unquote
 
 from blacksheep.utils import ensure_bytes, ensure_str
@@ -474,3 +474,41 @@ class RoutesRegistry(RouterBase):
     def add(self, method: str, pattern: str, handler: Callable):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
+
+
+class MountRoute:
+    def __init__(self, app, path):
+        assert path == "" or path.startswith("/"), "Routed paths must start with '/'"
+
+        self.app = app
+        self.path = path
+        self._router = Router()
+
+        # Adding path to the router in the constructor
+        # This is the easiest way to do it, Also
+        # We stubbing here HTTP method and handler since
+        # We don't care about it, this should be handled by an ASGI application
+        # We care only about path<>pattern matching
+        self._router.add("http_method", path, lambda: None)
+
+    def is_match(self, scope: Dict[str, Any]) -> bool:
+        if self._router.get_match("http_method", scope["raw_path"]):
+            return True
+        return False
+
+    async def handle(self, scope, receive, send) -> Awaitable:
+        return await self.app(scope, receive, send)
+
+
+class Mount:
+    def __init__(self):
+        self._mounted_apps = []
+
+    @property
+    def mounted_apps(self) -> List[MountRoute]:
+        return self._mounted_apps
+
+    def mount(self, path, app) -> None:
+        if any(mount.path == path for mount in self._mounted_apps):
+            raise AssertionError(f"Mount application with path '{path}' already exist")
+        self._mounted_apps.append(MountRoute(app, path))

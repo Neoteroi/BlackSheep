@@ -37,7 +37,7 @@ from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
-from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
+from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry, Mount
 from blacksheep.sessions import (
     Encryptor,
     SessionSerializer,
@@ -51,7 +51,7 @@ from guardpost.authorization import Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from rodi import Container, Services
 
-__all__ = ("Application",)
+__all__ = ("Application", "ASGIApplication")
 
 
 def get_default_headers_middleware(
@@ -608,3 +608,36 @@ class Application(BaseApplication):
 
         request.scope = None  # type: ignore
         request.content.dispose()
+
+
+class ASGIApplication(Application):
+    def __init__(
+        self,
+        *,
+        router: Optional[Router] = None,
+        services: Optional[Container] = None,
+        debug: bool = False,
+        show_error_details: Optional[bool] = None,
+        mount_class: Optional[Mount] = None,
+    ):
+        super().__init__(
+            router=router,
+            services=services,
+            debug=debug,
+            show_error_details=show_error_details,
+        )
+        if mount_class is None:
+            self._mount = Mount()
+
+    def mount(self, path: str, app):
+        self._mount.mount(path, app)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            return await super()._handle_lifespan(receive, send)
+
+        for mount in self._mount.mounted_apps:
+            if mount.is_match(scope):
+                return await mount.handle(scope, receive, send)
+
+        return await super().__call__(scope, receive, send)

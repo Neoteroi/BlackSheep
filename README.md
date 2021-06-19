@@ -198,6 +198,7 @@ async def only_for_authenticated_users():
 * Support for automatic binding of `dataclasses` and
   [`pydantic`](https://pydantic-docs.helpmanual.io) models to handle the
   request body payload expected by request handlers
+* [`TestClient` class to simplify testing of applications](https://www.neoteroi.dev/blacksheep/testing/)
 
 ## Client features
 BlackSheep includes an HTTP Client.

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2021-06-19 :droplet:
+- Corrects a bug forcing `camelCase` on examples objects handled as dataclasses
+  (issue [#173](https://github.com/Neoteroi/BlackSheep/issues/173)), updating
+  the dependency on `essentials-openapi` to [v1.0.4](https://github.com/Neoteroi/essentials-openapi/blob/v0.1.4/CHANGELOG.md#014---2021-06-19-droplet)
+- Corrects a bug causing duplicate components definitions in generated OpenAPI
+  documentation, when handling `Optional[T]`
+- Minor corrections to the `TestClient` class: HTTP HEAD, OPTIONS, and TRACE
+  should not allow request content body, therefore the corresponding methods
+  are updated to not support a `content` parameter
+- Automatically generates `404` response documentation when a request handler
+  defines an `Optional[T]` return type (this happens only when the user doesn't
+  specify the documentation for an endpoint)
+
 ## [1.0.7] - 2021-06-11 🍉
 - Adds a `TestClient` class that simplifies testing of applications
 - Fixes bug [#156](https://github.com/Neoteroi/BlackSheep/issues/156),

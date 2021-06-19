@@ -447,6 +447,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def _get_schema_by_type(
         self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
     ) -> Union[Schema, Reference]:
+        stored_ref = self._get_stored_reference(object_type, type_args)
+        if stored_ref:  # pragma: no cover
+            return stored_ref
+
         if self._can_handle_class_type(object_type):
             return self._get_schema_for_class(object_type)
 
@@ -776,10 +780,17 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                     # document therefore HTTP 204 No Content
                     data["204"] = ResponseInfo("Success response", content=[])
                 else:
+                    # if the return type is optional, generate automatically
+                    # the "404" response
+                    is_optional, child_type = check_union(return_type)
+
                     data["200"] = ResponseInfo(
                         "Success response",
-                        content=[ContentInfo(return_type, examples=[])],
+                        content=[ContentInfo(child_type, examples=[])],
                     )
+
+                    if is_optional and self.handle_optional_response_with_404:
+                        data["404"] = ResponseInfo("Object not found")
             else:
                 return responses
 

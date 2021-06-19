@@ -1888,3 +1888,118 @@ components:
                     nullable: false
 """.strip()
     )
+
+
+@pytest.mark.asyncio
+async def test_handles_ref_for_optional_type(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    app = get_app()
+
+    @app.route("/cats")
+    def one() -> PaginatedSet[Cat]:
+        ...
+
+    @app.route("/cats/{cat_id}")
+    def two(cat_id: int) -> Optional[Cat]:
+        ...
+
+    @app.route("/cats_alt/{cat_id}")
+    def three(cat_id: int) -> Cat:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /cats:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfCat'
+            operationId: one
+    /cats/{cat_id}:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Cat'
+                '404':
+                    description: Object not found
+            operationId: two
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+    /cats_alt/{cat_id}:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Cat'
+            operationId: three
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+""".strip()
+    )

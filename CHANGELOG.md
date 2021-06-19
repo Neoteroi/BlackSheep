@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minor corrections to the `TestClient` class: HTTP HEAD, OPTIONS, and TRACE
   should not allow request content body, therefore the corresponding methods
   are updated to not support a `content` parameter
+- Automatically generates `404` response documentation when a request handler
+  defines an `Optional[T]` return type (this happens only when the user doesn't
+  specify the documentation for an endpoint)
 
 ## [1.0.7] - 2021-06-11 🍉
 - Adds a `TestClient` class that simplifies testing of applications

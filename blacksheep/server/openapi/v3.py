@@ -447,6 +447,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def _get_schema_by_type(
         self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
     ) -> Union[Schema, Reference]:
+        stored_ref = self._get_stored_reference(object_type, type_args)
+        if stored_ref:
+            return stored_ref
+
         if self._can_handle_class_type(object_type):
             return self._get_schema_for_class(object_type)
 

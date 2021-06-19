@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the dependency on `essentials-openapi` to [v1.0.4](https://github.com/Neoteroi/essentials-openapi/blob/v0.1.4/CHANGELOG.md#014---2021-06-19-droplet)
 - Corrects a bug causing duplicate components definitions in generated OpenAPI
   documentation, when handling `Optional[T]`
+- Minor corrections to the `TestClient` class: HTTP HEAD, OPTIONS, and TRACE
+  should not allow request content body, therefore the corresponding methods
+  are updated to not support a `content` parameter
 
 ## [1.0.7] - 2021-06-11 🍉
 - Adds a `TestClient` class that simplifies testing of applications

@@ -629,7 +629,7 @@ class ASGIApplication(Application):
         if mount_class is None:
             self._mount = Mount()
 
-    def mount(self, path: str, app):
+    def mount(self, path: str, app: Callable):
         self._mount.mount(path, app)
 
     async def __call__(self, scope, receive, send):

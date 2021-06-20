@@ -3,7 +3,7 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, AnyStr, Union, Awaitable
+from typing import Any, Callable, Dict, List, Optional, AnyStr, Union, Awaitable, Set
 from urllib.parse import unquote
 
 from blacksheep.utils import ensure_bytes, ensure_str
@@ -477,6 +477,8 @@ class RoutesRegistry(RouterBase):
 
 
 class MountRoute:
+    __slots__ = ("app", "path", "_router")
+
     def __init__(self, app, path):
         assert path == "" or path.startswith("/"), "Routed paths must start with '/'"
 
@@ -501,14 +503,25 @@ class MountRoute:
 
 
 class Mount:
+    __slots__ = ("_mounted_apps", "_mounted_paths")
+
     def __init__(self):
         self._mounted_apps = []
+        self._mounted_paths = set()
 
     @property
     def mounted_apps(self) -> List[MountRoute]:
         return self._mounted_apps
 
-    def mount(self, path, app) -> None:
-        if any(mount.path == path for mount in self._mounted_apps):
+    @property
+    def mounted_paths(self) -> Set[str]:
+        return self._mounted_paths
+
+    def mount(self, path: str, app: Callable) -> None:
+        if path in self._mounted_paths:
             raise AssertionError(f"Mount application with path '{path}' already exist")
+
+        # To achieve better performance, we hold mounted paths in the set
+        self._mounted_paths.add(path)
+
         self._mounted_apps.append(MountRoute(app, path))

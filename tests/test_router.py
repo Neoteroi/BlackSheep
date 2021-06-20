@@ -785,7 +785,8 @@ def test_mount_route_raise_error_if_path_does_not_contain_slash():
 
 def test_mount_add_method():
     class ASGIHandler:
-        pass
+        def __call__(self, *args, **kwargs):
+            pass
 
     app = ASGIHandler()
     mount = Mount()

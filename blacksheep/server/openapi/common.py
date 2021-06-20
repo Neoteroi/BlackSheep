@@ -156,6 +156,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self.anonymous_access = anonymous_access
         self.ui_providers: List[UIProvider] = [SwaggerUIProvider(ui_path)]
         self._types_schemas = {}
+        self.handle_optional_response_with_404 = True
 
     def __call__(
         self,

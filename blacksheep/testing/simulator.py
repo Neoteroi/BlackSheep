@@ -36,7 +36,7 @@ class AbstractTestSimulator:
         headers: Optional[Dict[str, str]] = None,
         query: Optional[Dict[str, str]] = None,
         content: Optional[Content] = None,
-    ):
+    ) -> Response:
         """Entrypoint for all HTTP methods
 
         The method is main entrypoint for all TestClient methods
@@ -76,7 +76,7 @@ class TestSimulator(AbstractTestSimulator):
             scope["headers"],
         )
 
-        request.scope = scope
+        request.scope = scope  # type: ignore
 
         if content is not None:
             if not isinstance(content, Content):

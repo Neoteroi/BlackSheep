@@ -116,5 +116,10 @@ blacksheep/*.html
 blacksheep/includes/*.html
 out/*
 
+# Output of integration tests
 itests/out/*
 /itests/nice-cat.jpg
+
+example.html
+example.jpg
+nice-cat.jpg

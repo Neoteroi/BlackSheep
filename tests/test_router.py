@@ -771,19 +771,35 @@ def test_route_to_openapi_pattern(route_pattern, expected_pattern):
     assert route.mustache_pattern == expected_pattern
 
 
-def test_mount_add_method():
+@pytest.mark.parametrize(
+    "mount_path,expected_scope_path",
+    [
+        ("", "/*"),
+        ("/", "/*"),
+        ("/*", "/*"),
+        ("/foo", "/foo/*"),
+        ("/foo*", "/foo/*"),
+        ("/foo/", "/foo/*"),
+        ("/foo/*", "/foo/*"),
+        ("/admin", "/admin/*"),
+        ("/admin*", "/admin/*"),
+        ("/a/b/c", "/a/b/c/*"),
+        ("/a/b/c/", "/a/b/c/*"),
+        ("/a/b/c*", "/a/b/c/*"),
+        ("/a/b/c/*", "/a/b/c/*"),
+    ],
+)
+def test_mount_add_method(mount_path, expected_scope_path):
     class ASGIHandler:
         def __call__(self, *args, **kwargs):
             pass
 
     app = ASGIHandler()
     mount = Mount()
-    mount.mount("/foo", app)
-
-    expected_mount_route_path = "/foo"
+    mount.mount(mount_path, app)
 
     assert any(
-        mount_route.pattern.decode() == expected_mount_route_path
+        mount_route.pattern.decode() == expected_scope_path
         for mount_route in mount.mounted_apps
     )
     assert any(mount_route.handler is app for mount_route in mount.mounted_apps)

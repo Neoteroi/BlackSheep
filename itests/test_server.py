@@ -668,7 +668,15 @@ def test_open_api_request_body_description_from_docstring_with_request_body(
 
 
 def test_asgi_application_mount(session_three):
-    response = session_three.get("/foo")
+    response = session_three.get("/foo/foo")
+    actual_response = response.json()
+    expected_response = {"foo": "bar"}
+
+    assert actual_response == expected_response
+
+
+def test_asgi_application_mount_subfolder(session_three):
+    response = session_three.get("/foo/admin/example.json")
 
     actual_response = response.json()
     expected_response = {"foo": "bar"}

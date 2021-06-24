@@ -1,9 +1,11 @@
 import json
+import os
 import shutil
 from base64 import urlsafe_b64encode
 from urllib.parse import unquote
 from uuid import uuid4
 
+import pytest
 import yaml
 
 from .client_fixtures import get_static_path

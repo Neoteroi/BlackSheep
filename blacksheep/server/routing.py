@@ -3,7 +3,7 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, AnyStr, Union, Awaitable, Set
+from typing import Any, Callable, Dict, List, Optional, AnyStr, Union, Set
 from urllib.parse import unquote
 
 from blacksheep.utils import ensure_bytes, ensure_str

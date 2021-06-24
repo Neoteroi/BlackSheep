@@ -1,10 +1,10 @@
-from blacksheep.server import ASGIApplication, Application
+from blacksheep.server import Application
 from blacksheep.server.responses import json
 
 import uvicorn
 
 application = Application()
-app_three = ASGIApplication()
+app_three = Application()
 
 
 @application.router.get("/foo")

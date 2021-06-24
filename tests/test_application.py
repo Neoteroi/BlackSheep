@@ -1,3 +1,4 @@
+from blacksheep.server.application import Application
 import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
@@ -3567,6 +3568,36 @@ async def test_handles_on_start_error_asgi_lifespan(app, mock_send, mock_receive
     async def before_start(application: FakeApplication) -> None:
         raise RuntimeError("Crash!")
 
+    app.on_start += before_start
+
+    mock_receive = mock_receive(
+        [
+            MockMessage({"type": "lifespan.startup"}),
+            MockMessage({"type": "lifespan.shutdown"}),
+        ]
+    )
+
+    await app(
+        {"type": "lifespan", "message": "lifespan.startup"}, mock_receive, mock_send
+    )
+
+    assert mock_send.messages[0] == {"type": "lifespan.startup.failed"}
+
+
+@pytest.mark.asyncio
+async def test_app_with_mounts_handles_on_start_error_asgi_lifespan(
+    app: Application, mock_send, mock_receive
+):
+    async def before_start(application: FakeApplication) -> None:
+        raise RuntimeError("Crash!")
+
+    def foo():
+        return "foo"
+
+    other_app = Application()
+    other_app.router.add_get("/foo", foo)
+
+    app.mount("/foo", other_app)
     app.on_start += before_start
 
     mock_receive = mock_receive(

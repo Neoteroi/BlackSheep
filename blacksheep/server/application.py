@@ -51,7 +51,7 @@ from guardpost.authorization import Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from rodi import Container, Services
 
-__all__ = ("Application", "ASGIApplication")
+__all__ = ("Application",)
 
 
 def get_default_headers_middleware(
@@ -112,6 +112,13 @@ class ApplicationAlreadyStartedCORSError(TypeError):
         )
 
 
+def _extend(obj, cls):
+    """Applies a mixin to an instance of a class."""
+    base_cls = obj.__class__
+    base_cls_name = obj.__class__.__name__
+    obj.__class__ = type(base_cls_name, (cls, base_cls), {})
+
+
 class Application(BaseApplication):
     def __init__(
         self,
@@ -120,6 +127,7 @@ class Application(BaseApplication):
         services: Optional[Container] = None,
         debug: bool = False,
         show_error_details: Optional[bool] = None,
+        mount: Optional[Mount] = None,
     ):
         if router is None:
             router = Router()
@@ -127,6 +135,8 @@ class Application(BaseApplication):
             services = Container()
         if show_error_details is None:
             show_error_details = bool(os.environ.get("APP_SHOW_ERROR_DETAILS", False))
+        if mount is None:
+            mount = Mount()
         super().__init__(show_error_details, router)
 
         self.services: Container = services
@@ -146,6 +156,15 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
+        self._mount = mount
+
+    def mount(self, path: str, app: Callable) -> None:
+        self._mount.mount(path, app)
+
+        if len(self._mount.mounted_apps) == 1:
+            # the first time a mount is configured, extend the application
+            # to use mounts when handling web requests
+            self.extend(MountMixin)
 
     @property
     def service_provider(self) -> Services:
@@ -549,6 +568,12 @@ class Application(BaseApplication):
     def build_services(self):
         self._service_provider = self.services.build_provider()
 
+    def extend(self, mixin) -> None:
+        """
+        Extends the class with additional features, applying the given mixin class.
+        """
+        _extend(self, mixin)
+
     async def start(self):
         if self.started:
             return
@@ -610,34 +635,15 @@ class Application(BaseApplication):
         request.content.dispose()
 
 
-class ASGIApplication(Application):
-    def __init__(
-        self,
-        *,
-        router: Optional[Router] = None,
-        services: Optional[Container] = None,
-        debug: bool = False,
-        show_error_details: Optional[bool] = None,
-        mount_class: Optional[Mount] = None,
-    ):
-        super().__init__(
-            router=router,
-            services=services,
-            debug=debug,
-            show_error_details=show_error_details,
-        )
-        if mount_class is None:
-            self._mount = Mount()
-
-    def mount(self, path: str, app: Callable):
-        self._mount.mount(path, app)
+class MountMixin:
+    _mount: Mount
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
-            return await super()._handle_lifespan(receive, send)
+            return await super()._handle_lifespan(receive, send)  # type: ignore
 
-        for mount in self._mount.mounted_apps:
-            if mount.is_match(scope):
-                return await mount.handle(scope, receive, send)
+        for route in self._mount.mounted_apps:  # type: ignore
+            if route.match(scope["raw_path"]):
+                return await route.handler(scope, receive, send)
 
-        return await super().__call__(scope, receive, send)
+        return await super().__call__(scope, receive, send)  # type: ignore

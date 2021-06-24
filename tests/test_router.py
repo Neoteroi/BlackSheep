@@ -1,3 +1,4 @@
+from blacksheep.server.application import Application
 import pytest
 from blacksheep.server.routing import (
     InvalidValuePatternName,
@@ -7,7 +8,6 @@ from blacksheep.server.routing import (
     Router,
     HTTPMethod,
     Mount,
-    MountRoute,
 )
 
 FAKE = b"FAKE"
@@ -771,18 +771,6 @@ def test_route_to_openapi_pattern(route_pattern, expected_pattern):
     assert route.mustache_pattern == expected_pattern
 
 
-def test_mount_route_match():
-    mount_route = MountRoute(None, "/foo/bar")
-    scope = {"raw_path": "/foo/bar"}
-
-    assert mount_route.is_match(scope)
-
-
-def test_mount_route_raise_error_if_path_does_not_contain_slash():
-    with pytest.raises(AssertionError):
-        MountRoute(None, "bad-route")
-
-
 def test_mount_add_method():
     class ASGIHandler:
         def __call__(self, *args, **kwargs):
@@ -795,10 +783,24 @@ def test_mount_add_method():
     expected_mount_route_path = "/foo"
 
     assert any(
-        mount_route.path == expected_mount_route_path
+        mount_route.pattern.decode() == expected_mount_route_path
         for mount_route in mount.mounted_apps
     )
-    assert any(mount_route.app is app for mount_route in mount.mounted_apps)
+    assert any(mount_route.handler is app for mount_route in mount.mounted_apps)
+
+
+def test_mount_mounted_paths():
+    mount = Mount()
+    assert mount.mounted_paths == set()
+
+    mount.mount("/foo", Application())
+    assert mount.mounted_paths == {"/foo"}
+
+    mount.mount("/oFo", Application())
+    assert mount.mounted_paths == {"/foo", "/ofo"}
+
+    mount.mount("/ooF", Application())
+    assert mount.mounted_paths == {"/foo", "/ofo", "/oof"}
 
 
 def test_mount_add_raise_error_if_path_exist():

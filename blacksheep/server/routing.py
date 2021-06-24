@@ -476,32 +476,6 @@ class RoutesRegistry(RouterBase):
         self.routes.append(RegisteredRoute(method, pattern, handler))
 
 
-class MountRoute:
-    __slots__ = ("app", "path", "_router")
-
-    def __init__(self, app, path):
-        assert path == "" or path.startswith("/"), "Routed paths must start with '/'"
-
-        self.app = app
-        self.path = path
-        self._router = Router()
-
-        # Adding path to the router in the constructor
-        # This is the easiest way to do it, Also
-        # We stubbing here HTTP method and handler since
-        # We don't care about it, this should be handled by an ASGI application
-        # We care only about path<>pattern matching
-        self._router.add("http_method", path, lambda: None)
-
-    def is_match(self, scope: Dict[str, Any]) -> bool:
-        if self._router.get_match("http_method", scope["raw_path"]):
-            return True
-        return False
-
-    async def handle(self, scope, receive, send) -> Awaitable:
-        return await self.app(scope, receive, send)
-
-
 class Mount:
     __slots__ = ("_mounted_apps", "_mounted_paths")
 
@@ -510,7 +484,7 @@ class Mount:
         self._mounted_paths = set()
 
     @property
-    def mounted_apps(self) -> List[MountRoute]:
+    def mounted_apps(self) -> List[Route]:
         return self._mounted_apps
 
     @property
@@ -518,10 +492,8 @@ class Mount:
         return self._mounted_paths
 
     def mount(self, path: str, app: Callable) -> None:
-        if path in self._mounted_paths:
+        if path.lower() in self._mounted_paths:
             raise AssertionError(f"Mount application with path '{path}' already exist")
 
-        # To achieve better performance, we hold mounted paths in the set
-        self._mounted_paths.add(path)
-
-        self._mounted_apps.append(MountRoute(app, path))
+        self._mounted_paths.add(path.lower())
+        self._mounted_apps.append(Route(path, app))

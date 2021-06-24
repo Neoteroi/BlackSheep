@@ -1,3 +1,5 @@
+from blacksheep.server.asgi import get_request_url_from_scope
+from blacksheep.server.responses import _ensure_bytes
 import logging
 import os
 from typing import (
@@ -647,6 +649,23 @@ class MountMixin:
         scope["path"] = tail
         scope["raw_path"] = tail.encode("utf8")
 
+    async def _handle_redirect_to_mount_root(self, scope, send):
+        """
+        A request to the path "https://.../{mount_path}" must result in a
+        307 Temporary Redirect to the root of the mount: "https://.../{mount_path}/"
+        including a trailing slash.
+        """
+        response = Response(
+            307,
+            [
+                (
+                    b"Location",
+                    _ensure_bytes(f"{get_request_url_from_scope(scope)}/"),
+                )
+            ],
+        )
+        await send_asgi_response(response, send)
+
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
             return await super()._handle_lifespan(receive, send)  # type: ignore
@@ -654,6 +673,9 @@ class MountMixin:
         for route in self._mount.mounted_apps:  # type: ignore
             route_match = route.match(scope["raw_path"])
             if route_match:
+                raw_path = scope["raw_path"]
+                if raw_path == route.pattern.rstrip(b"/*") and scope["type"] == "http":
+                    return await self._handle_redirect_to_mount_root(scope, send)
                 self.handle_mount_path(scope, route_match)
                 return await route.handler(scope, receive, send)
 

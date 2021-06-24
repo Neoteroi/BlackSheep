@@ -3,7 +3,7 @@ from blacksheep import Content, Request, scribe
 from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
 from blacksheep.scribe import write_small_request
-from blacksheep.server.asgi import get_request_url
+from blacksheep.server.asgi import get_request_url, get_request_url_from_scope
 from blacksheep.url import URL
 
 
@@ -252,6 +252,7 @@ def test_request_content_type_is_read_from_content():
         MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
     )
 
+    assert request.content is not None
     assert request.content_type() == request.content.type
 
 
@@ -297,3 +298,8 @@ def test_request_pyi():
 
     request.set_cookie("lorem", "ipsum")
     request.get_cookie("lorem") == "ipsum"
+
+
+def test_get_request_url_from_scope_raises_for_invalid_scope():
+    with pytest.raises(ValueError):
+        get_request_url_from_scope({})

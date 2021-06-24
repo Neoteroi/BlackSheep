@@ -300,6 +300,60 @@ def test_request_pyi():
     request.get_cookie("lorem") == "ipsum"
 
 
+@pytest.mark.parametrize(
+    "scope,trailing_slash,expected_value",
+    [
+        [
+            {"scheme": "https", "path": "/", "server": ("www.neoteroi.dev", 443)},
+            False,
+            "https://www.neoteroi.dev/",
+        ],
+        [
+            {"scheme": "https", "path": "/admin", "server": ("www.neoteroi.dev", 443)},
+            False,
+            "https://www.neoteroi.dev/admin",
+        ],
+        [
+            {"scheme": "https", "path": "/admin", "server": ("www.neoteroi.dev", 443)},
+            True,
+            "https://www.neoteroi.dev/admin/",
+        ],
+        [
+            {
+                "scheme": "https",
+                "path": "/admin",
+                "server": ("www.neoteroi.dev", 44777),
+            },
+            True,
+            "https://www.neoteroi.dev:44777/admin/",
+        ],
+        [
+            {"scheme": "http", "path": "/admin", "server": ("www.neoteroi.dev", 44777)},
+            True,
+            "http://www.neoteroi.dev:44777/admin/",
+        ],
+        [
+            {"scheme": "http", "path": "/admin", "server": ("www.neoteroi.dev", 80)},
+            True,
+            "http://www.neoteroi.dev/admin/",
+        ],
+        [
+            {
+                "scheme": "http",
+                "path": "/admin",
+                "server": ("www.neoteroi.dev", 80),
+                "query_string": b"foo=Hello%20World%20%C3%B8",
+            },
+            False,
+            "http://www.neoteroi.dev/admin?foo=Hello%20World%20%C3%B8",
+        ],
+    ],
+)
+def test_get_request_url_from_scope(scope, trailing_slash, expected_value):
+    result = get_request_url_from_scope(scope, trailing_slash=trailing_slash)
+    assert result == expected_value
+
+
 def test_get_request_url_from_scope_raises_for_invalid_scope():
     with pytest.raises(ValueError):
         get_request_url_from_scope({})

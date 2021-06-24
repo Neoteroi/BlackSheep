@@ -660,7 +660,9 @@ class MountMixin:
             [
                 (
                     b"Location",
-                    _ensure_bytes(f"{get_request_url_from_scope(scope)}/"),
+                    _ensure_bytes(
+                        f"{get_request_url_from_scope(scope, trailing_slash=True)}"
+                    ),
                 )
             ],
         )

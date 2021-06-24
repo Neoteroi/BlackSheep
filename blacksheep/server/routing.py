@@ -495,5 +495,11 @@ class Mount:
         if path.lower() in self._mounted_paths:
             raise AssertionError(f"Mount application with path '{path}' already exist")
 
+        if not path.endswith("/"):
+            path = f"{path}/"
+
+        if not path.endswith("*"):
+            path = f"{path}*"
+
         self._mounted_paths.add(path.lower())
         self._mounted_apps.append(Route(path, app))

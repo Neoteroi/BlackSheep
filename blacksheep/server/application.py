@@ -638,12 +638,23 @@ class Application(BaseApplication):
 class MountMixin:
     _mount: Mount
 
+    def handle_mount_path(self, scope, route_match):
+        assert route_match.values is not None
+        tail = route_match.values.get("tail")
+        assert tail is not None
+        tail = "/" + tail
+
+        scope["path"] = tail
+        scope["raw_path"] = tail.encode("utf8")
+
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
             return await super()._handle_lifespan(receive, send)  # type: ignore
 
         for route in self._mount.mounted_apps:  # type: ignore
-            if route.match(scope["raw_path"]):
+            route_match = route.match(scope["raw_path"])
+            if route_match:
+                self.handle_mount_path(scope, route_match)
                 return await route.handler(scope, receive, send)
 
         return await super().__call__(scope, receive, send)  # type: ignore

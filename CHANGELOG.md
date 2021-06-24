@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2021-??-?? ❓
+- Adds support for application mounts
+
 ## [1.0.8] - 2021-06-19 :droplet:
 - Corrects a bug forcing `camelCase` on examples objects handled as dataclasses
   (issue [#173](https://github.com/Neoteroi/BlackSheep/issues/173)), updating

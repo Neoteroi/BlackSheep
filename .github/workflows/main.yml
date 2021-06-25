@@ -99,6 +99,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -U --no-index --find-links=deps deps/*
+          pip install black==20.8b1 isort==5.9.1
 
       - name: Compile Cython extensions
         run: |

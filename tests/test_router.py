@@ -1,3 +1,4 @@
+from blacksheep.server.application import Application
 import pytest
 from blacksheep.server.routing import (
     InvalidValuePatternName,
@@ -6,6 +7,7 @@ from blacksheep.server.routing import (
     RouteException,
     Router,
     HTTPMethod,
+    Mount,
 )
 
 FAKE = b"FAKE"
@@ -767,3 +769,58 @@ def test_route_to_openapi_pattern(route_pattern, expected_pattern):
     route = Route(route_pattern, object())
 
     assert route.mustache_pattern == expected_pattern
+
+
+@pytest.mark.parametrize(
+    "mount_path,expected_scope_path",
+    [
+        ("", "/*"),
+        ("/", "/*"),
+        ("/*", "/*"),
+        ("/foo", "/foo/*"),
+        ("/foo*", "/foo/*"),
+        ("/foo/", "/foo/*"),
+        ("/foo/*", "/foo/*"),
+        ("/admin", "/admin/*"),
+        ("/admin*", "/admin/*"),
+        ("/a/b/c", "/a/b/c/*"),
+        ("/a/b/c/", "/a/b/c/*"),
+        ("/a/b/c*", "/a/b/c/*"),
+        ("/a/b/c/*", "/a/b/c/*"),
+    ],
+)
+def test_mount_add_method(mount_path, expected_scope_path):
+    class ASGIHandler:
+        def __call__(self, *args, **kwargs):
+            pass
+
+    app = ASGIHandler()
+    mount = Mount()
+    mount.mount(mount_path, app)
+
+    assert any(
+        mount_route.pattern.decode() == expected_scope_path
+        for mount_route in mount.mounted_apps
+    )
+    assert any(mount_route.handler is app for mount_route in mount.mounted_apps)
+
+
+def test_mount_mounted_paths():
+    mount = Mount()
+    assert mount.mounted_paths == set()
+
+    mount.mount("/foo", Application())
+    assert mount.mounted_paths == {"/foo"}
+
+    mount.mount("/oFo", Application())
+    assert mount.mounted_paths == {"/foo", "/ofo"}
+
+    mount.mount("/ooF", Application())
+    assert mount.mounted_paths == {"/foo", "/ofo", "/oof"}
+
+
+def test_mount_add_raise_error_if_path_exist():
+    with pytest.raises(AssertionError):
+        mount = Mount()
+        mount.mount("/foo", None)
+        mount.mount("/foo", None)

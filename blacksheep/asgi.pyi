@@ -6,7 +6,6 @@ if sys.version_info >= (3, 8):
 else:
     from typing_extensions import TypedDict
 
-
 class ASGIScopeInterface(TypedDict):
     type: str
     http_version: str

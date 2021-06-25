@@ -1,3 +1,5 @@
+from blacksheep.server.asgi import get_request_url_from_scope
+from blacksheep.server.responses import _ensure_bytes
 import logging
 import os
 from typing import (
@@ -37,7 +39,7 @@ from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
-from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry
+from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry, Mount
 from blacksheep.sessions import (
     Encryptor,
     SessionSerializer,
@@ -112,6 +114,13 @@ class ApplicationAlreadyStartedCORSError(TypeError):
         )
 
 
+def _extend(obj, cls):
+    """Applies a mixin to an instance of a class."""
+    base_cls = obj.__class__
+    base_cls_name = obj.__class__.__name__
+    obj.__class__ = type(base_cls_name, (cls, base_cls), {})
+
+
 class Application(BaseApplication):
     def __init__(
         self,
@@ -120,6 +129,7 @@ class Application(BaseApplication):
         services: Optional[Container] = None,
         debug: bool = False,
         show_error_details: Optional[bool] = None,
+        mount: Optional[Mount] = None,
     ):
         if router is None:
             router = Router()
@@ -127,6 +137,8 @@ class Application(BaseApplication):
             services = Container()
         if show_error_details is None:
             show_error_details = bool(os.environ.get("APP_SHOW_ERROR_DETAILS", False))
+        if mount is None:
+            mount = Mount()
         super().__init__(show_error_details, router)
 
         self.services: Container = services
@@ -146,6 +158,15 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
+        self._mount = mount
+
+    def mount(self, path: str, app: Callable) -> None:
+        self._mount.mount(path, app)
+
+        if len(self._mount.mounted_apps) == 1:
+            # the first time a mount is configured, extend the application
+            # to use mounts when handling web requests
+            self.extend(MountMixin)
 
     @property
     def service_provider(self) -> Services:
@@ -549,6 +570,12 @@ class Application(BaseApplication):
     def build_services(self):
         self._service_provider = self.services.build_provider()
 
+    def extend(self, mixin) -> None:
+        """
+        Extends the class with additional features, applying the given mixin class.
+        """
+        _extend(self, mixin)
+
     async def start(self):
         if self.started:
             return
@@ -608,3 +635,50 @@ class Application(BaseApplication):
 
         request.scope = None  # type: ignore
         request.content.dispose()
+
+
+class MountMixin:
+    _mount: Mount
+
+    def handle_mount_path(self, scope, route_match):
+        assert route_match.values is not None
+        tail = route_match.values.get("tail")
+        assert tail is not None
+        tail = "/" + tail
+
+        scope["path"] = tail
+        scope["raw_path"] = tail.encode("utf8")
+
+    async def _handle_redirect_to_mount_root(self, scope, send):
+        """
+        A request to the path "https://.../{mount_path}" must result in a
+        307 Temporary Redirect to the root of the mount: "https://.../{mount_path}/"
+        including a trailing slash.
+        """
+        response = Response(
+            307,
+            [
+                (
+                    b"Location",
+                    _ensure_bytes(
+                        f"{get_request_url_from_scope(scope, trailing_slash=True)}"
+                    ),
+                )
+            ],
+        )
+        await send_asgi_response(response, send)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            return await super()._handle_lifespan(receive, send)  # type: ignore
+
+        for route in self._mount.mounted_apps:  # type: ignore
+            route_match = route.match(scope["raw_path"])
+            if route_match:
+                raw_path = scope["raw_path"]
+                if raw_path == route.pattern.rstrip(b"/*") and scope["type"] == "http":
+                    return await self._handle_redirect_to_mount_root(scope, send)
+                self.handle_mount_path(scope, route_match)
+                return await route.handler(scope, receive, send)
+
+        return await super().__call__(scope, receive, send)  # type: ignore

@@ -11,6 +11,7 @@ from hypercorn.run import Config as HypercornConfig
 
 from .app import app
 from .app_two import app_two
+from .app_three import app_three
 from .utils import ClientSession, get_sleep_time
 
 
@@ -27,6 +28,11 @@ def server_port():
 @pytest.fixture(scope="module")
 def server_port_two():
     return 44556
+
+
+@pytest.fixture(scope="module")
+def server_port_three():
+    return 44557
 
 
 @pytest.fixture()
@@ -46,6 +52,11 @@ def session(server_host, server_port):
 @pytest.fixture(scope="module")
 def session_two(server_host, server_port_two):
     return ClientSession(f"http://{server_host}:{server_port_two}")
+
+
+@pytest.fixture(scope="module")
+def session_three(server_host, server_port_three):
+    return ClientSession(f"http://{server_host}:{server_port_three}")
 
 
 def _start_server(target_app, port: int):
@@ -70,6 +81,10 @@ def start_server_2():
     _start_server(app_two, 44556)
 
 
+def start_server_3():
+    _start_server(app_three, 44557)
+
+
 def _start_server_process(target):
     server_process = Process(target=target)
     server_process.start()
@@ -92,3 +107,8 @@ def server():
 @pytest.fixture(scope="module", autouse=True)
 def server_two():
     yield from _start_server_process(start_server_2)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def server_three():
+    yield from _start_server_process(start_server_3)

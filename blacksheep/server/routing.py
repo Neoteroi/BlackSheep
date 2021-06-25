@@ -3,7 +3,7 @@ import logging
 from abc import abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, AnyStr, Union
+from typing import Any, Callable, Dict, List, Optional, AnyStr, Union, Set
 from urllib.parse import unquote
 
 from blacksheep.utils import ensure_bytes, ensure_str
@@ -474,3 +474,33 @@ class RoutesRegistry(RouterBase):
     def add(self, method: str, pattern: str, handler: Callable):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
+
+
+class Mount:
+    __slots__ = ("_mounted_apps", "_mounted_paths")
+
+    def __init__(self):
+        self._mounted_apps = []
+        self._mounted_paths = set()
+
+    @property
+    def mounted_apps(self) -> List[Route]:
+        return self._mounted_apps
+
+    @property
+    def mounted_paths(self) -> Set[str]:
+        return self._mounted_paths
+
+    def mount(self, path: str, app: Callable) -> None:
+        if not path:
+            path = "/"
+
+        if path.lower() in self._mounted_paths:
+            raise AssertionError(f"Mount application with path '{path}' already exist")
+
+        self._mounted_paths.add(path.lower())
+
+        if not path.endswith("/*"):
+            path = f"{path.rstrip('/*')}/*"
+
+        self._mounted_apps.append(Route(path, app))

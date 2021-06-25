@@ -1,4 +1,4 @@
-.PHONY: compile release test annotate buildext
+.PHONY: compile release test annotate buildext check-isort check-black
 
 
 cyt:
@@ -75,3 +75,24 @@ test-cov-unit:
 
 test-cov:
 	pytest --cov-report html --cov=blacksheep
+
+
+lint: check-flake8 check-isort check-black
+
+
+check-flake8:
+	@echo "$(BOLD)Checking flake8$(RESET)"
+	@flake8 blacksheep 2>&1
+	@flake8 tests 2>&1
+
+
+check-isort:
+	@echo "$(BOLD)Checking isort$(RESET)"
+	@isort --check-only blacksheep 2>&1
+	@isort --check-only tests 2>&1
+	@isort --check-only itests 2>&1
+
+
+check-black:  ## Run the black tool in check mode only (won't modify files)
+	@echo "$(BOLD)Checking black$(RESET)"
+	@black --target-version py38 --check blacksheep 2>&1

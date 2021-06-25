@@ -3,7 +3,7 @@ from blacksheep import Content, Request, scribe
 from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
 from blacksheep.scribe import write_small_request
-from blacksheep.server.asgi import get_request_url
+from blacksheep.server.asgi import get_request_url, get_request_url_from_scope
 from blacksheep.url import URL
 
 
@@ -252,6 +252,7 @@ def test_request_content_type_is_read_from_content():
         MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
     )
 
+    assert request.content is not None
     assert request.content_type() == request.content.type
 
 
@@ -297,3 +298,62 @@ def test_request_pyi():
 
     request.set_cookie("lorem", "ipsum")
     request.get_cookie("lorem") == "ipsum"
+
+
+@pytest.mark.parametrize(
+    "scope,trailing_slash,expected_value",
+    [
+        [
+            {"scheme": "https", "path": "/", "server": ("www.neoteroi.dev", 443)},
+            False,
+            "https://www.neoteroi.dev/",
+        ],
+        [
+            {"scheme": "https", "path": "/admin", "server": ("www.neoteroi.dev", 443)},
+            False,
+            "https://www.neoteroi.dev/admin",
+        ],
+        [
+            {"scheme": "https", "path": "/admin", "server": ("www.neoteroi.dev", 443)},
+            True,
+            "https://www.neoteroi.dev/admin/",
+        ],
+        [
+            {
+                "scheme": "https",
+                "path": "/admin",
+                "server": ("www.neoteroi.dev", 44777),
+            },
+            True,
+            "https://www.neoteroi.dev:44777/admin/",
+        ],
+        [
+            {"scheme": "http", "path": "/admin", "server": ("www.neoteroi.dev", 44777)},
+            True,
+            "http://www.neoteroi.dev:44777/admin/",
+        ],
+        [
+            {"scheme": "http", "path": "/admin", "server": ("www.neoteroi.dev", 80)},
+            True,
+            "http://www.neoteroi.dev/admin/",
+        ],
+        [
+            {
+                "scheme": "http",
+                "path": "/admin",
+                "server": ("www.neoteroi.dev", 80),
+                "query_string": b"foo=Hello%20World%20%C3%B8",
+            },
+            False,
+            "http://www.neoteroi.dev/admin?foo=Hello%20World%20%C3%B8",
+        ],
+    ],
+)
+def test_get_request_url_from_scope(scope, trailing_slash, expected_value):
+    result = get_request_url_from_scope(scope, trailing_slash=trailing_slash)
+    assert result == expected_value
+
+
+def test_get_request_url_from_scope_raises_for_invalid_scope():
+    with pytest.raises(ValueError):
+        get_request_url_from_scope({})

@@ -2,11 +2,10 @@ import asyncio
 from asyncio import TimeoutError
 from typing import AsyncIterable, List
 
-from httptools.parser.errors import HttpParserCallbackError, HttpParserError
-from blacksheep import JSONContent, Request, StreamedContent
-
 import pytest
+from httptools.parser.errors import HttpParserCallbackError, HttpParserError
 
+from blacksheep import JSONContent, Request, StreamedContent
 from blacksheep.client.connection import (
     ClientConnection,
     ConnectionClosedError,

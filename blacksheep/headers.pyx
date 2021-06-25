@@ -1,5 +1,5 @@
 from collections.abc import Mapping, MutableSequence
-from typing import Union, Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 
 cdef class Header:

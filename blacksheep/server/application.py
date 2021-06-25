@@ -1,5 +1,3 @@
-from blacksheep.server.asgi import get_request_url_from_scope
-from blacksheep.server.responses import _ensure_bytes
 import logging
 import os
 from typing import (
@@ -16,12 +14,19 @@ from typing import (
     Union,
 )
 
+from guardpost.asynchronous.authentication import AuthenticationStrategy
+from guardpost.asynchronous.authorization import AuthorizationStrategy
+from guardpost.authorization import Policy, UnauthorizedError
+from guardpost.common import AuthenticatedRequirement
+from rodi import Container, Services
+
 from blacksheep.baseapp import BaseApplication
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.messages import Request, Response
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.scribe import send_asgi_response
+from blacksheep.server.asgi import get_request_url_from_scope
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
     get_authentication_middleware,
@@ -39,19 +44,10 @@ from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
-from blacksheep.server.routing import RegisteredRoute, Router, RoutesRegistry, Mount
-from blacksheep.sessions import (
-    Encryptor,
-    SessionSerializer,
-    Signer,
-    SessionMiddleware,
-)
+from blacksheep.server.responses import _ensure_bytes
+from blacksheep.server.routing import Mount, RegisteredRoute, Router, RoutesRegistry
+from blacksheep.sessions import Encryptor, SessionMiddleware, SessionSerializer, Signer
 from blacksheep.utils import ensure_bytes, join_fragments
-from guardpost.asynchronous.authentication import AuthenticationStrategy
-from guardpost.asynchronous.authorization import AuthorizationStrategy
-from guardpost.authorization import Policy, UnauthorizedError
-from guardpost.common import AuthenticatedRequirement
-from rodi import Container, Services
 
 __all__ = ("Application",)
 

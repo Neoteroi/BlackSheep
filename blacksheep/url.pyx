@@ -1,5 +1,4 @@
 import httptools
-
 from httptools.parser import errors
 
 

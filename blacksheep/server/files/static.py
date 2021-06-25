@@ -1,6 +1,7 @@
+from email.utils import formatdate
+
 from blacksheep.contents import Content
 from blacksheep.messages import Request, Response
-from email.utils import formatdate
 
 
 def get_response_for_static_content(

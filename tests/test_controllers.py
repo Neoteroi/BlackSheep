@@ -1,20 +1,19 @@
 from dataclasses import dataclass
 from functools import wraps
-from tests.test_files_serving import get_file_path
 from typing import Optional
 
 import pytest
+from guardpost.authentication import User
+from rodi import Services, inject
 
 from blacksheep import Request, Response
 from blacksheep.server.application import RequiresServiceContainerError
 from blacksheep.server.controllers import ApiController, Controller, RoutesRegistry
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
-from blacksheep.utils import ensure_str
-from guardpost.authentication import User
-from rodi import inject, Services
-
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.utils import ensure_str
+from tests.test_files_serving import get_file_path
 from tests.utils.application import FakeApplication
 
 

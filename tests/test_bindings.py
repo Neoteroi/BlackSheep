@@ -1,11 +1,9 @@
-from blacksheep.url import URL
 from typing import Any, List, Optional, Sequence, Set, Tuple, Type
-from guardpost.authentication import Identity
-
-import pytest
-from pytest import raises
 from uuid import UUID
 
+import pytest
+from guardpost.authentication import Identity
+from pytest import raises
 from rodi import Container
 
 from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Request
@@ -25,13 +23,14 @@ from blacksheep.server.bindings import (
     MissingBodyError,
     MissingConverterError,
     QueryBinder,
+    RequestMethodBinder,
+    RequestURLBinder,
     RouteBinder,
     ServiceBinder,
     SyncBinder,
     get_binder_by_type,
-    RequestURLBinder,
-    RequestMethodBinder,
 )
+from blacksheep.url import URL
 
 JSONContentType = (b"Content-Type", b"application/json")
 

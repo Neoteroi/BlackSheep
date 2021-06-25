@@ -1,5 +1,7 @@
-import pytest
 from typing import List
+
+import pytest
+
 from blacksheep.server.openapi.common import ParameterInfo
 from blacksheep.server.openapi.docstrings import (
     DocstringInfo,

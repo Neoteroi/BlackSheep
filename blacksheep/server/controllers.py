@@ -1,15 +1,15 @@
-from io import BytesIO
 import sys
+from io import BytesIO
 from typing import Any, AsyncIterable, Callable, Optional, Union
 
 from blacksheep import Request, Response
 from blacksheep.server.responses import (
+    ContentDispositionType,
     MessageType,
     accepted,
     bad_request,
     created,
     file,
-    ContentDispositionType,
     forbidden,
     html,
     json,
@@ -27,13 +27,8 @@ from blacksheep.server.responses import (
     unauthorized,
 )
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.templating import (
-    Environment,
-    view,
-    view_async,
-)
+from blacksheep.server.templating import Environment, view, view_async
 from blacksheep.utils import AnyStr, join_fragments
-
 
 # singleton router used to store initial configuration,
 # before the application starts

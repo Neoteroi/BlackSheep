@@ -37,8 +37,8 @@ from blacksheep.server.responses import (
     unauthorized,
 )
 from blacksheep.server.routing import RoutesRegistry
-from tests.test_files_serving import get_file_path
 from blacksheep.testing.helpers import get_example_scope
+from tests.test_files_serving import get_file_path
 
 STATUS_METHODS_OPTIONAL_BODY = [
     (ok, 200),

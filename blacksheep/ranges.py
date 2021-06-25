@@ -1,4 +1,5 @@
-from typing import Sequence, Optional, List, Union
+from typing import List, Optional, Sequence, Union
+
 from .utils import AnyStr, ensure_str
 
 

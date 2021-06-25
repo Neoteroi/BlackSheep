@@ -1,13 +1,12 @@
 import pytest
+
 from blacksheep import Content, Request, scribe
 from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
 from blacksheep.scribe import write_small_request
 from blacksheep.server.asgi import get_request_url, get_request_url_from_scope
-from blacksheep.url import URL
-
-
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.url import URL
 
 
 def test_request_supports_dynamic_attributes():

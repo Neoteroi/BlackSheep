@@ -2,21 +2,21 @@ from dataclasses import dataclass
 from typing import List
 
 import pytest
+from jinja2 import PackageLoader
+from pydantic import BaseModel
+
 from blacksheep.server import Application
 from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.templating import (
+    model_to_view_params,
     template_name,
     use_templates,
     view,
     view_async,
-    model_to_view_params,
 )
-from jinja2 import PackageLoader
-from pydantic import BaseModel
-
 from blacksheep.testing.helpers import get_example_scope
-from tests.utils.application import FakeApplication
 from blacksheep.testing.messages import MockReceive, MockSend
+from tests.utils.application import FakeApplication
 
 
 def get_app(enable_async):

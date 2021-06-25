@@ -1,8 +1,8 @@
 from .session import (
-    ClientSession,
     CircularRedirectError,
+    ClientSession,
+    ConnectionTimeout,
     MaximumRedirectsExceededError,
     MissingLocationForRedirect,
-    ConnectionTimeout,
     RequestTimeout,
 )

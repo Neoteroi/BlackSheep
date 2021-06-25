@@ -1,15 +1,12 @@
-from typing import Union, List, Optional, Tuple, Dict
-
-import uuid
 import json
-
-from inspect import isasyncgenfunction
+import uuid
 from collections.abc import MutableSequence
-
-from urllib.parse import parse_qsl
-from urllib.parse import quote_plus
+from inspect import isasyncgenfunction
+from typing import Dict, List, Optional, Tuple, Union
+from urllib.parse import parse_qsl, quote_plus
 
 from .exceptions cimport MessageAborted
+
 
 cdef class Content:
 

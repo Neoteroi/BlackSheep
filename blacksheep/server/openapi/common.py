@@ -25,13 +25,14 @@ from typing import (
     Union,
 )
 
+from openapidocs.common import Format, OpenAPIRoot, Serializer
+
 from blacksheep.messages import Request
 from blacksheep.server.application import Application
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.responses import FriendlyEncoder
 from blacksheep.server.routing import Route, Router
-from openapidocs.common import Format, OpenAPIRoot, Serializer
 
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
 

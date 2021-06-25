@@ -5,6 +5,8 @@ from typing import List
 
 import pkg_resources
 import pytest
+from essentials.folders import get_file_extension
+
 from blacksheep import Request
 from blacksheep.common.files.asyncfs import FileContext, FilesHandler
 from blacksheep.exceptions import BadRequest, InvalidArgument
@@ -20,8 +22,6 @@ from blacksheep.server.files import (
 )
 from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
-from essentials.folders import get_file_extension
-
 from blacksheep.testing.helpers import get_example_scope
 
 

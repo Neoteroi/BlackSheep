@@ -1,23 +1,32 @@
-from abc import ABC, abstractmethod
+import collections.abc as collections_abc
 import inspect
 import warnings
-import collections.abc as collections_abc
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import (
-    Any,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    _GenericAlias as GenericAlias,
-    get_type_hints,
-)
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
+from typing import _GenericAlias as GenericAlias
+from typing import get_type_hints
 from uuid import UUID
+
+from openapidocs.common import Format
+from openapidocs.v3 import (
+    Components,
+    Example,
+    Header,
+    Info,
+    MediaType,
+    OpenAPI,
+    Operation,
+    Parameter,
+    ParameterLocation,
+    PathItem,
+    Reference,
+    RequestBody,
+)
+from openapidocs.v3 import Response as ResponseDoc
+from openapidocs.v3 import Schema, Server, ValueFormat, ValueType
 
 from blacksheep.server.bindings import (
     Binder,
@@ -37,23 +46,6 @@ from blacksheep.server.openapi.exceptions import (
     UnsupportedUnionTypeException,
 )
 from blacksheep.server.routing import Router
-from openapidocs.common import Format
-from openapidocs.v3 import (
-    Components,
-    Example,
-    Header,
-    Info,
-    MediaType,
-    OpenAPI,
-    Operation,
-    Parameter,
-    ParameterLocation,
-    PathItem,
-    Reference,
-    RequestBody,
-)
-from openapidocs.v3 import Response as ResponseDoc
-from openapidocs.v3 import Schema, Server, ValueFormat, ValueType
 
 from ..application import Application
 from .common import (

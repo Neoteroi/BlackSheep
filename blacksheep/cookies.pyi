@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Optional, Union
 from enum import IntEnum
+from typing import Optional, Union
 
 class CookieSameSiteMode(IntEnum):
     UNDEFINED = 0

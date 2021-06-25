@@ -1,13 +1,14 @@
-from blacksheep.server.application import Application
 import pytest
+
+from blacksheep.server.application import Application
 from blacksheep.server.routing import (
+    HTTPMethod,
     InvalidValuePatternName,
+    Mount,
     Route,
     RouteDuplicate,
     RouteException,
     Router,
-    HTTPMethod,
-    Mount,
 )
 
 FAKE = b"FAKE"

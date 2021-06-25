@@ -3,6 +3,10 @@ from inspect import Parameter, _ParameterKind
 from typing import List, Optional, Sequence, Union
 
 import pytest
+from guardpost.authentication import Identity, User
+from pytest import raises
+from rodi import Container, Services, inject
+
 from blacksheep import Request
 from blacksheep.server.bindings import (
     FromHeader,
@@ -31,9 +35,6 @@ from blacksheep.server.normalization import (
     normalize_middleware,
 )
 from blacksheep.server.routing import Route
-from guardpost.authentication import Identity, User
-from pytest import raises
-from rodi import Container, Services, inject
 
 
 class Pet:

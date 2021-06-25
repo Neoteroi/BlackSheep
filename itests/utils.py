@@ -1,10 +1,11 @@
-import os
 import errno
-import requests
-from .logs import get_logger
-from urllib.parse import urljoin
+import os
 import socket
+from urllib.parse import urljoin
 
+import requests
+
+from .logs import get_logger
 
 logger = get_logger()
 

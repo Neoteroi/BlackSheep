@@ -10,8 +10,8 @@ from hypercorn.asyncio import serve as hypercorn_serve
 from hypercorn.run import Config as HypercornConfig
 
 from .app import app
-from .app_two import app_two
 from .app_three import app_three
+from .app_two import app_two
 from .utils import ClientSession, get_sleep_time
 
 

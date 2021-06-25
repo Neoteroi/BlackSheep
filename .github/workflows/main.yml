@@ -106,9 +106,21 @@ jobs:
 
       - name: Run tests
         run: |
+          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+
+      - name: Run linters
+        run: |
+          echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance."
+
           flake8 blacksheep
           flake8 tests
-          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+          flake8 itests
+          isort --check-only blacksheep 2>&1
+          isort --check-only tests 2>&1
+          isort --check-only itests 2>&1
+          black --check blacksheep 2>&1
+          black --check tests 2>&1
+          black --check itests 2>&1
 
       - name: Test Hypercorn
         run: |

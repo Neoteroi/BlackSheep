@@ -1,5 +1,3 @@
-from blacksheep.utils import join_fragments
-from blacksheep.server.authorization import allow_anonymous
 import html
 import os
 from pathlib import Path
@@ -10,8 +8,10 @@ from blacksheep import HTMLContent, Request, Response
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.common.files.pathsutils import get_file_extension_from_name
 from blacksheep.exceptions import NotFound
+from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import Route, Router
+from blacksheep.utils import join_fragments
 
 from . import get_default_extensions, get_response_for_file, validate_source_path
 

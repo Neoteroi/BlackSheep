@@ -9,7 +9,6 @@ See:
 """
 from abc import abstractmethod
 from base64 import urlsafe_b64decode
-from blacksheep.contents import FormPart
 from collections.abc import Iterable as IterableAbc
 from datetime import date, datetime
 from typing import (
@@ -30,12 +29,14 @@ from typing import (
 from urllib.parse import unquote
 from uuid import UUID
 
-from blacksheep import Request
-from blacksheep.exceptions import BadRequest
-from blacksheep.url import URL
 from dateutil.parser import parse as dateutil_parser
 from guardpost.authentication import Identity
-from rodi import Services, CannotResolveTypeException
+from rodi import CannotResolveTypeException, Services
+
+from blacksheep import Request
+from blacksheep.contents import FormPart
+from blacksheep.exceptions import BadRequest
+from blacksheep.url import URL
 
 T = TypeVar("T")
 TypeOrName = Union[Type, str]

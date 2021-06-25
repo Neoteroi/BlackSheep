@@ -6,7 +6,7 @@
 
 from .contents cimport Content
 from .cookies cimport Cookie
-from .messages cimport Request, Response, Message
+from .messages cimport Message, Request, Response
 
 
 cpdef bytes get_status_line(int status)

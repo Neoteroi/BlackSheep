@@ -1,14 +1,15 @@
 import asyncio
-from blacksheep.exceptions import InvalidArgument
 import ssl
+
 import pytest
-from blacksheep.client.pool import ClientConnectionPool, get_ssl_context
+
 from blacksheep.client.connection import (
-    ClientConnection,
     INSECURE_SSLCONTEXT,
     SECURE_SSLCONTEXT,
+    ClientConnection,
 )
-
+from blacksheep.client.pool import ClientConnectionPool, get_ssl_context
+from blacksheep.exceptions import InvalidArgument
 
 example_context = ssl.SSLContext()
 example_context.check_hostname = False

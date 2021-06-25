@@ -1,9 +1,9 @@
-import re
 import logging
+import re
 from abc import abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Callable, Dict, List, Optional, AnyStr, Union, Set
+from typing import Any, AnyStr, Callable, Dict, List, Optional, Set, Union
 from urllib.parse import unquote
 
 from blacksheep.utils import ensure_bytes, ensure_str

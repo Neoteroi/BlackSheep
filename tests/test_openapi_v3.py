@@ -4,6 +4,12 @@ from enum import IntEnum
 from typing import Generic, List, Optional, Sequence, TypeVar, Union
 
 import pytest
+from openapidocs.common import Format, Serializer
+from openapidocs.v3 import Info, Reference, Schema, ValueFormat, ValueType
+from pydantic import BaseModel, HttpUrl, validator
+from pydantic.generics import GenericModel
+from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
+
 from blacksheep.server.application import Application
 from blacksheep.server.openapi.common import (
     ContentInfo,
@@ -22,11 +28,6 @@ from blacksheep.server.openapi.v3 import (
     check_union,
 )
 from blacksheep.server.routing import RoutesRegistry
-from openapidocs.common import Format, Serializer
-from openapidocs.v3 import Info, Reference, Schema, ValueFormat, ValueType
-from pydantic import BaseModel, HttpUrl, validator
-from pydantic.generics import GenericModel
-from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 T = TypeVar("T")
 U = TypeVar("U")

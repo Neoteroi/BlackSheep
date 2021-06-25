@@ -1,4 +1,5 @@
 import pytest
+
 from blacksheep.url import URL, InvalidURL
 
 

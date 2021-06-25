@@ -1,7 +1,7 @@
 import pytest
 
-from tests.utils.application import FakeApplication
 from blacksheep.testing.messages import MockReceive, MockSend
+from tests.utils.application import FakeApplication
 
 
 @pytest.fixture

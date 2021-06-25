@@ -4,11 +4,11 @@ from functools import lru_cache
 from io import BytesIO
 from typing import Any, AnyStr, AsyncIterable, Callable, Union
 
-from essentials.json import FriendlyEncoder, dumps as friendly_dumps
+from essentials.json import FriendlyEncoder
+from essentials.json import dumps as friendly_dumps
 
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
 from blacksheep.common.files.asyncfs import FilesHandler
-
 
 MessageType = Any
 

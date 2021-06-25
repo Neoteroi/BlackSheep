@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from ipaddress import ip_address
-from typing import Optional, Dict, Iterable, TypeVar
+from typing import Dict, Iterable, Optional, TypeVar
 
 from blacksheep import URL, Cookie
 

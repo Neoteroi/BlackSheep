@@ -19,12 +19,13 @@ from typing import (
 )
 from uuid import UUID
 
+from guardpost.authentication import Identity, User
+from rodi import Services
+
 from blacksheep import Request, Response
 from blacksheep.normalization import copy_special_attributes
 from blacksheep.server import responses
 from blacksheep.server.routing import Route
-from guardpost.authentication import Identity, User
-from rodi import Services
 
 from .bindings import (
     Binder,

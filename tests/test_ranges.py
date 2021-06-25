@@ -1,5 +1,6 @@
 import pytest
-from blacksheep.ranges import Range, RangePart, InvalidRangeValue
+
+from blacksheep.ranges import InvalidRangeValue, Range, RangePart
 
 
 @pytest.mark.parametrize(

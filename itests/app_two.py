@@ -1,14 +1,22 @@
-from blacksheep.server.responses import text
 import json
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 from http import HTTPStatus
-from uuid import UUID
 from typing import List, Optional, Set
+from uuid import UUID
 
 import uvicorn
+from dateutil.parser import parse as dateutil_parse
+from guardpost.authentication import Identity
+from guardpost.authorization import AuthorizationContext
+from guardpost.common import AuthenticatedRequirement
+from openapidocs.v3 import Discriminator, Info, MediaType, Operation
+from openapidocs.v3 import Response as ResponseDoc
+from openapidocs.v3 import Schema
+from pydantic import BaseModel
+
 from blacksheep import Response, TextContent
 from blacksheep.server import Application
 from blacksheep.server.authentication import AuthenticationHandler
@@ -32,22 +40,9 @@ from blacksheep.server.openapi.common import (
     ResponseExample,
     ResponseInfo,
 )
-from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.openapi.ui import ReDocUIProvider
-from dateutil.parser import parse as dateutil_parse
-from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext
-from guardpost.common import AuthenticatedRequirement
-from openapidocs.v3 import (
-    Discriminator,
-    Info,
-    MediaType,
-    Operation,
-    Response as ResponseDoc,
-    Schema,
-)
-from pydantic import BaseModel
-
+from blacksheep.server.openapi.v3 import OpenAPIHandler
+from blacksheep.server.responses import text
 from itests.utils import CrashTest
 
 app_two = Application()

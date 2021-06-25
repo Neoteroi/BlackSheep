@@ -1,4 +1,3 @@
-from blacksheep.server.application import Application
 import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
@@ -9,7 +8,12 @@ from uuid import UUID, uuid4
 
 import pkg_resources
 import pytest
+from guardpost.asynchronous.authentication import AuthenticationHandler
+from guardpost.authentication import Identity, User
+from rodi import Container, inject
+
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
+from blacksheep.server.application import Application
 from blacksheep.server.bindings import (
     ClientInfo,
     FromBytes,
@@ -27,15 +31,9 @@ from blacksheep.server.bindings import (
 from blacksheep.server.di import dependency_injection_middleware
 from blacksheep.server.normalization import ensure_response
 from blacksheep.server.responses import status_code, text
-from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity, User
-from rodi import Container, inject
-
-from tests.utils.application import FakeApplication
-
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockMessage
-
+from tests.utils.application import FakeApplication
 from tests.utils.folder import ensure_folder
 
 

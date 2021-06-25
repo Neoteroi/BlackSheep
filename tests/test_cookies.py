@@ -1,4 +1,3 @@
-from blacksheep.cookies import CookieValueExceedsMaximumLength
 from datetime import datetime
 
 import pytest
@@ -11,7 +10,7 @@ from blacksheep import (
     parse_cookie,
     scribe,
 )
-
+from blacksheep.cookies import CookieValueExceedsMaximumLength
 
 COOKIES = [
     (

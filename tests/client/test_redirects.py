@@ -1,15 +1,15 @@
-from blacksheep.client.session import RedirectsCache
 import http
 
 import pytest
 
-from blacksheep import HTMLContent, Response, TextContent, URL
+from blacksheep import URL, HTMLContent, Response, TextContent
 from blacksheep.client import (
     CircularRedirectError,
     ClientSession,
     MaximumRedirectsExceededError,
 )
 from blacksheep.client.exceptions import MissingLocationForRedirect
+from blacksheep.client.session import RedirectsCache
 
 from . import FakePools
 

@@ -1,21 +1,20 @@
-import re
 import http
-
-import cchardet as chardet
-from urllib.parse import parse_qs, unquote, quote
+import re
+from datetime import datetime, timedelta
 from json import loads as json_loads
 from json.decoder import JSONDecodeError
-from datetime import datetime, timedelta
+from urllib.parse import parse_qs, quote, unquote
+
+import cchardet as chardet
 
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
 
-from .url cimport URL
-from .headers cimport Headers
+from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
+from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
 from .exceptions cimport BadRequestFormat
-from .cookies cimport Cookie, parse_cookie, write_cookie_for_response, split_value
-from .contents cimport Content, parse_www_form_urlencoded, multiparts_to_dictionary
-
+from .headers cimport Headers
+from .url cimport URL
 
 _charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
 

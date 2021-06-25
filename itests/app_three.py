@@ -1,7 +1,7 @@
+import uvicorn
+
 from blacksheep.server import Application
 from blacksheep.server.responses import json
-
-import uvicorn
 
 application = Application(show_error_details=True)
 app_three = Application(show_error_details=True)

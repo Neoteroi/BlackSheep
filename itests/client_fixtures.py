@@ -1,14 +1,14 @@
-from itests.utils import get_sleep_time
-from blacksheep.client.pool import ClientConnectionPools
+import asyncio
 import os
 import pathlib
-import asyncio
 from multiprocessing import Process
 from time import sleep
 
 import pytest
 
 from blacksheep.client import ClientSession
+from blacksheep.client.pool import ClientConnectionPools
+from itests.utils import get_sleep_time
 
 from .flask_app import app
 

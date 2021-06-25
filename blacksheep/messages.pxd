@@ -4,10 +4,15 @@
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
 
-from .url cimport URL
-from .exceptions cimport BadRequestFormat
-from .cookies cimport Cookie, parse_cookie, datetime_to_cookie_format, write_cookie_for_response
 from .contents cimport Content, parse_www_form_urlencoded
+from .cookies cimport (
+    Cookie,
+    datetime_to_cookie_format,
+    parse_cookie,
+    write_cookie_for_response,
+)
+from .exceptions cimport BadRequestFormat
+from .url cimport URL
 
 
 cdef class Message:

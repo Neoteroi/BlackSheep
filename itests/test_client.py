@@ -6,8 +6,8 @@ import pytest
 
 from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Response
 
-from .client_fixtures import get_static_path
 from .client_fixtures import *  # NoQA
+from .client_fixtures import get_static_path
 from .utils import assert_file_content_equals, assert_files_equals, get_file_bytes
 
 

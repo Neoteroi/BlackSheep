@@ -1,8 +1,9 @@
-from blacksheep.messages import Request, Response
+from typing import Awaitable, Callable, Dict, Optional, Type, TypeVar, Union
+
 from blacksheep.exceptions import HTTPException
+from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
-from blacksheep.server.routing import Router, RouteMatch
-from typing import Awaitable, Dict, Union, Type, Callable, TypeVar, Optional
+from blacksheep.server.routing import RouteMatch, Router
 
 ExcT = TypeVar("ExcT", bound=Exception)
 

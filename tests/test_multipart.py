@@ -2,9 +2,9 @@ import pytest
 
 from blacksheep.multipart import (
     FormPart,
+    _remove_last_crlf,
     parse_multipart,
     parse_part,
-    _remove_last_crlf,
 )
 
 from .examples.multipart import (

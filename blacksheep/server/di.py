@@ -1,6 +1,8 @@
 from typing import Awaitable, Callable
-from blacksheep.messages import Request, Response
+
 from rodi import GetServiceContext
+
+from blacksheep.messages import Request, Response
 
 
 async def dependency_injection_middleware(

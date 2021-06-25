@@ -1,6 +1,8 @@
+from typing import AnyStr, Sequence
+
 import pytest
-from typing import Sequence, AnyStr
-from blacksheep.utils import join_fragments, ensure_bytes, ensure_str
+
+from blacksheep.utils import ensure_bytes, ensure_str, join_fragments
 
 
 @pytest.mark.parametrize(

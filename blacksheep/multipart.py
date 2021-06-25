@@ -1,4 +1,4 @@
-from typing import Generator, Iterable, Optional, Tuple, Dict
+from typing import Dict, Generator, Iterable, Optional, Tuple
 
 from blacksheep.contents import FormPart
 

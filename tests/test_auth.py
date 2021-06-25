@@ -1,6 +1,11 @@
 from typing import Any, Optional
 
 import pytest
+from guardpost.authentication import Identity
+from guardpost.authorization import AuthorizationContext, UnauthorizedError
+from guardpost.common import AuthenticatedRequirement
+from pytest import raises
+
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
     AuthenticationHandler,
@@ -13,14 +18,8 @@ from blacksheep.server.authorization import (
     auth,
     get_www_authenticated_header_from_generic_unauthorized_error,
 )
-from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext, UnauthorizedError
-from guardpost.common import AuthenticatedRequirement
-from pytest import raises
-
-from tests.test_files_serving import get_folder_path
-
 from blacksheep.testing.helpers import get_example_scope
+from tests.test_files_serving import get_folder_path
 
 
 class MockAuthHandler(AuthenticationHandler):

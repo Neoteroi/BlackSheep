@@ -1,13 +1,13 @@
 import time
 
 import pytest
+from cryptography.fernet import Fernet
+
 from blacksheep.cookies import parse_cookie
 from blacksheep.messages import Request
 from blacksheep.server.responses import text
 from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
 from blacksheep.sessions.crypto import FernetEncryptor
-from cryptography.fernet import Fernet
-
 from blacksheep.testing.helpers import get_example_scope
 
 

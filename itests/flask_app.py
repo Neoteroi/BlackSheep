@@ -1,6 +1,6 @@
-from flask import Flask, escape, request, Response, jsonify
-from itests.utils import ensure_folder
+from flask import Flask, Response, escape, jsonify, request
 
+from itests.utils import ensure_folder
 
 # https://flask.palletsprojects.com/en/1.1.x/server/#server
 app = Flask(__name__, static_url_path="", static_folder="static")

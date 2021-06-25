@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from datetime import datetime
-from blacksheep.messages import Request, Response
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Callable
 
+from blacksheep.messages import Request, Response
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
 

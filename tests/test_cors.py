@@ -1,4 +1,5 @@
 import pytest
+
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.application import ApplicationAlreadyStartedCORSError
 from blacksheep.server.cors import (
@@ -10,7 +11,6 @@ from blacksheep.server.cors import (
 )
 from blacksheep.server.responses import text
 from blacksheep.server.routing import Router
-
 from blacksheep.testing.helpers import get_example_scope
 
 

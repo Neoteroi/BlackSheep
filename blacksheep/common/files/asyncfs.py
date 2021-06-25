@@ -1,7 +1,7 @@
 import asyncio
 from asyncio import AbstractEventLoop, BaseEventLoop
 from concurrent.futures.thread import ThreadPoolExecutor
-from typing import IO, Any, AsyncIterable, Callable, Optional, Union, AnyStr
+from typing import IO, Any, AnyStr, AsyncIterable, Callable, Optional, Union
 
 
 class PoolClient:

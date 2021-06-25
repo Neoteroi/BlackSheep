@@ -95,4 +95,4 @@ check-isort:
 
 check-black:  ## Run the black tool in check mode only (won't modify files)
 	@echo "$(BOLD)Checking black$(RESET)"
-	@black --target-version py38 --check blacksheep 2>&1
+	@black --check blacksheep 2>&1

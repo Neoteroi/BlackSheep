@@ -3543,6 +3543,18 @@ async def test_start_stop_multiple_events_using_decorators(app: Application):
 
 
 @pytest.mark.asyncio
+async def test_app_events_decorator_args_support(app: Application):
+
+    @app.on_start
+    async def before_start_1(application: FakeApplication) -> None:
+        ...
+
+    @app.on_start()
+    async def before_start_2(application: FakeApplication) -> None:
+        ...
+
+
+@pytest.mark.asyncio
 async def test_start_stop_remove_event_handlers(app):
     on_start_count = 0
     on_stop_count = 0

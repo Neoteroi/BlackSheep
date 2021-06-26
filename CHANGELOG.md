@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds support for application mounts (see [discussion #160](https://github.com/Neoteroi/BlackSheep/discussions/160))
 - Applies sorting of imports using `isort`, enforces linters in the CI pipeline
   with both `black` and `isort`
+- Adds support for application events defined using decorators: `@app.on_start`,
+  `@app.on_stop`
+- Updates `Jinja2` dependency to version `3.0.1`
 
 ## [1.0.8] - 2021-06-19 :droplet:
 - Corrects a bug forcing `camelCase` on examples objects handled as dataclasses

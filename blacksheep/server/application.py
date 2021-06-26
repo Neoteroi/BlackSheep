@@ -84,6 +84,17 @@ class ApplicationEvent:
     def __len__(self) -> int:
         return len(self.__handlers)
 
+    def __call__(self, *args) -> Any:
+        if args:
+            self.__iadd__(args[0])
+            return args[0]
+
+        def decorator(fn):
+            self.__iadd__(fn)
+            return fn
+
+        return decorator
+
     async def fire(self, *args: Any, **keywargs: Any) -> None:
         for handler in self.__handlers:
             await handler(self.context, *args, **keywargs)

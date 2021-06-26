@@ -3492,6 +3492,57 @@ async def test_start_stop_multiple_events(app):
 
 
 @pytest.mark.asyncio
+async def test_start_stop_multiple_events_using_decorators(app: Application):
+    on_start_count = 0
+    on_stop_count = 0
+
+    @app.on_start
+    async def before_start_1(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    @app.on_start
+    async def before_start_2(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    @app.on_start
+    async def before_start_3(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_start_count
+        on_start_count += 1
+
+    @app.on_stop
+    async def on_stop_1(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_stop_count
+        on_stop_count += 1
+
+    @app.on_stop
+    async def on_stop_2(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_stop_count
+        on_stop_count += 1
+
+    await app.start()
+
+    assert on_start_count == 3
+    assert on_stop_count == 0
+
+    await app.stop()
+
+    assert on_start_count == 3
+    assert on_stop_count == 2
+
+
+@pytest.mark.asyncio
 async def test_start_stop_remove_event_handlers(app):
     on_start_count = 0
     on_stop_count = 0

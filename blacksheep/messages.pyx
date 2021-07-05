@@ -1,7 +1,6 @@
 import http
 import re
 from datetime import datetime, timedelta
-from json import loads as json_loads
 from json.decoder import JSONDecodeError
 from urllib.parse import parse_qs, quote, unquote
 
@@ -9,6 +8,7 @@ import cchardet as chardet
 
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
+from blacksheep.plugins import json as json_plugin
 
 from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
@@ -214,7 +214,7 @@ cdef class Message:
             return [part for part in data if part.file_name and part.name == name]
         return [part for part in data if part.file_name]
 
-    async def json(self, loads=json_loads):
+    async def json(self, loads=json_plugin.loads):
         if not self.declares_json():
             return None
 

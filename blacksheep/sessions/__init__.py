@@ -1,15 +1,14 @@
 import base64
-import json
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
-from essentials.json import dumps
 from itsdangerous import Signer, TimestampSigner
 from itsdangerous.exc import BadSignature, SignatureExpired
 
 from blacksheep.cookies import Cookie
 from blacksheep.messages import Request, Response
+from blacksheep.plugins import json as json_plugin
 
 
 def get_logger():
@@ -92,10 +91,10 @@ class Encryptor(ABC):
 
 class JSONSerializer(SessionSerializer):
     def read(self, value: str) -> Session:
-        return Session(json.loads(value))
+        return Session(json_plugin.loads(value))
 
     def write(self, session: Session) -> str:
-        return dumps(session.to_dict(), separators=(",", ":"))
+        return json_plugin.dumps(session.to_dict())
 
 
 class SessionMiddleware:

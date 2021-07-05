@@ -4,6 +4,7 @@ from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import parse_qsl, quote_plus
+from blacksheep.plugins import json as json_plugin
 
 from .exceptions cimport MessageAborted
 
@@ -108,7 +109,7 @@ cdef class HTMLContent(Content):
 
 
 def default_json_dumps(value):
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    return json_plugin.dumps(value)
 
 
 cdef class JSONContent(Content):

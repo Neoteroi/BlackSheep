@@ -7,7 +7,9 @@ from typing import Any, AnyStr, AsyncIterable, Callable, Union
 from essentials.json import FriendlyEncoder
 from essentials.json import dumps as friendly_dumps
 
+
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
+from blacksheep.plugins import json as json_plugin
 from blacksheep.common.files.asyncfs import FilesHandler
 
 MessageType = Any
@@ -27,7 +29,7 @@ def _ensure_bytes(value: AnyStr) -> bytes:
 
 
 def _json_serialize(obj) -> str:
-    return friendly_dumps(obj, cls=FriendlyEncoder, separators=(",", ":"))
+    return json_plugin.dumps(obj)
 
 
 def _json_content(obj) -> JSONContent:
@@ -180,7 +182,7 @@ def html(value: str, status: int = 200) -> Response:
     )
 
 
-def json(data: Any, status: int = 200, dumps=friendly_dumps) -> Response:
+def json(data: Any, status: int = 200, dumps=json_plugin.dumps) -> Response:
     """
     Returns a response with application/json content,
     and given status (default HTTP 200 OK).
@@ -190,7 +192,7 @@ def json(data: Any, status: int = 200, dumps=friendly_dumps) -> Response:
         None,
         Content(
             b"application/json",
-            dumps(data, cls=FriendlyEncoder, separators=(",", ":")).encode("utf8"),
+            dumps(data).encode("utf8"),
         ),
     )
 

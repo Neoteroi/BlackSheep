@@ -1,4 +1,5 @@
 import uuid
+import base64
 import uvicorn
 import orjson
 import dataclasses
@@ -8,9 +9,20 @@ from blacksheep.server import Application
 from blacksheep.server.responses import json
 from blacksheep.plugins import json as json_plugin
 
+
+def orjson_dumps(obj):
+    def default(x):
+        if isinstance(x, bytes):
+            return base64.urlsafe_b64encode(x).decode('utf-8')
+
+        raise TypeError
+
+    return orjson.dumps(obj, default=default).decode('utf-8')
+
+
 json_plugin.use(
     loads=orjson.loads,
-    dumps=lambda x: orjson.dumps(x).decode('utf-8'),
+    dumps=orjson_dumps,
 )
 
 app_orjson = Application(show_error_details=True)
@@ -20,6 +32,7 @@ app_orjson = Application(show_error_details=True)
 class MyData:
     id: uuid.UUID
     name: str
+    data: bytes
     created_at: datetime
 
 
@@ -41,6 +54,7 @@ def get_json_dataclass():
         id=uuid.UUID('674fc748-96ac-4cde-8b33-5b76302a8706'),
         name='My UTF8 name is ⌚',
         created_at=datetime(year=2021, month=7, day=5, hour=14, minute=10),
+        data=b'test-data',
     ))
 
 

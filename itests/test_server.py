@@ -713,6 +713,7 @@ def test_get_json_response_of_dataclass_from_app_using_orjson(session_orjson):
     expected_response = {
         'id': '674fc748-96ac-4cde-8b33-5b76302a8706',
         'name': 'My UTF8 name is ⌚',
+        'data': 'dGVzdC1kYXRh',
         'created_at': '2021-07-05T14:10:00',
     }
 

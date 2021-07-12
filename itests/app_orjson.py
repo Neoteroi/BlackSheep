@@ -7,7 +7,7 @@ from datetime import datetime
 
 from blacksheep.server import Application
 from blacksheep.server.responses import json
-from blacksheep.plugins import json as json_plugin
+from blacksheep.plugins import Plugins, JSONPlugin
 
 
 def orjson_dumps(obj):
@@ -20,12 +20,15 @@ def orjson_dumps(obj):
     return orjson.dumps(obj, default=default).decode('utf-8')
 
 
-json_plugin.use(
-    loads=orjson.loads,
-    dumps=orjson_dumps,
+app_orjson = Application(
+    show_error_details=True,
+    plugins=Plugins(
+        json=JSONPlugin(
+            loads=orjson.loads,
+            dumps=orjson_dumps,
+        )
+    )
 )
-
-app_orjson = Application(show_error_details=True)
 
 
 @dataclasses.dataclass

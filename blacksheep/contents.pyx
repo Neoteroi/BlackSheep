@@ -4,7 +4,7 @@ from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import parse_qsl, quote_plus
-from blacksheep.plugins import json as json_plugin
+from blacksheep.plugins import Plugins
 
 from .exceptions cimport MessageAborted
 
@@ -15,8 +15,26 @@ cdef class Content:
                  bytes content_type,
                  bytes data):
         self.type = content_type
-        self.body = data
-        self.length = len(data)
+        self._body = data
+        self._ready = False
+
+    def prepare_body(self, plugins) -> bytes:
+        return self._body
+
+    @property
+    def body(self):
+        if not self._ready:
+            self._body = self.prepare_body(Plugins())
+            self._ready = True
+
+        return self._body
+
+    @property
+    def length(self):
+        if self.body is None:
+            return -1
+
+        return len(self.body)
 
     async def read(self):
         return self.body
@@ -28,8 +46,7 @@ cdef class StreamedContent(Content):
                  bytes content_type,
                  object data_provider):
         self.type = content_type
-        self.body = None
-        self.length = -1
+        self._body = None
         self.generator = data_provider
         if not isasyncgenfunction(data_provider):
             raise ValueError('Data provider must be an async generator')
@@ -40,8 +57,8 @@ cdef class StreamedContent(Content):
         async for chunk in self.generator():
             value.extend(chunk)
 
-        self.body = bytes(value)
-        self.length = len(self.body)
+        self._body = bytes(value)
+
         return self.body
 
     async def get_parts(self):
@@ -53,13 +70,12 @@ cdef class ASGIContent(Content):
 
     def __init__(self, object receive):
         self.type = None
-        self.body = None
-        self.length = -1
+        self._body = None
         self.receive = receive
 
     cpdef void dispose(self):
         self.receive = None
-        self.body = None
+        self._body = None
 
     async def stream(self):
         while True:
@@ -91,8 +107,7 @@ cdef class ASGIContent(Content):
             if not message.get('more_body'):
                 break
 
-        self.body = bytes(value)
-        self.length = len(self.body)
+        self._body = bytes(value)
         return self.body
 
 
@@ -108,14 +123,14 @@ cdef class HTMLContent(Content):
         super().__init__(b'text/html; charset=utf-8', html.encode('utf8'))
 
 
-def default_json_dumps(value):
-    return json_plugin.dumps(value)
-
-
 cdef class JSONContent(Content):
 
-    def __init__(self, object data, dumps=default_json_dumps):
-        super().__init__(b'application/json', dumps(data).encode('utf8'))
+    def __init__(self, object data):
+        self.data = data
+        self.type = b'application/json'
+
+    def prepare_body(self, plugins):
+        return plugins.json.dumps(self.data).encode('utf-8')
 
 
 cdef dict parse_www_form_urlencoded(str content):

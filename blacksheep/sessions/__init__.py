@@ -8,7 +8,7 @@ from itsdangerous.exc import BadSignature, SignatureExpired
 
 from blacksheep.cookies import Cookie
 from blacksheep.messages import Request, Response
-from blacksheep.plugins import json as json_plugin
+from blacksheep.plugins import Plugins, JSONPlugin
 
 
 def get_logger():
@@ -90,11 +90,15 @@ class Encryptor(ABC):
 
 
 class JSONSerializer(SessionSerializer):
+
+    def __init__(self, json: Optional[JSONPlugin] = None):
+        self.plugin = json or JSONPlugin()
+
     def read(self, value: str) -> Session:
-        return Session(json_plugin.loads(value))
+        return Session(self.plugin.loads(value))
 
     def write(self, session: Session) -> str:
-        return json_plugin.dumps(session.to_dict())
+        return self.plugin.dumps(session.to_dict())
 
 
 class SessionMiddleware:
@@ -107,9 +111,12 @@ class SessionMiddleware:
         signer: Optional[Signer] = None,
         encryptor: Optional[Encryptor] = None,
         session_max_age: Optional[int] = None,
+        plugins: Optional[Plugins] = None,
     ) -> None:
+        plugins = plugins or Plugins()
+
         self._signer = signer or TimestampSigner(secret_key)
-        self._serializer = serializer or JSONSerializer()
+        self._serializer = serializer or JSONSerializer(plugins.json)
         self._session_cookie = session_cookie
         self._encryptor = encryptor
         self._logger = get_logger()

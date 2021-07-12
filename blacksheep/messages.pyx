@@ -1,5 +1,6 @@
 import http
 import re
+from json import loads as json_loads
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from urllib.parse import parse_qs, quote, unquote
@@ -8,7 +9,7 @@ import cchardet as chardet
 
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
-from blacksheep.plugins import json as json_plugin
+from blacksheep.plugins import Plugins, JSONPlugin
 
 from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
@@ -214,7 +215,7 @@ cdef class Message:
             return [part for part in data if part.file_name and part.name == name]
         return [part for part in data if part.file_name]
 
-    async def json(self, loads=json_plugin.loads):
+    async def json(self, loads=json_loads):
         if not self.declares_json():
             return None
 
@@ -273,6 +274,7 @@ cdef class Request(Message):
         self.method = method
         self._url = _url
         self._session = None
+        self._plugins = Plugins()
         if _url:
             self._path = _url.path
             self._raw_query = _url.query
@@ -291,10 +293,11 @@ cdef class Request(Message):
         self._session = value
 
     @classmethod
-    def incoming(cls, str method, bytes path, bytes query, list headers):
+    def incoming(cls, str method, bytes path, bytes query, list headers, object plugins = None):
         request = cls(method, None, headers)
         request._path = path
         request._raw_query = query
+        request._plugins = plugins or request._plugins
         return request
 
     @property
@@ -388,6 +391,10 @@ cdef class Request(Message):
             return True
         return False
 
+    async def json(self, loads=None):
+        loads = loads or self._plugins.json.loads
+        return await Message.json(self, loads=loads)
+
 
 cdef class Response(Message):
 
@@ -454,6 +461,10 @@ cdef class Response(Message):
                 datetime.utcnow() - timedelta(days=365)
             )
         )
+
+    def prepare_content(self, object plugins):
+        if self.content is not None:
+            self.content.prepare_body(plugins)
 
     def remove_cookie(self, str name):
         cdef list to_remove = []

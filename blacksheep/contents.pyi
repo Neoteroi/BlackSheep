@@ -11,6 +11,8 @@ from typing import (
     Union,
 )
 
+from .plugins import Plugins
+
 class Content:
     def __init__(self, content_type: bytes, data: bytes):
         self.type = content_type
@@ -19,6 +21,7 @@ class Content:
     async def read(self) -> bytes:
         return self.body
     def dispose(self) -> None: ...
+    def prepare_body(self, plugins: Plugins):
 
 class StreamedContent(Content):
     def __init__(
@@ -50,11 +53,11 @@ class HTMLContent(Content):
     def __init__(self, html: str):
         super().__init__(b"text/html; charset=utf-8", html.encode("utf8"))
 
-def default_json_dumps(value: Any) -> str: ...
-
 class JSONContent(Content):
-    def __init__(self, data: object, dumps: Callable[[Any], str] = default_json_dumps):
-        super().__init__(b"application/json", dumps(data).encode("utf8"))
+    def __init__(self, data):
+        self.data = data
+        self.type = b'application/json'
+
 
 class FormContent(Content):
     def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):

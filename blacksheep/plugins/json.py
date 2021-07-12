@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Callable, Union
 
 from essentials.json import dumps
 
@@ -8,12 +8,16 @@ def default_json_dumps(obj):
     return dumps(obj, separators=(",", ":"))
 
 
-class JSONPlugin:
-    def __init__(self):
-        self._loads = json.loads
-        self._dumps = default_json_dumps
+LoadsFunc = Callable[[Union[str, bytes]], Any]
+DumpsFunc = Callable[[Any], str]
 
-    def use(self, loads=json.loads, dumps=json.dumps):
+
+class JSONPlugin:
+    def __init__(
+        self,
+        loads: LoadsFunc = json.loads,
+        dumps: DumpsFunc = default_json_dumps,
+    ):
         self._loads = loads
         self._dumps = dumps
 

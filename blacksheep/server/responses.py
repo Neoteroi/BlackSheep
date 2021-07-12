@@ -9,7 +9,6 @@ from essentials.json import dumps as friendly_dumps
 
 
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
-from blacksheep.plugins import json as json_plugin
 from blacksheep.common.files.asyncfs import FilesHandler
 
 MessageType = Any
@@ -28,19 +27,11 @@ def _ensure_bytes(value: AnyStr) -> bytes:
     raise ValueError("Input value must be bytes or str")
 
 
-def _json_serialize(obj) -> str:
-    return json_plugin.dumps(obj)
-
-
-def _json_content(obj) -> JSONContent:
-    return JSONContent(obj, _json_serialize)
-
-
 def _optional_content(message: Any = None) -> Content:
     if isinstance(message, str):
         return TextContent(message)
     else:
-        return _json_content(message)
+        return JSONContent(message)
 
 
 def status_code(status: int = 200, message: Any = None) -> Response:
@@ -182,7 +173,7 @@ def html(value: str, status: int = 200) -> Response:
     )
 
 
-def json(data: Any, status: int = 200, dumps=json_plugin.dumps) -> Response:
+def json(data: Any, status: int = 200) -> Response:
     """
     Returns a response with application/json content,
     and given status (default HTTP 200 OK).
@@ -190,10 +181,7 @@ def json(data: Any, status: int = 200, dumps=json_plugin.dumps) -> Response:
     return Response(
         status,
         None,
-        Content(
-            b"application/json",
-            dumps(data).encode("utf8"),
-        ),
+        JSONContent(data),
     )
 
 

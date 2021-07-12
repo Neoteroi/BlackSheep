@@ -21,6 +21,7 @@ from guardpost.common import AuthenticatedRequirement
 from rodi import Container, Services
 
 from blacksheep.baseapp import BaseApplication
+from blacksheep.plugins import Plugins
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.messages import Request, Response
@@ -137,6 +138,7 @@ class Application(BaseApplication):
         debug: bool = False,
         show_error_details: Optional[bool] = None,
         mount: Optional[Mount] = None,
+        plugins: Optional[Plugins] = None,
     ):
         if router is None:
             router = Router()
@@ -146,6 +148,8 @@ class Application(BaseApplication):
             show_error_details = bool(os.environ.get("APP_SHOW_ERROR_DETAILS", False))
         if mount is None:
             mount = Mount()
+        if plugins is None:
+            plugins = Plugins()
         super().__init__(show_error_details, router)
 
         self.services: Container = services
@@ -166,6 +170,7 @@ class Application(BaseApplication):
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
         self._mount = mount
+        self.plugins = plugins
 
     def mount(self, path: str, app: Callable) -> None:
         self._mount.mount(path, app)
@@ -218,6 +223,7 @@ class Application(BaseApplication):
             signer=signer,
             encryptor=encryptor,
             session_max_age=session_max_age,
+            plugins=self.plugins,
         )
 
     def use_cors(
@@ -632,12 +638,15 @@ class Application(BaseApplication):
             scope["raw_path"],
             scope["query_string"],
             list(scope["headers"]),
+            self.plugins,
         )
 
         request.scope = scope
         request.content = ASGIContent(receive)
 
         response = await self.handle(request)
+        response.prepare_content(self.plugins)
+
         await send_asgi_response(response, send)
 
         request.scope = None  # type: ignore

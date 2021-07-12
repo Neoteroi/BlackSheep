@@ -7,8 +7,9 @@
 
 cdef class Content:
     cdef readonly bytes type
-    cdef readonly bytes body
-    cdef readonly int length
+
+    cdef bint _ready
+    cdef bytes _body
 
 
 cdef class StreamedContent(Content):
@@ -29,7 +30,7 @@ cdef class HTMLContent(Content):
 
 
 cdef class JSONContent(Content):
-    pass
+    cdef object data
 
 
 cdef class FormContent(Content):

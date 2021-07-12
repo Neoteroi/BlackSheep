@@ -905,7 +905,9 @@ def test_json_response_raises_for_not_json_serializable():
             self.might_be_secret = "iunisud109283012"
 
     with pytest.raises(TypeError):
-        json(NotSerializable())
+        response = json(NotSerializable())
+        # NOTE: it's a trade-off to serialize at content level instead of serialize at json function call
+        response.content.body
 
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])

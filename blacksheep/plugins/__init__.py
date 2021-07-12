@@ -1,6 +1,6 @@
-from blacksheep.plugins.json import JsonPlugin
+from blacksheep.plugins.json import JSONPlugin
 
-json = JsonPlugin()
+json = JSONPlugin()
 
 __all__ = [
     'json',

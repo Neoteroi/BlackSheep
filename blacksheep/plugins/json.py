@@ -8,7 +8,7 @@ def default_json_dumps(obj):
     return dumps(obj, separators=(",", ":"))
 
 
-class JsonPlugin:
+class JSONPlugin:
     def __init__(self):
         self._loads = json.loads
         self._dumps = default_json_dumps

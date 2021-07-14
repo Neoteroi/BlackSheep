@@ -697,3 +697,70 @@ def test_asgi_application_mount_returns_404_error(session_three):
     response = session_three.post("/unknown")
 
     assert response.status_code == 404
+
+
+def test_orjson_used_for_make_response(session_orjson):
+    response = session_orjson.get("/get-dict-json")
+    actual_response = response.json()
+    expected_response = {"foo": "bar"}
+
+    assert actual_response == expected_response
+
+
+@pytest.mark.parametrize(
+    "input_data,expected_output",
+    [
+        [{"@": True}, {"modified_key": True}],
+        [{"$": True}, {"modified_key": True}],
+        [{"foo": "bar"}, {"foo": "bar"}],
+    ],
+)
+def test_configured_json_dumps_used_to_make_response_with_json_content_class(
+    session_orjson, input_data, expected_output
+):
+    response = session_orjson.post("/echo-json-using-json-content", json=input_data)
+    actual_output = response.json()
+    assert actual_output == expected_output
+
+
+@pytest.mark.parametrize(
+    "input_data,expected_output",
+    [
+        [{"@": True}, {"modified_key": True}],
+        [{"$": True}, {"modified_key": True}],
+        [{"foo": "bar"}, {"foo": "bar"}],
+    ],
+)
+def test_configured_json_dumps_used_to_make_response_with_json_function(
+    session_orjson, input_data, expected_output
+):
+    response = session_orjson.post("/echo-json-using-json-function", json=input_data)
+    actual_output = response.json()
+    assert actual_output == expected_output
+
+
+def test_get_json_response_of_dataclass_from_app_using_orjson(session_orjson):
+    response = session_orjson.get("/get-dataclass-json")
+    actual_response = response.json()
+    expected_response = {
+        "id": "674fc748-96ac-4cde-8b33-5b76302a8706",
+        "name": "My UTF8 name is ⌚",
+        "data": "dGVzdC1kYXRh",
+        "created_at": "2021-07-05T14:10:00",
+    }
+
+    assert actual_response == expected_response
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"name": "Gorun Nova", "type": "Sword"},
+        {"id": str(uuid4()), "price": 15.15, "name": "Ravenclaw T-Shirt"},
+    ],
+)
+def test_post_json_to_app_using_orjson(session_orjson, data):
+    response = session_orjson.post("/echo-posted-json", json=data)
+    ensure_success(response)
+
+    assert response.json() == data

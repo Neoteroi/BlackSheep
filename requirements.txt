@@ -58,3 +58,4 @@ Werkzeug==0.16.0
 zipp==0.6.0
 uvloop==0.15.2; platform_system != "Windows"
 Hypercorn==0.11.2
+orjson==3.5.4

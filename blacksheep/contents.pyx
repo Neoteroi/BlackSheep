@@ -5,6 +5,8 @@ from inspect import isasyncgenfunction
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import parse_qsl, quote_plus
 
+from blacksheep.plugins import json as json_plugin
+
 from .exceptions cimport MessageAborted
 
 
@@ -107,13 +109,9 @@ cdef class HTMLContent(Content):
         super().__init__(b'text/html; charset=utf-8', html.encode('utf8'))
 
 
-def default_json_dumps(value):
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-
-
 cdef class JSONContent(Content):
 
-    def __init__(self, object data, dumps=default_json_dumps):
+    def __init__(self, object data, dumps=json_plugin.dumps):
         super().__init__(b'application/json', dumps(data).encode('utf8'))
 
 

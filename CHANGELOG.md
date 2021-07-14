@@ -5,13 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.9] - 2021-??-?? ❓
+## [1.0.9] - 2021-07-14 🇮🇹
 - Adds support for application mounts (see [discussion #160](https://github.com/Neoteroi/BlackSheep/discussions/160))
 - Applies sorting of imports using `isort`, enforces linters in the CI pipeline
   with both `black` and `isort`
 - Adds support for application events defined using decorators: `@app.on_start`,
   `@app.on_stop`
 - Updates `Jinja2` dependency to version `3.0.1`
+- Adds support to configure JSON serializer and deserializer globally
+  for the web framework (#138), thus adding support for custom logic happening
+  upong JSON serialization and deserialization, and also for different
+  libraries like `orjson`, to handle JSON serialization and deserialization
 
 ## [1.0.8] - 2021-06-19 :droplet:
 - Corrects a bug forcing `camelCase` on examples objects handled as dataclasses

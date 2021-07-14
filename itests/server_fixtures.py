@@ -10,6 +10,7 @@ from hypercorn.asyncio import serve as hypercorn_serve
 from hypercorn.run import Config as HypercornConfig
 
 from .app import app
+from .app_orjson import app_orjson, configure_json_settings
 from .app_three import app_three
 from .app_two import app_two
 from .utils import ClientSession, get_sleep_time
@@ -33,6 +34,11 @@ def server_port_two():
 @pytest.fixture(scope="module")
 def server_port_three():
     return 44557
+
+
+@pytest.fixture(scope="module")
+def server_port_orjson():
+    return 44558
 
 
 @pytest.fixture()
@@ -59,7 +65,15 @@ def session_three(server_host, server_port_three):
     return ClientSession(f"http://{server_host}:{server_port_three}")
 
 
-def _start_server(target_app, port: int):
+@pytest.fixture(scope="module")
+def session_orjson(server_host, server_port_orjson):
+    return ClientSession(f"http://{server_host}:{server_port_orjson}")
+
+
+def _start_server(target_app, port: int, init_callback=None):
+    if init_callback is not None:
+        init_callback()
+
     server_type = os.environ.get("ASGI_SERVER", "uvicorn")
 
     if server_type == "uvicorn":
@@ -83,6 +97,13 @@ def start_server_2():
 
 def start_server_3():
     _start_server(app_three, 44557)
+
+
+def start_server_orjson():
+    # Important: leverages process forking to configure orjson only in the
+    # process running the app_orjson application - this is important to not change
+    # global settings for the whole tests suite
+    _start_server(app_orjson, 44558, configure_json_settings)
 
 
 def _start_server_process(target):
@@ -112,3 +133,8 @@ def server_two():
 @pytest.fixture(scope="module", autouse=True)
 def server_three():
     yield from _start_server_process(start_server_3)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def server_orjson():
+    yield from _start_server_process(start_server_orjson)

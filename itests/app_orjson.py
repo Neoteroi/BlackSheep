@@ -7,8 +7,11 @@ from datetime import datetime
 import orjson
 import uvicorn
 
+from blacksheep.contents import JSONContent
+from blacksheep.messages import Response
 from blacksheep.plugins import json as json_plugin
 from blacksheep.server import Application
+from blacksheep.server.bindings import FromJSON
 from blacksheep.server.responses import json
 
 SINGLE_PID = None
@@ -41,6 +44,12 @@ def orjson_dumps(obj):
 
         raise TypeError
 
+    # apply a transformation here, so we can better assert that this function is
+    # used to handle serialization
+    if isinstance(obj, dict) and "@" in obj:
+        obj["modified_key"] = obj["@"]
+        del obj["@"]
+
     return orjson.dumps(obj, default=default).decode("utf-8")
 
 
@@ -72,6 +81,24 @@ async def post_json(request):
 @app_orjson.router.get("/get-dict-json")
 def get_json():
     return json({"foo": "bar"})
+
+
+@app_orjson.router.post("/echo-json-using-json-function")
+def echo_json_using_function(data: FromJSON[dict]):
+    # This also ensures that the json function uses the JSON serializer
+    # configured in the JSON settings
+    return json(data.value)
+
+
+@app_orjson.router.post("/echo-json-using-json-content")
+def echo_json_using_content_class(data: FromJSON[dict]):
+    # This also ensures that the JSONContent class uses the JSON serializer
+    # configured in the JSON settings
+    return Response(
+        200,
+        None,
+        JSONContent(data.value),
+    )
 
 
 @app_orjson.router.get("/get-dataclass-json")

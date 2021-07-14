@@ -54,12 +54,16 @@ def default_json_dumps(value: Any) -> str: ...
 
 class JSONContent(Content):
     def __init__(self, data: object, dumps: Callable[[Any], str] = default_json_dumps):
+        """
+        Creates an instance of JSONContent class, automatically serializing the given
+        input in JSON format, encoded using UTF-8.
+        """
         super().__init__(b"application/json", dumps(data).encode("utf8"))
 
 class FormContent(Content):
     def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
         """
-        Creates a new instance of content with application/x-www-form-urlencoded
+        Creates an instance of FormContent class, with application/x-www-form-urlencoded
         type, and bytes data serialized from the given dictionary.
 
         :param data: data to be serialized.

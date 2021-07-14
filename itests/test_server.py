@@ -707,6 +707,36 @@ def test_orjson_used_for_make_response(session_orjson):
     assert actual_response == expected_response
 
 
+@pytest.mark.parametrize(
+    "input_data,expected_output",
+    [
+        [{"@": True}, {"modified_key": True}],
+        [{"foo": "bar"}, {"foo": "bar"}],
+    ],
+)
+def test_configured_json_dumps_used_to_make_response_with_json_content_class(
+    session_orjson, input_data, expected_output
+):
+    response = session_orjson.post("/echo-json-using-json-content", json=input_data)
+    actual_output = response.json()
+    assert actual_output == expected_output
+
+
+@pytest.mark.parametrize(
+    "input_data,expected_output",
+    [
+        [{"@": True}, {"modified_key": True}],
+        [{"foo": "bar"}, {"foo": "bar"}],
+    ],
+)
+def test_configured_json_dumps_used_to_make_response_with_json_function(
+    session_orjson, input_data, expected_output
+):
+    response = session_orjson.post("/echo-json-using-json-function", json=input_data)
+    actual_output = response.json()
+    assert actual_output == expected_output
+
+
 def test_get_json_response_of_dataclass_from_app_using_orjson(session_orjson):
     response = session_orjson.get("/get-dataclass-json")
     actual_response = response.json()

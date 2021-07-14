@@ -35,6 +35,7 @@ setup(
     license="MIT",
     packages=[
         "blacksheep",
+        "blacksheep.plugins",
         "blacksheep.server",
         "blacksheep.server.files",
         "blacksheep.server.res",

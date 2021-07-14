@@ -711,10 +711,10 @@ def test_get_json_response_of_dataclass_from_app_using_orjson(session_orjson):
     response = session_orjson.get("/get-dataclass-json")
     actual_response = response.json()
     expected_response = {
-        'id': '674fc748-96ac-4cde-8b33-5b76302a8706',
-        'name': 'My UTF8 name is ⌚',
-        'data': 'dGVzdC1kYXRh',
-        'created_at': '2021-07-05T14:10:00',
+        "id": "674fc748-96ac-4cde-8b33-5b76302a8706",
+        "name": "My UTF8 name is ⌚",
+        "data": "dGVzdC1kYXRh",
+        "created_at": "2021-07-05T14:10:00",
     }
 
     assert actual_response == expected_response
@@ -732,4 +732,3 @@ def test_post_json_to_app_using_orjson(session_orjson, data):
     ensure_success(response)
 
     assert response.json() == data
-

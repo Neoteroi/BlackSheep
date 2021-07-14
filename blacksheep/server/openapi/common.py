@@ -25,13 +25,13 @@ from typing import (
     Union,
 )
 
+from essentials.json import dumps
 from openapidocs.common import Format, OpenAPIRoot, Serializer
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files.static import get_response_for_static_content
-from blacksheep.server.responses import FriendlyEncoder
 from blacksheep.server.routing import Route, Router
 
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
@@ -354,7 +354,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         This method is used to ensure that YAML representations of objects look
         exactly the same as JSON representations.
         """
-        return json.loads(json.dumps(value, cls=FriendlyEncoder))
+        return json.loads(dumps(value))
 
     @abstractmethod
     def generate_documentation(self, app: Application) -> OpenAPIRootType:

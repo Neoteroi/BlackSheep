@@ -4,13 +4,9 @@ from functools import lru_cache
 from io import BytesIO
 from typing import Any, AnyStr, AsyncIterable, Callable, Union
 
-from essentials.json import FriendlyEncoder
-from essentials.json import dumps as friendly_dumps
-
-
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
-from blacksheep.plugins import json as json_plugin
 from blacksheep.common.files.asyncfs import FilesHandler
+from blacksheep.plugins import json as json_plugin
 
 MessageType = Any
 
@@ -182,7 +178,7 @@ def html(value: str, status: int = 200) -> Response:
     )
 
 
-def json(data: Any, status: int = 200, dumps=json_plugin.dumps) -> Response:
+def json(data: Any, status: int = 200) -> Response:
     """
     Returns a response with application/json content,
     and given status (default HTTP 200 OK).
@@ -192,13 +188,15 @@ def json(data: Any, status: int = 200, dumps=json_plugin.dumps) -> Response:
         None,
         Content(
             b"application/json",
-            dumps(data).encode("utf8"),
+            json_plugin.dumps(data).encode("utf8"),
         ),
     )
 
 
 def pretty_json(
-    data: Any, status: int = 200, dumps=friendly_dumps, indent: int = 4
+    data: Any,
+    status: int = 200,
+    indent: int = 4,
 ) -> Response:
     """
     Returns a response with indented application/json content,
@@ -209,7 +207,7 @@ def pretty_json(
         None,
         Content(
             b"application/json",
-            dumps(data, cls=FriendlyEncoder, indent=indent).encode("utf8"),
+            json_plugin.pretty_dumps(data).encode("utf8"),
         ),
     )
 

@@ -35,7 +35,7 @@ def _validate_process_pid():
         ), "Specific JSON settings were expected to be tested in a single process!"
 
 
-def orjson_dumps(obj):
+def custom_dumps(obj):
     _validate_process_pid()
 
     def default(x):
@@ -53,10 +53,24 @@ def orjson_dumps(obj):
     return orjson.dumps(obj, default=default).decode("utf-8")
 
 
+def custom_loads(value):
+    _validate_process_pid()
+
+    obj = orjson.loads(value)
+
+    # apply a transformation here, so we can better assert that this function is
+    # used to handle deserialization
+    if isinstance(obj, dict) and "$" in obj:
+        obj["modified_key"] = obj["$"]
+        del obj["$"]
+
+    return obj
+
+
 def configure_json_settings():
     json_plugin.use(
-        loads=orjson.loads,
-        dumps=orjson_dumps,
+        loads=custom_loads,
+        dumps=custom_dumps,
     )
 
 

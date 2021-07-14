@@ -711,6 +711,7 @@ def test_orjson_used_for_make_response(session_orjson):
     "input_data,expected_output",
     [
         [{"@": True}, {"modified_key": True}],
+        [{"$": True}, {"modified_key": True}],
         [{"foo": "bar"}, {"foo": "bar"}],
     ],
 )
@@ -726,6 +727,7 @@ def test_configured_json_dumps_used_to_make_response_with_json_content_class(
     "input_data,expected_output",
     [
         [{"@": True}, {"modified_key": True}],
+        [{"$": True}, {"modified_key": True}],
         [{"foo": "bar"}, {"foo": "bar"}],
     ],
 )

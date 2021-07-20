@@ -4,6 +4,7 @@ import logging
 from .contents cimport TextContent
 from .exceptions cimport HTTPException
 from .messages cimport Request, Response
+from .utils import get_class_instance_hierarchy
 
 
 async def handle_not_found(app, Request request, HTTPException http_exception):
@@ -105,7 +106,11 @@ cdef class BaseApplication:
         return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
 
     cdef object get_exception_handler(self, Exception exception):
-        return self.exceptions_handlers.get(type(exception))
+        for current_class_in_hierarchy in get_class_instance_hierarchy(exception):
+            if current_class_in_hierarchy in self.exceptions_handlers:
+                return self.exceptions_handlers[current_class_in_hierarchy]
+
+        return None
 
     async def handle_internal_server_error(self, Request request, Exception exc):
         if self.show_error_details:

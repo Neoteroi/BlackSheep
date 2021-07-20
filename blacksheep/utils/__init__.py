@@ -1,5 +1,7 @@
 import re
-from typing import AnyStr
+from typing import AnyStr, Tuple, Type, TypeVar
+
+T = TypeVar("T")
 
 
 def ensure_bytes(value: AnyStr) -> bytes:
@@ -27,3 +29,11 @@ def join_fragments(*args: AnyStr) -> str:
     return "/" + "/".join(
         remove_duplicate_slashes(ensure_str(arg)).strip("/") for arg in args if arg
     )
+
+
+def get_class_hierarchy(cls: Type[T]) -> Tuple[Type[T], ...]:
+    return cls.__mro__
+
+
+def get_class_instance_hierarchy(instance: T) -> Tuple[Type[T], ...]:
+    return get_class_hierarchy(type(instance))

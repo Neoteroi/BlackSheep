@@ -103,6 +103,7 @@ py38venv
 /site
 
 .idea/
+.vscode/
 
 tests/out/
 

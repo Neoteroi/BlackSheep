@@ -177,11 +177,25 @@ def html(value: str, status: int = 200) -> Response:
         status, None, Content(b"text/html; charset=utf-8", value.encode("utf8"))
     )
 
-
 def json(data: Any, status: int = 200) -> Response:
     """
     Returns a response with application/json content,
     and given status (default HTTP 200 OK).
+    """
+    return Response(
+        status,
+        None,
+        Content(
+            b"application/json",
+            json_plugin.dumps(data),
+        ),
+    )
+
+def json_encode(data: Any, status: int = 200) -> Response:
+    """
+    Returns a response with application/json content,
+    and given status (default HTTP 200 OK).
+    Encode the dumps output to bytes.
     """
     return Response(
         status,

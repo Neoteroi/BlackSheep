@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
     runs-on: windows-latest
     if: github.event_name == 'pull_request' || github.event_name == 'push'
 
@@ -71,7 +71,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04]
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -155,12 +155,11 @@ jobs:
 
   build-wheels:
     needs: build
-    if: github.event_name == 'release'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
         os: [ubuntu-18.04, macos-latest, windows-latest]
 
     steps:

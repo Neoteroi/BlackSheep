@@ -113,6 +113,7 @@ jobs:
           black --check itests 2>&1
 
       - name: Test Hypercorn
+        if: ${{ matrix.python-version }} != "3.10"
         run: |
           ASGI_SERVER=hypercorn pytest itests/test_server.py
 

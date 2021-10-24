@@ -51,7 +51,7 @@ These project templates can be used to start new applications faster:
 
 ## Requirements
 
-[Python](https://www.python.org) version **3.7**, **3.8**, or **3.9**.
+[Python](https://www.python.org) version **3.7**, **3.8**, **3.9**, or **3.10**.
 
 BlackSheep belongs to the category of
 [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires

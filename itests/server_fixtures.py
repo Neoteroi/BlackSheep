@@ -9,10 +9,10 @@ import uvicorn
 from hypercorn.asyncio import serve as hypercorn_serve
 from hypercorn.run import Config as HypercornConfig
 
-from .app import app
-from .app_orjson import app_orjson, configure_json_settings
-from .app_three import app_three
-from .app_two import app_two
+from .app_1 import app
+from .app_2 import app_2
+from .app_3 import app_3
+from .app_4 import app_4, configure_json_settings
 from .utils import ClientSession, get_sleep_time
 
 
@@ -22,22 +22,22 @@ def server_host():
 
 
 @pytest.fixture(scope="module")
-def server_port():
+def server_port_1():
     return 44555
 
 
 @pytest.fixture(scope="module")
-def server_port_two():
+def server_port_2():
     return 44556
 
 
 @pytest.fixture(scope="module")
-def server_port_three():
+def server_port_3():
     return 44557
 
 
 @pytest.fixture(scope="module")
-def server_port_orjson():
+def server_port_4():
     return 44558
 
 
@@ -51,23 +51,23 @@ def socket_connection(server_port):
 
 
 @pytest.fixture(scope="module")
-def session(server_host, server_port):
-    return ClientSession(f"http://{server_host}:{server_port}")
+def session_1(server_host, server_port_1):
+    return ClientSession(f"http://{server_host}:{server_port_1}")
 
 
 @pytest.fixture(scope="module")
-def session_two(server_host, server_port_two):
-    return ClientSession(f"http://{server_host}:{server_port_two}")
+def session_2(server_host, server_port_2):
+    return ClientSession(f"http://{server_host}:{server_port_2}")
 
 
 @pytest.fixture(scope="module")
-def session_three(server_host, server_port_three):
-    return ClientSession(f"http://{server_host}:{server_port_three}")
+def session_3(server_host, server_port_3):
+    return ClientSession(f"http://{server_host}:{server_port_3}")
 
 
 @pytest.fixture(scope="module")
-def session_orjson(server_host, server_port_orjson):
-    return ClientSession(f"http://{server_host}:{server_port_orjson}")
+def session_4(server_host, server_port_4):
+    return ClientSession(f"http://{server_host}:{server_port_4}")
 
 
 def _start_server(target_app, port: int, init_callback=None):
@@ -92,18 +92,18 @@ def start_server_1():
 
 
 def start_server_2():
-    _start_server(app_two, 44556)
+    _start_server(app_2, 44556)
 
 
 def start_server_3():
-    _start_server(app_three, 44557)
+    _start_server(app_3, 44557)
 
 
-def start_server_orjson():
-    # Important: leverages process forking to configure orjson only in the
-    # process running the app_orjson application - this is important to not change
+def start_server_4():
+    # Important: leverages process forking to configure JSON settings only in the
+    # process running the app_4 application - this is important to not change
     # global settings for the whole tests suite
-    _start_server(app_orjson, 44558, configure_json_settings)
+    _start_server(app_4, 44558, configure_json_settings)
 
 
 def _start_server_process(target):
@@ -121,20 +121,20 @@ def _start_server_process(target):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def server():
+def server_1():
     yield from _start_server_process(start_server_1)
 
 
 @pytest.fixture(scope="module", autouse=True)
-def server_two():
+def server_2():
     yield from _start_server_process(start_server_2)
 
 
 @pytest.fixture(scope="module", autouse=True)
-def server_three():
+def server_3():
     yield from _start_server_process(start_server_3)
 
 
 @pytest.fixture(scope="module", autouse=True)
-def server_orjson():
-    yield from _start_server_process(start_server_orjson)
+def server_4():
+    yield from _start_server_process(start_server_4)

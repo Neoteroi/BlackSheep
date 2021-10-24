@@ -7,7 +7,7 @@ certifi==2020.12.5
 cffi==1.14.5
 chardet==3.0.4
 click==7.1.2
-Cython==0.29.22; platform_system != "Windows"
+Cython==0.29.24; platform_system != "Windows"
 coverage==5.4
 cryptography==3.4.6
 decorator==4.4.1
@@ -58,4 +58,3 @@ Werkzeug==0.16.0
 zipp==0.6.0
 uvloop==0.15.2; platform_system != "Windows"
 Hypercorn==0.11.2
-orjson==3.5.4

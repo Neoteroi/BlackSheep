@@ -1,15 +1,15 @@
-import base64
 import dataclasses
+import json as builtin_json
 import os
 import uuid
 from datetime import datetime
 
-import orjson
 import uvicorn
 
 from blacksheep.contents import JSONContent
 from blacksheep.messages import Response
 from blacksheep.plugins import json as json_plugin
+from blacksheep.plugins.json import default_json_dumps
 from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
 from blacksheep.server.responses import json
@@ -38,25 +38,19 @@ def _validate_process_pid():
 def custom_dumps(obj):
     _validate_process_pid()
 
-    def default(x):
-        if isinstance(x, bytes):
-            return base64.urlsafe_b64encode(x).decode("utf-8")
-
-        raise TypeError
-
     # apply a transformation here, so we can better assert that this function is
     # used to handle serialization
     if isinstance(obj, dict) and "@" in obj:
         obj["modified_key"] = obj["@"]
         del obj["@"]
 
-    return orjson.dumps(obj, default=default).decode("utf-8")
+    return default_json_dumps(obj)
 
 
 def custom_loads(value):
     _validate_process_pid()
 
-    obj = orjson.loads(value)
+    obj = builtin_json.loads(value)
 
     # apply a transformation here, so we can better assert that this function is
     # used to handle deserialization
@@ -74,7 +68,7 @@ def configure_json_settings():
     )
 
 
-app_orjson = Application(show_error_details=True)
+app_4 = Application(show_error_details=True)
 
 
 @dataclasses.dataclass
@@ -85,26 +79,26 @@ class MyData:
     created_at: datetime
 
 
-@app_orjson.router.post("/echo-posted-json")
+@app_4.router.post("/echo-posted-json")
 async def post_json(request):
     data = await request.json()
     assert data is not None
     return json(data)
 
 
-@app_orjson.router.get("/get-dict-json")
+@app_4.router.get("/get-dict-json")
 def get_json():
     return json({"foo": "bar"})
 
 
-@app_orjson.router.post("/echo-json-using-json-function")
+@app_4.router.post("/echo-json-using-json-function")
 def echo_json_using_function(data: FromJSON[dict]):
     # This also ensures that the json function uses the JSON serializer
     # configured in the JSON settings
     return json(data.value)
 
 
-@app_orjson.router.post("/echo-json-using-json-content")
+@app_4.router.post("/echo-json-using-json-content")
 def echo_json_using_content_class(data: FromJSON[dict]):
     # This also ensures that the JSONContent class uses the JSON serializer
     # configured in the JSON settings
@@ -115,7 +109,7 @@ def echo_json_using_content_class(data: FromJSON[dict]):
     )
 
 
-@app_orjson.router.get("/get-dataclass-json")
+@app_4.router.get("/get-dataclass-json")
 def get_json_dataclass():
     return json(
         MyData(
@@ -129,4 +123,4 @@ def get_json_dataclass():
 
 if __name__ == "__main__":
     configure_json_settings()
-    uvicorn.run(app_orjson, host="127.0.0.1", port=44557, log_level="debug")
+    uvicorn.run(app_4, host="127.0.0.1", port=44557, log_level="debug")

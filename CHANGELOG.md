@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2021-10-24 📦
+- Includes `Python 3.10` in the CI/CD matrix
+- Includes `Python 3.10` wheel in the distribution package
+- Removes `orjson` development dependency when running tests
+- Fixes a bug happening in the code generating OpenAPI Documentation when
+  running `Python 3.10`
+
 ## [1.1.0] - 2021-10-23 👶
 - Upgrades `httptools` dependency to version `0.3.0`
 - Upgrades `python-dateutil` dependency to version `2.8.2`

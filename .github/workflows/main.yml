@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
     runs-on: windows-latest
     if: github.event_name == 'pull_request' || github.event_name == 'push'
 
@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install cython==0.29.14 --install-option="--no-cython-compile"
+          pip install cython==0.29.24 --install-option="--no-cython-compile"
           pip install -r requirements.txt
 
       - name: Compile Cython extensions
@@ -71,7 +71,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04]
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -85,20 +85,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: actions/cache@v1
-        id: depcache
-        with:
-          path: deps
-          key: requirements-pip-${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
-
-      - name: Download dependencies
-        if: steps.depcache.outputs.cache-hit != 'true'
-        run: |
-          pip download --dest=deps -r requirements.txt
-
       - name: Install dependencies
         run: |
-          pip install -U --no-index --find-links=deps deps/*
+          pip install -r requirements.txt
           pip install black==20.8b1 isort==5.9.1
 
       - name: Compile Cython extensions
@@ -125,7 +114,13 @@ jobs:
 
       - name: Test Hypercorn
         run: |
-          ASGI_SERVER=hypercorn pytest itests/test_server.py
+          PYVER=`python -V 2>&1`
+
+          if [ "$PYVER" == "Python 3.10.0" ]; then
+            echo "Skipping Hypercorn tests, since it fails with Python 3.10.0 on Ubuntu (2021/10/24)"
+          else
+            ASGI_SERVER=hypercorn pytest itests/test_server.py
+          fi
 
       - name: Upload pytest test results
         uses: actions/upload-artifact@master
@@ -160,7 +155,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
         os: [ubuntu-18.04, macos-latest, windows-latest]
 
     steps:
@@ -173,10 +168,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
-          pip install cython==0.29.14 --install-option="--no-cython-compile"
-          pip install -r requirements.txt
+          pip install cython==0.29.24 --install-option="--no-cython-compile"
+          python -m pip install --upgrade setuptools pip wheel
 
       - name: Compile Cython extensions
         run: |
@@ -191,13 +186,9 @@ jobs:
           cython blacksheep/scribe.pyx
           cython blacksheep/baseapp.pyx
 
-      - name: Install build dependencies
-        run: |
-          python -m pip install --upgrade setuptools pip wheel
-
       - name: Build wheels (linux)
         if: startsWith(matrix.os, 'ubuntu')
-        uses: docker://quay.io/pypa/manylinux1_x86_64
+        uses: docker://quay.io/pypa/manylinux2014_x86_64
         env:
           PYTHON_VERSION: ${{ matrix.python-version }}
         with:

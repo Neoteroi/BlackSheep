@@ -113,9 +113,14 @@ jobs:
           black --check itests 2>&1
 
       - name: Test Hypercorn
-        if: ${{ matrix.python-version }} != "3.10"
         run: |
-          ASGI_SERVER=hypercorn pytest itests/test_server.py
+          PYVER=`python -V 2>&1`
+
+          if [ "$PYVER" == "Python 3.10.0" ]; then
+            echo "Skipping Hypercorn tests, since it fails with Python 3.10.0 on Ubuntu (2021/10/24)"
+          else
+            ASGI_SERVER=hypercorn pytest itests/test_server.py
+          fi
 
       - name: Upload pytest test results
         uses: actions/upload-artifact@master

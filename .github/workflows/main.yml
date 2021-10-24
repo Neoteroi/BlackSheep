@@ -167,10 +167,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           pip install cython==0.29.24 --install-option="--no-cython-compile"
-          pip install -r requirements.txt
+          python -m pip install --upgrade setuptools pip wheel
 
       - name: Compile Cython extensions
         run: |
@@ -184,10 +184,6 @@ jobs:
           cython blacksheep/messages.pyx
           cython blacksheep/scribe.pyx
           cython blacksheep/baseapp.pyx
-
-      - name: Install build dependencies
-        run: |
-          python -m pip install --upgrade setuptools pip wheel
 
       - name: Build wheels (linux)
         if: startsWith(matrix.os, 'ubuntu')

@@ -191,7 +191,7 @@ jobs:
 
       - name: Build wheels (linux)
         if: startsWith(matrix.os, 'ubuntu')
-        uses: docker://quay.io/pypa/manylinux1_x86_64
+        uses: docker://quay.io/pypa/manylinux2014_x86_64
         env:
           PYTHON_VERSION: ${{ matrix.python-version }}
         with:

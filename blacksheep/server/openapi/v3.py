@@ -305,10 +305,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> str:
         if context_type_args and object_type in context_type_args:
             object_type = context_type_args.get(object_type)
-        if hasattr(object_type, "__name__"):
-            return object_type.__name__
         if isinstance(object_type, GenericAlias):
             return self.get_type_name_for_generic(object_type, context_type_args)
+        if hasattr(object_type, "__name__"):
+            return object_type.__name__
         raise ValueError(
             f"Cannot obtain a name for object_type parameter: {object_type!r}"
         )

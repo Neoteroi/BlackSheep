@@ -227,6 +227,7 @@ loop.run_until_complete(client_example(loop))
 * Python 3.7 (cpython)
 * Python 3.8 (cpython)
 * Python 3.9 (cpython)
+* Python 3.10 (cpython)
 * Ubuntu 18.04
 * Windows 10
 * macOS

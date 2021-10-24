@@ -150,6 +150,7 @@ jobs:
 
   build-wheels:
     needs: build
+    if: github.event_name == 'release'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

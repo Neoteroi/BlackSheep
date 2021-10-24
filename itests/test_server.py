@@ -13,14 +13,14 @@ from .server_fixtures import *  # NoQA
 from .utils import assert_files_equals, ensure_success
 
 
-def test_hello_world(session):
-    response = session.get("/hello-world")
+def test_hello_world(session_1):
+    response = session_1.get("/hello-world")
     ensure_success(response)
     assert response.text == "Hello, World!"
 
 
-def test_not_found(session):
-    response = session.get("/not-found")
+def test_not_found(session_1):
+    response = session_1.get("/not-found")
     assert response.status_code == 404
 
 
@@ -35,8 +35,8 @@ def test_not_found(session):
         ),
     ],
 )
-def test_query(session, query, echoed):
-    response = session.get("/echo-query" + query)
+def test_query(session_1, query, echoed):
+    response = session_1.get("/echo-query" + query)
     ensure_success(response)
 
     content = response.json()
@@ -53,8 +53,8 @@ def test_query(session, query, echoed):
         ),
     ],
 )
-def test_route(session, fragment, echoed):
-    response = session.get("/echo-route/" + fragment)
+def test_route(session_1, fragment, echoed):
+    response = session_1.get("/echo-route/" + fragment)
     ensure_success(response)
 
     content = response.json()
@@ -71,8 +71,8 @@ def test_route(session, fragment, echoed):
         ),
     ],
 )
-def test_query_autobind(session, fragment, echoed):
-    response = session.get("/echo-route-autobind/" + fragment)
+def test_query_autobind(session_1, fragment, echoed):
+    response = session_1.get("/echo-route-autobind/" + fragment)
     ensure_success(response)
 
     content = response.json()
@@ -82,8 +82,8 @@ def test_query_autobind(session, fragment, echoed):
 @pytest.mark.parametrize(
     "headers", [{"x-foo": str(uuid4())}, {"x-a": "Hello", "x-b": "World", "x-c": "!!"}]
 )
-def test_headers(session, headers):
-    response = session.head("/echo-headers", headers=headers)
+def test_headers(session_1, headers):
+    response = session_1.head("/echo-headers", headers=headers)
     ensure_success(response)
 
     for key, value in headers.items():
@@ -94,8 +94,8 @@ def test_headers(session, headers):
 @pytest.mark.parametrize(
     "cookies", [{"x-foo": str(uuid4())}, {"x-a": "Hello", "x-b": "World", "x-c": "!!"}]
 )
-def test_cookies(session, cookies):
-    response = session.get("/echo-cookies", cookies=cookies)
+def test_cookies(session_1, cookies):
+    response = session_1.get("/echo-cookies", cookies=cookies)
     ensure_success(response)
 
     data = response.json()
@@ -108,8 +108,8 @@ def test_cookies(session, cookies):
 @pytest.mark.parametrize(
     "name,value", [("Foo", "Foo"), ("Character-Name", "Charlie Brown")]
 )
-def test_set_cookie(session, name, value):
-    response = session.get("/set-cookie", params=dict(name=name, value=value))
+def test_set_cookie(session_1, name, value):
+    response = session_1.get("/set-cookie", params=dict(name=name, value=value))
     ensure_success(response)
 
     assert value == unquote(response.cookies[name])
@@ -122,8 +122,8 @@ def test_set_cookie(session, name, value):
         {"id": str(uuid4()), "price": 15.15, "name": "Ravenclaw T-Shirt"},
     ],
 )
-def test_post_json(session, data):
-    response = session.post("/echo-posted-json", json=data)
+def test_post_json(session_1, data):
+    response = session_1.post("/echo-posted-json", json=data)
     ensure_success(response)
 
     assert response.json() == data
@@ -133,8 +133,8 @@ def test_post_json(session, data):
     "data",
     [{"name": "Gorun Nova", "power": 9000}, {"name": "Hello World", "power": 15.80}],
 )
-def test_post_json_autobind(session, data):
-    response = session.post("/echo-posted-json-autobind", json=data)
+def test_post_json_autobind(session_1, data):
+    response = session_1.post("/echo-posted-json-autobind", json=data)
     ensure_success(response)
 
     assert response.json() == data
@@ -153,20 +153,20 @@ def test_post_json_autobind(session, data):
         ),
     ],
 )
-def test_post_form_urlencoded(session, data, echoed):
-    response = session.post("/echo-posted-form", data=data)
+def test_post_form_urlencoded(session_1, data, echoed):
+    response = session_1.post("/echo-posted-form", data=data)
     ensure_success(response)
 
     content = response.json()
     assert content == echoed
 
 
-def test_post_multipart_form_with_files(session):
+def test_post_multipart_form_with_files(session_1):
 
     if os.path.exists("out"):
         shutil.rmtree("out")
 
-    response = session.post(
+    response = session_1.post(
         "/upload-files",
         files=[
             (
@@ -193,8 +193,8 @@ def test_post_multipart_form_with_files(session):
     assert_files_equals(f"./out/two.jpg", get_static_path("pexels-photo-923360.jpeg"))
 
 
-def test_exception_handling_with_details(session):
-    response = session.get("/crash")
+def test_exception_handling_with_details(session_1):
+    response = session_1.get("/crash")
 
     assert response.status_code == 500
     details = response.text
@@ -202,17 +202,17 @@ def test_exception_handling_with_details(session):
     assert "itests.utils.CrashTest: Crash Test!" in details
 
 
-def test_exception_handling_without_details(session_two):
+def test_exception_handling_without_details(session_2):
     # By default, the server must hide error details
-    response = session_two.get("/crash")
+    response = session_2.get("/crash")
 
     assert response.status_code == 500
     assert response.text == "Internal server error."
 
 
-def test_exception_handling_with_response(session_two):
+def test_exception_handling_with_response(session_2):
     # By default, the server must hide error details
-    response = session_two.get("/handled-crash")
+    response = session_2.get("/handled-crash")
 
     assert response.status_code == 200
     assert response.text == "Fake exception, to test handlers"
@@ -222,8 +222,8 @@ def test_exception_handling_with_response(session_two):
     "url_path,file_name",
     [("/pexels-photo-923360.jpeg", "example.jpg"), ("/example.html", "example.html")],
 )
-def test_get_file(session, url_path, file_name):
-    response = session.get(url_path, stream=True)
+def test_get_file(session_1, url_path, file_name):
+    response = session_1.get(url_path, stream=True)
     ensure_success(response)
 
     with open(file_name, "wb") as output_file:
@@ -233,8 +233,8 @@ def test_get_file(session, url_path, file_name):
     assert_files_equals(get_static_path(url_path), file_name)
 
 
-def test_get_file_response_with_path(session):
-    response = session.get("/file-response-with-path", stream=True)
+def test_get_file_response_with_path(session_1):
+    response = session_1.get("/file-response-with-path", stream=True)
     ensure_success(response)
 
     with open("nice-cat.jpg", "wb") as output_file:
@@ -244,8 +244,8 @@ def test_get_file_response_with_path(session):
     assert_files_equals(get_static_path("pexels-photo-923360.jpeg"), "nice-cat.jpg")
 
 
-def test_get_file_response_with_generator(session):
-    response = session.get("/file-response-with-generator", stream=True)
+def test_get_file_response_with_generator(session_1):
+    response = session_1.get("/file-response-with-generator", stream=True)
     ensure_success(response)
 
     body = bytearray()
@@ -271,8 +271,8 @@ Black Knight: Tis but a scratch.
     )
 
 
-def test_get_file_with_bytes(session):
-    response = session.get("/file-response-with-bytes")
+def test_get_file_with_bytes(session_1):
+    response = session_1.get("/file-response-with-bytes")
     ensure_success(response)
 
     text = response.text
@@ -294,16 +294,16 @@ Black Knight: Tis but a scratch.
     )
 
 
-def test_get_file_with_bytesio(session):
-    response = session.get("/file-response-with-bytesio")
+def test_get_file_with_bytesio(session_1):
+    response = session_1.get("/file-response-with-bytesio")
     ensure_success(response)
 
     text = response.text
     assert text == """some initial binary data: """
 
 
-def test_xml_files_are_not_served(session):
-    response = session.get("/example.xml", stream=True)
+def test_xml_files_are_not_served(session_1):
+    response = session_1.get("/example.xml", stream=True)
 
     assert response.status_code == 404
 
@@ -312,13 +312,13 @@ def test_xml_files_are_not_served(session):
     "claims,expected_status",
     [(None, 401), ({"id": "001", "name": "Charlie Brown"}, 204)],
 )
-def test_requires_authenticated_user(session_two, claims, expected_status):
+def test_requires_authenticated_user(session_2, claims, expected_status):
     headers = (
         {"Authorization": urlsafe_b64encode(json.dumps(claims).encode("utf8")).decode()}
         if claims
         else {}
     )
-    response = session_two.get("/only-for-authenticated-users", headers=headers)
+    response = session_2.get("/only-for-authenticated-users", headers=headers)
 
     assert response.status_code == expected_status
 
@@ -338,19 +338,19 @@ def test_requires_authenticated_user(session_two, claims, expected_status):
         ),
     ],
 )
-def test_requires_admin_user(session_two, claims, expected_status):
+def test_requires_admin_user(session_2, claims, expected_status):
     headers = (
         {"Authorization": urlsafe_b64encode(json.dumps(claims).encode("utf8")).decode()}
         if claims
         else {}
     )
-    response = session_two.get("/only-for-admins", headers=headers)
+    response = session_2.get("/only-for-admins", headers=headers)
 
     assert response.status_code == expected_status
 
 
-def test_open_api_ui(session_two):
-    response = session_two.get("/docs")
+def test_open_api_ui(session_2):
+    response = session_2.get("/docs")
 
     assert response.status_code == 200
     text = response.text
@@ -388,8 +388,8 @@ def test_open_api_ui(session_two):
     )
 
 
-def test_open_api_redoc_ui(session_two):
-    response = session_two.get("/redocs")
+def test_open_api_redoc_ui(session_2):
+    response = session_2.get("/redocs")
 
     assert response.status_code == 200
     text = response.text
@@ -420,24 +420,24 @@ def test_open_api_redoc_ui(session_two):
     )
 
 
-def test_open_api_json(session_two):
-    response = session_two.get("/openapi.json")
+def test_open_api_json(session_2):
+    response = session_2.get("/openapi.json")
 
     assert response.status_code == 200
     text = response.text
     assert json.loads(text) is not None
 
 
-def test_open_api_yaml(session_two):
-    response = session_two.get("/openapi.yaml")
+def test_open_api_yaml(session_2):
+    response = session_2.get("/openapi.yaml")
 
     assert response.status_code == 200
     text = response.text
     assert yaml.safe_load(text) is not None
 
 
-def test_open_api_json_parameters_docs(session_two):
-    response = session_two.get("/openapi.json")
+def test_open_api_json_parameters_docs(session_2):
+    response = session_2.get("/openapi.json")
 
     assert response.status_code == 200
     data = response.json()
@@ -488,8 +488,8 @@ def test_open_api_json_parameters_docs(session_two):
     }
 
 
-def test_open_api_json_parameters_docs_from_epytext_docstring(session_two):
-    response = session_two.get("/openapi.json")
+def test_open_api_json_parameters_docs_from_epytext_docstring(session_2):
+    response = session_2.get("/openapi.json")
 
     assert response.status_code == 200
     data = response.json()
@@ -540,8 +540,8 @@ def test_open_api_json_parameters_docs_from_epytext_docstring(session_two):
     }
 
 
-def test_open_api_deprecated(session_two):
-    response = session_two.get("/openapi.json")
+def test_open_api_deprecated(session_2):
+    response = session_2.get("/openapi.json")
 
     assert response.status_code == 200
     data = response.json()
@@ -562,8 +562,8 @@ def test_open_api_deprecated(session_two):
     }
 
 
-def test_open_api_request_body_description_from_docstring(session_two):
-    response = session_two.get("/openapi.json")
+def test_open_api_request_body_description_from_docstring(session_2):
+    response = session_2.get("/openapi.json")
 
     assert response.status_code == 200
     data = response.json()
@@ -610,9 +610,9 @@ def test_open_api_request_body_description_from_docstring(session_two):
 
 
 def test_open_api_request_body_description_from_docstring_with_request_body(
-    session_two,
+    session_2,
 ):
-    response = session_two.get("/openapi.json")
+    response = session_2.get("/openapi.json")
 
     assert response.status_code == 200
     data = response.json()
@@ -667,25 +667,16 @@ def test_open_api_request_body_description_from_docstring_with_request_body(
     }
 
 
-def test_asgi_application_mount(session_three):
-    response = session_three.get("/foo/foo")
+def test_asgi_application_mount(session_3):
+    response = session_3.get("/foo/foo")
     actual_response = response.json()
     expected_response = {"foo": "bar"}
 
     assert actual_response == expected_response
 
 
-def test_asgi_application_mount_subfolder(session_three):
-    response = session_three.get("/foo/admin/example.json")
-
-    actual_response = response.json()
-    expected_response = {"foo": "bar"}
-
-    assert actual_response == expected_response
-
-
-def test_asgi_application_mount_post(session_three):
-    response = session_three.post("/post", json={"foo": "bar"})
+def test_asgi_application_mount_subfolder(session_3):
+    response = session_3.get("/foo/admin/example.json")
 
     actual_response = response.json()
     expected_response = {"foo": "bar"}
@@ -693,14 +684,23 @@ def test_asgi_application_mount_post(session_three):
     assert actual_response == expected_response
 
 
-def test_asgi_application_mount_returns_404_error(session_three):
-    response = session_three.post("/unknown")
+def test_asgi_application_mount_post(session_3):
+    response = session_3.post("/post", json={"foo": "bar"})
+
+    actual_response = response.json()
+    expected_response = {"foo": "bar"}
+
+    assert actual_response == expected_response
+
+
+def test_asgi_application_mount_returns_404_error(session_3):
+    response = session_3.post("/unknown")
 
     assert response.status_code == 404
 
 
-def test_orjson_used_for_make_response(session_orjson):
-    response = session_orjson.get("/get-dict-json")
+def test_custom_json_settings_used_to_make_response(session_4):
+    response = session_4.get("/get-dict-json")
     actual_response = response.json()
     expected_response = {"foo": "bar"}
 
@@ -716,9 +716,9 @@ def test_orjson_used_for_make_response(session_orjson):
     ],
 )
 def test_configured_json_dumps_used_to_make_response_with_json_content_class(
-    session_orjson, input_data, expected_output
+    session_4, input_data, expected_output
 ):
-    response = session_orjson.post("/echo-json-using-json-content", json=input_data)
+    response = session_4.post("/echo-json-using-json-content", json=input_data)
     actual_output = response.json()
     assert actual_output == expected_output
 
@@ -732,15 +732,17 @@ def test_configured_json_dumps_used_to_make_response_with_json_content_class(
     ],
 )
 def test_configured_json_dumps_used_to_make_response_with_json_function(
-    session_orjson, input_data, expected_output
+    session_4, input_data, expected_output
 ):
-    response = session_orjson.post("/echo-json-using-json-function", json=input_data)
+    response = session_4.post("/echo-json-using-json-function", json=input_data)
     actual_output = response.json()
     assert actual_output == expected_output
 
 
-def test_get_json_response_of_dataclass_from_app_using_orjson(session_orjson):
-    response = session_orjson.get("/get-dataclass-json")
+def test_get_json_response_of_dataclass_from_app_using_custom_json_settings(
+    session_4,
+):
+    response = session_4.get("/get-dataclass-json")
     actual_response = response.json()
     expected_response = {
         "id": "674fc748-96ac-4cde-8b33-5b76302a8706",
@@ -759,8 +761,8 @@ def test_get_json_response_of_dataclass_from_app_using_orjson(session_orjson):
         {"id": str(uuid4()), "price": 15.15, "name": "Ravenclaw T-Shirt"},
     ],
 )
-def test_post_json_to_app_using_orjson(session_orjson, data):
-    response = session_orjson.post("/echo-posted-json", json=data)
+def test_post_json_to_app_using_custom_json_settings(session_4, data):
+    response = session_4.post("/echo-posted-json", json=data)
     ensure_success(response)
 
     assert response.json() == data

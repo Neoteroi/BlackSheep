@@ -4,7 +4,7 @@ from blacksheep.server import Application
 from blacksheep.server.responses import json
 
 application = Application(show_error_details=True)
-app_three = Application(show_error_details=True)
+app_3 = Application(show_error_details=True)
 
 
 @application.router.get("/foo")
@@ -31,12 +31,12 @@ async def on_stop(_):
     await application.stop()
 
 
-app_three.on_start += on_start
-app_three.on_stop += on_stop
+app_3.on_start += on_start
+app_3.on_stop += on_stop
 
 
-app_three.mount("/foo", app=application)
-app_three.mount("/post", app=application)
+app_3.mount("/foo", app=application)
+app_3.mount("/post", app=application)
 
 if __name__ == "__main__":
-    uvicorn.run(app_three, host="127.0.0.1", port=44557, log_level="debug")
+    uvicorn.run(app_3, host="127.0.0.1", port=44557, log_level="debug")

@@ -45,7 +45,7 @@ from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import text
 from itests.utils import CrashTest
 
-app_two = Application()
+app_2 = Application()
 
 
 # OpenAPI v3 configuration:
@@ -54,7 +54,7 @@ docs.ui_providers.append(ReDocUIProvider())
 
 # include only endpoints whose path starts with "/api/"
 docs.include = lambda path, _: path.startswith("/api/")
-docs.bind_app(app_two)
+docs.bind_app(app_2)
 
 
 class HandledException(Exception):
@@ -66,7 +66,7 @@ async def handle_test_exception(app, request, http_exception):
     return Response(200, content=TextContent(f"Fake exception, to test handlers"))
 
 
-app_two.exceptions_handlers[HandledException] = handle_test_exception
+app_2.exceptions_handlers[HandledException] = handle_test_exception
 
 
 @dataclass
@@ -74,7 +74,7 @@ class SomeService:
     pass
 
 
-app_two.services.add_transient(SomeService)
+app_2.services.add_transient(SomeService)
 
 
 class AdminRequirement(Requirement):
@@ -104,43 +104,43 @@ class MockAuthHandler(AuthenticationHandler):
         return context.identity
 
 
-app_two.use_authentication().add(MockAuthHandler())
+app_2.use_authentication().add(MockAuthHandler())
 
 
-app_two.use_authorization().add(AdminsPolicy()).add(
+app_2.use_authorization().add(AdminsPolicy()).add(
     Policy("authenticated", AuthenticatedRequirement())
 )
 
 
 @docs(responses={200: "Example"})
-@app_two.router.get("/api/dogs/bark")
+@app_2.router.get("/api/dogs/bark")
 def bark(example: FromCookie[str], example_header: FromHeader[str]):
     return text("Bau Bau")
 
 
-@app_two.router.get("/api/dogs/sleep/*")
+@app_2.router.get("/api/dogs/sleep/*")
 def not_documented():
     return text("Ignored because catch-all")
 
 
 @auth("admin")
-@app_two.router.get("/only-for-admins")
+@app_2.router.get("/only-for-admins")
 async def only_for_admins():
     return None
 
 
 @auth("authenticated")
-@app_two.router.get("/only-for-authenticated-users")
+@app_2.router.get("/only-for-authenticated-users")
 async def only_for_authenticated_users():
     return None
 
 
-@app_two.route("/crash")
+@app_2.route("/crash")
 async def crash():
     raise CrashTest()
 
 
-@app_two.route("/handled-crash")
+@app_2.route("/handled-crash")
 async def handled_crash():
     raise HandledException()
 
@@ -660,4 +660,4 @@ class Cats(ApiController):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app_two, host="127.0.0.1", port=44566, log_level="debug")
+    uvicorn.run(app_2, host="127.0.0.1", port=44566, log_level="debug")

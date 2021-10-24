@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install cython==0.29.14 --install-option="--no-cython-compile"
+          pip install cython==0.29.24 --install-option="--no-cython-compile"
           pip install -r requirements.txt
 
       - name: Compile Cython extensions

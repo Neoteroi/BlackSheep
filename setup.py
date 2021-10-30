@@ -88,7 +88,7 @@ setup(
         ),
     ],
     install_requires=[
-        "httptools~=0.3.0",
+        "httptools>=0.2,<0.4",
         "Jinja2~=3.0.2",
         "certifi>=2020.12.5",
         "cchardet~=2.1.5",

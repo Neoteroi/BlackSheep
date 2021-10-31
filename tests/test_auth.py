@@ -1,15 +1,20 @@
-from typing import Any, Optional
+import json
+from typing import Any, Dict, Optional
 
+import jwt
+import pkg_resources
 import pytest
 from guardpost.authentication import Identity
 from guardpost.authorization import AuthorizationContext, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
+from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from pytest import raises
 
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
     AuthenticationHandler,
 )
+from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import (
     AuthorizationWithoutAuthenticationError,
     Policy,
@@ -20,6 +25,39 @@ from blacksheep.server.authorization import (
 )
 from blacksheep.testing.helpers import get_example_scope
 from tests.test_files_serving import get_folder_path
+
+
+def get_file_path(file_name, folder_name: str = "res") -> str:
+    return pkg_resources.resource_filename(__name__, f"./{folder_name}/{file_name}")
+
+
+# region JWTBearer
+
+
+def get_test_jwks() -> JWKS:
+    with open(get_file_path("jwks.json"), mode="rt", encoding="utf8") as jwks_file:
+        jwks_dict = json.loads(jwks_file.read())
+    return JWKS.from_dict(jwks_dict)
+
+
+@pytest.fixture(scope="session")
+def default_keys_provider() -> KeysProvider:
+    return InMemoryKeysProvider(get_test_jwks())
+
+
+def get_access_token(kid: str, payload: Dict[str, Any]):
+    with open(get_file_path(f"{kid}.pem"), "r") as key_file:
+        private_key = key_file.read()
+
+    return jwt.encode(
+        payload,
+        private_key,
+        algorithm="RS256",
+        headers={"kid": kid},
+    )
+
+
+# endregion
 
 
 class MockAuthHandler(AuthenticationHandler):
@@ -388,3 +426,112 @@ async def test_authorization_default_requires_authenticated_user(
 
     await app(get_example_scope("GET", "/admin"), mock_receive(), mock_send)
     assert app.response.status == 401
+
+
+@pytest.mark.asyncio
+async def test_jwt_bearer_authentication(
+    app, mock_receive, mock_send, default_keys_provider
+):
+    app.use_authentication().add(
+        JWTBearerAuthentication(
+            valid_audiences=["a"],
+            valid_issuers=["b"],
+            keys_provider=default_keys_provider,
+        )
+    )
+
+    identity: Optional[Identity] = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.identity
+        return None
+
+    await app.start()
+    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+
+    assert app.response is not None
+    assert app.response.status == 204
+
+    assert identity is not None
+    assert identity.is_authenticated() is False
+
+    # request with valid Bearer Token
+    access_token = get_access_token(
+        "0",
+        {
+            "aud": "a",
+            "iss": "b",
+            "id": "001",
+            "name": "Charlie Brown",
+        },
+    )
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        mock_receive(),
+        mock_send,
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+
+    assert identity is not None
+    assert identity["id"] == "001"
+    assert identity["name"] == "Charlie Brown"
+
+    # request with invalid Bearer Token (invalid audience)
+    access_token = get_access_token(
+        "0",
+        {
+            "aud": "NO",
+            "iss": "b",
+            "id": "001",
+            "name": "Charlie Brown",
+        },
+    )
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        mock_receive(),
+        mock_send,
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+
+    assert identity is not None
+    assert identity.is_authenticated() is False
+
+    # request with invalid Bearer Token (invalid header)
+    access_token = get_access_token(
+        "0",
+        {
+            "aud": "a",
+            "iss": "b",
+            "id": "001",
+            "name": "Charlie Brown",
+        },
+    )
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", access_token.encode())],
+        ),
+        mock_receive(),
+        mock_send,
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+
+    assert identity is not None
+    assert identity.is_authenticated() is False

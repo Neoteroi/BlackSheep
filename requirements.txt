@@ -16,7 +16,7 @@ essentials==1.1.4
 essentials-openapi==0.1.4
 flake8==3.7.9
 Flask==1.1.1
-guardpost==0.0.7
+guardpost~=0.0.8
 h11==0.11.0
 httptools>=0.2,<0.4
 idna==2.8
@@ -58,3 +58,4 @@ Werkzeug==0.16.0
 zipp==0.6.0
 uvloop==0.15.2; platform_system != "Windows"
 Hypercorn==0.11.2
+PyJWT~=2.3.0

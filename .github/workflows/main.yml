@@ -85,10 +85,28 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - uses: actions/cache@v1
+        id: depcache
+        with:
+          path: deps
+          key: requirements-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Download dependencies
+        if: steps.depcache.outputs.cache-hit != 'true'
+        run: |
+          pip download --dest=deps -r requirements.txt
+
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install black==20.8b1 isort==5.9.1
+          PYVER=`python -V 2>&1`
+
+          if [ "$PYVER" == "Python 3.10.0" ]; then
+            pip install -r requirements.txt
+          else
+            pip install -U --no-index --find-links=deps deps/*
+          fi
+
+          pip install black isort==5.9.1
 
       - name: Compile Cython extensions
         run: |

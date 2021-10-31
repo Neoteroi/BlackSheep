@@ -183,6 +183,9 @@ async def only_for_authenticated_users():
   exceptions](https://www.neoteroi.dev/blacksheep/application/#configuring-exceptions-handlers)
 * [Strategy to handle authentication and
   authorization](https://www.neoteroi.dev/blacksheep/authentication/)
+* [Built-in support for JWT Bearer authentication using OIDC discovery and
+  other sources of
+  JWKS](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
 * [Handlers
   normalization](https://www.neoteroi.dev/blacksheep/request-handlers/)
 * [Serving static

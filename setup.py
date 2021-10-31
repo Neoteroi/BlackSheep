@@ -11,7 +11,7 @@ COMPILE_ARGS = ["-O2"]
 
 setup(
     name="blacksheep",
-    version="1.2.0",
+    version="1.2.1",
     description="Fast web framework and HTTP client for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -37,6 +37,8 @@ setup(
         "blacksheep",
         "blacksheep.plugins",
         "blacksheep.server",
+        "blacksheep.server.authentication",
+        "blacksheep.server.authorization",
         "blacksheep.server.files",
         "blacksheep.server.res",
         "blacksheep.server.openapi",
@@ -88,11 +90,11 @@ setup(
         ),
     ],
     install_requires=[
-        "httptools~=0.3.0",
+        "httptools>=0.2,<0.4",
         "Jinja2~=3.0.2",
         "certifi>=2020.12.5",
         "cchardet~=2.1.5",
-        "guardpost~=0.0.7",
+        "guardpost~=0.0.8",
         "rodi~=1.1.1",
         "essentials>=1.1.4,<2.0",
         "essentials-openapi>=0.1.4,<1.0",
@@ -103,6 +105,7 @@ setup(
     extras_require={
         "full": [
             "cryptography~=3.4.6",
+            "PyJWT~=2.3.0",
         ]
     },
     include_package_data=True,

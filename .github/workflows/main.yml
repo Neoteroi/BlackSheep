@@ -98,7 +98,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -U --no-index --find-links=deps deps/*
+          PYVER=`python -V 2>&1`
+
+          if [ "$PYVER" == "Python 3.10.0" ]; then
+            pip install -r requirements.txt
+          else
+            pip install -U --no-index --find-links=deps deps/*
+          fi
+
           pip install black isort==5.9.1
 
       - name: Compile Cython extensions

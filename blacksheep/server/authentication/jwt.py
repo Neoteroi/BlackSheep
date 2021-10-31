@@ -40,10 +40,10 @@ class JWTBearerAuthentication(AuthenticationHandler):
         auth_mode: str = "JWT Bearer"
     ):
         """
-        Creates a new instance of JWTBearerAuthentication handler, which tries to
+        Creates a new instance of JWTBearerAuthentication, which tries to
         obtains the identity of the user from the "Authorization" request header,
-        handling JWT Bearer tokens. Note that only standard authorization headers
-        starting with the `Bearer ` string are handled.
+        handling JWT Bearer tokens. Only standard authorization headers starting
+        with the `Bearer ` string are handled.
 
         Parameters
         ----------
@@ -70,6 +70,9 @@ class JWTBearerAuthentication(AuthenticationHandler):
         cache_time : float, optional
             If >= 0, JWKS are cached in memory and stored for the given amount in
             seconds. By default 10800 (3 hours).
+        auth_mode : str, optional
+            When authentication succeeds, the declared authentication mode. By default,
+            "JWT Bearer".
         """
         self.logger = get_logger()
 

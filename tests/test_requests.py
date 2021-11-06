@@ -3,6 +3,7 @@ import pytest
 from blacksheep import Content, Request, scribe
 from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
+from blacksheep.messages import get_request_absolute_url
 from blacksheep.scribe import write_small_request
 from blacksheep.server.asgi import get_request_url, get_request_url_from_scope
 from blacksheep.testing.helpers import get_example_scope
@@ -356,3 +357,118 @@ def test_get_request_url_from_scope(scope, trailing_slash, expected_value):
 def test_get_request_url_from_scope_raises_for_invalid_scope():
     with pytest.raises(ValueError):
         get_request_url_from_scope({})
+
+
+@pytest.mark.parametrize(
+    "scope,expected_value",
+    [
+        (
+            get_example_scope("GET", "/foo", scheme="http", server=["127.0.0.1", 8000]),
+            "http://127.0.0.1:8000/foo",
+        ),
+        (
+            get_example_scope("GET", "/foo", scheme="http", server=["127.0.0.1", 80]),
+            "http://127.0.0.1/foo",
+        ),
+        (
+            get_example_scope(
+                "GET", "/foo", scheme="https", server=["127.0.0.1", 44777]
+            ),
+            "https://127.0.0.1:44777/foo",
+        ),
+        (
+            get_example_scope("GET", "/foo", scheme="https", server=["127.0.0.1", 443]),
+            "https://127.0.0.1/foo",
+        ),
+    ],
+)
+def test_get_request_absolute_url(scope, expected_value):
+    request = Request.incoming(
+        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+    )
+    request.scope = scope
+
+    assert request.scheme == scope["scheme"]
+    assert request.host == dict(scope["headers"])[b"host"].decode()
+    assert request.base_path == b""
+
+    absolute_url = get_request_absolute_url(request)
+    assert str(absolute_url) == f"{request.scheme}://{request.host}{request.path}"
+    assert str(absolute_url) == expected_value
+
+
+@pytest.mark.parametrize(
+    "scope,base_path,expected_value",
+    [
+        (
+            get_example_scope("GET", "/foo", scheme="http", server=["127.0.0.1", 8000]),
+            "/api",
+            "http://127.0.0.1:8000/api/foo",
+        ),
+        (
+            get_example_scope("GET", "/foo", scheme="http", server=["127.0.0.1", 80]),
+            "/api/",
+            "http://127.0.0.1/api/foo",
+        ),
+        (
+            get_example_scope(
+                "GET", "/foo", scheme="https", server=["127.0.0.1", 44777]
+            ),
+            "/api/oof",
+            "https://127.0.0.1:44777/api/oof/foo",
+        ),
+        (
+            get_example_scope("GET", "/foo", scheme="https", server=["127.0.0.1", 443]),
+            "/api/oof/",
+            "https://127.0.0.1/api/oof/foo",
+        ),
+    ],
+)
+def test_get_request_absolute_url_with_base_path(scope, base_path, expected_value):
+    request = Request.incoming(
+        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+    )
+    request.scope = scope
+
+    assert request.scheme == scope["scheme"]
+    assert request.host == dict(scope["headers"])[b"host"].decode()
+    request.base_path = base_path.encode()
+
+    absolute_url = get_request_absolute_url(request)
+    assert str(absolute_url) == expected_value
+
+
+def test_can_set_request_host_and_scheme():
+    scope = get_example_scope(
+        "GET", "/blacksheep/", scheme="http", server=["127.0.0.1", 80]
+    )
+    request = Request.incoming(
+        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+    )
+    request.scope = scope  # type: ignore
+
+    request.scheme = "https"
+    request.host = "neoteroi.dev"
+
+    absolute_url = get_request_absolute_url(request)
+    assert str(absolute_url) == "https://neoteroi.dev/blacksheep/"
+
+
+def test_can_set_request_client_ip():
+    scope = get_example_scope(
+        "GET", "/blacksheep/", scheme="http", server=["127.0.0.1", 80]
+    )
+    request = Request.incoming(
+        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+    )
+    request.scope = scope  # type: ignore
+
+    request.client_ip == scope["client"][0]
+
+    assert request.original_client_ip == "127.0.0.1"
+
+    # can set (e.g. when handling forwarded headers)
+    request.original_client_ip = "185.152.122.103"
+
+    assert request.original_client_ip == "185.152.122.103"
+    assert scope["client"] == ("127.0.0.1", 51492)

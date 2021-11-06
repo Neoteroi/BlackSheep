@@ -67,3 +67,7 @@ cpdef bint method_without_body(str method)
 cpdef bint is_cors_request(Request request)
 
 cpdef bint is_cors_preflight_request(Request request)
+
+cpdef URL get_request_absolute_url(Request request)
+
+cdef bytes ensure_bytes(value)

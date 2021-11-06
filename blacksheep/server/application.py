@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import (
     Any,
     Awaitable,
@@ -40,6 +39,7 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
+from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
@@ -128,6 +128,9 @@ def _extend(obj, cls):
     obj.__class__ = type(base_cls_name, (cls, base_cls), {})
 
 
+env_settings = EnvironmentSettings()
+
+
 class Application(BaseApplication):
     def __init__(
         self,
@@ -143,7 +146,7 @@ class Application(BaseApplication):
         if services is None:
             services = Container()
         if show_error_details is None:
-            show_error_details = bool(os.environ.get("APP_SHOW_ERROR_DETAILS", False))
+            show_error_details = env_settings.show_error_details
         if mount is None:
             mount = Mount()
         super().__init__(show_error_details, router)
@@ -541,6 +544,9 @@ class Application(BaseApplication):
             configured_handlers.add(route.handler)
         configured_handlers.clear()
 
+    def on_middlewares_configuration(self) -> None:
+        """Extensibility point that enables changing the order of middlewares."""
+
     def configure_middlewares(self):
         if self._middlewares_configured:
             return
@@ -568,6 +574,8 @@ class Application(BaseApplication):
             self.middlewares.insert(
                 0, get_default_headers_middleware(self._default_headers)
             )
+
+        self.on_middlewares_configuration()
 
         self._normalize_middlewares()
 

@@ -18,3 +18,13 @@ cdef class URL:
 
     cpdef URL join(self, URL other)
     cpdef URL base_url(self)
+    cpdef URL with_host(self, bytes host)
+    cpdef URL with_scheme(self, bytes schema)
+
+
+cpdef URL build_absolute_url(
+    bytes scheme,
+    bytes host,
+    bytes base_path,
+    bytes path
+)

@@ -1,12 +1,12 @@
 from typing import Optional, Sequence
 
-from blacksheep.baseapp import get_logger
 from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
 from guardpost.jwks import KeysProvider
 from guardpost.jwts import InvalidAccessToken, JWTValidator
 from jwt.exceptions import InvalidTokenError
 
+from blacksheep.baseapp import get_logger
 from blacksheep.messages import Request
 
 

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import (
     Any,
     Awaitable,
@@ -70,19 +71,19 @@ def get_default_headers_middleware(
 
 class ApplicationEvent:
     def __init__(self, context: Any) -> None:
-        self.__handlers: List[Callable[..., Any]] = []
+        self._handlers: List[Callable[..., Any]] = []
         self.context = context
 
     def __iadd__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
-        self.__handlers.append(handler)
+        self._handlers.append(handler)
         return self
 
     def __isub__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
-        self.__handlers.remove(handler)
+        self._handlers.remove(handler)
         return self
 
     def __len__(self) -> int:
-        return len(self.__handlers)
+        return len(self._handlers)
 
     def __call__(self, *args) -> Any:
         if args:
@@ -95,13 +96,24 @@ class ApplicationEvent:
 
         return decorator
 
+    async def fire(self, *args: Any, **keywargs: Any) -> None:
+        for handler in self._handlers:
+            await handler(self.context, *args, **keywargs)
+
+
+class ApplicationSyncEvent(ApplicationEvent):
+    """
+    ApplicationEvent whose subscribers must be synchronous functions.
+    """
+
     def fire_sync(self, *args: Any, **keywargs: Any) -> None:
-        for handler in self.__handlers:
+        for handler in self._handlers:
             handler(self.context, *args, **keywargs)
 
     async def fire(self, *args: Any, **keywargs: Any) -> None:
-        for handler in self.__handlers:
-            await handler(self.context, *args, **keywargs)
+        raise TypeError(
+            "The event handlers in this ApplicationEvent must be synchronous!"
+        )
 
 
 class ApplicationStartupError(RuntimeError):
@@ -167,7 +179,7 @@ class Application(BaseApplication):
         self.on_start = ApplicationEvent(self)
         self.after_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
-        self.on_middlewares_configuration = ApplicationEvent(self)
+        self.on_middlewares_configuration = ApplicationSyncEvent(self)
         self.started = False
         self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
@@ -298,6 +310,7 @@ class Application(BaseApplication):
         if not self._cors_strategy:
             self.use_cors()
 
+        assert self._cors_strategy is not None
         self._cors_strategy.add_policy(
             policy_name,
             CORSPolicy(
@@ -385,7 +398,7 @@ class Application(BaseApplication):
 
     def serve_files(
         self,
-        source_folder: str,
+        source_folder: Union[str, Path],
         *,
         discovery: bool = False,
         cache_time: int = 10800,

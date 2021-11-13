@@ -1,5 +1,4 @@
-from typing import Optional, Tuple, Sequence, Union, List
-
+from typing import List, Optional, Sequence, Tuple, Union
 
 _DEFAULT_AGENT = (
     b"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0"

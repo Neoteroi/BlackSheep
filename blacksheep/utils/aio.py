@@ -18,8 +18,12 @@ class FailedRequestError(Exception):
 
 
 def fetch(url: str) -> Any:
-    with urllib.request.urlopen(url) as response:
-        return response.read()
+    try:
+        with urllib.request.urlopen(url) as response:
+            return response.read()
+    except urllib.error.HTTPError as http_error:
+        content = http_error.read()
+        raise FailedRequestError(http_error.status, _try_parse_content_as_json(content))
 
 
 def _try_parse_content_as_json(content: bytes) -> Any:
@@ -66,7 +70,7 @@ class HTTPHandler:
         return await self.loop.run_in_executor(None, lambda: post(url, data))
 
 
-def get_running_loop():
+def get_running_loop() -> AbstractEventLoop:  # pragma: no cover
     try:
         if sys.version_info[:2] <= (3, 7):
             # For Python 3.6
@@ -74,4 +78,6 @@ def get_running_loop():
         else:
             return asyncio.get_running_loop()
     except RuntimeError:
+        # TODO: fix deprecation warning happening in the test suite
+        # DeprecationWarning: There is no current event loop
         return asyncio.get_event_loop()

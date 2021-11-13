@@ -9,6 +9,7 @@ from guardpost.authorization import AuthorizationContext, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from pytest import raises
+from blacksheep.server.application import Application
 
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
@@ -535,3 +536,13 @@ async def test_jwt_bearer_authentication(
 
     assert identity is not None
     assert identity.is_authenticated() is False
+
+
+def test_set_authentication_strategy_more_than_once(app: Application):
+    auth_strategy = app.use_authentication()
+    assert app.use_authentication() is auth_strategy
+
+
+def test_set_authorization_strategy_more_than_once(app: Application):
+    auth_strategy = app.use_authorization()
+    assert app.use_authorization() is auth_strategy

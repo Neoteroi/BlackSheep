@@ -1,4 +1,6 @@
-from flask import Flask, Response, escape, jsonify, request
+from flask import Flask, jsonify, request
+from flask.wrappers import Response
+from markupsafe import escape
 
 from itests.utils import ensure_folder
 
@@ -10,6 +12,18 @@ app = Flask(__name__, static_url_path="", static_folder="static")
 def hello_world():
     name = request.args.get("name", "World")
     return f"Hello, {escape(name)}!", 200, {"Content-Type": "text/plain"}
+
+
+@app.route("/plain-json")
+async def plain_json():
+    return jsonify({"message": "Hello, World!"})
+
+
+@app.route("/plain-json-error-simulation")
+async def plain_json_error_simulation():
+    response = jsonify({"message": "Hello, World!"})
+    response.status_code = 500
+    return response
 
 
 @app.route("/echo-headers", methods=["HEAD"])

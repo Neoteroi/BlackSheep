@@ -8,7 +8,6 @@ from itsdangerous.url_safe import URLSafeSerializer
 
 from blacksheep.baseapp import get_logger
 
-
 logger = get_logger()
 
 

@@ -3,7 +3,7 @@ import pytest
 from blacksheep import Content, Request, scribe
 from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
-from blacksheep.messages import get_request_absolute_url, get_absolute_url_to_path
+from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
 from blacksheep.scribe import write_small_request
 from blacksheep.server.asgi import get_request_url, get_request_url_from_scope
 from blacksheep.testing.helpers import get_example_scope

@@ -22,7 +22,7 @@ SECURE_SSLCONTEXT = ssl.create_default_context(
 )
 SECURE_SSLCONTEXT.check_hostname = True
 
-INSECURE_SSLCONTEXT = ssl.SSLContext()
+INSECURE_SSLCONTEXT = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
 INSECURE_SSLCONTEXT.check_hostname = False
 
 

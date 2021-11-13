@@ -30,6 +30,16 @@ async def hello_world():
     return text(f"Hello, World!")
 
 
+@app.route("/plain-json")
+async def plain_json():
+    return json({"message": "Hello, World!"})
+
+
+@app.route("/plain-json-error-simulation")
+async def plain_json_error_simulation():
+    return json({"message": "Hello, World!"}, status=500)
+
+
 @app.router.head("/echo-headers")
 async def echo_headers(request):
     response = Response(200)

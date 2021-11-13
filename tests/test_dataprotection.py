@@ -2,6 +2,7 @@ import os
 
 import pytest
 from itsdangerous import BadSignature
+
 from blacksheep.server.dataprotection import generate_secret, get_keys, get_serializer
 
 
@@ -46,3 +47,14 @@ def test_get_serializer_with_different_purpose():
 
     with pytest.raises(BadSignature):
         other_serializer.loads(secret)
+
+
+def test_get_serializer_with_default_keys():
+    serializer = get_serializer()
+
+    data = {"id": "0000"}
+    secret = serializer.dumps(data)
+    assert isinstance(secret, str)
+
+    parsed = serializer.loads(secret)
+    assert data == parsed

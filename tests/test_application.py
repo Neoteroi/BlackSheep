@@ -13,7 +13,7 @@ from guardpost.authentication import Identity, User
 from rodi import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
-from blacksheep.server.application import Application
+from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.bindings import (
     ClientInfo,
     FromBytes,
@@ -188,8 +188,8 @@ async def test_application_post_multipart_formdata(app, mock_send, mock_receive)
             "POST",
             "/files/upload",
             [
-                [b"content-length", str(len(content)).encode()],
-                [b"content-type", b"multipart/form-data; boundary=" + boundary],
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"multipart/form-data; boundary=" + boundary),
             ],
         ),
         mock_receive([content]),
@@ -3543,6 +3543,29 @@ async def test_start_stop_multiple_events_using_decorators(app: Application):
 
 
 @pytest.mark.asyncio
+async def test_on_middlewares_configured_event(app: Application):
+    on_middlewares_configuration_count = 0
+
+    @app.on_middlewares_configuration
+    def on_middlewares_configuration_1(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_middlewares_configuration_count
+        on_middlewares_configuration_count += 1
+
+    @app.on_middlewares_configuration
+    def on_middlewares_configuration_2(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_middlewares_configuration_count
+        on_middlewares_configuration_count += 1
+
+    await app.start()
+
+    assert on_middlewares_configuration_count == 2
+
+
+@pytest.mark.asyncio
 async def test_app_events_decorator_args_support(app: Application):
     @app.on_start
     async def before_start_1(application: FakeApplication) -> None:
@@ -3749,3 +3772,11 @@ async def test_response_normalization_with_cors(app, mock_receive, mock_send):
     response = app.response
     assert response.status == 200
     assert response.content.body == b"Hello, World"
+
+
+@pytest.mark.asyncio
+async def test_async_event_raises_for_fire_method():
+    event = ApplicationSyncEvent(None)
+
+    with pytest.raises(TypeError):
+        await event.fire()

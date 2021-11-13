@@ -5,6 +5,7 @@ from typing import AnyStr, Iterable, List, Optional, Sequence, Union
 from blacksheep.exceptions import BadRequest
 from blacksheep.headers import Headers
 from blacksheep.messages import Request
+
 from .hosts import TrustedHostsMiddleware
 
 IPAddress = Union[IPv4Address, IPv6Address]

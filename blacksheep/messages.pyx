@@ -12,7 +12,7 @@ from blacksheep.sessions import Session
 
 from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
-from .exceptions cimport BadRequestFormat
+from .exceptions cimport BadRequest, BadRequestFormat
 from .headers cimport Headers
 from .url cimport URL, build_absolute_url
 
@@ -293,7 +293,10 @@ cdef class Request(Message):
                 self.__dict__["host"] = self._url.host.decode()
             else:
                 # default to host header
-                self.__dict__["host"] = self.get_first_header(b'host').decode()
+                host_header = self.get_first_header(b'host')
+                if host_header is None:
+                    raise BadRequest("Missing Host header")
+                self.__dict__["host"] = host_header.decode()
         return self.__dict__["host"]
 
     @host.setter

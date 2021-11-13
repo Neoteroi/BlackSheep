@@ -23,6 +23,7 @@ from blacksheep.server.files import (
 from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.utils.aio import get_running_loop
 
 
 def get_folder_path(folder_name: str) -> str:
@@ -617,7 +618,7 @@ async def test_serve_files_with_custom_files_handler(app, mock_receive, mock_sen
 def test_file_context_mode_property():
     handler = FilesHandler()
     file_path = files2_index_path
-    context = handler.open(file_path)
+    context = handler.open(file_path, loop=get_running_loop())
     assert context.mode == "rb"
     assert context.loop is not None
     assert isinstance(context.loop, AbstractEventLoop)

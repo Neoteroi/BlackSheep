@@ -16,7 +16,7 @@ from itsdangerous.exc import BadSignature
 from jwt import InvalidTokenError
 
 from blacksheep.cookies import Cookie
-from blacksheep.exceptions import Unauthorized
+from blacksheep.exceptions import BadRequest, Unauthorized
 from blacksheep.messages import Request, Response, get_absolute_url_to_path
 from blacksheep.server.application import Application, ApplicationEvent
 from blacksheep.server.authentication.cookie import CookieAuthentication
@@ -63,8 +63,8 @@ class OpenIDConfiguration:
         return self._data["token_endpoint"]
 
     @property
-    def end_session_endpoint(self) -> str:
-        return self._data["end_session_endpoint"]
+    def end_session_endpoint(self) -> Optional[str]:
+        return self._data.get("end_session_endpoint")
 
 
 class OpenIDConnectEvent(ApplicationEvent):
@@ -143,18 +143,18 @@ class ParametersBuilder:
                 "Failed to parse the request state (%s), invalid signature.",
                 str(signature_error),
             )
-            raise OpenIDConnectError(f"Could not validate the state: {signature_error}")
+            raise BadRequest("Invalid state")
 
     def get_redirect_url(self, request: Request) -> str:
         return str(get_absolute_url_to_path(request, self._settings.callback_path))
 
     def build_signin_parameters(self, request: Request):
-        if not self._settings.client_secret:
-            # hybrid flow, requires implicit flow for id_token to be enabled
-            response_type = "id_token"
-        else:
+        if self._settings.client_secret:
             # authorization code grant
             response_type = "code"
+        else:
+            # hybrid flow, requires implicit flow for id_token to be enabled
+            response_type = "id_token"
 
         state = self.get_state(request)
         parameters = {
@@ -211,7 +211,10 @@ class OpenIDConnectError(Exception):
 
 
 class OpenIDConnectConfigurationError(OpenIDConnectError):
-    """Exception thrown when there is an error in the programmer's defined configuration."""
+    """
+    Exception thrown when there is an error in the programmer's
+    defined configuration.
+    """
 
 
 class OpenIDConnectRequestError(OpenIDConnectError):
@@ -228,7 +231,9 @@ class OpenIDConnectFailedExchangeError(OpenIDConnectRequestError):
     def __init__(
         self,
         request_error: FailedRequestError,
-        message: str = "Failed token exchange web request to the OpenIDConnect provider.",
+        message: str = (
+            "Failed token exchange web request to the OpenIDConnect provider."
+        ),
     ) -> None:
         super().__init__(request_error, message=message)
 
@@ -424,6 +429,10 @@ class OpenIDConnectHandler:
         self._jwt_validator: Optional[JWTValidator] = None
         self._auth_handler = auth_handler
 
+    @property
+    def settings(self) -> OpenIDSettings:
+        return self._settings
+
     async def get_jwt_validator(self) -> JWTValidator:
         if self._jwt_validator is None:
             configuration = await self.get_openid_configuration()
@@ -458,7 +467,8 @@ class OpenIDConnectHandler:
         except FailedRequestError as request_error:
             logger.error(
                 "Failed to fetch OpenID Connect configuration from the remote endpoint."
-                "Inspect the exception details for more details on the cause of the failure.",
+                "Inspect the exception details for more details on the cause of the "
+                "failure.",
                 exc_info=request_error,
             )
             raise OpenIDConnectRequestError(request_error)
@@ -493,7 +503,11 @@ class OpenIDConnectHandler:
             return redirect(self._settings.error_redirect_path + query)
         return redirect("/" + query)
 
-    async def handle_redirect(self, request: Request) -> Response:
+    async def handle_auth_redirect(self, request: Request) -> Response:
+        """
+        Handles the redirect after the user interacted with the sign-in page of a remote
+        authorization server.
+        """
         data = await request.form()
 
         if data is None:
@@ -591,7 +605,8 @@ class OpenIDConnectHandler:
         except FailedRequestError as request_error:
             logger.error(
                 "Failed to exchange an authorization code with an access token. "
-                "Inspect the exception details for more details on the cause of the failure.",
+                "Inspect the exception details for more details on the cause of the "
+                "failure.",
                 exc_info=request_error,
             )
             raise OpenIDConnectFailedExchangeError(request_error)
@@ -612,8 +627,9 @@ class OpenIDConnectHandler:
             )
         except FailedRequestError as request_error:
             logger.error(
-                "Failed to exchange an authorization code with an access token. "
-                "Inspect the exception details for more details on the cause of the failure.",
+                "Failed to exchange a refresh token with an access token. "
+                "Inspect the exception details for more details on the cause of the "
+                "failure.",
                 exc_info=request_error,
             )
             raise OpenIDConnectFailedExchangeError(request_error)
@@ -711,13 +727,13 @@ def use_openid_connect(
 
     @allow_anonymous()
     @app.router.get(settings.entry_path)
-    async def redirect_to_login(request: Request):
+    async def redirect_to_sign_in(request: Request):
         return await handler.redirect_to_sign_in(request)
 
     @allow_anonymous()
     @app.router.post(settings.callback_path)
-    async def handle_redirect(request: Request):
-        return await handler.handle_redirect(request)
+    async def handle_auth_redirect(request: Request):
+        return await handler.handle_auth_redirect(request)
 
     @app.router.get(settings.logout_path)
     async def redirect_to_logout(request: Request):
@@ -726,7 +742,7 @@ def use_openid_connect(
     if is_default:
 
         @app.on_middlewares_configuration
-        def insert_challenge_middleare(app):
+        def insert_challenge_middleware(app):
             app.middlewares.insert(0, ChallengeMiddleware(handler.redirect_to_sign_in))
 
     return handler

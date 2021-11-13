@@ -1,13 +1,14 @@
+from ipaddress import ip_address, ip_network
+
 import pytest
 
-from ipaddress import ip_address, ip_network
-from blacksheep.server.remotes.hosts import TrustedHostsMiddleware
 from blacksheep.server.remotes.forwarding import (
-    ForwardedHeadersMiddleware,
     ForwardedHeaderEntry,
+    ForwardedHeadersMiddleware,
     XForwardedHeadersMiddleware,
     parse_forwarded_header,
 )
+from blacksheep.server.remotes.hosts import TrustedHostsMiddleware
 from blacksheep.testing.helpers import get_example_scope
 from tests.utils.application import FakeApplication
 

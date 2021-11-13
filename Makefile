@@ -74,7 +74,7 @@ test-cov-unit:
 
 
 test-cov:
-	pytest --cov-report html --cov=blacksheep
+	pytest --cov-report html --cov=blacksheep --disable-warnings
 
 
 lint: check-flake8 check-isort check-black

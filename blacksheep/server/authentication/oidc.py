@@ -106,7 +106,7 @@ class OpenIDSettingsError(TypeError):
         super().__init__(message)
 
 
-class MissingClientSecretOpenIDSettingsError(OpenIDSettingsError):
+class MissingClientSecretSettingError(OpenIDSettingsError):
     def __init__(self) -> None:
         super().__init__(
             "Missing application client secret, to use the Authorization Code Grant "
@@ -179,7 +179,7 @@ class ParametersBuilder:
 
     def _require_secret(self):
         if not self._settings.client_secret:
-            raise MissingClientSecretOpenIDSettingsError()
+            raise MissingClientSecretSettingError()
 
     def build_code_grant_parameters(self, request: Request, code: str):
         self._require_secret()
@@ -336,8 +336,8 @@ class CookiesTokensStore(BaseTokensStore):
     @scheme_name.setter
     def scheme_name(self, value: str) -> None:
         self._scheme_name = value
-        self._access_token_cookie_name = f"{self._scheme_name}.at"
-        self._refresh_token_cookie_name = f"{self._scheme_name}.rt"
+        self._access_token_cookie_name = f"{self._scheme_name}.at".lower()
+        self._refresh_token_cookie_name = f"{self._scheme_name}.rt".lower()
 
     async def store_access_tokens(
         self,
@@ -510,7 +510,7 @@ class OpenIDConnectHandler:
         """
         data = await request.form()
 
-        if data is None:
+        if data is None or not data:
             return accepted()
 
         error = data.get("error")
@@ -561,7 +561,9 @@ class OpenIDConnectHandler:
                         token_response.refresh_token,
                         expires=None,
                     )
-                id_token = token_response.id_token
+
+                if not id_token and token_response.id_token:
+                    id_token = token_response.id_token
             else:
                 raise OpenIDConnectError(
                     "Expected either an error, an id_token, or a code."
@@ -670,7 +672,7 @@ class ChallengeMiddleware:
     async def __call__(self, request: Request, handler):
         try:
             return await handler(request)
-        except UnauthorizedError:
+        except (Unauthorized, UnauthorizedError):
             if (
                 request.identity is None
                 or not request.identity.is_authenticated()

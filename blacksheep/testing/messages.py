@@ -18,6 +18,18 @@ class MockReceive:
     """
     Class used to mock the messages received by an ASGI framework and passed to the
     dependant web framework.
+
+    Example:
+
+        MockReceive([b'{"error":"access_denied"}'])
+
+    Simulates the ASGI server sending this kind of message:
+
+        {
+            "body": b'{"error":"access_denied"}',
+            "type": "http.message",
+            "more_body": False
+        }
     """
 
     def __init__(self, messages: Optional[List[MessageType]] = None):

@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, List, Optional, Tuple
+from urllib.parse import urlencode
 
 import pytest
 from guardpost.authorization import Policy
@@ -9,15 +10,20 @@ from blacksheep.cookies import parse_cookie
 from blacksheep.exceptions import Unauthorized
 from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
+from blacksheep.server.authentication.cookie import CookieAuthentication
 from blacksheep.server.authentication.oidc import (
+    CookiesTokensStore,
     OpenIDConfiguration,
+    OpenIDConnectConfigurationError,
     OpenIDConnectHandler,
+    OpenIDConnectRequestError,
     OpenIDSettings,
     TokenResponse,
     use_openid_connect,
 )
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
+from tests.test_auth import get_access_token
 
 from .test_auth_cookie import get_auth_cookie
 from .utils.application import FakeApplication
@@ -27,11 +33,22 @@ MOCKED_AUTHORITY = (
 )
 
 
-def configure_test_oidc(app: Application):
+def configure_test_oidc_implicit_id_token(app: Application):
     return use_openid_connect(
         app,
         OpenIDSettings(
             client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
+            authority=MOCKED_AUTHORITY,
+        ),
+    )
+
+
+def configure_test_oidc_with_secret(app: Application):
+    return use_openid_connect(
+        app,
+        OpenIDSettings(
+            client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
+            client_secret="JUST_AN_EXAMPLE",
             authority=MOCKED_AUTHORITY,
         ),
     )
@@ -43,19 +60,30 @@ def get_request(method: str = "GET", path: str = "/account") -> Request:
     return request
 
 
-def assert_redirect_to_sign_in(response: Optional[Response]):
+def form_extra_headers(content: bytes) -> List[Tuple[bytes, bytes]]:
+    return [
+        (b"content-length", str(len(content)).encode()),
+        (b"content-type", b"application/x-www-form-urlencoded"),
+    ]
+
+
+def assert_redirect_to_sign_in(response: Optional[Response], has_secret: bool = False):
     assert response is not None
     assert response.status == 302
     location = response.headers.get_first(b"location")
 
     assert location is not None
     assert location.startswith(b"https://neoteroi.dev/authorization")
-    assert b"response_type=id_token" in location
+
+    if has_secret:
+        assert b"response_type=code" in location
+    else:
+        assert b"response_type=id_token" in location
 
 
 @pytest.mark.asyncio
 async def test_openid_connect_handler_redirect(app: FakeApplication):
-    oidc = configure_test_oidc(app)
+    oidc = configure_test_oidc_implicit_id_token(app)
     assert isinstance(oidc, OpenIDConnectHandler)
 
     await app(
@@ -66,25 +94,343 @@ async def test_openid_connect_handler_redirect(app: FakeApplication):
 
 
 @pytest.mark.asyncio
-async def test_openid_connect_handler_auth_post(app: FakeApplication):
-    oidc = configure_test_oidc(app)
+async def test_openid_connect_handler_redirect_with_secret(app: FakeApplication):
+    oidc = configure_test_oidc_with_secret(app)
     assert isinstance(oidc, OpenIDConnectHandler)
 
     await app(
-        get_example_scope("POST", oidc.settings.callback_path),
-        MockReceive([b'{"error":"access_denied"}']),
+        get_example_scope("GET", oidc.settings.entry_path), MockReceive(), MockSend()
+    )
+
+    assert_redirect_to_sign_in(app.response, has_secret=True)
+
+
+@pytest.mark.asyncio
+async def test_openid_connect_handler_auth_post_id_token(app: FakeApplication):
+    oidc = configure_test_oidc_implicit_id_token(app)
+    assert isinstance(oidc, OpenIDConnectHandler)
+
+    oidc_configuration = await oidc.get_openid_configuration()
+
+    called = False
+    claims = {
+        "aud": oidc.settings.client_id,
+        "iss": oidc_configuration.issuer,
+        "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+    }
+
+    @oidc.events.on_id_token_validated
+    async def on_id_token_validated(context, parsed_token):
+        nonlocal called
+        called = True
+        assert parsed_token == claims
+
+    # arrange an id_token set by the remote auth server
+    id_token = get_access_token("0", claims)
+    content = urlencode({"id_token": id_token}).encode()
+
+    await app(
+        get_example_scope(
+            "POST",
+            oidc.settings.callback_path,
+            form_extra_headers(content),
+        ),
+        MockReceive([content]),
         MockSend(),
     )
 
     response = app.response
     assert response is not None
 
+    assert called is True
+    assert response.status == 302
+    assert response.headers.get_single(b"location") == b"/"
+    cookie_value = response.headers.get_single(b"set-cookie")
+
+    assert cookie_value is not None
+    cookie = parse_cookie(cookie_value)
+
+    # the auth_handler can parse the cookie value:
+    parsed_cookie_value = oidc._auth_handler.serializer.loads(cookie.value)
+    assert parsed_cookie_value == claims
+
+
+@pytest.mark.asyncio
+async def test_openid_connect_handler_auth_post_id_token_code_1(app: FakeApplication):
+    oidc = configure_test_oidc_with_secret(app)
+    assert isinstance(oidc, OpenIDConnectHandler)
+
+    # Note: mock the HTTPHandler to simulate a real authorization server that
+    # handles a valid request to the token endpoint
+
+    async def mocked_post_form(url: str, data: Any):
+        assert url == oidc_configuration.token_endpoint
+
+        assert data == {
+            "grant_type": "authorization_code",
+            "code": "xxx",
+            "scope": "openid profile email",
+            "redirect_uri": "http://127.0.0.1:8000/authorization-callback",
+            "client_id": "067cee45-faf3-4c75-9fef-09f050bcc3ae",
+            "client_secret": "JUST_AN_EXAMPLE",
+        }
+
+        access_token_claims = {
+            "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+            "aud": "------------------------------------",
+            "iss": oidc_configuration.issuer,
+        }
+
+        return {
+            "access_token": get_access_token("0", access_token_claims),
+            "refresh_token": "00000000-0000-0000-0000-000000000000",
+        }
+
+    oidc._http_handler.post_form = mocked_post_form
+
+    oidc_configuration = await oidc.get_openid_configuration()
+
+    called = False
+    id_token_claims = {
+        "aud": oidc.settings.client_id,
+        "iss": oidc_configuration.issuer,
+        "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+    }
+
+    @oidc.events.on_tokens_received
+    async def on_tokens_received(context, token_response: TokenResponse):
+        nonlocal called
+        called = True
+
+    # arrange an id_token set by the remote auth server
+    id_token = get_access_token("0", id_token_claims)
+    content = urlencode({"id_token": id_token, "code": "xxx"}).encode()
+
+    await app(
+        get_example_scope(
+            "POST",
+            oidc.settings.callback_path,
+            form_extra_headers(content),
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert called is True
+    assert response.status == 302
+    assert response.headers.get_single(b"location") == b"/"
+    cookie_value = response.headers.get_single(b"set-cookie")
+
+    assert cookie_value is not None
+    cookie = parse_cookie(cookie_value)
+
+    # the auth_handler can parse the cookie value:
+    parsed_cookie_value = oidc._auth_handler.serializer.loads(cookie.value)
+    assert parsed_cookie_value == id_token_claims
+
+
+@pytest.mark.asyncio
+async def test_openid_connect_handler_auth_post_id_token_code_2(app: FakeApplication):
+    oidc = configure_test_oidc_with_secret(app)
+    assert isinstance(oidc, OpenIDConnectHandler)
+
+    # Note: mock the HTTPHandler to simulate a real authorization server that
+    # handles a valid request to the token endpoint
+
+    oidc_configuration = await oidc.get_openid_configuration()
+
+    id_token_claims = {
+        "aud": oidc.settings.client_id,
+        "iss": oidc_configuration.issuer,
+        "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+    }
+
+    async def mocked_post_form(url: str, data: Any):
+        assert url == oidc_configuration.token_endpoint
+
+        assert data == {
+            "grant_type": "authorization_code",
+            "code": "xxx",
+            "scope": "openid profile email",
+            "redirect_uri": "http://127.0.0.1:8000/authorization-callback",
+            "client_id": "067cee45-faf3-4c75-9fef-09f050bcc3ae",
+            "client_secret": "JUST_AN_EXAMPLE",
+        }
+
+        access_token_claims = {
+            "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+            "aud": "------------------------------------",
+            "iss": oidc_configuration.issuer,
+        }
+
+        return {
+            "id_token": get_access_token("0", id_token_claims),
+            "access_token": get_access_token("0", access_token_claims),
+            "refresh_token": "00000000-0000-0000-0000-000000000000",
+        }
+
+    oidc._http_handler.post_form = mocked_post_form
+
+    called = False
+
+    @oidc.events.on_tokens_received
+    async def on_tokens_received(context, token_response: TokenResponse):
+        nonlocal called
+        called = True
+        assert token_response.id_token is not None
+        assert token_response.access_token is not None
+        assert token_response.refresh_token is not None
+
+    content = urlencode({"code": "xxx"}).encode()
+
+    await app(
+        get_example_scope(
+            "POST",
+            oidc.settings.callback_path,
+            form_extra_headers(content),
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert called is True
+    assert response.status == 302
+    assert response.headers.get_single(b"location") == b"/"
+    cookie_value = response.headers.get_single(b"set-cookie")
+
+    assert cookie_value is not None
+    cookie = parse_cookie(cookie_value)
+
+    # the auth_handler can parse the cookie value:
+    parsed_cookie_value = oidc._auth_handler.serializer.loads(cookie.value)
+    assert parsed_cookie_value == id_token_claims
+
+
+@pytest.mark.asyncio
+async def test_openid_connect_handler_auth_post_id_token_code_3(app: FakeApplication):
+    """With token store"""
+    oidc = configure_test_oidc_with_secret(app)
+    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+
+    assert oidc.tokens_store.scheme_name == oidc.settings.scheme_name
+
+    # Note: mock the HTTPHandler to simulate a real authorization server that
+    # handles a valid request to the token endpoint
+
+    oidc_configuration = await oidc.get_openid_configuration()
+
+    id_token_claims = {
+        "aud": oidc.settings.client_id,
+        "iss": oidc_configuration.issuer,
+        "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+    }
+
+    async def mocked_post_form(*args):
+        access_token_claims = {
+            "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+            "aud": "------------------------------------",
+            "iss": oidc_configuration.issuer,
+        }
+
+        return {
+            "id_token": get_access_token("0", id_token_claims),
+            "access_token": get_access_token("0", access_token_claims),
+            "refresh_token": "00000000-0000-0000-0000-000000000000",
+        }
+
+    oidc._http_handler.post_form = mocked_post_form
+
+    content = urlencode({"code": "xxx"}).encode()
+
+    await app(
+        get_example_scope(
+            "POST",
+            oidc.settings.callback_path,
+            form_extra_headers(content),
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert response.status == 302
+    assert response.headers.get_single(b"location") == b"/"
+    cookies_values = response.headers[b"set-cookie"]
+
+    assert len(cookies_values) == 3
+
+    names = set()
+    for cookie_value in cookies_values:
+        cookie = parse_cookie(cookie_value)
+        names.add(cookie.name)
+
+    scheme = oidc.settings.scheme_name.lower()
+    assert names == {scheme, f"{scheme}.at", f"{scheme}.rt"}
+
+
+def test_audience_setting(app: FakeApplication):
+    oidc = use_openid_connect(
+        app,
+        OpenIDSettings(
+            client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
+            client_secret="JUST_AN_EXAMPLE",
+            audience="some/api",
+            authority=MOCKED_AUTHORITY,
+        ),
+    )
+
+    sign_in_parameters = oidc.parameters_builder.build_signin_parameters(
+        Request("GET", b"/", [(b"host", b"localhost:5000")])
+    )
+
+    assert sign_in_parameters.get("audience") == "some/api"
+
+
+@pytest.mark.asyncio
+async def test_openid_connect_handler_auth_post_error(app: FakeApplication):
+    oidc = configure_test_oidc_implicit_id_token(app)
+    assert isinstance(oidc, OpenIDConnectHandler)
+
+    called = False
+
+    @oidc.events.on_error
+    async def on_error(*args):
+        nonlocal called
+        called = True
+
+    content = urlencode({"error": "access_denied"}).encode()
+
+    await app(
+        get_example_scope(
+            "POST",
+            oidc.settings.callback_path,
+            form_extra_headers(content),
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert called is True
+    assert response.status == 302
+    assert response.headers.get_single(b"location") == b"/?error=access_denied"
+
 
 @pytest.mark.asyncio
 async def test_openid_connect_handler_handling_request_without_host_header(
     app: FakeApplication,
 ):
-    oidc = configure_test_oidc(app)
+    oidc = configure_test_oidc_implicit_id_token(app)
 
     scope = get_example_scope("GET", oidc.settings.entry_path)
     scope["headers"] = []
@@ -104,7 +450,7 @@ async def test_openid_connect_handler_handling_request_without_host_header(
 async def test_default_openid_connect_handler_redirects_unauthenticated_users(
     app: FakeApplication,
 ):
-    oidc = configure_test_oidc(app)
+    oidc = configure_test_oidc_implicit_id_token(app)
 
     app.use_authorization().with_default_policy(
         Policy("authenticated", AuthenticatedRequirement())
@@ -151,7 +497,7 @@ async def test_default_openid_connect_handler_redirects_unauthenticated_users(
 async def test_openid_connect_handler_logout_endpoint(
     app: FakeApplication,
 ):
-    oidc = configure_test_oidc(app)
+    oidc = configure_test_oidc_implicit_id_token(app)
 
     await app.start()
     await app(
@@ -290,3 +636,43 @@ def test_token_response_class():
     assert token_response.id_token == "CONSECTETUR"
     assert token_response.expires_on == 900
     assert token_response.expires_in == 360
+
+
+def test_raises_for_missing_authority_and_discovery_endpoint():
+    handler = OpenIDConnectHandler(
+        OpenIDSettings(client_id="1"), auth_handler=CookieAuthentication()
+    )
+
+    with pytest.raises(OpenIDConnectConfigurationError):
+        handler.get_well_known_openid_configuration_url()
+
+
+@pytest.mark.asyncio
+async def test_raises_for_failed_request_to_fetch_openid_configuration():
+    handler = OpenIDConnectHandler(
+        OpenIDSettings(client_id="1", discovery_endpoint="http://localhost:44123"),
+        auth_handler=CookieAuthentication(),
+    )
+
+    with pytest.raises(OpenIDConnectRequestError):
+        await handler.fetch_openid_configuration()
+
+
+@pytest.mark.asyncio
+async def test_openid_connect_handler_auth_post_without_input(app: FakeApplication):
+    oidc = configure_test_oidc_implicit_id_token(app)
+    assert isinstance(oidc, OpenIDConnectHandler)
+
+    await app(
+        get_example_scope(
+            "POST",
+            oidc.settings.callback_path,
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert response.status == 202  # accepted

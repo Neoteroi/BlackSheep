@@ -12,6 +12,8 @@ class FailedRequestError(Exception):
     def __init__(self, status, data) -> None:
         super().__init__(
             f"The response status code does not indicate success: {status}."
+            if status > -1
+            else "The request failed."
         )
         self.status = status
         self.data = data
@@ -24,6 +26,9 @@ def fetch(url: str) -> Any:
     except urllib.error.HTTPError as http_error:
         content = http_error.read()
         raise FailedRequestError(http_error.status, _try_parse_content_as_json(content))
+    except urllib.error.URLError as url_error:
+        # e.g. connection refused
+        raise FailedRequestError(-1, str(url_error))
 
 
 def _try_parse_content_as_json(content: bytes) -> Any:

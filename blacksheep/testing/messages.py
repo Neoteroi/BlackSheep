@@ -1,13 +1,26 @@
 import asyncio
+from typing import Any, Dict, List, Optional, Union
 
 
 class MockMessage:
-    def __init__(self, value):
+    """
+    Class used to mock an exact message from an ASGI framework.
+    """
+
+    def __init__(self, value: Dict[str, Any]):
         self.value = value
 
 
+MessageType = Union[MockMessage, bytes, Dict[str, Any]]
+
+
 class MockReceive:
-    def __init__(self, messages=None):
+    """
+    Class used to mock the messages received by an ASGI framework and passed to the
+    dependant web framework.
+    """
+
+    def __init__(self, messages: Optional[List[MessageType]] = None):
         self.messages = messages or []
         self.index = 0
 
@@ -16,6 +29,8 @@ class MockReceive:
             message = self.messages[self.index]
         except IndexError:
             message = b""
+        if isinstance(message, dict):
+            return message
         if isinstance(message, MockMessage):
             return message.value
         self.index += 1
@@ -30,6 +45,11 @@ class MockReceive:
 
 
 class MockSend:
+    """
+    Class used to mock the `send` calls from an ASGI framework.
+    Use this class to inspect the messages sent by the framework.
+    """
+
     def __init__(self):
         self.messages = []
 

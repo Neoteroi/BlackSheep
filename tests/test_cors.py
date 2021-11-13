@@ -12,6 +12,7 @@ from blacksheep.server.cors import (
 from blacksheep.server.responses import text
 from blacksheep.server.routing import Router
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 
 
 def test_app_raises_type_error_for_cors_property(app):
@@ -123,7 +124,7 @@ def test_cors_strategy_raises_for_duplicate_policy_name():
 
 
 @pytest.mark.asyncio
-async def test_cors_request(app, mock_receive, mock_send):
+async def test_cors_request(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
     )
@@ -140,8 +141,8 @@ async def test_cors_request(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", [(b"Origin", b"https://www.something-else.dev")]),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -153,8 +154,8 @@ async def test_cors_request(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("PUT", "/", [(b"Origin", b"https://www.neoteroi.dev")]),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -167,8 +168,8 @@ async def test_cors_request(app, mock_receive, mock_send):
     for headers in ([], [(b"Origin", b"https://www.neoteroi.dev")]):
         await app(
             get_example_scope("GET", "/", headers),
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         response = app.response
@@ -177,7 +178,7 @@ async def test_cors_request(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_cors_request_response_normalization(app, mock_receive, mock_send):
+async def test_cors_request_response_normalization(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
     )
@@ -191,8 +192,8 @@ async def test_cors_request_response_normalization(app, mock_receive, mock_send)
     for headers in ([], [(b"Origin", b"https://www.neoteroi.dev")]):
         await app(
             get_example_scope("GET", "/", headers),
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         response = app.response
@@ -201,9 +202,7 @@ async def test_cors_request_response_normalization(app, mock_receive, mock_send)
 
 
 @pytest.mark.asyncio
-async def test_response_to_cors_request_contains_cors_headers(
-    app, mock_receive, mock_send
-):
+async def test_response_to_cors_request_contains_cors_headers(app):
     app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
 
     @app.router.post("/")
@@ -220,8 +219,8 @@ async def test_response_to_cors_request_contains_cors_headers(
                 (b"Origin", b"https://www.neoteroi.dev"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -234,9 +233,7 @@ async def test_response_to_cors_request_contains_cors_headers(
 
 
 @pytest.mark.asyncio
-async def test_response_to_failed_cors_request_contains_cors_headers(
-    app, mock_receive, mock_send
-):
+async def test_response_to_failed_cors_request_contains_cors_headers(app):
     async def example(*args):
         return text("Oh, no!", status=500)
 
@@ -277,8 +274,8 @@ async def test_response_to_failed_cors_request_contains_cors_headers(
                 (b"Origin", b"https://www.neoteroi.dev"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -299,8 +296,8 @@ async def test_response_to_failed_cors_request_contains_cors_headers(
                 (b"Origin", b"https://www.neoteroi.dev"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -317,7 +314,7 @@ async def test_response_to_failed_cors_request_contains_cors_headers(
 
 
 @pytest.mark.asyncio
-async def test_cors_preflight_request(app, mock_receive, mock_send):
+async def test_cors_preflight_request(app):
     app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
 
     @app.router.post("/")
@@ -339,8 +336,8 @@ async def test_cors_preflight_request(app, mock_receive, mock_send):
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -362,8 +359,8 @@ async def test_cors_preflight_request(app, mock_receive, mock_send):
                 (b"Access-Control-Request-Method", b"DELETE"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -375,7 +372,7 @@ async def test_cors_preflight_request(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_cors_preflight_request_allow_headers(app, mock_receive, mock_send):
+async def test_cors_preflight_request_allow_headers(app):
     app.use_cors(
         allow_methods="GET POST",
         allow_origins="https://www.neoteroi.dev",
@@ -398,8 +395,8 @@ async def test_cors_preflight_request_allow_headers(app, mock_receive, mock_send
                 (b"Access-Control-Request-Headers", b"Authorization"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -418,8 +415,8 @@ async def test_cors_preflight_request_allow_headers(app, mock_receive, mock_send
                 (b"Access-Control-Request-Headers", b"Authorization, Credentials"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -438,8 +435,8 @@ async def test_cors_preflight_request_allow_headers(app, mock_receive, mock_send
                 (b"Access-Control-Request-Headers", b"X-Foo"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -451,7 +448,7 @@ async def test_cors_preflight_request_allow_headers(app, mock_receive, mock_send
 
 
 @pytest.mark.asyncio
-async def test_cors_preflight_request_allow_credentials(app, mock_receive, mock_send):
+async def test_cors_preflight_request_allow_credentials(app):
     app.use_cors(
         allow_methods="GET POST",
         allow_origins="https://www.neoteroi.dev",
@@ -477,8 +474,8 @@ async def test_cors_preflight_request_allow_credentials(app, mock_receive, mock_
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -487,7 +484,7 @@ async def test_cors_preflight_request_allow_credentials(app, mock_receive, mock_
 
 
 @pytest.mark.asyncio
-async def test_cors_preflight_request_allow_any(app, mock_receive, mock_send):
+async def test_cors_preflight_request_allow_any(app):
     app.use_cors(allow_methods="*", allow_origins="*", allow_headers="*")
 
     @app.router.get("/")
@@ -509,8 +506,8 @@ async def test_cors_preflight_request_allow_any(app, mock_receive, mock_send):
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -528,8 +525,8 @@ async def test_cors_preflight_request_allow_any(app, mock_receive, mock_send):
                 (b"Access-Control-Request-Headers", b"X-Foo"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -546,8 +543,8 @@ async def test_cors_preflight_request_allow_any(app, mock_receive, mock_send):
                 (b"Access-Control-Request-Headers", b"X-Ufo X-Foo"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -558,7 +555,7 @@ async def test_cors_preflight_request_allow_any(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_non_cors_options_request(app, mock_receive, mock_send):
+async def test_non_cors_options_request(app):
     app.use_cors(
         allow_methods="GET POST",
         allow_origins="https://www.neoteroi.dev",
@@ -573,8 +570,8 @@ async def test_non_cors_options_request(app, mock_receive, mock_send):
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -594,7 +591,7 @@ async def test_use_cors_raises_for_started_app(app):
 
 
 @pytest.mark.asyncio
-async def test_add_cors_policy_configures_cors_settings(app, mock_receive, mock_send):
+async def test_add_cors_policy_configures_cors_settings(app):
     app.add_cors_policy(
         "yes", allow_methods="GET POST", allow_origins="https://www.neoteroi.dev"
     )
@@ -619,8 +616,8 @@ async def test_add_cors_policy_configures_cors_settings(app, mock_receive, mock_
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -642,8 +639,8 @@ async def test_add_cors_policy_configures_cors_settings(app, mock_receive, mock_
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -655,7 +652,7 @@ async def test_add_cors_policy_configures_cors_settings(app, mock_receive, mock_
 
 
 @pytest.mark.asyncio
-async def test_cors_by_handler(app, mock_receive, mock_send):
+async def test_cors_by_handler(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
     )
@@ -686,8 +683,8 @@ async def test_cors_by_handler(app, mock_receive, mock_send):
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -709,8 +706,8 @@ async def test_cors_by_handler(app, mock_receive, mock_send):
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -750,9 +747,7 @@ def test_cors_decorator_raises_for_non_request_handler(app):
 
 
 @pytest.mark.asyncio
-async def test_cors_preflight_request_handles_404_for_missing_routes(
-    app, mock_receive, mock_send
-):
+async def test_cors_preflight_request_handles_404_for_missing_routes(app):
     app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
 
     await app.start()
@@ -766,8 +761,8 @@ async def test_cors_preflight_request_handles_404_for_missing_routes(
                 (b"Access-Control-Request-Method", b"POST"),
             ],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response

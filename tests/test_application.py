@@ -32,7 +32,7 @@ from blacksheep.server.di import dependency_injection_middleware
 from blacksheep.server.normalization import ensure_response
 from blacksheep.server.responses import status_code, text
 from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockMessage
+from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 from tests.utils.folder import ensure_folder
 
@@ -76,7 +76,7 @@ async def test_application_service_provider_throws_for_missing_value(app):
 
 
 @pytest.mark.asyncio
-async def test_application_get_handler(app, mock_send, mock_receive):
+async def test_application_get_handler(app):
     @app.router.get("/")
     async def home(request):
         pass
@@ -85,7 +85,7 @@ async def test_application_get_handler(app, mock_send, mock_receive):
     async def foo(request):
         pass
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.request is not None
     request: Request = app.request
@@ -97,7 +97,7 @@ async def test_application_get_handler(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_application_post_multipart_formdata(app, mock_send, mock_receive):
+async def test_application_post_multipart_formdata(app):
     @app.router.post("/files/upload")
     async def upload_files(request):
         data = await request.multipart()
@@ -192,8 +192,8 @@ async def test_application_post_multipart_formdata(app, mock_send, mock_receive)
                 (b"content-type", b"multipart/form-data; boundary=" + boundary),
             ],
         ),
-        mock_receive([content]),
-        mock_send,
+        MockReceive([content]),
+        MockSend(),
     )
 
     assert app.response is not None
@@ -206,7 +206,7 @@ async def test_application_post_multipart_formdata(app, mock_send, mock_receive)
 
 
 @pytest.mark.asyncio
-async def test_application_post_handler(app, mock_send, mock_receive):
+async def test_application_post_handler(app):
     called_times = 0
 
     @app.router.post("/api/cat")
@@ -234,8 +234,8 @@ async def test_application_post_handler(app, mock_send, mock_receive):
                 (b"content-type", b"application/json"),
             ],
         ),
-        mock_receive([content]),
-        mock_send,
+        MockReceive([content]),
+        MockSend(),
     )
 
     response = app.response
@@ -245,9 +245,7 @@ async def test_application_post_handler(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_application_post_handler_invalid_content_type(
-    app, mock_send, mock_receive
-):
+async def test_application_post_handler_invalid_content_type(app):
     called_times = 0
 
     @app.router.post("/api/cat")
@@ -275,8 +273,8 @@ async def test_application_post_handler_invalid_content_type(
                 (b"content-type", b"text/plain"),
             ],
         ),
-        mock_receive([content]),
-        mock_send,
+        MockReceive([content]),
+        MockSend(),
     )
 
     response: Response = app.response
@@ -285,7 +283,7 @@ async def test_application_post_handler_invalid_content_type(
 
 
 @pytest.mark.asyncio
-async def test_application_post_json_handles_missing_body(app, mock_send, mock_receive):
+async def test_application_post_json_handles_missing_body(app):
     @app.router.post("/api/cat")
     async def create_cat(request):
         assert request is not None
@@ -303,8 +301,8 @@ async def test_application_post_json_handles_missing_body(app, mock_send, mock_r
 
     await app(
         get_example_scope("POST", "/api/cat", []),
-        mock_receive([]),
-        mock_send,
+        MockReceive([]),
+        MockSend(),
     )
 
     response = app.response
@@ -312,7 +310,7 @@ async def test_application_post_json_handles_missing_body(app, mock_send, mock_r
 
 
 @pytest.mark.asyncio
-async def test_application_returns_400_for_invalid_json(app, mock_send, mock_receive):
+async def test_application_returns_400_for_invalid_json(app):
     @app.router.post("/api/cat")
     async def create_cat(request):
         await request.json()
@@ -330,8 +328,8 @@ async def test_application_returns_400_for_invalid_json(app, mock_send, mock_rec
                 (b"content-type", b"application/json"),
             ],
         ),
-        mock_receive([content]),
-        mock_send,
+        MockReceive([content]),
+        MockSend(),
     )
 
     response = app.response
@@ -343,7 +341,7 @@ async def test_application_returns_400_for_invalid_json(app, mock_send, mock_rec
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_one(app, mock_send, mock_receive):
+async def test_application_middlewares_one(app):
     calls = []
 
     async def middleware_one(request, handler):
@@ -371,7 +369,7 @@ async def test_application_middlewares_one(app, mock_send, mock_receive):
     app.build_services()
     app.configure_middlewares()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -382,7 +380,7 @@ async def test_application_middlewares_one(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_as_classes(app, mock_send, mock_receive):
+async def test_application_middlewares_as_classes(app):
     calls = []
 
     class MiddlewareExample:
@@ -411,7 +409,7 @@ async def test_application_middlewares_as_classes(app, mock_send, mock_receive):
     app.build_services()
     app.configure_middlewares()
 
-    await app(get_example_scope("GET", "/"), mock_receive([]), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -422,9 +420,7 @@ async def test_application_middlewares_as_classes(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_are_applied_only_once(
-    app, mock_send, mock_receive
-):
+async def test_application_middlewares_are_applied_only_once(app):
     """
     This test checks that the same request handled bound to several routes
     is normalized only once with middlewares, and that more calls to
@@ -452,7 +448,7 @@ async def test_application_middlewares_are_applied_only_once(
     for method, _ in {("GET", 1), ("GET", 2), ("HEAD", 1), ("HEAD", 2)}:
         app.configure_middlewares()
 
-        await app(get_example_scope(method, "/"), mock_receive([]), mock_send)
+        await app(get_example_scope(method, "/"), MockReceive([]), MockSend())
 
         assert app.response is not None
         response: Response = app.response
@@ -465,7 +461,7 @@ async def test_application_middlewares_are_applied_only_once(
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_two(app, mock_send, mock_receive):
+async def test_application_middlewares_two(app):
     calls = []
 
     async def middleware_one(request, handler):
@@ -501,7 +497,7 @@ async def test_application_middlewares_two(app, mock_send, mock_receive):
     app.build_services()
     app.configure_middlewares()
 
-    await app(get_example_scope("GET", "/"), mock_receive([]), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -512,7 +508,7 @@ async def test_application_middlewares_two(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_application_middlewares_skip_handler(app, mock_send, mock_receive):
+async def test_application_middlewares_skip_handler(app):
     calls = []
 
     async def middleware_one(request, handler):
@@ -546,7 +542,7 @@ async def test_application_middlewares_skip_handler(app, mock_send, mock_receive
     app.build_services()
     app.configure_middlewares()
 
-    await app(get_example_scope("GET", "/"), mock_receive([]), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -557,9 +553,7 @@ async def test_application_middlewares_skip_handler(app, mock_send, mock_receive
 
 
 @pytest.mark.asyncio
-async def test_application_post_multipart_formdata_files_handler(
-    app, mock_send, mock_receive
-):
+async def test_application_post_multipart_formdata_files_handler(app):
     ensure_folder("out")
     ensure_folder("tests/out")
 
@@ -614,8 +608,8 @@ async def test_application_post_multipart_formdata_files_handler(
                 [b"content-type", b"multipart/form-data; boundary=" + boundary],
             ],
         ),
-        mock_receive([content]),
-        mock_send,
+        MockReceive([content]),
+        MockSend(),
     )
 
     assert app.response is not None
@@ -638,7 +632,7 @@ async def test_application_post_multipart_formdata_files_handler(
 
 
 @pytest.mark.asyncio
-async def test_application_http_exception_handlers(app, mock_send, mock_receive):
+async def test_application_http_exception_handlers(app):
     called = False
 
     async def exception_handler(self, request, http_exception):
@@ -653,7 +647,7 @@ async def test_application_http_exception_handlers(app, mock_send, mock_receive)
     async def home(request):
         raise HTTPException(519)
 
-    await app(get_example_scope("GET", "/"), mock_receive, mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive, MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -668,9 +662,7 @@ async def test_application_http_exception_handlers(app, mock_send, mock_receive)
 
 
 @pytest.mark.asyncio
-async def test_application_http_exception_handlers_called_in_application_context(
-    app, mock_send, mock_receive
-):
+async def test_application_http_exception_handlers_called_in_application_context(app):
     async def exception_handler(self, request, http_exception):
         nonlocal app
         assert self is app
@@ -682,7 +674,7 @@ async def test_application_http_exception_handlers_called_in_application_context
     async def home(request):
         raise HTTPException(519)
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response is not None
     response: Response = app.response
 
@@ -694,9 +686,7 @@ async def test_application_http_exception_handlers_called_in_application_context
 
 
 @pytest.mark.asyncio
-async def test_application_user_defined_exception_handlers(
-    app, mock_send, mock_receive
-):
+async def test_application_user_defined_exception_handlers(app):
     called = False
 
     class CustomException(Exception):
@@ -714,7 +704,7 @@ async def test_application_user_defined_exception_handlers(
     async def home(request):
         raise CustomException()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -729,9 +719,7 @@ async def test_application_user_defined_exception_handlers(
 
 
 @pytest.mark.asyncio
-async def test_user_defined_exception_handlers_called_in_application_context(
-    app, mock_send, mock_receive
-):
+async def test_user_defined_exception_handlers_called_in_application_context(app):
     class CustomException(Exception):
         pass
 
@@ -749,7 +737,7 @@ async def test_user_defined_exception_handlers_called_in_application_context(
     async def home(request):
         raise CustomException()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -762,9 +750,7 @@ async def test_user_defined_exception_handlers_called_in_application_context(
 
 
 @pytest.mark.asyncio
-async def test_application_exception_handler_decorator_by_custom_exception(
-    app, mock_send, mock_receive
-):
+async def test_application_exception_handler_decorator_by_custom_exception(app):
     expected_handler_response_text = "Called"
 
     class CustomException(Exception):
@@ -783,7 +769,7 @@ async def test_application_exception_handler_decorator_by_custom_exception(
     async def home(request):
         raise CustomException()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
     response: Response = app.response
@@ -794,9 +780,7 @@ async def test_application_exception_handler_decorator_by_custom_exception(
 
 
 @pytest.mark.asyncio
-async def test_application_exception_handler_decorator_by_http_status_code(
-    app, mock_send, mock_receive
-):
+async def test_application_exception_handler_decorator_by_http_status_code(app):
     expected_exception_status_code = 519
     expected_handler_response_text = "Called"
 
@@ -810,7 +794,7 @@ async def test_application_exception_handler_decorator_by_http_status_code(
     async def home(request):
         raise HTTPException(519)
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response
     response: Response = app.response
@@ -827,9 +811,7 @@ async def test_application_exception_handler_decorator_by_http_status_code(
     "parameter,expected_value",
     [("a", "a"), ("foo", "foo"), ("Hello%20World!!%3B%3B", "Hello World!!;;")],
 )
-async def test_handler_route_value_binding_single(
-    parameter, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_route_value_binding_single(parameter, expected_value, app):
     called = False
 
     @app.router.get("/:value")
@@ -840,7 +822,7 @@ async def test_handler_route_value_binding_single(
 
     app.normalize_handlers()
 
-    await app(get_example_scope("GET", "/" + parameter), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
@@ -854,16 +836,14 @@ async def test_handler_route_value_binding_single(
         ("Hello%20World!!%3B%3B/another", "Hello World!!;;", "another"),
     ],
 )
-async def test_handler_route_value_binding_two(
-    parameter, expected_a, expected_b, app, mock_send, mock_receive
-):
+async def test_handler_route_value_binding_two(parameter, expected_a, expected_b, app):
     @app.router.get("/:a/:b")
     async def home(request, a, b):
         assert a == expected_a
         assert b == expected_b
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/" + parameter), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -871,9 +851,7 @@ async def test_handler_route_value_binding_two(
 @pytest.mark.parametrize(
     "parameter,expected_value", [("12", 12), ("0", 0), ("16549", 16549)]
 )
-async def test_handler_route_value_binding_single_int(
-    parameter, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_route_value_binding_single_int(parameter, expected_value, app):
     called = False
 
     @app.router.get("/:value")
@@ -884,16 +862,14 @@ async def test_handler_route_value_binding_single_int(
 
     app.normalize_handlers()
 
-    await app(get_example_scope("GET", "/" + parameter), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("parameter", ["xx", "x"])
-async def test_handler_route_value_binding_single_int_invalid(
-    parameter, app, mock_send, mock_receive
-):
+async def test_handler_route_value_binding_single_int_invalid(parameter, app):
     called = False
 
     @app.router.get("/:value")
@@ -903,7 +879,7 @@ async def test_handler_route_value_binding_single_int_invalid(
 
     app.normalize_handlers()
 
-    await app(get_example_scope("GET", "/" + parameter), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
     assert called is False
     assert app.response.status == 400
@@ -911,9 +887,7 @@ async def test_handler_route_value_binding_single_int_invalid(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("parameter", ["xx", "x"])
-async def test_handler_route_value_binding_single_float_invalid(
-    parameter, app, mock_send, mock_receive
-):
+async def test_handler_route_value_binding_single_float_invalid(parameter, app):
     called = False
 
     @app.router.get("/:value")
@@ -923,7 +897,7 @@ async def test_handler_route_value_binding_single_float_invalid(
 
     app.normalize_handlers()
 
-    await app(get_example_scope("GET", "/" + parameter), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
     assert called is False
     assert app.response.status == 400
@@ -933,9 +907,7 @@ async def test_handler_route_value_binding_single_float_invalid(
 @pytest.mark.parametrize(
     "parameter,expected_value", [("12", 12.0), ("0", 0.0), ("16549.55", 16549.55)]
 )
-async def test_handler_route_value_binding_single_float(
-    parameter, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_route_value_binding_single_float(parameter, expected_value, app):
     called = False
 
     @app.router.get("/:value")
@@ -946,7 +918,7 @@ async def test_handler_route_value_binding_single_float(
 
     app.normalize_handlers()
 
-    await app(get_example_scope("GET", "/" + parameter), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
@@ -961,7 +933,7 @@ async def test_handler_route_value_binding_single_float(
     ],
 )
 async def test_handler_route_value_binding_mixed_types(
-    parameter, expected_a, expected_b, expected_c, app, mock_send, mock_receive
+    parameter, expected_a, expected_b, expected_c, app
 ):
     @app.router.get("/:a/:b/:c")
     async def home(request, a: str, b: int, c: float):
@@ -970,7 +942,7 @@ async def test_handler_route_value_binding_mixed_types(
         assert c == expected_c
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/" + parameter), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -983,16 +955,14 @@ async def test_handler_route_value_binding_mixed_types(
         (b"a=Hello%20World!!%3B%3B", ["Hello World!!;;"]),
     ],
 )
-async def test_handler_query_value_binding_single(
-    query, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_query_value_binding_single(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a):
         assert a == expected_value
 
     app.normalize_handlers()
 
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
@@ -1001,15 +971,13 @@ async def test_handler_query_value_binding_single(
 @pytest.mark.parametrize(
     "query,expected_value", [(b"a=10", 10), (b"b=20", None), (b"", None)]
 )
-async def test_handler_query_value_binding_optional_int(
-    query, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_query_value_binding_optional_int(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: Optional[int]):
         assert a == expected_value
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1024,15 +992,13 @@ async def test_handler_query_value_binding_optional_int(
         (b"", None),
     ],
 )
-async def test_handler_query_value_binding_optional_float(
-    query, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_query_value_binding_optional_float(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: Optional[float]):
         assert a == expected_value
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1048,15 +1014,13 @@ async def test_handler_query_value_binding_optional_float(
         (b"", None),
     ],
 )
-async def test_handler_query_value_binding_optional_list(
-    query, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_query_value_binding_optional_list(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: Optional[List[float]]):
         assert a == expected_value
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1070,7 +1034,7 @@ async def test_handler_query_value_binding_optional_list(
     ],
 )
 async def test_handler_query_value_binding_mixed_types(
-    query, expected_a, expected_b, expected_c, app, mock_send, mock_receive
+    query, expected_a, expected_b, expected_c, app
 ):
     @app.router.get("/")
     async def home(request, a: str, b: int, c: float):
@@ -1079,7 +1043,7 @@ async def test_handler_query_value_binding_mixed_types(
         assert c == expected_c
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1093,15 +1057,13 @@ async def test_handler_query_value_binding_mixed_types(
         ),
     ],
 )
-async def test_handler_query_value_binding_list(
-    query, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_query_value_binding_list(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a):
         assert a == expected_value
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1110,15 +1072,13 @@ async def test_handler_query_value_binding_list(
     "query,expected_value",
     [(b"a=2", [2]), (b"a=2&a=44", [2, 44]), (b"a=1&a=5&a=18", [1, 5, 18])],
 )
-async def test_handler_query_value_binding_list_of_ints(
-    query, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_query_value_binding_list_of_ints(query, expected_value, app):
     @app.router.get("/")
     async def home(request, a: List[int]):
         assert a == expected_value
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1131,31 +1091,29 @@ async def test_handler_query_value_binding_list_of_ints(
         (b"a=1&a=5.55556&a=18.656", [1, 5.55556, 18.656]),
     ],
 )
-async def test_handler_query_value_binding_list_of_floats(
-    query, expected_value, app, mock_send, mock_receive
-):
+async def test_handler_query_value_binding_list_of_floats(query, expected_value, app):
     @app.router.get("/")
     async def home(a: List[float]):
         assert a == expected_value
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method(app, mock_send, mock_receive):
+async def test_handler_normalize_sync_method(app):
     @app.router.get("/")
     def home(request):
         pass
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_header(app, mock_send, mock_receive):
+async def test_handler_normalize_sync_method_from_header(app):
     @app.router.get("/")
     def home(request, xx: FromHeader[str]):
         assert xx.value == "Hello World"
@@ -1163,16 +1121,14 @@ async def test_handler_normalize_sync_method_from_header(app, mock_send, mock_re
     app.normalize_handlers()
     await app(
         get_example_scope("GET", "/", [(b"XX", b"Hello World")]),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_header_name_compatible(
-    app, mock_send, mock_receive
-):
+async def test_handler_normalize_sync_method_from_header_name_compatible(app):
     class AcceptLanguageHeader(FromHeader[str]):
         name = "accept-language"
 
@@ -1184,27 +1140,25 @@ async def test_handler_normalize_sync_method_from_header_name_compatible(
     app.normalize_handlers()
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query(app, mock_send, mock_receive):
+async def test_handler_normalize_sync_method_from_query(app):
     @app.router.get("/")
     def home(xx: FromQuery[int]):
         assert xx.value == 20
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=b"xx=20"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=b"xx=20"), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_implicit_default(
-    app, mock_send, mock_receive
-):
+async def test_handler_normalize_sync_method_from_query_implicit_default(app):
     @app.router.get("/")
     def get_products(
         page: int = 1,
@@ -1214,7 +1168,7 @@ async def test_handler_normalize_sync_method_from_query_implicit_default(
         return text(f"Page: {page}; size: {size}; search: {search}")
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     response = app.response
     content = await response.text()
@@ -1222,7 +1176,7 @@ async def test_handler_normalize_sync_method_from_query_implicit_default(
     assert response.status == 200
     assert content == "Page: 1; size: 30; search: "
 
-    await app(get_example_scope("GET", "/", query=b"page=2"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=b"page=2"), MockReceive(), MockSend())
 
     response = app.response
     content = await response.text()
@@ -1232,8 +1186,8 @@ async def test_handler_normalize_sync_method_from_query_implicit_default(
 
     await app(
         get_example_scope("GET", "/", query=b"page=2&size=50"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1244,8 +1198,8 @@ async def test_handler_normalize_sync_method_from_query_implicit_default(
 
     await app(
         get_example_scope("GET", "/", query=b"page=2&size=50&search=foo"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1256,9 +1210,7 @@ async def test_handler_normalize_sync_method_from_query_implicit_default(
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_default(
-    app, mock_send, mock_receive
-):
+async def test_handler_normalize_sync_method_from_query_default(app):
     @app.router.get("/")
     def get_products(
         page: FromQuery[int] = FromQuery(1),
@@ -1269,7 +1221,7 @@ async def test_handler_normalize_sync_method_from_query_default(
 
     app.normalize_handlers()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     response = app.response
     content = await response.text()
@@ -1277,7 +1229,7 @@ async def test_handler_normalize_sync_method_from_query_default(
     assert response.status == 200
     assert content == "Page: 1; size: 30; search: "
 
-    await app(get_example_scope("GET", "/", query=b"page=2"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=b"page=2"), MockReceive(), MockSend())
 
     response = app.response
     content = await response.text()
@@ -1287,8 +1239,8 @@ async def test_handler_normalize_sync_method_from_query_default(
 
     await app(
         get_example_scope("GET", "/", query=b"page=2&size=50"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1299,8 +1251,8 @@ async def test_handler_normalize_sync_method_from_query_default(
 
     await app(
         get_example_scope("GET", "/", query=b"page=2&size=50&search=foo"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1311,9 +1263,7 @@ async def test_handler_normalize_sync_method_from_query_default(
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_list_sync_method_from_query_default(
-    app, mock_send, mock_receive
-):
+async def test_handler_normalize_list_sync_method_from_query_default(app):
     @app.router.get("/")
     def example(
         a: FromQuery[List[int]] = FromQuery([1, 2, 3]),
@@ -1323,7 +1273,7 @@ async def test_handler_normalize_list_sync_method_from_query_default(
         return text(f"A: {a.value}; B: {b.value}; C: {c.value}")
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     response = app.response
     content = await response.text()
@@ -1331,7 +1281,7 @@ async def test_handler_normalize_list_sync_method_from_query_default(
     assert response.status == 200
     assert content == f"A: {[1, 2, 3]}; B: {[4, 5, 6]}; C: {['x']}"
 
-    await app(get_example_scope("GET", "/", query=b"a=1349"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=b"a=1349"), MockReceive(), MockSend())
 
     response = app.response
     content = await response.text()
@@ -1341,8 +1291,8 @@ async def test_handler_normalize_list_sync_method_from_query_default(
 
     await app(
         get_example_scope("GET", "/", query=b"a=1349&c=Hello&a=55"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1353,8 +1303,8 @@ async def test_handler_normalize_list_sync_method_from_query_default(
 
     await app(
         get_example_scope("GET", "/", query=b"a=1349&c=Hello&a=55&b=10"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1365,34 +1315,30 @@ async def test_handler_normalize_list_sync_method_from_query_default(
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_without_arguments(
-    app, mock_send, mock_receive
-):
+async def test_handler_normalize_sync_method_without_arguments(app):
     @app.router.get("/")
     def home():
         return
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_optional(
-    app, mock_send, mock_receive
-):
+async def test_handler_normalize_sync_method_from_query_optional(app):
     @app.router.get("/")
     def home(xx: FromQuery[Optional[int]], yy: FromQuery[Optional[int]]):
         assert xx.value is None
         assert yy.value == 20
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=b"yy=20"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=b"yy=20"), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_optional_binder(app, mock_send, mock_receive):
+async def test_handler_normalize_optional_binder(app):
     @app.router.get("/1")
     def home1(xx: Optional[FromQuery[int]], yy: Optional[FromQuery[int]]):
         assert xx is None
@@ -1409,20 +1355,18 @@ async def test_handler_normalize_optional_binder(app, mock_send, mock_receive):
         assert xx.value == 10
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/1", query=b"yy=20"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/1", query=b"yy=20"), MockReceive(), MockSend())
     assert app.response.status == 204
 
-    await app(get_example_scope("GET", "/2", query=b"xx=10"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/2", query=b"xx=10"), MockReceive(), MockSend())
     assert app.response.status == 204
 
-    await app(get_example_scope("GET", "/3", query=b"xx=10"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/3", query=b"xx=10"), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_sync_method_from_query_optional_list(
-    app, mock_send, mock_receive
-):
+async def test_handler_normalize_sync_method_from_query_optional_list(app):
     @app.router.get("/")
     def home(xx: FromQuery[Optional[List[int]]], yy: FromQuery[Optional[List[int]]]):
         assert xx.value is None
@@ -1431,8 +1375,8 @@ async def test_handler_normalize_sync_method_from_query_optional_list(
     app.normalize_handlers()
     await app(
         get_example_scope("GET", "/", query=b"yy=20&yy=55&yy=64"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 204
 
@@ -1447,25 +1391,25 @@ async def test_handler_normalize_sync_method_from_query_optional_list(
     ],
 )
 async def test_handler_normalize_sync_method_from_query_default_type(
-    query, expected_values, app, mock_send, mock_receive
+    query, expected_values, app
 ):
     @app.router.get("/")
     def home(request, xx: FromQuery):
         assert xx.value == expected_values
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/", query=query), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_normalize_method_without_input(app, mock_send, mock_receive):
+async def test_handler_normalize_method_without_input(app):
     @app.router.get("/")
     async def home():
         pass
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1474,13 +1418,13 @@ async def test_handler_normalize_method_without_input(app, mock_send, mock_recei
     "value,expected_value",
     [["dashboard", "dashboard"], ["hello_world", "hello_world"]],
 )
-async def test_handler_from_route(value, expected_value, app, mock_send, mock_receive):
+async def test_handler_from_route(value, expected_value, app):
     @app.router.get("/:area")
     async def home(request, area: FromRoute[str]):
         assert area.value == expected_value
 
     app.normalize_handlers()
-    await app(get_example_scope("GET", "/" + value), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/" + value), MockReceive(), MockSend())
     assert app.response.status == 204
 
 
@@ -1498,8 +1442,6 @@ async def test_handler_two_routes_parameters(
     expected_value_one: str,
     expected_value_two: str,
     app,
-    mock_send,
-    mock_receive,
 ):
     @app.router.get("/:culture_code/:area")
     async def home(culture_code: FromRoute[str], area: FromRoute[str]):
@@ -1509,8 +1451,8 @@ async def test_handler_two_routes_parameters(
     app.normalize_handlers()
     await app(
         get_example_scope("GET", "/" + value_one + "/" + value_two),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 204
 
@@ -1529,8 +1471,6 @@ async def test_handler_two_routes_parameters_implicit(
     expected_value_one: str,
     expected_value_two: str,
     app,
-    mock_send,
-    mock_receive,
 ):
     @app.router.get("/:culture_code/:area")
     async def home(culture_code, area):
@@ -1540,14 +1480,14 @@ async def test_handler_two_routes_parameters_implicit(
     app.normalize_handlers()
     await app(
         get_example_scope("GET", "/" + value_one + "/" + value_two),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter(app, mock_send, mock_receive):
+async def test_handler_from_json_parameter(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
         assert item is not None
@@ -1561,16 +1501,16 @@ async def test_handler_from_json_parameter(app, mock_send, mock_receive):
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"32")],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_without_annotation(app, mock_send, mock_receive):
+async def test_handler_from_json_without_annotation(app):
     @app.router.post("/")
     async def home(item: FromJSON):
         assert item is not None
@@ -1583,16 +1523,16 @@ async def test_handler_from_json_without_annotation(app, mock_send, mock_receive
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"32")],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_dict(app, mock_send, mock_receive):
+async def test_handler_from_json_parameter_dict(app):
     @app.router.post("/")
     async def home(item: FromJSON[dict]):
         assert item is not None
@@ -1605,18 +1545,16 @@ async def test_handler_from_json_parameter_dict(app, mock_send, mock_receive):
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"32")],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_dict_unannotated(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_json_parameter_dict_unannotated(app):
     @app.router.post("/")
     async def home(item: FromJSON[Dict]):
         assert item is not None
@@ -1629,16 +1567,16 @@ async def test_handler_from_json_parameter_dict_unannotated(
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"32")],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_dict_annotated(app, mock_send, mock_receive):
+async def test_handler_from_json_parameter_dict_annotated(app):
     @app.router.post("/")
     async def home(item: FromJSON[Dict[str, Any]]):
         assert item is not None
@@ -1651,10 +1589,10 @@ async def test_handler_from_json_parameter_dict_annotated(app, mock_send, mock_r
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"32"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"32")],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
@@ -1668,7 +1606,7 @@ async def test_handler_from_json_parameter_dict_annotated(app, mock_send, mock_r
     ],
 )
 @pytest.mark.asyncio
-async def test_handler_from_text_parameter(value: str, app, mock_send, mock_receive):
+async def test_handler_from_text_parameter(value: str, app):
     @app.router.post("/")
     async def home(text: FromText):
         assert text.value == value
@@ -1679,12 +1617,12 @@ async def test_handler_from_text_parameter(value: str, app, mock_send, mock_rece
             "POST",
             "/",
             [
-                [b"content-type", b"text/plain; charset=utf-8"],
-                [b"content-length", str(len(value)).encode()],
+                (b"content-type", b"text/plain; charset=utf-8"),
+                (b"content-length", str(len(value)).encode()),
             ],
         ),
-        mock_receive([value.encode("utf8")]),
-        mock_send,
+        MockReceive([value.encode("utf8")]),
+        MockSend(),
     )
     assert app.response.status == 204
 
@@ -1698,7 +1636,7 @@ async def test_handler_from_text_parameter(value: str, app, mock_send, mock_rece
     ],
 )
 @pytest.mark.asyncio
-async def test_handler_from_bytes_parameter(value: bytes, app, mock_send, mock_receive):
+async def test_handler_from_bytes_parameter(value: bytes, app):
     @app.router.post("/")
     async def home(text: FromBytes):
         assert text.value == value
@@ -1709,18 +1647,18 @@ async def test_handler_from_bytes_parameter(value: bytes, app, mock_send, mock_r
             "POST",
             "/",
             [
-                [b"content-type", b"text/plain; charset=utf-8"],
-                [b"content-length", str(len(value)).encode()],
+                (b"content-type", b"text/plain; charset=utf-8"),
+                (b"content-length", str(len(value)).encode()),
             ],
         ),
-        mock_receive([value]),
-        mock_send,
+        MockReceive([value]),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_files(app, mock_send, mock_receive):
+async def test_handler_from_files(app):
     @app.router.post("/")
     async def home(files: FromFiles):
         assert files is not None
@@ -1792,18 +1730,18 @@ async def test_handler_from_files(app, mock_send, mock_receive):
             "POST",
             "/",
             [
-                [b"content-length", str(len(content)).encode()],
-                [b"content-type", b"multipart/form-data; boundary=" + boundary],
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"multipart/form-data; boundary=" + boundary),
             ],
         ),
-        mock_receive([content]),
-        mock_send,
+        MockReceive([content]),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_files_handles_empty_body(app, mock_send, mock_receive):
+async def test_handler_from_files_handles_empty_body(app):
     @app.router.post("/")
     async def home(files: FromFiles):
         assert files.value == []
@@ -1816,16 +1754,14 @@ async def test_handler_from_files_handles_empty_body(app, mock_send, mock_receiv
             "/",
             [],
         ),
-        mock_receive([]),
-        mock_send,
+        MockReceive([]),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_missing_property(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_json_parameter_missing_property(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
         ...
@@ -1837,10 +1773,10 @@ async def test_handler_from_json_parameter_missing_property(
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"25"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"25")],
         ),
-        mock_receive([b'{"a":"Hello","b":"World"}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World"}']),
+        MockSend(),
     )
     assert app.response.status == 400
     assert (
@@ -1851,7 +1787,7 @@ async def test_handler_from_json_parameter_missing_property(
 
 
 @pytest.mark.asyncio
-async def test_handler_json_response_implicit(app, mock_send, mock_receive):
+async def test_handler_json_response_implicit(app):
     @app.router.get("/")
     async def get_item() -> Item2:
         return Item2("Hello", "World", "!")
@@ -1865,8 +1801,8 @@ async def test_handler_json_response_implicit(app, mock_send, mock_receive):
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 200
     data = await app.response.json()
@@ -1874,9 +1810,7 @@ async def test_handler_json_response_implicit(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_handler_json_response_implicit_no_annotation(
-    app, mock_send, mock_receive
-):
+async def test_handler_json_response_implicit_no_annotation(app):
     @app.router.get("/")
     async def get_item():
         return Item2("Hello", "World", "!")
@@ -1890,8 +1824,8 @@ async def test_handler_json_response_implicit_no_annotation(
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 200
     data = await app.response.json()
@@ -1899,7 +1833,7 @@ async def test_handler_json_response_implicit_no_annotation(
 
 
 @pytest.mark.asyncio
-async def test_handler_text_response_implicit(app, mock_send, mock_receive):
+async def test_handler_text_response_implicit(app):
     @app.router.get("/")
     async def get_lorem():
         return "Lorem ipsum"
@@ -1913,8 +1847,8 @@ async def test_handler_text_response_implicit(app, mock_send, mock_receive):
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 200
     data = await app.response.text()
@@ -1922,9 +1856,7 @@ async def test_handler_text_response_implicit(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_missing_property_complex_type(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_json_parameter_missing_property_complex_type(app):
     @inject()
     @app.router.post("/")
     async def home(item: FromJSON[Foo]):
@@ -1937,10 +1869,10 @@ async def test_handler_from_json_parameter_missing_property_complex_type(
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"34"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"34")],
         ),
-        mock_receive([b'{"item":{"a":"Hello","b":"World"}}']),
-        mock_send,
+        MockReceive([b'{"item":{"a":"Hello","b":"World"}}']),
+        MockSend(),
     )
     assert app.response.status == 400
     assert (
@@ -1951,9 +1883,7 @@ async def test_handler_from_json_parameter_missing_property_complex_type(
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_missing_property_array(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_json_parameter_missing_property_array(app):
     @app.router.post("/")
     async def home(item: FromJSON[List[Item]]):
         ...
@@ -1965,10 +1895,10 @@ async def test_handler_from_json_parameter_missing_property_array(
         get_example_scope(
             "POST",
             "/",
-            [[b"content-type", b"application/json"], [b"content-length", b"25"]],
+            [(b"content-type", b"application/json"), (b"content-length", b"25")],
         ),
-        mock_receive([b'[{"a":"Hello","b":"World"}]']),
-        mock_send,
+        MockReceive([b'[{"a":"Hello","b":"World"}]']),
+        MockSend(),
     )
     assert app.response.status == 400
     assert (
@@ -1978,9 +1908,7 @@ async def test_handler_from_json_parameter_missing_property_array(
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_handles_request_without_body(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_json_parameter_handles_request_without_body(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
         return Response(200)
@@ -1992,15 +1920,15 @@ async def test_handler_from_json_parameter_handles_request_without_body(
             "/",
             [],
         ),
-        mock_receive([]),
-        mock_send,
+        MockReceive([]),
+        MockSend(),
     )
     assert app.response.status == 400
     assert app.response.content.body == b"Bad Request: Expected request content"
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_list_of_objects(app, mock_send, mock_receive):
+async def test_handler_from_json_list_of_objects(app):
     @app.router.post("/")
     async def home(item: FromJSON[List[Item]]):
         assert item is not None
@@ -2023,13 +1951,13 @@ async def test_handler_from_json_list_of_objects(app, mock_send, mock_receive):
             "/",
             [[b"content-type", b"application/json"], [b"content-length", b"32"]],
         ),
-        mock_receive(
+        MockReceive(
             [
                 b'[{"a":"Hello","b":"World","c":10},'
                 + b'{"a":"Lorem","b":"ipsum","c":55}]'
             ]
         ),
-        mock_send,
+        MockSend(),
     )
     assert app.response.status == 204
 
@@ -2096,7 +2024,7 @@ async def test_handler_from_json_list_of_objects(app, mock_send, mock_receive):
 )
 @pytest.mark.asyncio
 async def test_handler_from_json_list_of_primitives(
-    expected_type, request_body, expected_result, app, mock_send, mock_receive
+    expected_type, request_body, expected_result, app
 ):
     @inject()
     @app.router.post("/")
@@ -2115,14 +2043,14 @@ async def test_handler_from_json_list_of_primitives(
                 [b"content-length", str(len(request_body)).encode()],
             ],
         ),
-        mock_receive([request_body]),
-        mock_send,
+        MockReceive([request_body]),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_dataclass(app, mock_send, mock_receive):
+async def test_handler_from_json_dataclass(app):
     @dataclass
     class Foo:
         foo: str
@@ -2143,14 +2071,14 @@ async def test_handler_from_json_dataclass(app, mock_send, mock_receive):
             "/",
             [[b"content-type", b"application/json"], [b"content-length", b"32"]],
         ),
-        mock_receive([b'{"foo":"Hello","ufo":true}']),
-        mock_send,
+        MockReceive([b'{"foo":"Hello","ufo":true}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_default(app, mock_send, mock_receive):
+async def test_handler_from_json_parameter_default(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
         assert item is not None
@@ -2166,17 +2094,15 @@ async def test_handler_from_json_parameter_default(app, mock_send, mock_receive)
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_default_override(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_json_parameter_default_override(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
         assert item is not None
@@ -2192,14 +2118,14 @@ async def test_handler_from_json_parameter_default_override(
             "/",
             [[b"content-type", b"application/json"], [b"content-length", b"32"]],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_implicit(app, mock_send, mock_receive):
+async def test_handler_from_json_parameter_implicit(app):
     @app.router.post("/")
     async def home(item: Item):
         assert item is not None
@@ -2214,16 +2140,14 @@ async def test_handler_from_json_parameter_implicit(app, mock_send, mock_receive
             "/",
             [[b"content-type", b"application/json"], [b"content-length", b"32"]],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_json_parameter_implicit_default(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_json_parameter_implicit_default(app):
     @app.router.post("/")
     async def home(item: Item = Item(1, 2, 3)):
         assert item is not None
@@ -2238,16 +2162,14 @@ async def test_handler_from_json_parameter_implicit_default(
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(item: FromJSON[Optional[Item]]):
         assert item.value is None
@@ -2260,17 +2182,15 @@ async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(
             "/",
             [[b"content-type", b"application/json"], [b"content-length", b"32"]],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
 
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_handler_from_wrong_method_json_parameter_gets_bad_request(
-    app, mock_send, mock_receive
-):
+async def test_handler_from_wrong_method_json_parameter_gets_bad_request(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(request, item: FromJSON[Item]):
         assert item.value is None
@@ -2283,8 +2203,8 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request(
             "/",
             [[b"content-type", b"application/json"], [b"content-length", b"32"]],
         ),
-        mock_receive([b'{"a":"Hello","b":"World","c":10}']),
-        mock_send,
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
     )
 
     # 400 because the annotation FromJSON[Item] makes the item REQUIRED;
@@ -2323,7 +2243,7 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request(
     ],
 )
 async def test_valid_query_parameter_parse(
-    parameter_type, parameter, expected_value, app, mock_send, mock_receive
+    parameter_type, parameter, expected_value, app
 ):
     @inject()
     @app.router.get("/")
@@ -2335,8 +2255,8 @@ async def test_valid_query_parameter_parse(
 
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter}".encode()),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2372,7 +2292,7 @@ async def test_valid_query_parameter_parse(
     ],
 )
 async def test_valid_cookie_parameter_parse(
-    parameter_type, parameter, expected_value, app, mock_send, mock_receive
+    parameter_type, parameter, expected_value, app
 ):
     @inject()
     @app.router.get("/")
@@ -2384,8 +2304,8 @@ async def test_valid_cookie_parameter_parse(
 
     await app(
         get_example_scope("GET", "/", [(b"cookie", f"foo={parameter}".encode())]),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
     assert app.response.status == 200
 
@@ -2416,7 +2336,7 @@ async def test_valid_cookie_parameter_parse(
     ],
 )
 async def test_valid_query_parameter_list_parse(
-    parameter_type, parameters, expected_value, app, mock_send, mock_receive
+    parameter_type, parameters, expected_value, app
 ):
     @inject()
     @app.router.get("/")
@@ -2430,8 +2350,8 @@ async def test_valid_query_parameter_list_parse(
 
     await app(
         get_example_scope("GET", "/", [], query=query.encode()),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2449,9 +2369,7 @@ async def test_valid_query_parameter_list_parse(
         [UUID, "nope"],
     ],
 )
-async def test_invalid_query_parameter_400(
-    parameter_type, parameter, app, mock_send, mock_receive
-):
+async def test_invalid_query_parameter_400(parameter_type, parameter, app):
     @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
@@ -2461,8 +2379,8 @@ async def test_invalid_query_parameter_400(
 
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter}".encode()),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2495,7 +2413,7 @@ async def test_invalid_query_parameter_400(
     ],
 )
 async def test_valid_route_parameter_parse(
-    parameter_type, parameter, expected_value, app, mock_send, mock_receive
+    parameter_type, parameter, expected_value, app
 ):
     @inject()
     @app.router.get("/:foo")
@@ -2507,8 +2425,8 @@ async def test_valid_route_parameter_parse(
 
     await app(
         get_example_scope("GET", "/" + parameter, []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2539,7 +2457,7 @@ async def test_valid_route_parameter_parse(
     ],
 )
 async def test_valid_header_parameter_parse(
-    parameter_type, parameter, expected_value, app, mock_send, mock_receive
+    parameter_type, parameter, expected_value, app
 ):
 
     T = TypeVar("T")
@@ -2557,8 +2475,8 @@ async def test_valid_header_parameter_parse(
 
     await app(
         get_example_scope("GET", "/", [(b"X-Foo", parameter.encode())]),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2580,9 +2498,7 @@ async def test_valid_header_parameter_parse(
         ],
     ],
 )
-async def test_valid_query_parameter(
-    parameter_type, parameter_one, parameter_two, app, mock_send, mock_receive
-):
+async def test_valid_query_parameter(parameter_type, parameter_one, parameter_two, app):
     @inject()
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
@@ -2601,8 +2517,8 @@ async def test_valid_query_parameter(
 
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter_one}".encode()),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2613,8 +2529,8 @@ async def test_valid_query_parameter(
         get_example_scope(
             "GET", "/", [], query=f"foo={parameter_one}&foo={parameter_two}".encode()
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2638,7 +2554,7 @@ async def test_valid_query_parameter(
     ],
 )
 async def test_valid_query_parameter_implicit(
-    parameter_type, parameter_one, parameter_two, app, mock_send, mock_receive
+    parameter_type, parameter_one, parameter_two, app
 ):
     @inject()
     @app.router.get("/")
@@ -2650,8 +2566,8 @@ async def test_valid_query_parameter_implicit(
 
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter_one}".encode()),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2662,8 +2578,8 @@ async def test_valid_query_parameter_implicit(
         get_example_scope(
             "GET", "/", [], query=f"foo={parameter_one}&foo={parameter_two}".encode()
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2672,7 +2588,7 @@ async def test_valid_query_parameter_implicit(
 
 
 @pytest.mark.asyncio
-async def test_valid_query_parameter_list_of_int(app, mock_send, mock_receive):
+async def test_valid_query_parameter_list_of_int(app):
     expected_values_1 = [1349]
     expected_values_2 = [1349, 164]
 
@@ -2684,8 +2600,8 @@ async def test_valid_query_parameter_list_of_int(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=1349"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2694,8 +2610,8 @@ async def test_valid_query_parameter_list_of_int(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=1349&foo=164"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2704,7 +2620,7 @@ async def test_valid_query_parameter_list_of_int(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_int(app, mock_send, mock_receive):
+async def test_invalid_query_parameter_int(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[int]):
         ...
@@ -2717,8 +2633,8 @@ async def test_invalid_query_parameter_int(app, mock_send, mock_receive):
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2727,8 +2643,8 @@ async def test_invalid_query_parameter_int(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=xxx"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2740,8 +2656,8 @@ async def test_invalid_query_parameter_int(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=xxx&foo=yyy"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2753,7 +2669,7 @@ async def test_invalid_query_parameter_int(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_float(app, mock_send, mock_receive):
+async def test_invalid_query_parameter_float(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[float]):
         ...
@@ -2766,8 +2682,8 @@ async def test_invalid_query_parameter_float(app, mock_send, mock_receive):
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2776,8 +2692,8 @@ async def test_invalid_query_parameter_float(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=xxx"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2789,8 +2705,8 @@ async def test_invalid_query_parameter_float(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=xxx&foo=yyy"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2802,7 +2718,7 @@ async def test_invalid_query_parameter_float(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_bool(app, mock_send, mock_receive):
+async def test_invalid_query_parameter_bool(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[bool]):
         ...
@@ -2815,8 +2731,8 @@ async def test_invalid_query_parameter_bool(app, mock_send, mock_receive):
             "/",
             [],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2825,8 +2741,8 @@ async def test_invalid_query_parameter_bool(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=xxx"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2838,8 +2754,8 @@ async def test_invalid_query_parameter_bool(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=xxx&foo=yyy"),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2851,7 +2767,7 @@ async def test_invalid_query_parameter_bool(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_invalid_query_parameter_uuid(app, mock_send, mock_receive):
+async def test_invalid_query_parameter_uuid(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[UUID]):
         return text(f"Got: {foo.value}")
@@ -2862,8 +2778,8 @@ async def test_invalid_query_parameter_uuid(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", [], query=b"foo=" + str(value_1).encode()),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2875,7 +2791,7 @@ async def test_invalid_query_parameter_uuid(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_valid_route_parameter_uuid(app, mock_send, mock_receive):
+async def test_valid_route_parameter_uuid(app):
     @app.router.get("/:foo")
     async def home(request, foo: FromRoute[UUID]):
         return text(f"Got: {foo.value}")
@@ -2886,8 +2802,8 @@ async def test_valid_route_parameter_uuid(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/" + str(value_1), []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2896,7 +2812,7 @@ async def test_valid_route_parameter_uuid(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_valid_route_parameter_uuid_2(app, mock_send, mock_receive):
+async def test_valid_route_parameter_uuid_2(app):
     @app.router.get("/:a_id/:b_id")
     async def home(request, a_id: FromRoute[UUID], b_id: FromRoute[UUID]):
         return text(f"Got: {a_id.value} and {b_id.value}")
@@ -2908,8 +2824,8 @@ async def test_valid_route_parameter_uuid_2(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", f"/{value_1}/{value_2}", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2918,7 +2834,7 @@ async def test_valid_route_parameter_uuid_2(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_valid_header_parameter_uuid_list(app, mock_send, mock_receive):
+async def test_valid_header_parameter_uuid_list(app):
     @app.router.get("/")
     async def home(request, x_foo: FromHeader[List[UUID]]):
         return text(f"Got: {x_foo.value}")
@@ -2934,8 +2850,8 @@ async def test_valid_header_parameter_uuid_list(app, mock_send, mock_receive):
             "/",
             [(b"x_foo", str(value_1).encode()), (b"x_foo", str(value_2).encode())],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2944,7 +2860,7 @@ async def test_valid_header_parameter_uuid_list(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_invalid_route_parameter_uuid(app, mock_send, mock_receive):
+async def test_invalid_route_parameter_uuid(app):
     @app.router.get("/:document_id")
     async def home(request, document_id: FromRoute[UUID]):
         return text(f"Got: {document_id.value}")
@@ -2955,8 +2871,8 @@ async def test_invalid_route_parameter_uuid(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/" + str(value_1), []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 400
@@ -2968,7 +2884,7 @@ async def test_invalid_route_parameter_uuid(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_valid_route_parameter_uuid_implicit(app, mock_send, mock_receive):
+async def test_valid_route_parameter_uuid_implicit(app):
     @app.router.get("/:foo")
     async def home(request, foo: UUID):
         return text(f"Got: {foo}")
@@ -2979,8 +2895,8 @@ async def test_valid_route_parameter_uuid_implicit(app, mock_send, mock_receive)
 
     await app(
         get_example_scope("GET", "/" + str(value_1), []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -2989,7 +2905,7 @@ async def test_valid_route_parameter_uuid_implicit(app, mock_send, mock_receive)
 
 
 @pytest.mark.asyncio
-async def test_route_resolution_order(app, mock_send, mock_receive):
+async def test_route_resolution_order(app):
     @app.router.get("/:id")
     async def example_a():
         return text("A")
@@ -3010,8 +2926,8 @@ async def test_route_resolution_order(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/exact", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -3020,8 +2936,8 @@ async def test_route_resolution_order(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/aaa/exact", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -3030,8 +2946,8 @@ async def test_route_resolution_order(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/aaa/exact/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -3040,8 +2956,8 @@ async def test_route_resolution_order(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/aaa/bbb", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -3050,7 +2966,7 @@ async def test_route_resolution_order(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_client_server_info_bindings(app, mock_send, mock_receive):
+async def test_client_server_info_bindings(app):
     @app.router.get("/")
     async def home(client: ClientInfo, server: ServerInfo):
         return text(f"Client: {client.value}; Server: {server.value}")
@@ -3059,8 +2975,8 @@ async def test_client_server_info_bindings(app, mock_send, mock_receive):
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 200
@@ -3072,7 +2988,7 @@ async def test_client_server_info_bindings(app, mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_service_bindings(mock_send, mock_receive):
+async def test_service_bindings():
     container = Container()
 
     @inject()
@@ -3113,19 +3029,18 @@ async def test_service_bindings(mock_send, mock_receive):
         scope = get_example_scope("GET", path, [])
         await app(
             scope,
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
+        assert app.response is not None
         content = await app.response.text()
         assert content == "OK"
         assert app.response.status == 200
 
 
 @pytest.mark.asyncio
-async def test_di_middleware_enables_scoped_services_in_handle_signature(
-    mock_send, mock_receive
-):
+async def test_di_middleware_enables_scoped_services_in_handle_signature():
     container = Container()
 
     class OperationContext:
@@ -3157,8 +3072,8 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature(
         scope = get_example_scope("GET", "/", [])
         await app(
             scope,
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         content = await app.response.text()
@@ -3167,9 +3082,7 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature(
 
 
 @pytest.mark.asyncio
-async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signature(
-    mock_send, mock_receive
-):
+async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signature():
     container = Container()
 
     class OperationContext:
@@ -3191,8 +3104,8 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
         scope = get_example_scope("GET", "/", [])
         await app(
             scope,
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         content = await app.response.text()
@@ -3201,7 +3114,7 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
 
 
 @pytest.mark.asyncio
-async def test_service_bindings_default(mock_send, mock_receive):
+async def test_service_bindings_default():
     # Extremely unlikely, but still supported if the user defines a default service
     container = Container()
 
@@ -3239,8 +3152,8 @@ async def test_service_bindings_default(mock_send, mock_receive):
         scope = get_example_scope("GET", path, [])
         await app(
             scope,
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         content = await app.response.text()
@@ -3249,7 +3162,7 @@ async def test_service_bindings_default(mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_service_bindings_default_override(mock_send, mock_receive):
+async def test_service_bindings_default_override():
     # Extremely unlikely, but still supported if the user defines a default service
     container = Container()
 
@@ -3292,8 +3205,8 @@ async def test_service_bindings_default_override(mock_send, mock_receive):
         scope = get_example_scope("GET", path, [])
         await app(
             scope,
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         content = await app.response.text()
@@ -3302,7 +3215,7 @@ async def test_service_bindings_default_override(mock_send, mock_receive):
 
 
 @pytest.mark.asyncio
-async def test_user_binding(app, mock_send, mock_receive):
+async def test_user_binding(app):
     class MockAuthHandler(AuthenticationHandler):
         async def authenticate(self, context):
             header_value = context.get_first_header(b"Authorization")
@@ -3345,8 +3258,8 @@ async def test_user_binding(app, mock_send, mock_receive):
         )
         await app(
             scope,
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         content = await app.response.text()
@@ -3376,7 +3289,7 @@ async def test_use_auth_raises_if_app_is_already_started(app):
 
 
 @pytest.mark.asyncio
-async def test_default_headers(app, mock_send, mock_receive):
+async def test_default_headers(app):
     app.default_headers = (("Example", "Foo"),)
 
     assert app.default_headers == (("Example", "Foo"),)
@@ -3389,8 +3302,8 @@ async def test_default_headers(app, mock_send, mock_receive):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -3647,30 +3560,29 @@ async def test_start_runs_once(app):
 
 
 @pytest.mark.asyncio
-async def test_handles_on_start_error_asgi_lifespan(app, mock_send, mock_receive):
+async def test_handles_on_start_error_asgi_lifespan(app):
     async def before_start(application: FakeApplication) -> None:
         raise RuntimeError("Crash!")
 
     app.on_start += before_start
-
-    mock_receive = mock_receive(
-        [
-            MockMessage({"type": "lifespan.startup"}),
-            MockMessage({"type": "lifespan.shutdown"}),
-        ]
-    )
+    mock_send = MockSend()
 
     await app(
-        {"type": "lifespan", "message": "lifespan.startup"}, mock_receive, mock_send
+        {"type": "lifespan", "message": "lifespan.startup"},
+        MockReceive(
+            [
+                {"type": "lifespan.startup"},
+                {"type": "lifespan.shutdown"},
+            ]
+        ),
+        mock_send,
     )
 
     assert mock_send.messages[0] == {"type": "lifespan.startup.failed"}
 
 
 @pytest.mark.asyncio
-async def test_app_with_mounts_handles_on_start_error_asgi_lifespan(
-    app: Application, mock_send, mock_receive
-):
+async def test_app_with_mounts_handles_on_start_error_asgi_lifespan(app: Application):
     async def before_start(application: FakeApplication) -> None:
         raise RuntimeError("Crash!")
 
@@ -3683,12 +3595,13 @@ async def test_app_with_mounts_handles_on_start_error_asgi_lifespan(
     app.mount("/foo", other_app)
     app.on_start += before_start
 
-    mock_receive = mock_receive(
+    mock_receive = MockReceive(
         [
-            MockMessage({"type": "lifespan.startup"}),
-            MockMessage({"type": "lifespan.shutdown"}),
+            {"type": "lifespan.startup"},
+            {"type": "lifespan.shutdown"}
         ]
     )
+    mock_send = MockSend()
 
     await app(
         {"type": "lifespan", "message": "lifespan.startup"}, mock_receive, mock_send
@@ -3702,7 +3615,7 @@ def test_register_controller_types_handle_empty_list(app):
 
 
 @pytest.mark.asyncio
-async def test_response_normalization_wrapped(app, mock_receive, mock_send):
+async def test_response_normalization_wrapped(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
     )
@@ -3731,8 +3644,8 @@ async def test_response_normalization_wrapped(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -3742,7 +3655,7 @@ async def test_response_normalization_wrapped(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_response_normalization_with_cors(app, mock_receive, mock_send):
+async def test_response_normalization_with_cors(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
     )
@@ -3755,8 +3668,8 @@ async def test_response_normalization_with_cors(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -3765,8 +3678,8 @@ async def test_response_normalization_with_cors(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", [(b"Origin", b"https://www.neoteroi.dev")]),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response

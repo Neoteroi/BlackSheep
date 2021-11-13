@@ -10,6 +10,7 @@ from blacksheep.server.remotes.forwarding import (
 )
 from blacksheep.server.remotes.hosts import TrustedHostsMiddleware
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 
 
@@ -23,8 +24,6 @@ from tests.utils.application import FakeApplication
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware(
     app: FakeApplication,
-    mock_receive,
-    mock_send,
     forwarded_host,
     forwarded_ip,
     forwarded_proto,
@@ -49,7 +48,7 @@ async def test_x_forwarded_headers_middleware(
     assert dict(scope["headers"])[b"host"] != forwarded_host
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     last_request = app.request
     assert last_request is not None
@@ -63,11 +62,7 @@ async def test_x_forwarded_headers_middleware(
 
 
 @pytest.mark.asyncio
-async def test_x_forwarded_headers_middleware_multiple_proxies(
-    app: FakeApplication,
-    mock_receive,
-    mock_send,
-):
+async def test_x_forwarded_headers_middleware_multiple_proxies(app: FakeApplication):
     app.middlewares.append(
         XForwardedHeadersMiddleware(
             forward_limit=3,
@@ -94,7 +89,7 @@ async def test_x_forwarded_headers_middleware_multiple_proxies(
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     last_request = app.request
     assert last_request is not None
@@ -119,7 +114,7 @@ async def test_x_forwarded_headers_middleware_multiple_proxies(
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     last_request = app.request
     assert last_request is not None
@@ -133,9 +128,7 @@ async def test_x_forwarded_headers_middleware_multiple_proxies(
 
 
 @pytest.mark.asyncio
-async def test_x_forwarded_headers_middleware_blocks_invalid_host(
-    app: FakeApplication, mock_receive, mock_send
-):
+async def test_x_forwarded_headers_middleware_blocks_invalid_host(app: FakeApplication):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
     called = False
@@ -160,7 +153,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host(
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -181,7 +174,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host(
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204
@@ -191,7 +184,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host(
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_without_forwarded_for(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -212,7 +205,7 @@ async def test_x_forwarded_headers_middleware_without_forwarded_for(
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204
@@ -220,7 +213,7 @@ async def test_x_forwarded_headers_middleware_without_forwarded_for(
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_without_forwarded_proto(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -242,7 +235,7 @@ async def test_x_forwarded_headers_middleware_without_forwarded_proto(
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204
@@ -250,7 +243,7 @@ async def test_x_forwarded_headers_middleware_without_forwarded_proto(
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_too_many_forwards(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -272,7 +265,7 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forwards(
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -280,7 +273,7 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forwards(
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_host_headers(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -307,7 +300,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_host_hea
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -315,7 +308,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_host_hea
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_headers(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -339,7 +332,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_he
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -347,7 +340,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_he
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_values(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -370,7 +363,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_va
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -378,7 +371,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_va
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_for_headers(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -403,7 +396,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_for_head
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -411,7 +404,7 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_for_head
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_too_many_forward_values(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -436,7 +429,7 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forward_values(
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -444,7 +437,7 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forward_values(
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_invalid_host_not_forwarded(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -469,7 +462,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host_not_forwarded(
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -477,7 +470,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host_not_forwarded(
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(
         XForwardedHeadersMiddleware(known_proxies=[ip_address("185.152.122.103")])
@@ -505,7 +498,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -527,7 +520,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204
@@ -537,7 +530,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
 
 @pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(
         XForwardedHeadersMiddleware(known_networks=[ip_network("192.168.0.0/24")])
@@ -566,7 +559,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -588,7 +581,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.request is not None
     assert app.response is not None
@@ -599,9 +592,7 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network
 
 
 @pytest.mark.asyncio
-async def test_forwarded_header_middleware(
-    app: FakeApplication, mock_receive, mock_send
-):
+async def test_forwarded_header_middleware(app: FakeApplication):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
     called = False
@@ -624,7 +615,7 @@ async def test_forwarded_header_middleware(
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204
@@ -636,9 +627,7 @@ async def test_forwarded_header_middleware(
 
 
 @pytest.mark.asyncio
-async def test_forwarded_header_middleware_by_invalid(
-    app: FakeApplication, mock_receive, mock_send
-):
+async def test_forwarded_header_middleware_by_invalid(app: FakeApplication):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
     called = False
@@ -661,16 +650,14 @@ async def test_forwarded_header_middleware_by_invalid(
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
 
 
 @pytest.mark.asyncio
-async def test_forwarded_header_middleware_by_hidden(
-    app: FakeApplication, mock_receive, mock_send
-):
+async def test_forwarded_header_middleware_by_hidden(app: FakeApplication):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
     called = False
@@ -693,7 +680,7 @@ async def test_forwarded_header_middleware_by_hidden(
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204
@@ -706,7 +693,7 @@ async def test_forwarded_header_middleware_by_hidden(
 
 @pytest.mark.asyncio
 async def test_forwarded_header_middleware_blocks_requests_with_too_many_forwards(
-    app: FakeApplication, mock_receive, mock_send
+    app: FakeApplication,
 ):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -730,7 +717,7 @@ async def test_forwarded_header_middleware_blocks_requests_with_too_many_forward
     )
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -806,9 +793,7 @@ def test_parse_forwarded_entry(value, expected_result):
 
 
 @pytest.mark.asyncio
-async def test_trusted_hosts_middleware_blocks_invalid_host(
-    app: FakeApplication, mock_receive, mock_send
-):
+async def test_trusted_hosts_middleware_blocks_invalid_host(app: FakeApplication):
     app.middlewares.append(TrustedHostsMiddleware(["neoteroi.dev"]))
 
     called = False
@@ -822,7 +807,7 @@ async def test_trusted_hosts_middleware_blocks_invalid_host(
     scope = get_example_scope("GET", "/", server=("ugly-domain.dev", 80))
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 400
@@ -832,7 +817,7 @@ async def test_trusted_hosts_middleware_blocks_invalid_host(
     scope = get_example_scope("GET", "/", server=("neoteroi.dev", 80))
 
     app.prepare()
-    await app(scope, mock_receive(), mock_send)
+    await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204

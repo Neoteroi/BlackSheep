@@ -23,6 +23,7 @@ from blacksheep.server.files import (
 from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils.aio import get_running_loop
 
 
@@ -319,7 +320,7 @@ async def test_text_file_range_request_single_part_if_range_handling(
 
 
 @pytest.mark.asyncio
-async def test_serve_files_no_discovery(app, mock_receive, mock_send):
+async def test_serve_files_no_discovery(app):
     # Note the folder files3 does not contain an index.html page
     app.serve_files(get_folder_path("files3"))
 
@@ -328,8 +329,8 @@ async def test_serve_files_no_discovery(app, mock_receive, mock_send):
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -337,9 +338,7 @@ async def test_serve_files_no_discovery(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_serve_files_deprecated_serve_files_options(
-    files2_index_contents, app, mock_receive, mock_send
-):
+async def test_serve_files_deprecated_serve_files_options(files2_index_contents, app):
     with pytest.deprecated_call():
         app.serve_files(ServeFilesOptions(get_folder_path("files2")))  # type: ignore
 
@@ -348,8 +347,8 @@ async def test_serve_files_deprecated_serve_files_options(
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -358,9 +357,7 @@ async def test_serve_files_deprecated_serve_files_options(
 
 
 @pytest.mark.asyncio
-async def test_serve_files_fallback_document(
-    files2_index_contents: bytes, app, mock_receive, mock_send
-):
+async def test_serve_files_fallback_document(files2_index_contents: bytes, app):
     """Feature used to serve SPAs that use HTML5 History API"""
     app.serve_files(get_folder_path("files2"), fallback_document="index.html")
 
@@ -370,8 +367,8 @@ async def test_serve_files_fallback_document(
         scope = get_example_scope("GET", path, [])
         await app(
             scope,
-            mock_receive(),
-            mock_send,
+            MockReceive(),
+            MockSend(),
         )
 
         response = app.response
@@ -380,9 +377,7 @@ async def test_serve_files_fallback_document(
 
 
 @pytest.mark.asyncio
-async def test_serve_files_serves_index_html_by_default(
-    files2_index_contents, app, mock_receive, mock_send
-):
+async def test_serve_files_serves_index_html_by_default(files2_index_contents, app):
     app.serve_files(get_folder_path("files2"))
 
     await app.start()
@@ -390,8 +385,8 @@ async def test_serve_files_serves_index_html_by_default(
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -400,9 +395,7 @@ async def test_serve_files_serves_index_html_by_default(
 
 
 @pytest.mark.asyncio
-async def test_serve_files_can_disable_index_html_by_default(
-    app, mock_receive, mock_send
-):
+async def test_serve_files_can_disable_index_html_by_default(app):
     app.serve_files(get_folder_path("files2"), index_document=None)
 
     await app.start()
@@ -410,8 +403,8 @@ async def test_serve_files_can_disable_index_html_by_default(
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -419,7 +412,7 @@ async def test_serve_files_can_disable_index_html_by_default(
 
 
 @pytest.mark.asyncio
-async def test_serve_files_custom_index_page(app, mock_receive, mock_send):
+async def test_serve_files_custom_index_page(app):
     # Note the folder files3 does not contain an index.html page
     app.serve_files(get_folder_path("files3"), index_document="lorem-ipsum.txt")
 
@@ -428,8 +421,8 @@ async def test_serve_files_custom_index_page(app, mock_receive, mock_send):
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -441,7 +434,7 @@ async def test_serve_files_custom_index_page(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_cannot_serve_files_outside_static_folder(app, mock_receive, mock_send):
+async def test_cannot_serve_files_outside_static_folder(app):
     folder_path = get_folder_path("files")
     app.serve_files(folder_path, discovery=True, extensions={".py"})
 
@@ -450,8 +443,8 @@ async def test_cannot_serve_files_outside_static_folder(app, mock_receive, mock_
     scope = get_example_scope("GET", "../test_files_serving.py", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -459,9 +452,7 @@ async def test_cannot_serve_files_outside_static_folder(app, mock_receive, mock_
 
 
 @pytest.mark.asyncio
-async def test_cannot_serve_files_with_unhandled_extension(
-    app, mock_receive, mock_send
-):
+async def test_cannot_serve_files_with_unhandled_extension(app):
     folder_path = get_folder_path("files2")
     app.serve_files(folder_path, discovery=True, extensions={".py"})
 
@@ -470,8 +461,8 @@ async def test_cannot_serve_files_with_unhandled_extension(
     scope = get_example_scope("GET", "/example.config", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -479,9 +470,7 @@ async def test_cannot_serve_files_with_unhandled_extension(
 
 
 @pytest.mark.asyncio
-async def test_can_serve_files_with_relative_paths(
-    files2_index_contents, app, mock_receive, mock_send
-):
+async def test_can_serve_files_with_relative_paths(files2_index_contents, app):
     folder_path = get_folder_path("files2")
     app.serve_files(folder_path, discovery=True)
 
@@ -490,8 +479,8 @@ async def test_can_serve_files_with_relative_paths(
     scope = get_example_scope("GET", "/styles/../index.html", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -502,8 +491,8 @@ async def test_can_serve_files_with_relative_paths(
     scope = get_example_scope("GET", "/styles/fonts/../../index.html", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -514,8 +503,8 @@ async def test_can_serve_files_with_relative_paths(
     scope = get_example_scope("GET", "/styles/../does-not-exist.html", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -524,7 +513,7 @@ async def test_can_serve_files_with_relative_paths(
 
 @pytest.mark.parametrize("folder_name", ["files", "files2"])
 @pytest.mark.asyncio
-async def test_serve_files_discovery(folder_name: str, app, mock_receive, mock_send):
+async def test_serve_files_discovery(folder_name: str, app):
     folder_path = get_folder_path(folder_name)
     app.serve_files(folder_path, discovery=True)
     extensions = get_default_extensions()
@@ -534,8 +523,8 @@ async def test_serve_files_discovery(folder_name: str, app, mock_receive, mock_s
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -556,7 +545,7 @@ async def test_serve_files_discovery(folder_name: str, app, mock_receive, mock_s
 
 
 @pytest.mark.asyncio
-async def test_serve_files_discovery_subfolder(app, mock_receive, mock_send):
+async def test_serve_files_discovery_subfolder(app):
     folder_path = get_folder_path("files2")
     app.serve_files(folder_path, discovery=True)
 
@@ -565,8 +554,8 @@ async def test_serve_files_discovery_subfolder(app, mock_receive, mock_send):
     scope = get_example_scope("GET", "/scripts", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -579,7 +568,7 @@ async def test_serve_files_discovery_subfolder(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_serve_files_with_custom_files_handler(app, mock_receive, mock_send):
+async def test_serve_files_with_custom_files_handler(app):
     file_path = files2_index_path
 
     with open(file_path, mode="rt") as actual_file:
@@ -603,8 +592,8 @@ async def test_serve_files_with_custom_files_handler(app, mock_receive, mock_sen
     scope = get_example_scope("GET", "/index.html", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -625,9 +614,7 @@ def test_file_context_mode_property():
 
 
 @pytest.mark.asyncio
-async def test_serve_files_multiple_folders(
-    files2_index_contents, app, mock_receive, mock_send
-):
+async def test_serve_files_multiple_folders(files2_index_contents, app):
     files1 = get_folder_path("files")
     files2 = get_folder_path("files2")
     app.serve_files(files1, discovery=True, root_path="one")
@@ -638,8 +625,8 @@ async def test_serve_files_multiple_folders(
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 404
@@ -647,8 +634,8 @@ async def test_serve_files_multiple_folders(
     scope = get_example_scope("GET", "/example.txt", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == 404
@@ -656,8 +643,8 @@ async def test_serve_files_multiple_folders(
     scope = get_example_scope("GET", "/one/example.txt", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -670,8 +657,8 @@ async def test_serve_files_multiple_folders(
     scope = get_example_scope("GET", "/two/styles/main.css", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -684,8 +671,8 @@ async def test_serve_files_multiple_folders(
     scope = get_example_scope("GET", "/two/index.html", [])
     await app(
         scope,
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response

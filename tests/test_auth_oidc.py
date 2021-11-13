@@ -66,6 +66,21 @@ async def test_openid_connect_handler_redirect(app: FakeApplication):
 
 
 @pytest.mark.asyncio
+async def test_openid_connect_handler_auth_post(app: FakeApplication):
+    oidc = configure_test_oidc(app)
+    assert isinstance(oidc, OpenIDConnectHandler)
+
+    await app(
+        get_example_scope("POST", oidc.settings.callback_path),
+        MockReceive([b'{"error":"access_denied"}']),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+
+@pytest.mark.asyncio
 async def test_openid_connect_handler_handling_request_without_host_header(
     app: FakeApplication,
 ):

@@ -12,6 +12,7 @@ from blacksheep.server.controllers import ApiController, Controller, RoutesRegis
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils import ensure_str
 from tests.test_files_serving import get_file_path
 from tests.utils.application import FakeApplication
@@ -33,7 +34,7 @@ def example():
 
 
 @pytest.mark.asyncio
-async def test_handler_through_controller(app, mock_receive, mock_send):
+async def test_handler_through_controller(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -52,13 +53,13 @@ async def test_handler_through_controller(app, mock_receive, mock_send):
             return text("foo")
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Hello World"
 
-    await app(get_example_scope("GET", "/foo"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
@@ -73,9 +74,7 @@ async def test_handler_through_controller(app, mock_receive, mock_send):
         ["/{path:filepath}", "/example/{path:filepath}"],
     ],
 )
-async def test_handler_catch_all_through_controller(
-    path_one, path_two, app, mock_receive, mock_send
-):
+async def test_handler_catch_all_through_controller(path_one, path_two, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -101,14 +100,14 @@ async def test_handler_catch_all_through_controller(
             return text("foo")
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/hello.js"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/hello.js"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "hello.js"
 
     await app(
-        get_example_scope("GET", "/scripts/a/b/c/hello.js"), mock_receive(), mock_send
+        get_example_scope("GET", "/scripts/a/b/c/hello.js"), MockReceive(), MockSend()
     )
 
     assert app.response.status == 200
@@ -116,14 +115,14 @@ async def test_handler_catch_all_through_controller(
     assert body == "scripts/a/b/c/hello.js"
 
     await app(
-        get_example_scope("GET", "/example/a/b/c/hello.js"), mock_receive(), mock_send
+        get_example_scope("GET", "/example/a/b/c/hello.js"), MockReceive(), MockSend()
     )
 
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Example: a/b/c/hello.js"
 
-    await app(get_example_scope("GET", "/foo"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
@@ -131,9 +130,7 @@ async def test_handler_catch_all_through_controller(
 
 
 @pytest.mark.asyncio
-async def test_handler_through_controller_owned_text_method(
-    app, mock_receive, mock_send
-):
+async def test_handler_through_controller_owned_text_method(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -152,13 +149,13 @@ async def test_handler_through_controller_owned_text_method(
             return self.text("foo")
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Hello World"
 
-    await app(get_example_scope("GET", "/foo"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
@@ -166,9 +163,7 @@ async def test_handler_through_controller_owned_text_method(
 
 
 @pytest.mark.asyncio
-async def test_handler_through_controller_owned_html_method(
-    app, mock_receive, mock_send
-):
+async def test_handler_through_controller_owned_html_method(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -184,7 +179,7 @@ async def test_handler_through_controller_owned_html_method(
             )
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
@@ -194,7 +189,7 @@ async def test_handler_through_controller_owned_html_method(
 
 
 @pytest.mark.asyncio
-async def test_controller_supports_on_request(app, mock_receive, mock_send):
+async def test_controller_supports_on_request(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -224,18 +219,18 @@ async def test_controller_supports_on_request(app, mock_receive, mock_send):
     app.setup_controllers()
 
     for j in range(1, 10):
-        await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+        await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
         assert app.response.status == 200
         assert k == j
 
     for j in range(10, 20):
-        await app(get_example_scope("GET", "/foo"), mock_receive(), mock_send)
+        await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
         assert app.response.status == 200
         assert k == j
 
 
 @pytest.mark.asyncio
-async def test_controller_supports_on_response(app, mock_receive, mock_send):
+async def test_controller_supports_on_response(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -268,20 +263,18 @@ async def test_controller_supports_on_response(app, mock_receive, mock_send):
     app.setup_controllers()
 
     for j in range(1, 10):
-        await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+        await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
         assert app.response.status == 200
         assert k == j
 
     for j in range(10, 20):
-        await app(get_example_scope("GET", "/foo"), mock_receive(), mock_send)
+        await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
         assert app.response.status == 200
         assert k == j
 
 
 @pytest.mark.asyncio
-async def test_handler_through_controller_supports_generic_decorator(
-    app, mock_receive, mock_send
-):
+async def test_handler_through_controller_supports_generic_decorator(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -296,7 +289,7 @@ async def test_handler_through_controller_supports_generic_decorator(
             return text(self.greet())
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
     assert body == "Hello World"
@@ -305,7 +298,7 @@ async def test_handler_through_controller_supports_generic_decorator(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("value", ["Hello World", "Charlie Brown"])
-async def test_controller_with_dependency(value, app, mock_receive, mock_send):
+async def test_controller_with_dependency(value, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -329,7 +322,7 @@ async def test_controller_with_dependency(value, app, mock_receive, mock_send):
     app.services.add_instance(Settings(value))
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
     assert body == value
@@ -338,7 +331,7 @@ async def test_controller_with_dependency(value, app, mock_receive, mock_send):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("value", ["Hello World", "Charlie Brown"])
-async def test_many_controllers(value, app, mock_receive, mock_send):
+async def test_many_controllers(value, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -366,7 +359,7 @@ async def test_many_controllers(value, app, mock_receive, mock_send):
     app.services.add_instance(Settings(value))
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
     assert body == value
@@ -420,7 +413,7 @@ async def test_controllers_with_duplicate_routes_throw(
 
 
 @pytest.mark.asyncio
-async def test_controller_on_request_setting_identity(app, mock_receive, mock_send):
+async def test_controller_on_request_setting_identity(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -436,16 +429,14 @@ async def test_controller_on_request_setting_identity(app, mock_receive, mock_se
 
     app.setup_controllers()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     body = await app.response.text()
     assert body == "Charlie Brown"
     assert app.response.status == 200
 
 
 @pytest.mark.asyncio
-async def test_controller_with_base_route_as_string_attribute(
-    app, mock_receive, mock_send
-):
+async def test_controller_with_base_route_as_string_attribute(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -462,15 +453,15 @@ async def test_controller_with_base_route_as_string_attribute(
             return text(self.greet())
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 404
 
-    await app(get_example_scope("GET", "/home"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/home"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Hello World"
 
-    await app(get_example_scope("GET", "/home/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/home/"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Hello World"
@@ -517,7 +508,7 @@ async def test_application_raises_for_controllers_for_invalid_services():
 
 
 @pytest.mark.asyncio
-async def test_controller_with_base_route_as_class_method(app, mock_receive, mock_send):
+async def test_controller_with_base_route_as_class_method(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -541,22 +532,20 @@ async def test_controller_with_base_route_as_class_method(app, mock_receive, moc
             return text("Good")
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/home"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/home"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Hello World"
 
     for value in {"/Health", "/health"}:
-        await app(get_example_scope("GET", value), mock_receive(), mock_send)
+        await app(get_example_scope("GET", value), MockReceive(), MockSend())
         assert app.response.status == 200
         body = await app.response.text()
         assert body == "Good"
 
 
 @pytest.mark.asyncio
-async def test_controller_with_base_route_as_class_method_fragments(
-    app, mock_receive, mock_send
-):
+async def test_controller_with_base_route_as_class_method_fragments(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -580,13 +569,13 @@ async def test_controller_with_base_route_as_class_method_fragments(
             return text("Good")
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/api/home"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/api/home"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "Hello World"
 
     for value in {"/api/Health", "/api/health"}:
-        await app(get_example_scope("GET", value), mock_receive(), mock_send)
+        await app(get_example_scope("GET", value), MockReceive(), MockSend())
         assert app.response.status == 200
         body = await app.response.text()
         assert body == "Good"
@@ -652,7 +641,7 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
 
 
 @pytest.mark.asyncio
-async def test_api_controller_without_version(app, mock_receive, mock_send):
+async def test_api_controller_without_version(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
     post = app.controllers_router.post
@@ -687,7 +676,7 @@ async def test_api_controller_without_version(app, mock_receive, mock_send):
 
     for key, value in expected_result.items():
         method, pattern = key
-        await app(get_example_scope(method, pattern), mock_receive(), mock_send)
+        await app(get_example_scope(method, pattern), MockReceive(), MockSend())
 
         assert app.response.status == 200
         body = await app.response.text()
@@ -695,7 +684,7 @@ async def test_api_controller_without_version(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_api_controller_with_version(app, mock_receive, mock_send):
+async def test_api_controller_with_version(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
     post = app.controllers_router.post
@@ -734,7 +723,7 @@ async def test_api_controller_with_version(app, mock_receive, mock_send):
 
     for key, value in expected_result.items():
         method, pattern = key
-        await app(get_example_scope(method, pattern), mock_receive(), mock_send)
+        await app(get_example_scope(method, pattern), MockReceive(), MockSend())
 
         assert app.response.status == 200
         body = await app.response.text()
@@ -742,7 +731,7 @@ async def test_api_controller_with_version(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_api_controller_with_version_2(app, mock_receive, mock_send):
+async def test_api_controller_with_version_2(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
     post = app.controllers_router.post
@@ -806,7 +795,7 @@ async def test_api_controller_with_version_2(app, mock_receive, mock_send):
 
     for key, value in expected_result.items():
         method, pattern = key
-        await app(get_example_scope(method, pattern), mock_receive(), mock_send)
+        await app(get_example_scope(method, pattern), MockReceive(), MockSend())
 
         assert app.response.status == 200
         body = await app.response.text()
@@ -814,7 +803,7 @@ async def test_api_controller_with_version_2(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_controller_parameter_name_match(app, mock_receive, mock_send):
+async def test_controller_parameter_name_match(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -832,13 +821,13 @@ async def test_controller_parameter_name_match(app, mock_receive, mock_send):
             return text(example)
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 400
     body = await app.response.text()
     assert body == "Bad Request: Missing query parameter `example`"
 
-    await app(get_example_scope("GET", "/foo"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/foo"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     body = await app.response.text()
@@ -846,7 +835,7 @@ async def test_controller_parameter_name_match(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_controller_return_file(app, mock_receive, mock_send):
+async def test_controller_return_file(app):
     file_path = get_file_path("example.config", "files2")
 
     app.controllers_router = RoutesRegistry()
@@ -861,8 +850,8 @@ async def test_controller_return_file(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -883,7 +872,7 @@ class Foo:
 
 
 @pytest.mark.asyncio
-async def test_handler_through_controller_default_type(app, mock_receive, mock_send):
+async def test_handler_through_controller_default_type(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -893,7 +882,7 @@ async def test_handler_through_controller_default_type(app, mock_receive, mock_s
             return Foo("Hello", 5.5)
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     data = await app.response.json()
@@ -901,7 +890,7 @@ async def test_handler_through_controller_default_type(app, mock_receive, mock_s
 
 
 @pytest.mark.asyncio
-async def test_handler_through_controller_default_str(app, mock_receive, mock_send):
+async def test_handler_through_controller_default_str(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -911,7 +900,7 @@ async def test_handler_through_controller_default_str(app, mock_receive, mock_se
             return "Hello World"
 
     app.setup_controllers()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     data = await app.response.text()

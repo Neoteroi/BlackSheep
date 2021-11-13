@@ -306,11 +306,11 @@ cdef class Request(Message):
         return self._path.decode()
 
     @property
-    def base_path(self) -> bytes:
-        return self.__dict__.get("base_path", b"")
+    def base_path(self) -> str:
+        return self.__dict__.get("base_path", "")
 
     @base_path.setter
-    def base_path(self, value: bytes):
+    def base_path(self, value: str):
         # this can be set, for example when handling forward headers
         self.__dict__["base_path"] = value
 
@@ -561,4 +561,13 @@ cpdef URL get_request_absolute_url(Request request):
         ensure_bytes(request.host),
         ensure_bytes(request.base_path),
         request._path
+    )
+
+
+cpdef URL get_absolute_url_to_path(Request request, str path):
+    return build_absolute_url(
+        ensure_bytes(request.scheme),
+        ensure_bytes(request.host),
+        ensure_bytes(request.base_path),
+        ensure_bytes(path)
     )

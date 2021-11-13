@@ -1,6 +1,6 @@
-import logging
 from typing import Optional, Sequence
 
+from blacksheep.baseapp import get_logger
 from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
 from guardpost.jwks import KeysProvider
@@ -8,10 +8,6 @@ from guardpost.jwts import InvalidAccessToken, JWTValidator
 from jwt.exceptions import InvalidTokenError
 
 from blacksheep.messages import Request
-
-
-def get_logger():
-    return logging.getLogger("blacksheep.server")
 
 
 class JWTBearerAuthentication(AuthenticationHandler):
@@ -22,7 +18,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
     JWTs are validated using public RSA keys, and keys can be fetched automatically from
     OpenID Connect (OIDC) discovery, if an `authority` is provided.
 
-    It is possible to use several instances of this class, to various authentication
+    It is possible to use several instances of this class, to support authentication
     through several identity providers (e.g. Azure Active Directory, Auth0, Azure Active
     Directory B2C).
     """

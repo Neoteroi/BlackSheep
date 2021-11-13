@@ -95,6 +95,10 @@ class ApplicationEvent:
 
         return decorator
 
+    def fire_sync(self, *args: Any, **keywargs: Any) -> None:
+        for handler in self.__handlers:
+            handler(self.context, *args, **keywargs)
+
     async def fire(self, *args: Any, **keywargs: Any) -> None:
         for handler in self.__handlers:
             await handler(self.context, *args, **keywargs)
@@ -163,6 +167,7 @@ class Application(BaseApplication):
         self.on_start = ApplicationEvent(self)
         self.after_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
+        self.on_middlewares_configuration = ApplicationEvent(self)
         self.started = False
         self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
@@ -313,6 +318,10 @@ class Application(BaseApplication):
                 "The application is already running, configure authentication "
                 "before starting the application"
             )
+
+        if self._authentication_strategy:
+            return self._authentication_strategy
+
         if not strategy:
             strategy = AuthenticationStrategy()
 
@@ -327,6 +336,9 @@ class Application(BaseApplication):
                 "The application is already running, configure authorization "
                 "before starting the application"
             )
+
+        if self._authorization_strategy:
+            return self._authorization_strategy
 
         if not strategy:
             strategy = AuthorizationStrategy()
@@ -544,9 +556,6 @@ class Application(BaseApplication):
             configured_handlers.add(route.handler)
         configured_handlers.clear()
 
-    def on_middlewares_configuration(self) -> None:
-        """Extensibility point that enables changing the order of middlewares."""
-
     def configure_middlewares(self):
         if self._middlewares_configured:
             return
@@ -575,7 +584,7 @@ class Application(BaseApplication):
                 0, get_default_headers_middleware(self._default_headers)
             )
 
-        self.on_middlewares_configuration()
+        self.on_middlewares_configuration.fire_sync()
 
         self._normalize_middlewares()
 

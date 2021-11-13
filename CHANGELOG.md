@@ -13,12 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds built-in support for **OpenID Connect (OIDC)** **Authorization Code Grant**
   and **Hybrid** flows, which can be used to integrate with `OAuth` applications
 - Adds built-in handling of `X-Forwarded` and `Forwarded` headers with
-  validation, and also to handle trusted hosts
+  validation, including handling of trusted hosts
+- Adds a `TrustedHostsMiddleware` that can be used to validate hosts
 - Adds an extensibility point that enables sorting of middlewares before they
   are applied on the application
 - Fixes #199
 - Downgrades `httptools` dependency to version `>=0.2,<0.4`
 - Adds some improvements to the testing `get_example_scope` method
+- Upgrades `itsdangerous` to version `~=2.0.1`
 
 ## [1.2.0] - 2021-10-24 📦
 - Includes `Python 3.10` in the CI/CD matrix

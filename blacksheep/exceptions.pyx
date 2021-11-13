@@ -28,20 +28,20 @@ cdef class BadRequestFormat(BadRequest):
 
 cdef class NotFound(HTTPException):
 
-    def __init__(self):
-        super().__init__(404, "Not found")
+    def __init__(self, message=None):
+        super().__init__(404, message or "Not found")
 
 
 cdef class Unauthorized(HTTPException):
 
-    def __init__(self):
-        super().__init__(401, "Unauthorized")
+    def __init__(self, message=None):
+        super().__init__(401, message or "Unauthorized")
 
 
 cdef class Forbidden(HTTPException):
 
-    def __init__(self):
-        super().__init__(403, "Forbidden")
+    def __init__(self, message=None):
+        super().__init__(403, message or "Forbidden")
 
 
 cdef class RangeNotSatisfiable(HTTPException):

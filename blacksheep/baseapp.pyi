@@ -1,3 +1,4 @@
+import logging
 from typing import Awaitable, Callable, Dict, Optional, Type, TypeVar, Union
 
 from blacksheep.exceptions import HTTPException
@@ -30,3 +31,5 @@ class BaseApplication:
         self, request: Request, exc: Exception
     ) -> Response: ...
     def get_route_match(self, request: Request) -> Optional[RouteMatch]: ...
+
+def get_logger() -> logging.Logger: ...

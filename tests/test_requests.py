@@ -3,7 +3,7 @@ import pytest
 from blacksheep import Content, Request, scribe
 from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
-from blacksheep.messages import get_request_absolute_url
+from blacksheep.messages import get_request_absolute_url, get_absolute_url_to_path
 from blacksheep.scribe import write_small_request
 from blacksheep.server.asgi import get_request_url, get_request_url_from_scope
 from blacksheep.testing.helpers import get_example_scope
@@ -390,7 +390,7 @@ def test_get_request_absolute_url(scope, expected_value):
 
     assert request.scheme == scope["scheme"]
     assert request.host == dict(scope["headers"])[b"host"].decode()
-    assert request.base_path == b""
+    assert request.base_path == ""
 
     absolute_url = get_request_absolute_url(request)
     assert str(absolute_url) == f"{request.scheme}://{request.host}{request.path}"
@@ -432,10 +432,42 @@ def test_get_request_absolute_url_with_base_path(scope, base_path, expected_valu
 
     assert request.scheme == scope["scheme"]
     assert request.host == dict(scope["headers"])[b"host"].decode()
-    request.base_path = base_path.encode()
+    request.base_path = base_path
 
     absolute_url = get_request_absolute_url(request)
     assert str(absolute_url) == expected_value
+
+
+@pytest.mark.parametrize(
+    "scope,path,expected_result",
+    [
+        (
+            get_example_scope("GET", "/foo", scheme="http", server=["127.0.0.1", 8000]),
+            "/sign-in",
+            "http://127.0.0.1:8000/sign-in",
+        ),
+        (
+            get_example_scope("GET", "/", scheme="http", server=["127.0.0.1", 8000]),
+            "/authorization/callback",
+            "http://127.0.0.1:8000/authorization/callback",
+        ),
+        (
+            get_example_scope(
+                "GET", "/a/b/c/", scheme="http", server=["127.0.0.1", 8000]
+            ),
+            "/authorization/callback",
+            "http://127.0.0.1:8000/authorization/callback",
+        ),
+    ],
+)
+def test_get_request_absolute_url_to_path(scope, path, expected_result):
+    request = Request.incoming(
+        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
+    )
+    request.scope = scope
+    url_to = get_absolute_url_to_path(request, path)
+
+    assert str(url_to) == expected_result
 
 
 def test_can_set_request_host_and_scheme():

@@ -1,7 +1,8 @@
-import asyncio
 from asyncio import AbstractEventLoop, BaseEventLoop
 from concurrent.futures.thread import ThreadPoolExecutor
 from typing import IO, Any, AnyStr, AsyncIterable, Callable, Optional, Union
+
+from blacksheep.utils.aio import get_running_loop
 
 
 class PoolClient:
@@ -10,7 +11,7 @@ class PoolClient:
         loop: Optional[BaseEventLoop] = None,
         executor: Optional[ThreadPoolExecutor] = None,
     ):
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop or get_running_loop()
         self._executor = executor
 
     @property

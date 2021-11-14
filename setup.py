@@ -105,7 +105,7 @@ setup(
     ],
     extras_require={
         "full": [
-            "cryptography~=3.4.6",
+            "cryptography~=35.0.0",
             "PyJWT~=2.3.0",
         ]
     },

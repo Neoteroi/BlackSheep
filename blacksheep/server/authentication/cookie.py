@@ -1,9 +1,8 @@
 from datetime import datetime
 from typing import Any, Optional, Sequence
 
-from guardpost import Identity
 from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import User
+from guardpost.authentication import Identity
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
 

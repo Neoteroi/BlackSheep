@@ -26,8 +26,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
     def __init__(
         self,
         *,
-        valid_issuers: Sequence[str],
         valid_audiences: Sequence[str],
+        valid_issuers: Optional[Sequence[str]] = None,
         authority: Optional[str] = None,
         require_kid: bool = True,
         keys_provider: Optional[KeysProvider] = None,
@@ -43,10 +43,12 @@ class JWTBearerAuthentication(AuthenticationHandler):
 
         Parameters
         ----------
-        valid_issuers : Sequence[str]
-            Sequence of acceptable issuers (iss).
         valid_audiences : Sequence[str]
             Sequence of acceptable audiences (aud).
+        valid_issuers : Optional[Sequence[str]]
+            Sequence of acceptable issuers (iss). Required if `authority` is not
+            provided. If authority is specified and issuers are not, then valid
+            issuers are set as [authority].
         authority : Optional[str], optional
             If provided, keys are obtained from a standard well-known endpoint.
             This parameter is ignored if `keys_provider` is given.
@@ -71,6 +73,12 @@ class JWTBearerAuthentication(AuthenticationHandler):
             "JWT Bearer".
         """
         self.logger = get_logger()
+
+        if authority and not valid_issuers:
+            valid_issuers = [authority]
+
+        if not authority and not valid_issuers:
+            raise TypeError("Specify either an authority or valid issuers.")
 
         self._validator = JWTValidator(
             authority=authority,

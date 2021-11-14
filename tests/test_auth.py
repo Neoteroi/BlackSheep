@@ -5,7 +5,7 @@ import jwt
 import pkg_resources
 import pytest
 from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext, UnauthorizedError
+from guardpost.authorization import AuthorizationContext, Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from pytest import raises
@@ -18,7 +18,6 @@ from blacksheep.server.authentication import (
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import (
     AuthorizationWithoutAuthenticationError,
-    Policy,
     Requirement,
     allow_anonymous,
     auth,
@@ -34,6 +33,20 @@ def get_file_path(file_name, folder_name: str = "res") -> str:
 
 
 # region JWTBearer
+
+
+def test_jwt_bearer_authentication_sets_authority_as_issuer():
+    authority = "https://sts.windows.net/a2884dee-52e8-4034-8ce2-6b48e18d1ae7/"
+    auth = JWTBearerAuthentication(
+        valid_audiences=["api://0ed1cebe-b7ca-45c5-a4bf-a8d586c18d31"],
+        authority=authority,
+    )
+    assert auth._validator._valid_issuers == [authority]
+
+
+def test_jwt_bearer_authentication_throws_for_missing_issuer():
+    with pytest.raises(TypeError):
+        JWTBearerAuthentication(valid_audiences=["foo"])
 
 
 def get_test_jwks() -> JWKS:

@@ -1,3 +1,4 @@
+from blacksheep.contents import ASGIContent
 from blacksheep.messages import Request
 
 
@@ -6,6 +7,15 @@ def get_request_url_from_scope(
     include_query: bool = True,
     trailing_slash: bool = False,
 ) -> str:
+    """
+    Function used for diagnostic reasons, for example to generate URLs in pages with
+    detailed information about internal server errors.
+
+    Do not use this method for logic that must generate full request URL, since it
+    doesn't handle Forward and X-Forwarded* headers - use instead:
+
+    > from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
+    """
     try:
         path = scope["path"]
         protocol = scope["scheme"]
@@ -32,4 +42,31 @@ def get_request_url_from_scope(
 
 
 def get_request_url(request: Request) -> str:
+    """
+    Function used for diagnostic reasons, for example to generate URLs in pages with
+    detailed information about internal server errors.
+
+    Do not use this method for logic that must generate full request URL, since it
+    doesn't handle Forward and X-Forwarded* headers - use instead:
+
+    > from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
+    """
     return get_request_url_from_scope(request.scope)
+
+
+def incoming_request(scope, receive=None) -> Request:
+    """
+    Function used to simulate incoming requests from an ASGI scope.
+    This function is intentionally not used in
+    `blacksheep.server.application.Application`.
+    """
+    request = Request.incoming(
+        scope["method"],
+        scope["raw_path"],
+        scope["query_string"],
+        list(scope["headers"]),
+    )
+    request.scope = scope
+    if receive:
+        request.content = ASGIContent(receive)
+    return request

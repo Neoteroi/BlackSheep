@@ -9,6 +9,7 @@ from blacksheep.server.responses import text
 from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
 from blacksheep.sessions.crypto import FernetEncryptor
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 
 
 def test_friendly_exception_for_request_without_session():
@@ -162,7 +163,7 @@ def test_session_json_serializer(value, session):
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_basics(app, mock_receive, mock_send):
+async def test_session_middleware_basics(app):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
 
     @app.router.get("/")
@@ -190,8 +191,8 @@ async def test_session_middleware_basics(app, mock_receive, mock_send):
             "GET",
             "/",
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -203,15 +204,9 @@ async def test_session_middleware_basics(app, mock_receive, mock_send):
     cookie = parse_cookie(session_set_cookie)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
-        mock_receive(),
-        mock_send,
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -222,7 +217,7 @@ async def test_session_middleware_basics(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_use_method(app, mock_receive, mock_send):
+async def test_session_middleware_use_method(app):
     app.use_sessions("LOREM_IPSUM")
 
     @app.router.get("/")
@@ -250,8 +245,8 @@ async def test_session_middleware_use_method(app, mock_receive, mock_send):
             "GET",
             "/",
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -263,15 +258,9 @@ async def test_session_middleware_use_method(app, mock_receive, mock_send):
     cookie = parse_cookie(session_set_cookie)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
-        mock_receive(),
-        mock_send,
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -282,7 +271,7 @@ async def test_session_middleware_use_method(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_with_encryptor(app, mock_receive, mock_send):
+async def test_session_middleware_with_encryptor(app):
     app.middlewares.append(
         SessionMiddleware(
             "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
@@ -314,8 +303,8 @@ async def test_session_middleware_with_encryptor(app, mock_receive, mock_send):
             "GET",
             "/",
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -327,15 +316,9 @@ async def test_session_middleware_with_encryptor(app, mock_receive, mock_send):
     cookie = parse_cookie(session_set_cookie)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
-        mock_receive(),
-        mock_send,
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -346,9 +329,7 @@ async def test_session_middleware_with_encryptor(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_handling_of_invalid_signature(
-    app, mock_receive, mock_send
-):
+async def test_session_middleware_handling_of_invalid_signature(app):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
 
     @app.router.get("/")
@@ -369,15 +350,9 @@ async def test_session_middleware_handling_of_invalid_signature(
     forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
 
     await app(
-        get_example_scope(
-            "GET",
-            "/",
-            [
-                [b"cookie", b"session=" + forged_cookie.encode()],
-            ],
-        ),
-        mock_receive(),
-        mock_send,
+        get_example_scope("GET", "/", {"cookie": f"session={forged_cookie}"}),
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -385,9 +360,7 @@ async def test_session_middleware_handling_of_invalid_signature(
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_handling_of_expired_signature(
-    app, mock_receive, mock_send
-):
+async def test_session_middleware_handling_of_expired_signature(app):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM", session_max_age=1))
 
     @app.router.get("/")
@@ -414,8 +387,8 @@ async def test_session_middleware_handling_of_expired_signature(
             "GET",
             "/",
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -429,15 +402,9 @@ async def test_session_middleware_handling_of_expired_signature(
     time.sleep(2)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
-        mock_receive(),
-        mock_send,
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -448,9 +415,7 @@ async def test_session_middleware_handling_of_expired_signature(
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_handling_of_invalid_encrypted_signature(
-    app, mock_receive, mock_send
-):
+async def test_session_middleware_handling_of_invalid_encrypted_signature(app):
     app.middlewares.append(
         SessionMiddleware(
             "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
@@ -477,15 +442,9 @@ async def test_session_middleware_handling_of_invalid_encrypted_signature(
     forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
 
     await app(
-        get_example_scope(
-            "GET",
-            "/",
-            [
-                [b"cookie", b"session=" + forged_cookie.encode()],
-            ],
-        ),
-        mock_receive(),
-        mock_send,
+        get_example_scope("GET", "/", {"cookie": f"session={forged_cookie}"}),
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response

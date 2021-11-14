@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import pytest
 
@@ -9,7 +9,12 @@ from blacksheep.server.bindings import FromHeader
 from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.responses import Response
 from blacksheep.testing import AbstractTestSimulator, TestClient
-from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.helpers import (
+    CookiesType,
+    HeadersType,
+    QueryType,
+    get_example_scope,
+)
 
 
 class CustomTestSimulator(AbstractTestSimulator):
@@ -17,9 +22,10 @@ class CustomTestSimulator(AbstractTestSimulator):
         self,
         method: str,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = b"",
+        headers: HeadersType = None,
+        query: QueryType = None,
         content: Optional[Content] = None,
+        cookies: CookiesType = None,
     ):
         if method == "GET":
             return {"custom": "true"}
@@ -90,8 +96,17 @@ async def test_client_content(test_app):
     assert actual_json_response == expected_json_response
 
 
+@pytest.mark.parametrize(
+    "input_query",
+    [
+        {"foo": "bar"},
+        [(b"foo", b"bar")],
+        "foo=bar",
+        b"foo=bar",
+    ],
+)
 @pytest.mark.asyncio
-async def test_client_queries(test_app):
+async def test_client_queries(test_app, input_query):
     @test_app.route("/")
     async def home(request):
         return request.query
@@ -99,10 +114,34 @@ async def test_client_queries(test_app):
     await _start_application(test_app)
 
     test_client = TestClient(test_app)
-    response = await test_client.get("/", query={"foo": "bar"})
+    response = await test_client.get("/", query=input_query)
 
     actual_response = await response.json()
     expected_response = {"foo": ["bar"]}
+
+    assert actual_response == expected_response
+
+
+@pytest.mark.parametrize(
+    "input_cookies",
+    [
+        {"foo": "bar"},
+        [(b"foo", b"bar")],
+    ],
+)
+@pytest.mark.asyncio
+async def test_client_cookies(test_app, input_cookies):
+    @test_app.route("/")
+    async def home(request):
+        return request.cookies
+
+    await _start_application(test_app)
+
+    test_client = TestClient(test_app)
+    response = await test_client.get("/", cookies=input_cookies)
+
+    actual_response = await response.json()
+    expected_response = {"foo": "bar"}
 
     assert actual_response == expected_response
 

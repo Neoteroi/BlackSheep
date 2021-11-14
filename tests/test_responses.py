@@ -38,6 +38,7 @@ from blacksheep.server.responses import (
 )
 from blacksheep.server.routing import RoutesRegistry
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_file_path
 
 STATUS_METHODS_OPTIONAL_BODY = [
@@ -200,7 +201,7 @@ def test_is_redirect():
 
 @pytest.mark.parametrize("method,expected_status", REDIRECT_METHODS)
 @pytest.mark.asyncio
-async def test_redirect_method(method, expected_status, app, mock_receive, mock_send):
+async def test_redirect_method(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method("https://foo.org/somewhere")
@@ -209,8 +210,8 @@ async def test_redirect_method(method, expected_status, app, mock_receive, mock_
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -230,9 +231,7 @@ def test_redirect_method_raises_for_invalid_location(method):
 
 @pytest.mark.parametrize("method,expected_status", REDIRECT_METHODS)
 @pytest.mark.asyncio
-async def test_redirect_method_bytes_location(
-    method, expected_status, app, mock_receive, mock_send
-):
+async def test_redirect_method_bytes_location(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method(b"https://foo.org/somewhere")
@@ -241,8 +240,8 @@ async def test_redirect_method_bytes_location(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -253,7 +252,7 @@ async def test_redirect_method_bytes_location(
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_NO_BODY)
 @pytest.mark.asyncio
-async def test_no_body_method(method, expected_status, app, mock_receive, mock_send):
+async def test_no_body_method(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method()
@@ -262,8 +261,8 @@ async def test_no_body_method(method, expected_status, app, mock_receive, mock_s
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -273,9 +272,7 @@ async def test_no_body_method(method, expected_status, app, mock_receive, mock_s
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
 @pytest.mark.asyncio
-async def test_status_method_response(
-    method, expected_status, app, mock_receive, mock_send
-):
+async def test_status_method_response(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method("Everything's good")
@@ -284,8 +281,8 @@ async def test_status_method_response(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == expected_status
@@ -295,9 +292,7 @@ async def test_status_method_response(
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
 @pytest.mark.asyncio
-async def test_status_method_response_empty_body(
-    method, expected_status, app, mock_receive, mock_send
-):
+async def test_status_method_response_empty_body(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method()
@@ -306,8 +301,8 @@ async def test_status_method_response_empty_body(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == expected_status
@@ -317,9 +312,7 @@ async def test_status_method_response_empty_body(
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
 @pytest.mark.asyncio
-async def test_status_method_response_with_object(
-    method, expected_status, app, mock_receive, mock_send
-):
+async def test_status_method_response_with_object(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method(Foo(uuid4(), "foo", True))
@@ -328,8 +321,8 @@ async def test_status_method_response_with_object(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == expected_status
@@ -340,9 +333,7 @@ async def test_status_method_response_with_object(
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
 @pytest.mark.asyncio
-async def test_status_code_response_with_text(
-    status: int, app, mock_receive, mock_send
-):
+async def test_status_code_response_with_text(status: int, app):
     @app.router.get("/")
     async def home():
         return status_code(status, "Everything's good")
@@ -351,8 +342,8 @@ async def test_status_code_response_with_text(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == status
@@ -362,9 +353,7 @@ async def test_status_code_response_with_text(
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
 @pytest.mark.asyncio
-async def test_status_code_response_with_empty_body(
-    status: int, app, mock_receive, mock_send
-):
+async def test_status_code_response_with_empty_body(status: int, app):
     @app.router.get("/")
     async def home():
         return status_code(status)
@@ -373,8 +362,8 @@ async def test_status_code_response_with_empty_body(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == status
@@ -384,9 +373,7 @@ async def test_status_code_response_with_empty_body(
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
 @pytest.mark.asyncio
-async def test_status_code_response_with_object(
-    status: int, app, mock_receive, mock_send
-):
+async def test_status_code_response_with_object(status: int, app):
     @app.router.get("/")
     async def home():
         return status_code(status, Foo(uuid4(), "foo", True))
@@ -395,8 +382,8 @@ async def test_status_code_response_with_object(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == status
@@ -406,7 +393,7 @@ async def test_status_code_response_with_object(
 
 
 @pytest.mark.asyncio
-async def test_created_response_with_empty_body(app, mock_receive, mock_send):
+async def test_created_response_with_empty_body(app):
     @app.router.get("/")
     async def home():
         return created(location="https://foo.org/foo/001")
@@ -415,8 +402,8 @@ async def test_created_response_with_empty_body(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -426,7 +413,7 @@ async def test_created_response_with_empty_body(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_created_response_with_value(app, mock_receive, mock_send):
+async def test_created_response_with_value(app):
     @app.router.get("/")
     async def home():
         return created(
@@ -438,8 +425,8 @@ async def test_created_response_with_value(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -453,7 +440,7 @@ async def test_created_response_with_value(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_text_response_default_status(app, mock_receive, mock_send):
+async def test_text_response_default_status(app):
     @app.router.get("/")
     async def home():
         return text("Hello World")
@@ -462,8 +449,8 @@ async def test_text_response_default_status(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -486,7 +473,7 @@ async def test_text_response_default_status(app, mock_receive, mock_send):
     ],
 )
 @pytest.mark.asyncio
-async def test_text_response_with_status(content, status, app, mock_receive, mock_send):
+async def test_text_response_with_status(content, status, app):
     @app.router.get("/")
     async def home():
         return text(content, status)
@@ -495,8 +482,8 @@ async def test_text_response_with_status(content, status, app, mock_receive, moc
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -510,7 +497,7 @@ async def test_text_response_with_status(content, status, app, mock_receive, moc
 
 
 @pytest.mark.asyncio
-async def test_html_response_default_status(app, mock_receive, mock_send):
+async def test_html_response_default_status(app):
     @app.router.get("/")
     async def home():
         return html(EXAMPLE_HTML)
@@ -519,8 +506,8 @@ async def test_html_response_default_status(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -543,7 +530,7 @@ async def test_html_response_default_status(app, mock_receive, mock_send):
     ],
 )
 @pytest.mark.asyncio
-async def test_html_response_with_status(content, status, app, mock_receive, mock_send):
+async def test_html_response_with_status(content, status, app):
     @app.router.get("/")
     async def home():
         return html(content, status)
@@ -552,8 +539,8 @@ async def test_html_response_with_status(content, status, app, mock_receive, moc
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -568,9 +555,7 @@ async def test_html_response_with_status(content, status, app, mock_receive, moc
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
 @pytest.mark.asyncio
-async def test_json_response(
-    obj: Any, values: Dict[str, Any], app, mock_receive, mock_send
-):
+async def test_json_response(obj: Any, values: Dict[str, Any], app):
     @app.router.get("/")
     async def home():
         return json(obj)
@@ -579,8 +564,8 @@ async def test_json_response(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -602,9 +587,7 @@ async def test_json_response(
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
 @pytest.mark.asyncio
-async def test_pretty_json_response(
-    obj: Any, values: Dict[str, Any], app, mock_receive, mock_send
-):
+async def test_pretty_json_response(obj: Any, values: Dict[str, Any], app):
     @app.router.get("/")
     async def home():
         return pretty_json(obj)
@@ -613,8 +596,8 @@ async def test_pretty_json_response(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -634,7 +617,7 @@ async def test_pretty_json_response(
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_fs(app, mock_receive, mock_send):
+async def test_file_response_from_fs(app):
     file_path = get_file_path("example.config", "files2")
 
     @app.router.get("/")
@@ -645,8 +628,8 @@ async def test_file_response_from_fs(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -661,7 +644,7 @@ async def test_file_response_from_fs(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_fs_with_filename(app, mock_receive, mock_send):
+async def test_file_response_from_fs_with_filename(app):
     file_path = get_file_path("example.config", "files2")
 
     @app.router.get("/")
@@ -672,8 +655,8 @@ async def test_file_response_from_fs_with_filename(app, mock_receive, mock_send)
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -701,7 +684,7 @@ async def get_example_css():
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_generator(app, mock_receive, mock_send):
+async def test_file_response_from_generator(app):
     @app.router.get("/")
     async def home():
         return file(get_example_css, "text/css")
@@ -710,8 +693,8 @@ async def test_file_response_from_generator(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -724,7 +707,7 @@ async def test_file_response_from_generator(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_bytes_io(app, mock_receive, mock_send):
+async def test_file_response_from_bytes_io(app):
     bytes_io: Optional[BytesIO] = None
 
     @app.router.get("/")
@@ -738,8 +721,8 @@ async def test_file_response_from_bytes_io(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -755,7 +738,7 @@ async def test_file_response_from_bytes_io(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_generator_inline(app, mock_receive, mock_send):
+async def test_file_response_from_generator_inline(app):
     @app.router.get("/")
     async def home():
         return file(
@@ -768,8 +751,8 @@ async def test_file_response_from_generator_inline(app, mock_receive, mock_send)
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -782,7 +765,7 @@ async def test_file_response_from_generator_inline(app, mock_receive, mock_send)
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_bytes(app, mock_receive, mock_send):
+async def test_file_response_from_bytes(app):
     @app.router.get("/")
     async def home():
         return file(
@@ -796,8 +779,8 @@ async def test_file_response_from_bytes(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -813,7 +796,7 @@ async def test_file_response_from_bytes(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_byte_array(app, mock_receive, mock_send):
+async def test_file_response_from_byte_array(app):
     value = bytearray()
     value.extend(b"Hello!\n")
     value.extend(b"World!\n\n")
@@ -833,8 +816,8 @@ async def test_file_response_from_byte_array(app, mock_receive, mock_send):
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -850,9 +833,7 @@ async def test_file_response_from_byte_array(app, mock_receive, mock_send):
 
 
 @pytest.mark.asyncio
-async def test_file_response_from_generator_inline_with_name(
-    app, mock_receive, mock_send
-):
+async def test_file_response_from_generator_inline_with_name(app):
     @app.router.get("/")
     async def home():
         return file(
@@ -866,8 +847,8 @@ async def test_file_response_from_generator_inline_with_name(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -910,9 +891,7 @@ def test_json_response_raises_for_not_json_serializable():
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
 @pytest.mark.asyncio
-async def test_status_code_response_with_text_in_controller(
-    status: int, app, mock_receive, mock_send
-):
+async def test_status_code_response_with_text_in_controller(status: int, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -925,8 +904,8 @@ async def test_status_code_response_with_text_in_controller(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == status
@@ -936,9 +915,7 @@ async def test_status_code_response_with_text_in_controller(
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
 @pytest.mark.asyncio
-async def test_status_method_response_in_controller(
-    method, expected_status, app, mock_receive, mock_send
-):
+async def test_status_method_response_in_controller(method, expected_status, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -957,8 +934,8 @@ async def test_status_method_response_in_controller(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response.status == expected_status
@@ -969,7 +946,7 @@ async def test_status_method_response_in_controller(
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_NO_BODY)
 @pytest.mark.asyncio
 async def test_status_method_without_body_response_in_controller(
-    method, expected_status, app, mock_receive, mock_send
+    method, expected_status, app
 ):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -989,8 +966,8 @@ async def test_status_method_without_body_response_in_controller(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1000,9 +977,7 @@ async def test_status_method_without_body_response_in_controller(
 
 @pytest.mark.parametrize("method,expected_status", REDIRECT_METHODS)
 @pytest.mark.asyncio
-async def test_redirect_method_in_controller(
-    method, expected_status, app, mock_receive, mock_send
-):
+async def test_redirect_method_in_controller(method, expected_status, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -1021,8 +996,8 @@ async def test_redirect_method_in_controller(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1084,9 +1059,7 @@ async def test_view_methods_in_controller_throw_if_sys_get_frame_is_not_defined(
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
 @pytest.mark.asyncio
-async def test_json_response_in_controller(
-    obj: Any, values: Dict[str, Any], app, mock_receive, mock_send
-):
+async def test_json_response_in_controller(obj: Any, values: Dict[str, Any], app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -1099,8 +1072,8 @@ async def test_json_response_in_controller(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response
@@ -1123,7 +1096,7 @@ async def test_json_response_in_controller(
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
 @pytest.mark.asyncio
 async def test_pretty_json_response_in_controller(
-    obj: Any, values: Dict[str, Any], app, mock_receive, mock_send
+    obj: Any, values: Dict[str, Any], app
 ):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -1137,8 +1110,8 @@ async def test_pretty_json_response_in_controller(
 
     await app(
         get_example_scope("GET", "/", []),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     response = app.response

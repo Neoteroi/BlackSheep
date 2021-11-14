@@ -5,11 +5,12 @@ import jwt
 import pkg_resources
 import pytest
 from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext, UnauthorizedError
+from guardpost.authorization import AuthorizationContext, Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from pytest import raises
 
+from blacksheep.server.application import Application
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
     AuthenticationHandler,
@@ -17,13 +18,13 @@ from blacksheep.server.authentication import (
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import (
     AuthorizationWithoutAuthenticationError,
-    Policy,
     Requirement,
     allow_anonymous,
     auth,
     get_www_authenticated_header_from_generic_unauthorized_error,
 )
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_folder_path
 
 
@@ -32,6 +33,20 @@ def get_file_path(file_name, folder_name: str = "res") -> str:
 
 
 # region JWTBearer
+
+
+def test_jwt_bearer_authentication_sets_authority_as_issuer():
+    authority = "https://sts.windows.net/a2884dee-52e8-4034-8ce2-6b48e18d1ae7/"
+    auth = JWTBearerAuthentication(
+        valid_audiences=["api://0ed1cebe-b7ca-45c5-a4bf-a8d586c18d31"],
+        authority=authority,
+    )
+    assert auth._validator._valid_issuers == [authority]
+
+
+def test_jwt_bearer_authentication_throws_for_missing_issuer():
+    with pytest.raises(TypeError):
+        JWTBearerAuthentication(valid_audiences=["foo"])
 
 
 def get_test_jwks() -> JWKS:
@@ -45,7 +60,9 @@ def default_keys_provider() -> KeysProvider:
     return InMemoryKeysProvider(get_test_jwks())
 
 
-def get_access_token(kid: str, payload: Dict[str, Any]):
+def get_access_token(
+    kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = None
+):
     with open(get_file_path(f"{kid}.pem"), "r") as key_file:
         private_key = key_file.read()
 
@@ -53,7 +70,7 @@ def get_access_token(kid: str, payload: Dict[str, Any]):
         payload,
         private_key,
         algorithm="RS256",
-        headers={"kid": kid},
+        headers={"kid": kid if not fake_kid else fake_kid},
     )
 
 
@@ -105,7 +122,7 @@ class AdminsPolicy(Policy):
 
 
 @pytest.mark.asyncio
-async def test_authentication_sets_identity_in_request(app, mock_receive, mock_send):
+async def test_authentication_sets_identity_in_request(app):
     app.use_authentication().add(MockAuthHandler())
 
     identity = None
@@ -117,7 +134,7 @@ async def test_authentication_sets_identity_in_request(app, mock_receive, mock_s
         return None
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
@@ -127,7 +144,7 @@ async def test_authentication_sets_identity_in_request(app, mock_receive, mock_s
 
 
 @pytest.mark.asyncio
-async def test_authorization_unauthorized_error(app, mock_receive, mock_send):
+async def test_authorization_unauthorized_error(app):
     app.use_authentication().add(MockAuthHandler())
 
     app.use_authorization().add(AdminsPolicy())
@@ -138,13 +155,13 @@ async def test_authorization_unauthorized_error(app, mock_receive, mock_send):
         return None
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
 
 @pytest.mark.asyncio
-async def test_authorization_policy_success(app, mock_receive, mock_send):
+async def test_authorization_policy_success(app):
     admin = Identity({"id": "001", "name": "Charlie Brown", "role": "admin"}, "JWT")
 
     app.use_authentication().add(MockAuthHandler(admin))
@@ -157,13 +174,13 @@ async def test_authorization_policy_success(app, mock_receive, mock_send):
         return None
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_authorization_default_allows_anonymous(app, mock_receive, mock_send):
+async def test_authorization_default_allows_anonymous(app):
     app.use_authentication().add(MockAuthHandler())
 
     app.use_authorization().add(AdminsPolicy())
@@ -173,15 +190,13 @@ async def test_authorization_default_allows_anonymous(app, mock_receive, mock_se
         return None
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 204
 
 
 @pytest.mark.asyncio
-async def test_authorization_supports_default_require_authenticated(
-    app, mock_receive, mock_send
-):
+async def test_authorization_supports_default_require_authenticated(app):
     app.use_authentication().add(MockNotAuthHandler())
 
     app.use_authorization().add(
@@ -193,13 +208,13 @@ async def test_authorization_supports_default_require_authenticated(
         return None
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
 
 @pytest.mark.asyncio
-async def test_static_files_allow_anonymous_by_default(app, mock_receive, mock_send):
+async def test_static_files_allow_anonymous_by_default(app):
     app.use_authentication().add(MockNotAuthHandler())
 
     app.use_authorization().add(
@@ -214,11 +229,11 @@ async def test_static_files_allow_anonymous_by_default(app, mock_receive, mock_s
 
     await app.start()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
-    await app(get_example_scope("GET", "/lorem-ipsum.txt"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/lorem-ipsum.txt"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     content = await app.response.text()
@@ -226,7 +241,7 @@ async def test_static_files_allow_anonymous_by_default(app, mock_receive, mock_s
 
 
 @pytest.mark.asyncio
-async def test_static_files_support_authentication(app, mock_receive, mock_send):
+async def test_static_files_support_authentication(app):
     app.use_authentication().add(MockNotAuthHandler())
 
     app.use_authorization().add(
@@ -241,19 +256,17 @@ async def test_static_files_support_authentication(app, mock_receive, mock_send)
 
     await app.start()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
-    await app(get_example_scope("GET", "/lorem-ipsum.txt"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/lorem-ipsum.txt"), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
 
 @pytest.mark.asyncio
-async def test_static_files_support_authentication_by_route(
-    app, mock_receive, mock_send
-):
+async def test_static_files_support_authentication_by_route(app):
     app.use_authentication().add(MockNotAuthHandler())
 
     app.use_authorization().add(
@@ -269,15 +282,15 @@ async def test_static_files_support_authentication_by_route(
 
     await app.start()
 
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
-    await app(get_example_scope("GET", "/lorem-ipsum.txt"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/lorem-ipsum.txt"), MockReceive(), MockSend())
 
     assert app.response.status == 401
 
-    await app(get_example_scope("GET", "/login/index.html"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/login/index.html"), MockReceive(), MockSend())
 
     assert app.response.status == 200
     content = await app.response.text()
@@ -300,7 +313,7 @@ async def test_static_files_support_authentication_by_route(
 
 
 @pytest.mark.asyncio
-async def test_authorization_supports_allow_anonymous(app, mock_receive, mock_send):
+async def test_authorization_supports_allow_anonymous(app):
     from blacksheep.server.responses import text
 
     app.use_authentication().add(MockNotAuthHandler())
@@ -315,13 +328,13 @@ async def test_authorization_supports_allow_anonymous(app, mock_receive, mock_se
         return text("Hi There!")
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
 
 
 @pytest.mark.asyncio
-async def test_authentication_challenge_response(app, mock_receive, mock_send):
+async def test_authentication_challenge_response(app):
     app.use_authentication().add(AccessTokenCrashingHandler())
 
     app.use_authorization().add(
@@ -333,7 +346,7 @@ async def test_authentication_challenge_response(app, mock_receive, mock_send):
         return None
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
     header = app.response.get_single_header(b"WWW-Authenticate")
@@ -404,9 +417,7 @@ def test_get_www_authenticated_header_from_generic_unauthorized_error(
 
 
 @pytest.mark.asyncio
-async def test_authorization_default_requires_authenticated_user(
-    app, mock_receive, mock_send
-):
+async def test_authorization_default_requires_authenticated_user(app):
     app.use_authentication().add(MockNotAuthHandler())
 
     app.use_authorization()
@@ -421,17 +432,15 @@ async def test_authorization_default_requires_authenticated_user(
         return None
 
     app.prepare()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 
-    await app(get_example_scope("GET", "/admin"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/admin"), MockReceive(), MockSend())
     assert app.response.status == 401
 
 
 @pytest.mark.asyncio
-async def test_jwt_bearer_authentication(
-    app, mock_receive, mock_send, default_keys_provider
-):
+async def test_jwt_bearer_authentication(app, default_keys_provider):
     app.use_authentication().add(
         JWTBearerAuthentication(
             valid_audiences=["a"],
@@ -449,7 +458,7 @@ async def test_jwt_bearer_authentication(
         return None
 
     await app.start()
-    await app(get_example_scope("GET", "/"), mock_receive(), mock_send)
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
     assert app.response.status == 204
@@ -473,8 +482,8 @@ async def test_jwt_bearer_authentication(
             "/",
             extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response is not None
@@ -500,8 +509,8 @@ async def test_jwt_bearer_authentication(
             "/",
             extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response is not None
@@ -526,8 +535,8 @@ async def test_jwt_bearer_authentication(
             "/",
             extra_headers=[(b"Authorization", access_token.encode())],
         ),
-        mock_receive(),
-        mock_send,
+        MockReceive(),
+        MockSend(),
     )
 
     assert app.response is not None
@@ -535,3 +544,13 @@ async def test_jwt_bearer_authentication(
 
     assert identity is not None
     assert identity.is_authenticated() is False
+
+
+def test_set_authentication_strategy_more_than_once(app: Application):
+    auth_strategy = app.use_authentication()
+    assert app.use_authentication() is auth_strategy
+
+
+def test_set_authorization_strategy_more_than_once(app: Application):
+    auth_strategy = app.use_authorization()
+    assert app.use_authorization() is auth_strategy

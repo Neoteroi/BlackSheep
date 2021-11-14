@@ -12,9 +12,9 @@ from blacksheep.sessions import Session
 
 from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
-from .exceptions cimport BadRequestFormat
+from .exceptions cimport BadRequest, BadRequestFormat
 from .headers cimport Headers
-from .url cimport URL
+from .url cimport URL, build_absolute_url
 
 _charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
 
@@ -278,6 +278,72 @@ cdef class Request(Message):
             self._raw_query = _url.query
 
     @property
+    def identity(self):
+        return self.__dict__.get("_identity")
+
+    @identity.setter
+    def identity(self, value):
+        self.__dict__["_identity"] = value
+
+    @property
+    def scheme(self) -> str:
+        return self.__dict__.get("scheme") or (self.scope.get("scheme", "") if self.scope else "")
+
+    @scheme.setter
+    def scheme(self, value: str):
+        # this can be set, for example when handling forward headers
+        self.__dict__["scheme"] = value
+
+    @property
+    def host(self) -> str:
+        if not self.__dict__.get("host"):
+            if self._url is not None and self._url.is_absolute:
+                self.__dict__["host"] = self._url.host.decode()
+            else:
+                # default to host header
+                host_header = self.get_first_header(b'host')
+                if host_header is None:
+                    raise BadRequest("Missing Host header")
+                self.__dict__["host"] = host_header.decode()
+        return self.__dict__["host"]
+
+    @host.setter
+    def host(self, value: str) -> None:
+        # this can be set, for example when handling forward headers
+        self.__dict__["host"] = value
+
+    @property
+    def path(self) -> str:
+        return self._path.decode()
+
+    @property
+    def base_path(self) -> str:
+        return self.__dict__.get("base_path", "")
+
+    @base_path.setter
+    def base_path(self, value: str):
+        # this can be set, for example when handling forward headers
+        self.__dict__["base_path"] = value
+
+    @property
+    def client_ip(self) -> str:
+        if self.scope is None:
+            return ""
+        client_ip, client_port = self.scope.get("client", ("", 0))
+        return client_ip
+
+    @property
+    def original_client_ip(self) -> str:
+        if "original_client_ip" in self.__dict__:
+            return self.__dict__["original_client_ip"]
+
+        return self.client_ip
+
+    @original_client_ip.setter
+    def original_client_ip(self, value: str):
+        self.__dict__["original_client_ip"] = value
+
+    @property
     def session(self):
         if self._session is None:
             raise TypeError(
@@ -485,3 +551,34 @@ cpdef bint is_cors_preflight_request(Request request):
     )
 
     return bool(next_request_method)
+
+
+cdef bytes ensure_bytes(value):
+    if isinstance(value, str):
+        return value.encode()
+    if isinstance(value, bytes):
+        return value
+    raise ValueError("Input value must be bytes or str")
+
+
+cpdef URL get_request_absolute_url(Request request):
+    if request.url.is_absolute:
+        # outgoing request
+        return request.url
+
+    # incoming request
+    return build_absolute_url(
+        ensure_bytes(request.scheme),
+        ensure_bytes(request.host),
+        ensure_bytes(request.base_path),
+        request._path
+    )
+
+
+cpdef URL get_absolute_url_to_path(Request request, str path):
+    return build_absolute_url(
+        ensure_bytes(request.scheme),
+        ensure_bytes(request.host),
+        ensure_bytes(request.base_path),
+        ensure_bytes(path)
+    )

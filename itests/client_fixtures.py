@@ -37,12 +37,17 @@ def server_port():
 
 
 @pytest.fixture(scope="module")
-def session(server_host, server_port, event_loop):
+def server_url(server_host, server_port):
+    return f"http://{server_host}:{server_port}"
+
+
+@pytest.fixture(scope="module")
+def session(server_url, event_loop):
     # It is important to pass the instance of ClientConnectionPools,
     # to ensure that the connections are reused and closed
     session = ClientSession(
         loop=event_loop,
-        base_url=f"http://{server_host}:{server_port}",
+        base_url=server_url,
         pools=ClientConnectionPools(event_loop),
     )
     yield session

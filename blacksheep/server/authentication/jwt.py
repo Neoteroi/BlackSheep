@@ -1,17 +1,13 @@
-import logging
 from typing import Optional, Sequence
 
 from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity, User
+from guardpost.authentication import Identity
 from guardpost.jwks import KeysProvider
 from guardpost.jwts import InvalidAccessToken, JWTValidator
 from jwt.exceptions import InvalidTokenError
 
+from blacksheep.baseapp import get_logger
 from blacksheep.messages import Request
-
-
-def get_logger():
-    return logging.getLogger("blacksheep.server")
 
 
 class JWTBearerAuthentication(AuthenticationHandler):
@@ -22,7 +18,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
     JWTs are validated using public RSA keys, and keys can be fetched automatically from
     OpenID Connect (OIDC) discovery, if an `authority` is provided.
 
-    It is possible to use several instances of this class, to various authentication
+    It is possible to use several instances of this class, to support authentication
     through several identity providers (e.g. Azure Active Directory, Auth0, Azure Active
     Directory B2C).
     """
@@ -30,8 +26,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
     def __init__(
         self,
         *,
-        valid_issuers: Sequence[str],
         valid_audiences: Sequence[str],
+        valid_issuers: Optional[Sequence[str]] = None,
         authority: Optional[str] = None,
         require_kid: bool = True,
         keys_provider: Optional[KeysProvider] = None,
@@ -47,10 +43,12 @@ class JWTBearerAuthentication(AuthenticationHandler):
 
         Parameters
         ----------
-        valid_issuers : Sequence[str]
-            Sequence of acceptable issuers (iss).
         valid_audiences : Sequence[str]
             Sequence of acceptable audiences (aud).
+        valid_issuers : Optional[Sequence[str]]
+            Sequence of acceptable issuers (iss). Required if `authority` is not
+            provided. If authority is specified and issuers are not, then valid
+            issuers are set as [authority].
         authority : Optional[str], optional
             If provided, keys are obtained from a standard well-known endpoint.
             This parameter is ignored if `keys_provider` is given.
@@ -76,6 +74,12 @@ class JWTBearerAuthentication(AuthenticationHandler):
         """
         self.logger = get_logger()
 
+        if authority and not valid_issuers:
+            valid_issuers = [authority]
+
+        if not authority and not valid_issuers:
+            raise TypeError("Specify either an authority or valid issuers.")
+
         self._validator = JWTValidator(
             authority=authority,
             require_kid=require_kid,
@@ -92,7 +96,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:
-            context.identity = User({})
+            context.identity = Identity({})
             return None
 
         if not authorization_value.startswith(b"Bearer "):
@@ -100,7 +104,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
                 "Invalid Authorization header, not starting with `Bearer `, "
                 "the header is ignored."
             )
-            context.identity = User({})
+            context.identity = Identity({})
             return None
 
         token = authorization_value[7:].decode()
@@ -113,8 +117,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
             self.logger.error("JWT Bearer - invalid access token: %s", str(ex))
             pass
         else:
-            context.identity = User(decoded, self.auth_mode)
+            context.identity = Identity(decoded, self.auth_mode)
             return context.identity
 
-        context.identity = User({})
+        context.identity = Identity({})
         return None

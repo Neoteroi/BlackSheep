@@ -1,14 +1,16 @@
 import base64
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
-from itsdangerous import Signer, TimestampSigner
+from itsdangerous import Serializer, Signer, URLSafeTimedSerializer  # noqa
 from itsdangerous.exc import BadSignature, SignatureExpired
 
 from blacksheep.cookies import Cookie
 from blacksheep.messages import Request, Response
 from blacksheep.plugins import json as json_plugin
+from blacksheep.utils import ensure_str
 
 
 def get_logger():
@@ -104,11 +106,17 @@ class SessionMiddleware:
         *,
         session_cookie: str = "session",
         serializer: Optional[SessionSerializer] = None,
-        signer: Optional[Signer] = None,
+        signer: Optional[Serializer] = None,
         encryptor: Optional[Encryptor] = None,
         session_max_age: Optional[int] = None,
     ) -> None:
-        self._signer = signer or TimestampSigner(secret_key)
+        if encryptor is not None:
+            warnings.warn(
+                "The `encryptor` for sessions is deprecated and will be removed in "
+                "version 1.3.x.",
+                DeprecationWarning,
+            )
+        self._signer = signer or URLSafeTimedSerializer(secret_key)
         self._serializer = serializer or JSONSerializer()
         self._session_cookie = session_cookie
         self._encryptor = encryptor
@@ -131,15 +139,15 @@ class SessionMiddleware:
 
         try:
             if self.session_max_age:
-                assert isinstance(self._signer, TimestampSigner), (
+                assert isinstance(self._signer, URLSafeTimedSerializer), (
                     "To use a session_max_age, the configured signer must be of "
                     + " TimestampSigner type"
                 )
-                unsigned_value = self._signer.unsign(
+                unsigned_value = self._signer.loads(
                     raw_value, max_age=self.session_max_age
                 )
             else:
-                unsigned_value = self._signer.unsign(raw_value)
+                unsigned_value = self._signer.loads(raw_value)
         except SignatureExpired:
             self._logger.info("The session signature has expired.")
             return Session()
@@ -157,12 +165,12 @@ class SessionMiddleware:
         payload = base64.b64encode(
             self._serializer.write(session).encode("utf8")
         ).decode()
-        signed = self._signer.sign(payload)
+        signed = ensure_str(self._signer.dumps(payload))  # type: ignore
 
         if self._encryptor:
-            return self._encryptor.encrypt(signed.decode())
+            return self._encryptor.encrypt(signed)
 
-        return signed.decode()
+        return signed
 
     def prepare_cookie(self, value: str) -> Cookie:
         return Cookie(self._session_cookie, value, path="/", http_only=True)

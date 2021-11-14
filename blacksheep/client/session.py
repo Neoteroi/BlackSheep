@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response
 from blacksheep.middlewares import get_middlewares_chain
+from blacksheep.utils.aio import get_running_loop
 
 from .connection import ConnectionClosedError
 from .cookies import CookieJar, cookies_middleware
@@ -89,7 +90,7 @@ class ClientSession:
         middlewares: Optional[List[Callable[..., Any]]] = None,
     ):
         if loop is None:
-            loop = asyncio.get_event_loop()
+            loop = get_running_loop()
 
         if not pools:
             # TODO: maybe it is safer to emit a warning here,

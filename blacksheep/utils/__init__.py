@@ -8,7 +8,7 @@ def ensure_bytes(value: AnyStr) -> bytes:
     if isinstance(value, bytes):
         return value
     if isinstance(value, str):
-        return value.encode()
+        return value.encode("utf8")
     raise ValueError("Expected bytes or str")
 
 

@@ -74,11 +74,18 @@ test-cov-unit:
 
 
 test-cov:
-	pytest --cov-report html --cov=blacksheep
+	pytest --cov-report html --cov=blacksheep --disable-warnings
 
 
 lint: check-flake8 check-isort check-black
 
+format:
+	@isort blacksheep 2>&1
+	@isort tests 2>&1
+	@isort itests 2>&1
+	@black blacksheep 2>&1
+	@black tests 2>&1
+	@black itests 2>&1
 
 check-flake8:
 	@echo "$(BOLD)Checking flake8$(RESET)"
@@ -96,3 +103,5 @@ check-isort:
 check-black:  ## Run the black tool in check mode only (won't modify files)
 	@echo "$(BOLD)Checking black$(RESET)"
 	@black --check blacksheep 2>&1
+	@black --check tests 2>&1
+	@black --check itests 2>&1

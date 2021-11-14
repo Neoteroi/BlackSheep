@@ -7,6 +7,11 @@ cdef class InvalidURL(Exception):
         super().__init__(message)
 
 
+def valid_schema(schema):
+    if schema and schema != b'https' and schema != b'http':
+        raise InvalidURL(f'Expected http or https schema; got instead {schema.decode()}')
+
+
 cdef class URL:
 
     def __init__(self, bytes value):
@@ -18,8 +23,7 @@ cdef class URL:
         except errors.HttpParserInvalidURLError:
             raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()})')
         schema = parsed.schema
-        if schema and schema != b'https' and schema != b'http':
-            raise InvalidURL(f'Expected http or https schema; got instead {schema.decode()} in ({value.decode()})')
+        valid_schema(schema)
 
         self.value = value or b''
         self.schema = schema
@@ -32,6 +36,9 @@ cdef class URL:
 
     def __repr__(self):
         return f'<URL {self.value}>'
+
+    def __str__(self):
+        return self.value.decode()
 
     cpdef URL join(self, URL other):
         if other.is_absolute:
@@ -57,6 +64,21 @@ cdef class URL:
 
         return URL(base_url)
 
+    cpdef URL with_host(self, bytes host):
+        if not self.is_absolute:
+            raise TypeError("Cannot generate a URL from a partial URL")
+        query = b"?" + self.query if self.query else b""
+        fragment = b"#" + self.fragment if self.fragment else b""
+        return URL(self.schema + b"://" + host + self.path + query + fragment)
+
+    cpdef URL with_scheme(self, bytes schema):
+        valid_schema(schema)
+
+        if not self.is_absolute:
+            raise TypeError("Cannot generate a URL from a partial URL")
+
+        return URL(schema + self.value[len(self.schema):])
+
     def __add__(self, other):
         if isinstance(other, bytes):
             return self.join(URL(other))
@@ -69,3 +91,19 @@ cdef class URL:
         if isinstance(other, URL):
             return self.value == other.value
         return NotImplemented
+
+
+cpdef URL build_absolute_url(
+    bytes scheme,
+    bytes host,
+    bytes base_path,
+    bytes path
+):
+    valid_schema(scheme)
+    return URL(
+        scheme
+        + b"://"
+        + host
+        + (b"/" if base_path else b"") + base_path.lstrip(b"/").rstrip(b"/")
+        + (b"/" if path else b"") + path.lstrip(b"/")
+    )

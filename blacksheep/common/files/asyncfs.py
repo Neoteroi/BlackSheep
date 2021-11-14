@@ -1,16 +1,17 @@
-import asyncio
-from asyncio import AbstractEventLoop, BaseEventLoop
+from asyncio import AbstractEventLoop
 from concurrent.futures.thread import ThreadPoolExecutor
 from typing import IO, Any, AnyStr, AsyncIterable, Callable, Optional, Union
+
+from blacksheep.utils.aio import get_running_loop
 
 
 class PoolClient:
     def __init__(
         self,
-        loop: Optional[BaseEventLoop] = None,
+        loop: Optional[AbstractEventLoop] = None,
         executor: Optional[ThreadPoolExecutor] = None,
     ):
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop or get_running_loop()
         self._executor = executor
 
     @property
@@ -23,7 +24,11 @@ class PoolClient:
 
 class FileContext(PoolClient):
     def __init__(
-        self, file_path: str, *, loop: Optional[BaseEventLoop] = None, mode: str = "rb"
+        self,
+        file_path: str,
+        *,
+        loop: Optional[AbstractEventLoop] = None,
+        mode: str = "rb"
     ):
         super().__init__(loop)
         self._file_path = file_path
@@ -82,8 +87,10 @@ class FileContext(PoolClient):
 class FilesHandler:
     """Provides methods to handle files asynchronously."""
 
-    def open(self, file_path: str, mode: str = "rb") -> FileContext:
-        return FileContext(file_path, mode=mode)
+    def open(
+        self, file_path: str, mode: str = "rb", loop: Optional[AbstractEventLoop] = None
+    ) -> FileContext:
+        return FileContext(file_path, mode=mode, loop=loop)
 
     async def read(
         self, file_path: str, size: Optional[int] = None, mode: str = "rb"

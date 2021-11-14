@@ -79,7 +79,7 @@ def get_running_loop() -> AbstractEventLoop:  # pragma: no cover
     try:
         if sys.version_info[:2] <= (3, 7):
             # For Python 3.6
-            return asyncio._get_running_loop()
+            return asyncio._get_running_loop() or asyncio.get_event_loop()
         else:
             return asyncio.get_running_loop()
     except RuntimeError:

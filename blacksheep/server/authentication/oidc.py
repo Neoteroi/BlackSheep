@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, AnyStr, Awaitable, Callable, Dict, Literal, Optional, Sequence
+from typing import Any, AnyStr, Awaitable, Callable, Dict, Optional, Sequence
 from urllib.parse import urlencode
 
 from guardpost.authorization import UnauthorizedError
@@ -26,8 +26,6 @@ from blacksheep.server.dataprotection import generate_secret, get_serializer
 from blacksheep.server.responses import accepted, redirect
 from blacksheep.utils import ensure_str
 from blacksheep.utils.aio import FailedRequestError, HTTPHandler
-
-ResponseType = Literal["id_token", "code"]
 
 
 def get_logger() -> logging.Logger:
@@ -94,7 +92,7 @@ class OpenIDSettings:
     logout_path: str = "/sign-out"
     post_logout_redirect_path: str = "/"
     callback_path: str = "/authorization-callback"
-    response_type: ResponseType = "code"
+    response_type: str = "code"
     scope: str = "openid profile email"
     redirect_uri: Optional[str] = None
     scheme_name: str = "OpenIDConnect"

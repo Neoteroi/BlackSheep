@@ -40,6 +40,7 @@ setup(
         "blacksheep.server.authentication",
         "blacksheep.server.authorization",
         "blacksheep.server.files",
+        "blacksheep.server.remotes",
         "blacksheep.server.res",
         "blacksheep.server.openapi",
         "blacksheep.client",

@@ -1,6 +1,5 @@
 import abc
 from typing import Dict, Optional
-from urllib import parse
 
 from blacksheep.contents import Content
 from blacksheep.messages import Request
@@ -8,21 +7,17 @@ from blacksheep.server.application import Application
 from blacksheep.server.responses import Response
 from blacksheep.testing.helpers import get_example_scope
 
+from .helpers import HeadersType, QueryType
+
 
 def _create_scope(
     method: str,
     path: str,
-    headers: Optional[Dict[str, str]] = None,
-    query: Optional[Dict[str, str]] = None,
+    headers: HeadersType = None,
+    query: QueryType = None,
 ) -> Dict:
     """Creates a mocked ASGI scope"""
-    if headers is not None:
-        headers = [(key.encode(), value.encode()) for key, value in headers.items()]
-
-    query = parse.urlencode(query).encode() if query else b""
-
-    scope = get_example_scope(method, path, extra_headers=headers, query=query)
-    return scope
+    return get_example_scope(method, path, extra_headers=headers, query=query)
 
 
 class AbstractTestSimulator:
@@ -33,8 +28,8 @@ class AbstractTestSimulator:
         self,
         method: str,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Entrypoint for all HTTP methods
@@ -64,8 +59,8 @@ class TestSimulator(AbstractTestSimulator):
         self,
         method: str,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
         content: Optional[Content] = None,
     ) -> Response:
         scope = _create_scope(method, path, headers, query)

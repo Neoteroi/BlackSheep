@@ -5,7 +5,11 @@ from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
 from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
 from blacksheep.scribe import write_small_request
-from blacksheep.server.asgi import get_request_url, get_request_url_from_scope
+from blacksheep.server.asgi import (
+    get_request_url,
+    get_request_url_from_scope,
+    incoming_request,
+)
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.url import URL
 
@@ -280,10 +284,7 @@ def test_request_content_type_is_read_from_content():
     ],
 )
 def test_get_asgi_request_full_url(scope, expected_value):
-    request = Request.incoming(
-        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
-    )
-    request.scope = scope
+    request = incoming_request(scope, None)
 
     full_url = get_request_url(request)
     assert full_url == expected_value
@@ -383,10 +384,7 @@ def test_get_request_url_from_scope_raises_for_invalid_scope():
     ],
 )
 def test_get_request_absolute_url(scope, expected_value):
-    request = Request.incoming(
-        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
-    )
-    request.scope = scope
+    request = incoming_request(scope)
 
     assert request.scheme == scope["scheme"]
     assert request.host == dict(scope["headers"])[b"host"].decode()
@@ -425,10 +423,7 @@ def test_get_request_absolute_url(scope, expected_value):
     ],
 )
 def test_get_request_absolute_url_with_base_path(scope, base_path, expected_value):
-    request = Request.incoming(
-        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
-    )
-    request.scope = scope
+    request = incoming_request(scope)
 
     assert request.scheme == scope["scheme"]
     assert request.host == dict(scope["headers"])[b"host"].decode()
@@ -461,10 +456,7 @@ def test_get_request_absolute_url_with_base_path(scope, base_path, expected_valu
     ],
 )
 def test_get_request_absolute_url_to_path(scope, path, expected_result):
-    request = Request.incoming(
-        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
-    )
-    request.scope = scope
+    request = incoming_request(scope)
     url_to = get_absolute_url_to_path(request, path)
 
     assert str(url_to) == expected_result
@@ -474,10 +466,7 @@ def test_can_set_request_host_and_scheme():
     scope = get_example_scope(
         "GET", "/blacksheep/", scheme="http", server=["127.0.0.1", 80]
     )
-    request = Request.incoming(
-        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
-    )
-    request.scope = scope  # type: ignore
+    request = incoming_request(scope)
 
     request.scheme = "https"
     request.host = "neoteroi.dev"
@@ -490,10 +479,7 @@ def test_can_set_request_client_ip():
     scope = get_example_scope(
         "GET", "/blacksheep/", scheme="http", server=["127.0.0.1", 80]
     )
-    request = Request.incoming(
-        scope["method"], scope["raw_path"], scope["query_string"], scope["headers"]
-    )
-    request.scope = scope  # type: ignore
+    request = incoming_request(scope)
 
     request.client_ip == scope["client"][0]
 

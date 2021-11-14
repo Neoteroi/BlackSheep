@@ -1,9 +1,10 @@
-from typing import Dict, Optional
+from typing import Optional
 
 from blacksheep.contents import Content
 from blacksheep.server.application import Application
 from blacksheep.server.responses import Response
 from blacksheep.testing.simulator import AbstractTestSimulator, TestSimulator
+from .helpers import QueryType, HeadersType
 
 
 class TestClient:
@@ -19,8 +20,8 @@ class TestClient:
     async def get(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
     ) -> Response:
         """Simulates HTTP GET method"""
         return await self._test_simulator.send_request(
@@ -34,8 +35,8 @@ class TestClient:
     async def post(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP POST method"""
@@ -50,8 +51,8 @@ class TestClient:
     async def patch(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP PATCH method"""
@@ -66,8 +67,8 @@ class TestClient:
     async def put(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP PUT method"""
@@ -82,8 +83,8 @@ class TestClient:
     async def delete(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
         content: Optional[Content] = None,
     ) -> Response:
         """Simulates HTTP DELETE method"""
@@ -98,8 +99,8 @@ class TestClient:
     async def options(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
     ) -> Response:
         """Simulates HTTP OPTIONS method"""
         return await self._test_simulator.send_request(
@@ -113,8 +114,8 @@ class TestClient:
     async def head(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
     ) -> Response:
         """Simulates HTTP HEAD method"""
         return await self._test_simulator.send_request(
@@ -128,8 +129,8 @@ class TestClient:
     async def trace(
         self,
         path: str,
-        headers: Optional[Dict[str, str]] = None,
-        query: Optional[Dict[str, str]] = None,
+        headers: HeadersType = None,
+        query: QueryType = None,
     ) -> Response:
         """Simulates HTTP TRACE method"""
         return await self._test_simulator.send_request(

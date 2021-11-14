@@ -47,7 +47,9 @@ def default_keys_provider() -> KeysProvider:
     return InMemoryKeysProvider(get_test_jwks())
 
 
-def get_access_token(kid: str, payload: Dict[str, Any]):
+def get_access_token(
+    kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = None
+):
     with open(get_file_path(f"{kid}.pem"), "r") as key_file:
         private_key = key_file.read()
 
@@ -55,7 +57,7 @@ def get_access_token(kid: str, payload: Dict[str, Any]):
         payload,
         private_key,
         algorithm="RS256",
-        headers={"kid": kid},
+        headers={"kid": kid if not fake_kid else fake_kid},
     )
 
 

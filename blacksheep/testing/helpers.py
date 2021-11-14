@@ -1,4 +1,5 @@
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
+from urllib.parse import urlencode
 
 _DEFAULT_AGENT = (
     b"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0"
@@ -18,12 +19,16 @@ def _get_tuple(value: Union[List, Tuple[str, int]]) -> Tuple[str, int]:
     return tuple(value)  # type: ignore
 
 
+HeadersType = Union[None, Sequence[Tuple[bytes, bytes]], Dict[str, str]]
+QueryType = Union[None, bytes, str, dict, list]
+
+
 def get_example_scope(
     method: str,
     path: str,
-    extra_headers: Optional[Sequence[Tuple[bytes, bytes]]] = None,
+    extra_headers: HeadersType = None,
     *,
-    query: Optional[bytes] = b"",
+    query: QueryType = None,
     scheme: str = "http",
     server: Union[List, Tuple[str, int]] = None,
     client: Union[List, Tuple[str, int]] = None,
@@ -32,10 +37,13 @@ def get_example_scope(
     accept_language: bytes = _DEFAULT_ACCEPT_LANGUAGE,
     accept_encoding: bytes = _DEFAULT_ACCEPT_ENCODING,
 ):
-    """Returns mocked ASGI scope"""
+    """Returns a mocked ASGI scope"""
 
     if "?" in path:
-        raise ValueError("The path in ASGI messages does not contain query string")
+        raise ValueError(
+            "The path in ASGI messages does not contain query string, "
+            "use the `query` parameter"
+        )
 
     if server is None:
         server = ("127.0.0.1", 8000)
@@ -57,6 +65,22 @@ def get_example_scope(
 
     host = f"{server[0]}{port_part}"
 
+    if isinstance(extra_headers, dict):
+        extra_headers = [
+            (key.encode(), value.encode()) for key, value in extra_headers.items()
+        ]
+
+    query_string: bytes = b""
+    if query:
+        if isinstance(query, list):
+            query = dict(query)
+        if isinstance(query, dict):
+            query_string = urlencode(query).encode()
+        if isinstance(query, str):
+            query_string = query.encode()
+        if isinstance(query, bytes):
+            query_string = query
+
     return {
         "type": scheme,
         "http_version": "1.1",
@@ -67,7 +91,7 @@ def get_example_scope(
         "root_path": "",
         "path": path,
         "raw_path": path.encode(),
-        "query_string": query,
+        "query_string": query_string,
         "headers": [
             (b"host", host.encode()),
             (b"user-agent", user_agent),

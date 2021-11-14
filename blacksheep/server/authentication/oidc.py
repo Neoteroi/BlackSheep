@@ -565,9 +565,7 @@ class OpenIDConnectHandler:
                 if not id_token and token_response.id_token:
                     id_token = token_response.id_token
             else:
-                raise OpenIDConnectError(
-                    "Expected either an error, an id_token, or a code."
-                )
+                raise BadRequest("Expected either an error, an id_token, or a code.")
 
         if not isinstance(id_token, str):
             # This can happen legitimately if OIDC settings are configured to retrieve

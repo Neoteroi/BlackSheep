@@ -2,16 +2,7 @@ import asyncio
 from typing import Any, Dict, List, Optional, Union
 
 
-class MockMessage:
-    """
-    Class used to mock an exact message from an ASGI framework.
-    """
-
-    def __init__(self, value: Dict[str, Any]):
-        self.value = value
-
-
-MessageType = Union[MockMessage, bytes, Dict[str, Any]]
+MessageType = Union[bytes, Dict[str, Any]]
 
 
 class MockReceive:
@@ -43,8 +34,6 @@ class MockReceive:
             message = b""
         if isinstance(message, dict):
             return message
-        if isinstance(message, MockMessage):
-            return message.value
         self.index += 1
         await asyncio.sleep(0)
         return {

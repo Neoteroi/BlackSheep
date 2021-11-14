@@ -90,8 +90,17 @@ async def test_client_content(test_app):
     assert actual_json_response == expected_json_response
 
 
+@pytest.mark.parametrize(
+    "input_query",
+    [
+        {"foo": "bar"},
+        [(b"foo", b"bar")],
+        "foo=bar",
+        b"foo=bar",
+    ],
+)
 @pytest.mark.asyncio
-async def test_client_queries(test_app):
+async def test_client_queries(test_app, input_query):
     @test_app.route("/")
     async def home(request):
         return request.query
@@ -99,7 +108,7 @@ async def test_client_queries(test_app):
     await _start_application(test_app)
 
     test_client = TestClient(test_app)
-    response = await test_client.get("/", query={"foo": "bar"})
+    response = await test_client.get("/", query=input_query)
 
     actual_response = await response.json()
     expected_response = {"foo": ["bar"]}

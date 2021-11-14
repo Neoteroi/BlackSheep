@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.1] - 2021-??-?? :shield:
+## [1.2.1] - 2021-11-14 :shield:
 - Adds built-in support to `JWT` bearer authentication, and validation
   of `JWTs` issued by identity providers implementing **OpenID Connect (OIDC)**
   discovery `/.well-known/openid-configuration` (more in general, for JWTs
@@ -15,11 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds built-in handling of `X-Forwarded` and `Forwarded` headers with
   validation, including handling of trusted hosts
 - Adds a `TrustedHostsMiddleware` that can be used to validate hosts
+- Adds methods to obtain the request full URL, handling forward headers
 - Adds an extensibility point that enables sorting of middlewares before they
   are applied on the application
 - Fixes #199
 - Downgrades `httptools` dependency to version `>=0.2,<0.4`
-- Adds some improvements to the testing `get_example_scope` method
+- Adds some improvements to the `testing` module
 - Upgrades `itsdangerous` to version `~=2.0.1`
 
 ## [1.2.0] - 2021-10-24 📦

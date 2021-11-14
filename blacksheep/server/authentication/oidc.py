@@ -324,7 +324,7 @@ class CookiesTokensStore(BaseTokensStore):
 
     def __init__(
         self,
-        scheme_name: str,
+        scheme_name: str = "OpenIDConnect",
         secret_keys: Optional[Sequence[str]] = None,
         serializer: Optional[Serializer] = None,
     ) -> None:

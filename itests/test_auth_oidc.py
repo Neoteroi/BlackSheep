@@ -755,9 +755,18 @@ async def test_oidc_handler_auth_post_id_token_code_3(app: FakeApplication):
 async def test_cookies_tokens_store_restoring_context(
     app: FakeApplication,
 ):
-    oidc = configure_test_oidc_with_secret(app)
-    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+    oidc = use_openid_connect(
+        app,
+        OpenIDSettings(
+            client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
+            client_secret="JUST_AN_EXAMPLE",
+            authority=MOCKED_AUTHORITY,
+        ),
+        tokens_store=CookiesTokensStore(),
+    )
+    assert oidc.tokens_store in app.middlewares
 
+    assert isinstance(oidc.tokens_store, CookiesTokensStore)
     access_token = oidc.tokens_store.serializer.dumps("secret")
     refresh_token = oidc.tokens_store.serializer.dumps("secret-refresh")
 
@@ -775,6 +784,24 @@ async def test_cookies_tokens_store_restoring_context(
 
     request.identity = Identity({})
     await oidc.tokens_store.restore_tokens(request)
+
+    assert request.identity.access_token == "secret"
+    assert request.identity.refresh_token == "secret-refresh"
+
+    request = incoming_request(
+        get_example_scope(
+            "GET",
+            "/",
+            cookies={scheme + ".at": access_token, scheme + ".rt": refresh_token},
+        )
+    )
+
+    request.identity = Identity({})
+
+    async def handler(*args):
+        pass
+
+    await oidc.tokens_store(request, handler)  # middleware way
 
     assert request.identity.access_token == "secret"
     assert request.identity.refresh_token == "secret-refresh"

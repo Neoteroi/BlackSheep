@@ -38,7 +38,7 @@ from blacksheep.server.responses import (
 )
 from blacksheep.server.routing import RoutesRegistry
 from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockSend, MockReceive
+from blacksheep.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_file_path
 
 STATUS_METHODS_OPTIONAL_BODY = [

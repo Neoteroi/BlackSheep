@@ -1,8 +1,6 @@
 from typing import Dict, List, Sequence, Tuple, Union
 from urllib.parse import quote, urlencode
 
-from blacksheep.utils import ensure_bytes
-
 _DEFAULT_AGENT = (
     b"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0"
 )

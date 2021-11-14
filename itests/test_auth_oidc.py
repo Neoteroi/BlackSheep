@@ -5,9 +5,9 @@ authorization server in a running Flask server.
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
 from urllib.parse import parse_qs, urlencode
-from guardpost.authentication import Identity
 
 import pytest
+from guardpost.authentication import Identity
 from guardpost.authorization import Policy
 from guardpost.common import AuthenticatedRequirement
 

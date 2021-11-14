@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Downgrades `httptools` dependency to version `>=0.2,<0.4`
 - Adds some improvements to the `testing` module
 - Upgrades `itsdangerous` to version `~=2.0.1`
+- Deprecates the `encryptor` option for sessions, applies `itsdangerous`
+  `Serializer` by default
 
 ## [1.2.0] - 2021-10-24 📦
 - Includes `Python 3.10` in the CI/CD matrix

@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Optional
 
 import pytest
 
@@ -10,10 +10,10 @@ from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.responses import Response
 from blacksheep.testing import AbstractTestSimulator, TestClient
 from blacksheep.testing.helpers import (
-    get_example_scope,
     CookiesType,
     HeadersType,
     QueryType,
+    get_example_scope,
 )
 
 

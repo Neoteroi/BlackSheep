@@ -204,13 +204,7 @@ async def test_session_middleware_basics(app):
     cookie = parse_cookie(session_set_cookie)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
         MockReceive(),
         MockSend(),
     )
@@ -264,13 +258,7 @@ async def test_session_middleware_use_method(app):
     cookie = parse_cookie(session_set_cookie)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
         MockReceive(),
         MockSend(),
     )
@@ -328,13 +316,7 @@ async def test_session_middleware_with_encryptor(app):
     cookie = parse_cookie(session_set_cookie)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
         MockReceive(),
         MockSend(),
     )
@@ -368,13 +350,7 @@ async def test_session_middleware_handling_of_invalid_signature(app):
     forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
 
     await app(
-        get_example_scope(
-            "GET",
-            "/",
-            [
-                [b"cookie", b"session=" + forged_cookie.encode()],
-            ],
-        ),
+        get_example_scope("GET", "/", {"cookie": f"session={forged_cookie}"}),
         MockReceive(),
         MockSend(),
     )
@@ -426,13 +402,7 @@ async def test_session_middleware_handling_of_expired_signature(app):
     time.sleep(2)
 
     await app(
-        get_example_scope(
-            "GET",
-            "/second",
-            [
-                [b"cookie", b"session=" + cookie.value.encode()],
-            ],
-        ),
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
         MockReceive(),
         MockSend(),
     )
@@ -472,13 +442,7 @@ async def test_session_middleware_handling_of_invalid_encrypted_signature(app):
     forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
 
     await app(
-        get_example_scope(
-            "GET",
-            "/",
-            [
-                [b"cookie", b"session=" + forged_cookie.encode()],
-            ],
-        ),
+        get_example_scope("GET", "/", {"cookie": f"session={forged_cookie}"}),
         MockReceive(),
         MockSend(),
     )

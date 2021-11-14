@@ -9,8 +9,8 @@ from guardpost.authorization import AuthorizationContext, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from pytest import raises
-from blacksheep.server.application import Application
 
+from blacksheep.server.application import Application
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
     AuthenticationHandler,

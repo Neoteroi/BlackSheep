@@ -1,7 +1,6 @@
 import asyncio
 from typing import Any, Dict, List, Optional, Union
 
-
 MessageType = Union[bytes, Dict[str, Any]]
 
 

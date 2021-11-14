@@ -79,6 +79,11 @@ test-cov:
 
 lint: check-flake8 check-isort check-black
 
+format:
+	@isort blacksheep 2>&1
+	@isort tests 2>&1
+	@isort itests 2>&1
+	@black blacksheep 2>&1
 
 check-flake8:
 	@echo "$(BOLD)Checking flake8$(RESET)"

@@ -425,7 +425,7 @@ async def test_controller_on_request_setting_identity(app):
         async def index(self, request: Request, user: Optional[User]):
             assert hasattr(request, "identity")
             assert isinstance(request.identity, User)
-            return text(request.identity.name)
+            return text(request.identity["name"])
 
     app.setup_controllers()
 

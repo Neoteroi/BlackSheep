@@ -96,13 +96,13 @@ class CookieAuthentication(AuthenticationHandler):
         """
         Sets the user context, when user's data was parsed and validated from a cookie.
         """
-        context.identity = User(data, self.auth_scheme)
+        context.identity = Identity(data, self.auth_scheme)
 
     async def authenticate(self, context: Request) -> Optional[Identity]:
         cookie = context.get_cookie(self.cookie_name)
 
         if cookie is None:
-            context.identity = User({})
+            context.identity = Identity({})
         else:
             try:
                 value = self.serializer.loads(cookie)
@@ -111,7 +111,7 @@ class CookieAuthentication(AuthenticationHandler):
                     "Cookie authentication failed (%s), invalid signature.",
                     self.cookie_name,
                 )
-                context.identity = User({})
+                context.identity = Identity({})
             else:
                 self.set_user_context(context, value)
         return None

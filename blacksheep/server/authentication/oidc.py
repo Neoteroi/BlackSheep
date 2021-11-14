@@ -420,9 +420,9 @@ class CookiesTokensStore(BaseTokensStore):
             else:
                 if request.identity:
                     if token_type == TokenType.ACCESS_TOKEN:
-                        request.identity.access_token = value  # type: ignore
+                        request.identity.access_token = value
                     elif token_type == TokenType.REFRESH_TOKEN:
-                        request.identity.refresh_token = value  # type: ignore
+                        request.identity.refresh_token = value
         return None
 
 

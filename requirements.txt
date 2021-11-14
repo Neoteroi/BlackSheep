@@ -16,7 +16,7 @@ entrypoints==0.3
 essentials==1.1.4
 essentials-openapi==0.1.4
 flake8==3.7.9
-guardpost~=0.0.8
+guardpost~=0.0.9
 Flask==2.0.2
 h11==0.11.0
 httptools>=0.2,<0.4

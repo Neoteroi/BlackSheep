@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 
 import pytest
-from guardpost import User
+from guardpost import Identity
 
 from blacksheep.messages import Request, Response
 from blacksheep.server.authentication.cookie import CookieAuthentication
@@ -41,10 +41,10 @@ async def test_cookie_authentication():
 
     await handler.authenticate(request)
 
-    assert isinstance(request.identity, User)
+    assert isinstance(request.identity, Identity)
     assert request.identity.is_authenticated() is True
     assert request.identity.authentication_mode == handler.auth_scheme
-    assert request.identity.email == "example@neoteroi.dev"
+    assert request.identity.claims.get("email") == "example@neoteroi.dev"
 
 
 @pytest.mark.asyncio

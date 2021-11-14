@@ -278,6 +278,14 @@ cdef class Request(Message):
             self._raw_query = _url.query
 
     @property
+    def identity(self):
+        return self.__dict__.get("_identity")
+
+    @identity.setter
+    def identity(self, value):
+        self.__dict__["_identity"] = value
+
+    @property
     def scheme(self) -> str:
         return self.__dict__.get("scheme") or (self.scope.get("scheme", "") if self.scope else "")
 

@@ -1,7 +1,7 @@
 from typing import Optional, Sequence
 
 from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity, User
+from guardpost.authentication import Identity
 from guardpost.jwks import KeysProvider
 from guardpost.jwts import InvalidAccessToken, JWTValidator
 from jwt.exceptions import InvalidTokenError
@@ -88,7 +88,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:
-            context.identity = User({})
+            context.identity = Identity({})
             return None
 
         if not authorization_value.startswith(b"Bearer "):
@@ -96,7 +96,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
                 "Invalid Authorization header, not starting with `Bearer `, "
                 "the header is ignored."
             )
-            context.identity = User({})
+            context.identity = Identity({})
             return None
 
         token = authorization_value[7:].decode()
@@ -109,8 +109,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
             self.logger.error("JWT Bearer - invalid access token: %s", str(ex))
             pass
         else:
-            context.identity = User(decoded, self.auth_mode)
+            context.identity = Identity(decoded, self.auth_mode)
             return context.identity
 
-        context.identity = User({})
+        context.identity = Identity({})
         return None

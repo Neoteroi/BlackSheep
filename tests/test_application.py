@@ -3596,10 +3596,7 @@ async def test_app_with_mounts_handles_on_start_error_asgi_lifespan(app: Applica
     app.on_start += before_start
 
     mock_receive = MockReceive(
-        [
-            {"type": "lifespan.startup"},
-            {"type": "lifespan.shutdown"}
-        ]
+        [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
     )
     mock_send = MockSend()
 

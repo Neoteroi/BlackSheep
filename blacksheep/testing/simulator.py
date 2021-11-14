@@ -7,7 +7,7 @@ from blacksheep.server.application import Application
 from blacksheep.server.responses import Response
 from blacksheep.testing.helpers import get_example_scope
 
-from .helpers import HeadersType, QueryType
+from .helpers import CookiesType, HeadersType, QueryType
 
 
 def _create_scope(
@@ -15,9 +15,12 @@ def _create_scope(
     path: str,
     headers: HeadersType = None,
     query: QueryType = None,
+    cookies: CookiesType = None,
 ) -> Dict:
     """Creates a mocked ASGI scope"""
-    return get_example_scope(method, path, extra_headers=headers, query=query)
+    return get_example_scope(
+        method, path, extra_headers=headers, query=query, cookies=cookies
+    )
 
 
 class AbstractTestSimulator:
@@ -31,6 +34,7 @@ class AbstractTestSimulator:
         headers: HeadersType = None,
         query: QueryType = None,
         content: Optional[Content] = None,
+        cookies: CookiesType = None,
     ) -> Response:
         """Entrypoint for all HTTP methods
 
@@ -62,8 +66,9 @@ class TestSimulator(AbstractTestSimulator):
         headers: HeadersType = None,
         query: QueryType = None,
         content: Optional[Content] = None,
+        cookies: CookiesType = None,
     ) -> Response:
-        scope = _create_scope(method, path, headers, query)
+        scope = _create_scope(method, path, headers, query, cookies=cookies)
         request = Request.incoming(
             scope["method"],
             scope["raw_path"],

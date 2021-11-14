@@ -1,5 +1,7 @@
-from typing import Dict, List, Optional, Sequence, Tuple, Union
-from urllib.parse import urlencode
+from typing import Dict, List, Sequence, Tuple, Union
+from urllib.parse import quote, urlencode
+
+from blacksheep.utils import ensure_bytes
 
 _DEFAULT_AGENT = (
     b"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0"
@@ -20,6 +22,7 @@ def _get_tuple(value: Union[List, Tuple[str, int]]) -> Tuple[str, int]:
 
 
 HeadersType = Union[None, Sequence[Tuple[bytes, bytes]], Dict[str, str]]
+CookiesType = Union[None, Sequence[Tuple[bytes, bytes]], Dict[str, str]]
 QueryType = Union[None, bytes, str, dict, list]
 
 
@@ -36,9 +39,9 @@ def get_example_scope(
     accept: bytes = _DEFAULT_ACCEPT,
     accept_language: bytes = _DEFAULT_ACCEPT_LANGUAGE,
     accept_encoding: bytes = _DEFAULT_ACCEPT_ENCODING,
+    cookies: CookiesType = None,
 ):
     """Returns a mocked ASGI scope"""
-
     if "?" in path:
         raise ValueError(
             "The path in ASGI messages does not contain query string, "
@@ -81,6 +84,34 @@ def get_example_scope(
         if isinstance(query, bytes):
             query_string = query
 
+    cookies_headers: List[Tuple[bytes, bytes]] = []
+
+    if cookies:
+        if isinstance(cookies, list):
+            cookies_headers = [
+                (b"cookie", quote(key).encode() + b"=" + quote(value).encode())
+                for key, value in cookies
+            ]
+        elif isinstance(cookies, dict):
+            cookies_headers = [
+                (b"cookie", quote(key).encode() + b"=" + quote(value).encode())
+                for key, value in cookies.items()
+            ]
+
+    headers = (
+        [
+            (b"host", host.encode()),
+            (b"user-agent", user_agent),
+            (b"accept", accept),
+            (b"accept-language", accept_language),
+            (b"accept-encoding", accept_encoding),
+            (b"connection", b"keep-alive"),
+            (b"upgrade-insecure-requests", b"1"),
+        ]
+        + ([tuple(header) for header in extra_headers] if extra_headers else [])
+        + cookies_headers
+    )
+
     return {
         "type": scheme,
         "http_version": "1.1",
@@ -92,14 +123,5 @@ def get_example_scope(
         "path": path,
         "raw_path": path.encode(),
         "query_string": query_string,
-        "headers": [
-            (b"host", host.encode()),
-            (b"user-agent", user_agent),
-            (b"accept", accept),
-            (b"accept-language", accept_language),
-            (b"accept-encoding", accept_encoding),
-            (b"connection", b"keep-alive"),
-            (b"upgrade-insecure-requests", b"1"),
-        ]
-        + ([tuple(header) for header in extra_headers] if extra_headers else []),
+        "headers": headers,
     }

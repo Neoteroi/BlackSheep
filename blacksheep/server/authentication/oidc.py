@@ -6,6 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from typing import Any, AnyStr, Awaitable, Callable, Dict, Literal, Optional, Sequence
 from urllib.parse import urlencode
 
@@ -305,6 +306,11 @@ class BaseTokensStore(ABC):
         """
 
 
+class TokenType(Enum):
+    ACCESS_TOKEN = "access_token"
+    REFRESH_TOKEN = "refresh_token"
+
+
 class CookiesTokensStore(BaseTokensStore):
     """
     A class that can store access and refresh tokens in encrypted form in cookies.
@@ -368,8 +374,12 @@ class CookiesTokensStore(BaseTokensStore):
             )
 
     async def restore_tokens(self, request: Request) -> None:
-        await self._restore_token(request, self._access_token_cookie_name)
-        await self._restore_token(request, self._refresh_token_cookie_name)
+        await self._restore_token(
+            request, self._access_token_cookie_name, TokenType.ACCESS_TOKEN
+        )
+        await self._restore_token(
+            request, self._refresh_token_cookie_name, TokenType.REFRESH_TOKEN
+        )
 
     def set_cookie(
         self,
@@ -380,7 +390,6 @@ class CookiesTokensStore(BaseTokensStore):
         expires: Optional[datetime] = None,
     ) -> None:
         value = self.serializer.dumps(data)  # type: ignore
-        logger.debug("Cookie length: %s", len(value))
         response.set_cookie(
             Cookie(
                 cookie_name,
@@ -393,14 +402,16 @@ class CookiesTokensStore(BaseTokensStore):
             )
         )
 
-    async def _restore_token(self, request: Request, cookie_name: str) -> None:
+    async def _restore_token(
+        self, request: Request, cookie_name: str, token_type: TokenType
+    ) -> None:
         cookie = request.get_cookie(cookie_name)
 
         if cookie is None:
             pass
         else:
             try:
-                value = self.serializer.loads(cookie_name)
+                value = self.serializer.loads(cookie)
             except BadSignature:
                 logger.debug(
                     "Discarding token (%s), invalid signature.",
@@ -408,7 +419,10 @@ class CookiesTokensStore(BaseTokensStore):
                 )
             else:
                 if request.identity:
-                    request.identity.access_token = value  # type: ignore
+                    if token_type == TokenType.ACCESS_TOKEN:
+                        request.identity.access_token = value  # type: ignore
+                    elif token_type == TokenType.REFRESH_TOKEN:
+                        request.identity.refresh_token = value  # type: ignore
         return None
 
 

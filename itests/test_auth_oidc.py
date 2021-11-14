@@ -5,6 +5,7 @@ authorization server in a running Flask server.
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
 from urllib.parse import parse_qs, urlencode
+from guardpost.authentication import Identity
 
 import pytest
 from guardpost.authorization import Policy
@@ -512,6 +513,45 @@ async def test_raises_for_failure_in_exchange_token(app: FakeApplication):
 
 
 @pytest.mark.asyncio
+async def test_refresh_token(app: FakeApplication):
+    oidc = configure_test_oidc_with_secret(app)
+
+    async def mocked_post_form(*args):
+        return {"access_token": "example AT", "refresh_token": "example RT"}
+
+    oidc._http_handler.post_form = mocked_post_form
+
+    token_response = await oidc.refresh_token("example")
+    assert token_response.access_token == "example AT"
+    assert token_response.refresh_token == "example RT"
+
+
+@pytest.mark.asyncio
+async def test_raises_for_failure_in_refresh_token(app: FakeApplication):
+    oidc = configure_test_oidc_with_secret(app)
+
+    async def mocked_post_form(*args):
+        raise FailedRequestError(-1, "Connection refused")
+
+    oidc._http_handler.post_form = mocked_post_form
+
+    with pytest.raises(OpenIDConnectFailedExchangeError):
+        await oidc.refresh_token("example")
+
+
+@pytest.mark.asyncio
+async def test_uses_settings_redirect_error_if_set(app: FakeApplication):
+    oidc = configure_test_oidc_with_secret(app)
+    oidc.settings.error_redirect_path = "/error-foo"
+
+    response = await oidc.handle_error(
+        Request("GET", b"/", None), {"error": "access_denied"}
+    )
+    assert response.status == 302
+    assert response.headers.get_single(b"location").startswith(b"/error-foo")
+
+
+@pytest.mark.asyncio
 async def test_raises_for_invalid_id_token(app: FakeApplication):
     """
     Tests handling of forged id_token.
@@ -551,6 +591,15 @@ def test_parameters_builder_raises_for_missing_secret():
 
     with pytest.raises(MissingClientSecretSettingError):
         builder.build_refresh_token_parameters("foo")
+
+
+def test_parameters_builder_raises_for_invalid_state():
+    builder = ParametersBuilder(OpenIDSettings(client_id="1"))
+
+    with pytest.raises(BadRequest) as bad_request:
+        builder.read_state("invalid")
+
+    assert str(bad_request.value) == "Invalid state"
 
 
 @pytest.mark.asyncio
@@ -700,6 +749,82 @@ async def test_oidc_handler_auth_post_id_token_code_3(app: FakeApplication):
 
     scheme = oidc.settings.scheme_name.lower()
     assert names == {scheme, f"{scheme}.at", f"{scheme}.rt"}
+
+
+@pytest.mark.asyncio
+async def test_cookies_tokens_store_restoring_context(
+    app: FakeApplication,
+):
+    oidc = configure_test_oidc_with_secret(app)
+    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+
+    access_token = oidc.tokens_store.serializer.dumps("secret")
+    refresh_token = oidc.tokens_store.serializer.dumps("secret-refresh")
+
+    assert isinstance(access_token, str)
+    assert isinstance(refresh_token, str)
+
+    scheme = oidc.settings.scheme_name.lower()
+    request = incoming_request(
+        get_example_scope(
+            "GET",
+            "/",
+            cookies={scheme + ".at": access_token, scheme + ".rt": refresh_token},
+        )
+    )
+
+    request.identity = Identity({})
+    await oidc.tokens_store.restore_tokens(request)
+
+    assert request.identity.access_token == "secret"
+    assert request.identity.refresh_token == "secret-refresh"
+
+
+@pytest.mark.asyncio
+async def test_cookies_tokens_store_discards_invalid_tokens(
+    app: FakeApplication,
+):
+    oidc = configure_test_oidc_with_secret(app)
+    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+
+    access_token = "invalid"
+    refresh_token = "invalid"
+
+    scheme = oidc.settings.scheme_name.lower()
+    request = incoming_request(
+        get_example_scope(
+            "GET",
+            "/",
+            cookies={scheme + ".at": access_token, scheme + ".rt": refresh_token},
+        )
+    )
+
+    request.identity = Identity({})
+    await oidc.tokens_store.restore_tokens(request)
+
+    assert getattr(request.identity, "access_token", None) is None
+    assert getattr(request.identity, "refresh_token", None) is None
+
+
+@pytest.mark.asyncio
+async def test_cookies_tokens_store_handle_missing_cookies(
+    app: FakeApplication,
+):
+    oidc = configure_test_oidc_with_secret(app)
+    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+
+    request = incoming_request(
+        get_example_scope(
+            "GET",
+            "/",
+        )
+    )
+
+    request.identity = Identity({})
+    await oidc.tokens_store.restore_tokens(request)
+
+    assert getattr(request.identity, "access_token", None) is None
+    assert getattr(request.identity, "refresh_token", None) is None
 
 
 @pytest.mark.asyncio

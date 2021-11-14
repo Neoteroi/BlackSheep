@@ -303,6 +303,10 @@ class BaseTokensStore(ABC):
         the given request.
         """
 
+    async def __call__(self, request: Request, handler):
+        await self.restore_tokens(request)
+        return await handler(request)
+
 
 class TokenType(Enum):
     ACCESS_TOKEN = "access_token"
@@ -756,5 +760,8 @@ def use_openid_connect(
         @app.on_middlewares_configuration
         def insert_challenge_middleware(app):
             app.middlewares.insert(0, ChallengeMiddleware(handler.redirect_to_sign_in))
+
+    if tokens_store:
+        app.middlewares.append(tokens_store)
 
     return handler

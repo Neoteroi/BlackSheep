@@ -167,20 +167,18 @@ async def only_for_authenticated_users():
     ...
 ```
 
-Moreover, since version `1.2.1`, BlackSheep implements built-in support for
-**advanced authentication features** :gem: :
+Since version `1.2.1`, BlackSheep implements:
 
 * [Built-in support for OpenID Connect authentication](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
 * [Built-in support for JWT Bearer authentication](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
 
-Meaning that it makes it extremely easy to integrate with services such as:
+Meaning that it is extremely easy to integrate with services such as:
 * [Auth0](https://auth0.com)
 * [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/)
 * [Azure Active Directory B2C](https://docs.microsoft.com/en-us/azure/active-directory-b2c/overview)
 * [Okta](https://www.okta.com)
 
-To handle users' authentication, sign-in, and authorization. Refer to the
-documentation for more details and examples.
+Refer to the documentation for more details and examples.
 
 ## Web framework features
 * [ASGI compatibility](https://www.neoteroi.dev/blacksheep/asgi/)

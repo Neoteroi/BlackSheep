@@ -77,7 +77,7 @@ To run for production, refer to the documentation of the chosen ASGI server
 (i.e. for [uvicorn](https://www.uvicorn.org/#running-with-gunicorn)).
 
 ## Automatic bindings and dependency injection
-BlackSheep supports automatic binding of values for request handlers by type
+BlackSheep supports automatic binding of values for request handlers, by type
 annotation or by conventions. See [more
 here](https://www.neoteroi.dev/blacksheep/requests/).
 
@@ -167,6 +167,21 @@ async def only_for_authenticated_users():
     ...
 ```
 
+Moreover, since version `1.2.1`, BlackSheep implements built-in support for
+**advanced authentication features** :gem: :
+
+* [Built-in support for OpenID Connect authentication](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
+* [Built-in support for JWT Bearer authentication](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
+
+Meaning that it makes it extremely easy to integrate with services such as:
+* [Auth0](https://auth0.com)
+* [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/)
+* [Azure Active Directory B2C](https://docs.microsoft.com/en-us/azure/active-directory-b2c/overview)
+* [Okta](https://www.okta.com)
+
+To handle users' authentication, sign-in, and authorization. Refer to the
+documentation for more details and examples.
+
 ## Web framework features
 * [ASGI compatibility](https://www.neoteroi.dev/blacksheep/asgi/)
 * [Routing](https://www.neoteroi.dev/blacksheep/routing/)
@@ -183,6 +198,8 @@ async def only_for_authenticated_users():
   exceptions](https://www.neoteroi.dev/blacksheep/application/#configuring-exceptions-handlers)
 * [Strategy to handle authentication and
   authorization](https://www.neoteroi.dev/blacksheep/authentication/)
+* [Built-in support for OpenID Connect authentication using OIDC
+  discovery](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
 * [Built-in support for JWT Bearer authentication using OIDC discovery and
   other sources of
   JWKS](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)

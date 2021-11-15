@@ -132,7 +132,12 @@ class ParametersBuilder:
         return self._settings.scope
 
     def get_state(self, request: Request) -> Dict[str, str]:
-        return {"orig_path": _get_desired_path(request), "nonce": generate_secret(8)}
+        desired_path = (
+            "/"
+            if request.path == self._settings.entry_path
+            else _get_desired_path(request)
+        )
+        return {"orig_path": desired_path, "nonce": generate_secret(8)}
 
     def read_state(self, state: str) -> Dict[str, str]:
         try:
@@ -356,21 +361,19 @@ class CookiesTokensStore(BaseTokensStore):
         expires: Optional[datetime] = None,
     ) -> None:
         secure = request.scheme == "https"
-        signed_access_token = self.serializer.dumps(access_token)
         self.set_cookie(
             response,
             self._access_token_cookie_name,
-            ensure_str(signed_access_token),  # type: ignore
+            access_token,
             secure=secure,
             expires=expires,
         )
 
         if refresh_token:
-            signed_refresh_token = self.serializer.dumps(refresh_token)
             self.set_cookie(
                 response,
                 self._refresh_token_cookie_name,
-                signed_refresh_token,  # type: ignore
+                refresh_token,
                 secure=secure,
                 expires=expires,
             )

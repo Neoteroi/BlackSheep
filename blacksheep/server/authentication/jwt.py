@@ -80,6 +80,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
         if not authority and not valid_issuers:
             raise TypeError("Specify either an authority or valid issuers.")
 
+        assert valid_issuers is not None
+
         self._validator = JWTValidator(
             authority=authority,
             require_kid=require_kid,
@@ -113,8 +115,11 @@ class JWTBearerAuthentication(AuthenticationHandler):
             decoded = await self._validator.validate_jwt(token)
         except (InvalidAccessToken, InvalidTokenError) as ex:
             # pass, because the application might support more than one
-            # authentication method
-            self.logger.error("JWT Bearer - invalid access token: %s", str(ex))
+            # authentication method and several JWT Bearer configurations
+            self.logger.debug(
+                "JWT Bearer - access token not valid for this configuration: %s",
+                str(ex),
+            )
             pass
         else:
             context.identity = Identity(decoded, self.auth_mode)

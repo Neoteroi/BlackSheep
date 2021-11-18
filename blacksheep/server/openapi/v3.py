@@ -47,7 +47,7 @@ from blacksheep.server.openapi.exceptions import (
 )
 from blacksheep.server.routing import Router
 
-from ..application import Application
+from ..application import Application, ApplicationSyncEvent
 from .common import (
     APIDocsHandler,
     ContentInfo,
@@ -230,6 +230,21 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
         ]
 
 
+class OpenAPIEvent(ApplicationSyncEvent):
+    pass
+
+
+class OpenAPIEvents:
+    on_operation_created: OpenAPIEvent
+    on_docs_created: OpenAPIEvent
+    on_paths_created: OpenAPIEvent
+
+    def __init__(self, context) -> None:
+        self.on_operation_created = OpenAPIEvent(context)
+        self.on_docs_created = OpenAPIEvent(context)
+        self.on_paths_created = OpenAPIEvent(context)
+
+
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     """
     Handles the automatic generation of OpenAPI Documentation, specification v3
@@ -263,6 +278,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
         ]
+        self.events = OpenAPIEvents(self)
 
     @property
     def object_types_handlers(self) -> List[ObjectTypeHandler]:
@@ -813,6 +829,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def on_docs_generated(self, docs: OpenAPI) -> None:
         docs.servers = self.servers
 
+        self.events.on_docs_created.fire_sync(docs)
+
     def _merge_documentation(
         self,
         handler,
@@ -902,8 +920,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 )
                 if docs and docs.on_created:
                     docs.on_created(self, operation)
+
+                self.events.on_operation_created.fire_sync(operation)
                 setattr(path_item, method, operation)
 
             paths_doc[path] = path_item
 
+        self.events.on_paths_created.fire_sync(paths_doc)
         return paths_doc

@@ -592,7 +592,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             possible_type: MediaType(
                 schema=self.get_schema_by_type(body_binder.expected_type),
                 examples=body_examples,
-            ) for possible_type in body_binder.content_type.split(";")
+            )
+            for possible_type in body_binder.content_type.split(";")
         }
 
     def get_request_body(self, handler: Any) -> Union[None, RequestBody, Reference]:

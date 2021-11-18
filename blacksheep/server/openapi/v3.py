@@ -583,6 +583,19 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             None,
         )
 
+    def _get_body_binder_content_type(
+        self,
+        body_binder: BodyBinder,
+        body_examples: Optional[Dict[str, Union[Example, Reference]]],
+    ) -> Dict[str, MediaType]:
+        return {
+            possible_type: MediaType(
+                schema=self.get_schema_by_type(body_binder.expected_type),
+                examples=body_examples,
+            )
+            for possible_type in body_binder.content_type.split(";")
+        }
+
     def get_request_body(self, handler: Any) -> Union[None, RequestBody, Reference]:
         if not hasattr(handler, "binders"):
             return None
@@ -601,12 +614,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         )
 
         return RequestBody(
-            content={
-                body_binder.content_type: MediaType(
-                    schema=self.get_schema_by_type(body_binder.expected_type),
-                    examples=body_examples,
-                )
-            },
+            content=self._get_body_binder_content_type(body_binder, body_examples),
             required=body_binder.required,
             description=body_info.description if body_info else None,
         )
@@ -805,6 +813,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def on_docs_generated(self, docs: OpenAPI) -> None:
         docs.servers = self.servers
 
+        self.events.on_docs_created.fire_sync(docs)
+
     def _merge_documentation(
         self,
         handler,
@@ -894,8 +904,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 )
                 if docs and docs.on_created:
                     docs.on_created(self, operation)
+
+                self.events.on_operation_created.fire_sync(operation)
                 setattr(path_item, method, operation)
 
             paths_doc[path] = path_item
 
+        self.events.on_paths_created.fire_sync(paths_doc)
         return paths_doc

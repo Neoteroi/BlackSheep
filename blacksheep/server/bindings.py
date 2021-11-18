@@ -505,7 +505,7 @@ class FormBinder(BodyBinder):
 
     @property
     def content_type(self) -> str:
-        return "application/json"
+        return "multipart/form-data;application/x-www-form-urlencoded"
 
     def matches_content_type(self, request: Request) -> bool:
         return request.declares_content_type(

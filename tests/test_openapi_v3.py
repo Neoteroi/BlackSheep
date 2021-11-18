@@ -11,6 +11,7 @@ from pydantic.generics import GenericModel
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 from blacksheep.server.application import Application
+from blacksheep.server.bindings import FromForm
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
@@ -118,6 +119,13 @@ class FooLevel(IntEnum):
 
 @dataclass
 class Foo:
+    a: str
+    b: bool
+    level: Optional[FooLevel] = None
+
+
+@dataclass
+class CreateFooInput:
     a: str
     b: bool
     level: Optional[FooLevel] = None
@@ -2002,5 +2010,90 @@ components:
                     type: integer
                     format: int64
                     nullable: false
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handles_from_form_docs(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+
+    @app.router.post("/foo")
+    def one(data: FromForm[CreateFooInput]) -> Foo:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /foo:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Foo'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/CreateFooInput'
+                    application/x-www-form-urlencoded:
+                        schema:
+                            $ref: '#/components/schemas/CreateFooInput'
+                required: true
+components:
+    schemas:
+        Foo:
+            type: object
+            required:
+            - a
+            - b
+            properties:
+                a:
+                    type: string
+                    nullable: false
+                b:
+                    type: boolean
+                    nullable: false
+                level:
+                    type: integer
+                    nullable: false
+                    enum:
+                    - 1
+                    - 2
+                    - 3
+        CreateFooInput:
+            type: object
+            required:
+            - a
+            - b
+            properties:
+                a:
+                    type: string
+                    nullable: false
+                b:
+                    type: boolean
+                    nullable: false
+                level:
+                    type: integer
+                    nullable: false
+                    enum:
+                    - 1
+                    - 2
+                    - 3
 """.strip()
     )

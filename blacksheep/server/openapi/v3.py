@@ -47,7 +47,7 @@ from blacksheep.server.openapi.exceptions import (
 )
 from blacksheep.server.routing import Router
 
-from ..application import Application, ApplicationSyncEvent
+from ..application import Application
 from .common import (
     APIDocsHandler,
     ContentInfo,
@@ -230,21 +230,6 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
         ]
 
 
-class OpenAPIEvent(ApplicationSyncEvent):
-    pass
-
-
-class OpenAPIEvents:
-    on_operation_created: OpenAPIEvent
-    on_docs_created: OpenAPIEvent
-    on_paths_created: OpenAPIEvent
-
-    def __init__(self, context) -> None:
-        self.on_operation_created = OpenAPIEvent(context)
-        self.on_docs_created = OpenAPIEvent(context)
-        self.on_paths_created = OpenAPIEvent(context)
-
-
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     """
     Handles the automatic generation of OpenAPI Documentation, specification v3
@@ -278,7 +263,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
         ]
-        self.events = OpenAPIEvents(self)
 
     @property
     def object_types_handlers(self) -> List[ObjectTypeHandler]:

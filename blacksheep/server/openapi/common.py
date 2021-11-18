@@ -29,7 +29,7 @@ from essentials.json import dumps
 from openapidocs.common import Format, OpenAPIRoot, Serializer
 
 from blacksheep.messages import Request
-from blacksheep.server.application import Application
+from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.routing import Route, Router
@@ -132,6 +132,21 @@ class OpenAPIEndpointException(Exception):
     pass
 
 
+class OpenAPIEvent(ApplicationSyncEvent):
+    pass
+
+
+class OpenAPIEvents:
+    on_operation_created: OpenAPIEvent
+    on_docs_created: OpenAPIEvent
+    on_paths_created: OpenAPIEvent
+
+    def __init__(self, context) -> None:
+        self.on_operation_created = OpenAPIEvent(context)
+        self.on_docs_created = OpenAPIEvent(context)
+        self.on_paths_created = OpenAPIEvent(context)
+
+
 class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     """
     Provides methods to handle the documentation for an API.
@@ -157,6 +172,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self.anonymous_access = anonymous_access
         self.ui_providers: List[UIProvider] = [SwaggerUIProvider(ui_path)]
         self._types_schemas = {}
+        self.events = OpenAPIEvents(self)
         self.handle_optional_response_with_404 = True
 
     def __call__(

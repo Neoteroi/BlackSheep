@@ -19,14 +19,16 @@ def generate_secret(length: int = 60) -> str:
 def get_keys() -> List[str]:
     # if there are environmental variables with keys, use them;
     # by default this kind of env variables would be used:
-    # APPSECRET_1="***"
-    # APPSECRET_2="***"
-    # APPSECRET_3="***"
+    # APP_SECRET_1="***"
+    # APP_SECRET_2="***"
+    # APP_SECRET_3="***"
     app_secrets = []
-    env_var_key_prefix = os.environ.get("BLACKSHEEP_SECRET_PREFIX", "APPSECRET")
+    env_var_key_prefix = os.environ.get("BLACKSHEEP_SECRET_PREFIX", "APP_SECRET")
 
     for key, value in os.environ.items():
-        if key.startswith(env_var_key_prefix):
+        if key.startswith(env_var_key_prefix) or key.startswith(
+            env_var_key_prefix.replace("_", "")
+        ):
             app_secrets.append(value)
 
     if app_secrets:

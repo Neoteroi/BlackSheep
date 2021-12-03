@@ -5,9 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.2] - 2021-??-?? :question:
+## [1.2.2] - 2021-12-03 :gift:
 * Fixes wrong mime type in OpenAPI Documentation for the `form` binder (#212)
 * Adds `OpenAPIEvents` to the class handling the generation of OpenAPI Documentation
+* Updates default environment variable prefix for app secrets to be "APP_SECRET"
+  instead of `APPSECRET` (also accepts the value without underscore for backward
+  compatibility)
 
 ## [1.2.1] - 2021-11-15 :shield:
 - Adds built-in support for `JWT` bearer authentication, and validation

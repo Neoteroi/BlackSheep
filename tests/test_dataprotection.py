@@ -19,7 +19,7 @@ def test_get_keys_returns_keys_configured_as_env_variables():
     env_variables = []
     for i in range(4):
         key = generate_secret()
-        os.environ[f"APPSECRET_{i}"] = key
+        os.environ[f"APP_SECRET_{i}"] = key
         env_variables.append(key)
 
     assert get_keys() == env_variables

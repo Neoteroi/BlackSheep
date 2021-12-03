@@ -55,8 +55,7 @@ These project templates can be used to start new applications faster:
 
 BlackSheep belongs to the category of
 [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires
-an ASGI HTTP server to run, such as [uvicorn](http://www.uvicorn.org/),
-[daphne](https://github.com/django/daphne/), or
+an ASGI HTTP server to run, such as [uvicorn](http://www.uvicorn.org/), or
 [hypercorn](https://pgjones.gitlab.io/hypercorn/). For example, to use it with
 uvicorn:
 

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Updates default environment variable prefix for app secrets to be "APP_SECRET"
   instead of `APPSECRET` (also accepts the value without underscore for backward
   compatibility)
+* Adds missing server import to `blacksheep/__init__.pyi`
 
 ## [1.2.1] - 2021-11-15 :shield:
 - Adds built-in support for `JWT` bearer authentication, and validation

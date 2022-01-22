@@ -39,6 +39,7 @@ from .bindings import (
     RequestBinder,
     RouteBinder,
     ServiceBinder,
+    WebSocketBinder,
     empty,
     get_binder_by_type,
 )
@@ -283,6 +284,9 @@ def _get_parameter_binder(
     if name == "request":
         return RequestBinder()
 
+    if name == "websocket":
+        return WebSocketBinder()
+
     if name == "services":
         return ExactBinder(services)
 
@@ -495,9 +499,11 @@ def get_async_wrapper(
 
         return handler
 
-    if params_len == 1 and "request" in params:
-        # no need to wrap the request handler
-        return method
+    if params_len == 1:
+        param_name = list(params)[0]
+        if param_name in ("request", "websocket"):
+            # no need to wrap the request handler
+            return method
 
     binders = get_binders(route, services)
 

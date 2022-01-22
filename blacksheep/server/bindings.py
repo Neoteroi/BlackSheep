@@ -36,6 +36,7 @@ from rodi import CannotResolveTypeException, Services
 from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
+from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
 
 T = TypeVar("T")
@@ -793,6 +794,14 @@ class RequestBinder(Binder):
 
     async def get_value(self, request: Request) -> Optional[T]:
         return request
+
+
+class WebSocketBinder(Binder):
+    def __init__(self, implicit: bool = True):
+        super().__init__(WebSocket, implicit=implicit)
+
+    async def get_value(self, websocket: WebSocket) -> Optional[T]:
+        return websocket
 
 
 class IdentityBinder(Binder):

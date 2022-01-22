@@ -348,6 +348,9 @@ class RouterBase:
     def patch(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
         return self.get_decorator(HTTPMethod.PATCH, pattern)
 
+    def ws(self, pattern) -> Callable[..., Any]:
+        return self.get_decorator(HTTPMethod.GET, pattern)
+
 
 class Router(RouterBase):
 
@@ -436,6 +439,9 @@ class Router(RouterBase):
             return None
 
         return RouteMatch(self._fallback, None)
+
+    def get_ws_match(self, value: AnyStr) -> Optional[RouteMatch]:
+        return self.get_match(HTTPMethod.GET, value)
 
     @lru_cache(maxsize=1200)
     def get_matching_route(self, method: AnyStr, value: AnyStr) -> Optional[Route]:

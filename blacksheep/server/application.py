@@ -47,6 +47,7 @@ from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import Mount, RegisteredRoute, Router, RoutesRegistry
+from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import Encryptor, SessionMiddleware, SessionSerializer, Signer
 from blacksheep.utils import ensure_bytes, join_fragments
 
@@ -651,10 +652,16 @@ class Application(BaseApplication):
         await self.stop()
         await send({"type": "lifespan.shutdown.complete"})
 
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "lifespan":
-            return await self._handle_lifespan(receive, send)
+    async def _handle_websocket(self, scope, receive, send):
+        ws = WebSocket(scope, receive, send)
+        route = self.router.get_ws_match(scope["path"])
 
+        if route:
+            ws.route_values = route.values
+            return await route.handler(ws)
+        await ws.close()
+
+    async def _handle_http(self, scope, receive, send):
         assert scope["type"] == "http"
 
         request = Request.incoming(
@@ -672,6 +679,16 @@ class Application(BaseApplication):
 
         request.scope = None  # type: ignore
         request.content.dispose()
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            return await self._handle_lifespan(receive, send)
+
+        if scope["type"] == "websocket":
+            return await self._handle_websocket(scope, receive, send)
+
+        if scope["type"] == "http":
+            return await self._handle_http(scope, receive, send)
 
 
 class MountMixin:

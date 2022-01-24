@@ -13,7 +13,7 @@ app.serve_files(STATIC_PATH, root_path='/static')
 @app.router.ws('/ws/{client_id}')
 async def ws(websocket: WebSocket, client_id: str):
     await websocket.accept()
-    print(f'{client_id=}')
+    print(f'client_id={client_id}')
 
     while True:
         msg = await websocket.receive_text()

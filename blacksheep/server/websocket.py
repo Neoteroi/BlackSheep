@@ -1,15 +1,7 @@
 import json
-
 from enum import Enum
 from functools import wraps
-from typing import (
-    Any,
-    AnyStr,
-    Callable,
-    List,
-    MutableMapping,
-    Optional,
-)
+from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
 
 
 class WebSocketDisconnect(Exception):

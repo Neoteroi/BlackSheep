@@ -22,10 +22,7 @@ class MessageMode(str, Enum):
 
 class WebSocket:
     def __init__(
-            self,
-            scope: MutableMapping[str, Any],
-            receive: Callable,
-            send: Callable
+        self, scope: MutableMapping[str, Any], receive: Callable, send: Callable
     ):
         assert scope["type"] == "websocket"
 
@@ -44,9 +41,7 @@ class WebSocket:
         self.client_state = WebSocketState.CONNECTED
 
     async def accept(
-            self,
-            headers: Optional[List] = None,
-            subprotocol: str = None
+        self, headers: Optional[List] = None, subprotocol: str = None
     ) -> None:
         assert self.client_state == WebSocketState.CONNECTING
         await self.connect()
@@ -57,7 +52,7 @@ class WebSocket:
         message = {
             "type": "websocket.accept",
             "headers": headers,
-            "subprotocol": subprotocol
+            "subprotocol": subprotocol,
         }
 
         await self._send(message)
@@ -79,8 +74,7 @@ class WebSocket:
         return message["bytes"]
 
     async def receive_json(
-            self,
-            mode: str = MessageMode.TEXT
+        self, mode: str = MessageMode.TEXT
     ) -> MutableMapping[str, Any]:
         assert mode in list(MessageMode)
         message = await self.receive()
@@ -96,21 +90,13 @@ class WebSocket:
         await self._send(message)
 
     async def send_text(self, data: str) -> None:
-        await self.send({
-            "type": "websocket.send",
-            "text": data
-        })
+        await self.send({"type": "websocket.send", "text": data})
 
     async def send_bytes(self, data: bytes) -> None:
-        await self.send({
-            "type": "websocket.send",
-            "bytes": data
-        })
+        await self.send({"type": "websocket.send", "bytes": data})
 
     async def send_json(
-            self,
-            data: MutableMapping[Any, Any],
-            mode: str = MessageMode.TEXT
+        self, data: MutableMapping[Any, Any], mode: str = MessageMode.TEXT
     ):
         assert mode in list(MessageMode)
         text = json.dumps(data)
@@ -131,10 +117,8 @@ class WebSocket:
                 raise WebSocketDisconnect(message["code"])
 
             return message
+
         return disconnect
 
     async def close(self, code: int = 1000) -> None:
-        await self._send({
-            "type": "websocket.close",
-            "code": code
-        })
+        await self._send({"type": "websocket.close", "code": code})

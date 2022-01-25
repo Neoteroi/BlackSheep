@@ -100,7 +100,7 @@ jobs:
         run: |
           PYVER=`python -V 2>&1`
 
-          if [ "$PYVER" == "Python 3.10.0" ]; then
+          if [ "${PYVER:0:-2}" == "Python 3.10" ]; then
             pip install -r requirements.txt
           else
             pip install -U --no-index --find-links=deps deps/*
@@ -134,7 +134,7 @@ jobs:
         run: |
           PYVER=`python -V 2>&1`
 
-          if [ "$PYVER" == "Python 3.10.0" ]; then
+          if [ "${PYVER:0:-2}" == "Python 3.10" ]; then
             echo "Skipping Hypercorn tests, since it fails with Python 3.10.0 on Ubuntu (2021/10/24)"
           else
             ASGI_SERVER=hypercorn pytest itests/test_server.py

@@ -105,7 +105,7 @@ def get_well_known_oidc_configuration():
             "issuer": "https://neoteroi.dev/",
             "authorization_endpoint": "https://neoteroi.dev/authorization",
             "token_endpoint": "https://neoteroi.dev/token",
-            "jwks_uri": "https://raw.githubusercontent.com/Neoteroi/BlackSheep-Examples/jwks/.res/.well-known/jwks.json",
+            "jwks_uri": "http://127.0.0.1:44777/oidc/.well-known/jwks.json",
             "end_session_endpoint": "https://neoteroi.dev/sign-out",
         }
     )

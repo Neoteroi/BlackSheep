@@ -114,7 +114,7 @@ class WebSocket:
         return message["bytes"]
 
     async def receive_json(
-        self, mode: str = MessageMode.TEXT
+        self, mode: MessageMode = MessageMode.TEXT
     ) -> MutableMapping[str, Any]:
         assert mode in list(MessageMode)
         message = await self.receive()
@@ -125,7 +125,7 @@ class WebSocket:
         if mode == MessageMode.BYTES:
             return json.loads(message["bytes"].decode("utf8"))
 
-    async def send(self, message: MutableMapping[str, AnyStr]) -> None:
+    async def _send_message(self, message: MutableMapping[str, AnyStr]) -> None:
         if self.client_state != WebSocketState.CONNECTED:
             raise InvalidWebSocketStateError(
                 current_state=self.client_state,
@@ -134,13 +134,13 @@ class WebSocket:
         await self._send(message)
 
     async def send_text(self, data: str) -> None:
-        await self.send({"type": "websocket.send", "text": data})
+        await self._send_message({"type": "websocket.send", "text": data})
 
     async def send_bytes(self, data: bytes) -> None:
-        await self.send({"type": "websocket.send", "bytes": data})
+        await self._send_message({"type": "websocket.send", "bytes": data})
 
     async def send_json(
-        self, data: MutableMapping[Any, Any], mode: str = MessageMode.TEXT
+        self, data: MutableMapping[Any, Any], mode: MessageMode = MessageMode.TEXT
     ):
         assert mode in list(MessageMode)
         text = json.dumps(data)

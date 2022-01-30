@@ -2,6 +2,7 @@ import pytest
 
 from blacksheep.server.websocket import (
     InvalidWebSocketStateError,
+    MessageMode,
     WebSocket,
     WebSocketDisconnectError,
     WebSocketState,
@@ -34,20 +35,228 @@ async def test_websocket_connect(example_scope):
 
 
 @pytest.mark.asyncio
+async def test_connect_raises_if_not_connecting(example_scope):
+    ws = WebSocket(
+        example_scope, MockReceive([{"type": "websocket.connect"}]), MockSend()
+    )
+
+    await ws.accept()
+
+    with pytest.raises(InvalidWebSocketStateError) as error:
+        await ws._connect()
+
+    assert error.value.current_state == WebSocketState.CONNECTED
+    assert error.value.expected_state == WebSocketState.CONNECTING
+
+    assert str(error.value) == (
+        f"Invalid {error.value.party} state of the WebSocket connection. "
+        f"Expected state: {error.value.expected_state}. "
+        f"Current state: {error.value.current_state}."
+    )
+
+
+@pytest.mark.asyncio
 async def test_websocket_accept(example_scope):
     """
     A websocket gets fully connected when the ASGI server sends a message of type
     'websocket.connect' and the server accepts the connection.
     """
-    mocked_send = MockSend()
     ws = WebSocket(
-        example_scope, MockReceive([{"type": "websocket.connect"}]), mocked_send
+        example_scope, MockReceive([{"type": "websocket.connect"}]), MockSend()
     )
 
     await ws.accept()
 
     assert ws.client_state == WebSocketState.CONNECTED
     assert ws.application_state == WebSocketState.CONNECTED
+
+
+@pytest.mark.asyncio
+async def test_websocket_receive_text(example_scope):
+    """
+    A first message is received when the underlying ASGI server first sends a
+    'websocket.connect' message, then a content message.
+    """
+    ws = WebSocket(
+        example_scope,
+        MockReceive(
+            [
+                {"type": "websocket.connect"},
+                {"type": "websocket.receive", "text": "Lorem ipsum dolor sit amet"},
+            ]
+        ),
+        MockSend(),
+    )
+
+    await ws.accept()
+
+    message = await ws.receive_text()
+    assert message == "Lorem ipsum dolor sit amet"
+
+
+@pytest.mark.asyncio
+async def test_websocket_receive_bytes(example_scope):
+    """
+    A first message is received when the underlying ASGI server first sends a
+    'websocket.connect' message, then a content message.
+    """
+    ws = WebSocket(
+        example_scope,
+        MockReceive(
+            [
+                {"type": "websocket.connect"},
+                {"type": "websocket.receive", "bytes": b"Lorem ipsum dolor sit amet"},
+            ]
+        ),
+        MockSend(),
+    )
+
+    await ws.accept()
+
+    message = await ws.receive_bytes()
+    assert message == b"Lorem ipsum dolor sit amet"
+
+
+@pytest.mark.asyncio
+async def test_websocket_receive_json(example_scope):
+    """
+    A first message is received when the underlying ASGI server first sends a
+    'websocket.connect' message, then a content message.
+    """
+    ws = WebSocket(
+        example_scope,
+        MockReceive(
+            [
+                {"type": "websocket.connect"},
+                {"type": "websocket.receive", "text": '{"message": "Lorem ipsum"}'},
+            ]
+        ),
+        MockSend(),
+    )
+
+    await ws.accept()
+
+    message = await ws.receive_json()
+    assert message == {"message": "Lorem ipsum"}
+
+
+@pytest.mark.asyncio
+async def test_websocket_receive_json_from_bytes(example_scope):
+    """
+    A first message is received when the underlying ASGI server first sends a
+    'websocket.connect' message, then a content message.
+    """
+    ws = WebSocket(
+        example_scope,
+        MockReceive(
+            [
+                {"type": "websocket.connect"},
+                {"type": "websocket.receive", "bytes": b'{"message": "Lorem ipsum"}'},
+            ]
+        ),
+        MockSend(),
+    )
+
+    await ws.accept()
+
+    message = await ws.receive_json(mode=MessageMode.BYTES)
+    assert message == {"message": "Lorem ipsum"}
+
+
+@pytest.mark.asyncio
+async def test_websocket_send_text(example_scope):
+    """
+    A message is sent by the server to clients, by sending a message to the underlying
+    ASGI server with type "websocket.send" and a "text" or "bytes" property.
+    """
+    mocked_send = MockSend()
+    ws = WebSocket(
+        example_scope,
+        MockReceive([{"type": "websocket.connect"}]),
+        mocked_send,
+    )
+
+    await ws.accept()
+
+    await ws.send_text("Lorem ipsum dolor sit amet")
+
+    assert len(mocked_send.messages) > 0
+    message = mocked_send.messages[-1]
+
+    assert message.get("text") == "Lorem ipsum dolor sit amet"
+    assert message.get("type") == "websocket.send"
+
+
+@pytest.mark.asyncio
+async def test_websocket_send_bytes(example_scope):
+    """
+    A message is sent by the server to clients, by sending a message to the underlying
+    ASGI server with type "websocket.send" and a "text" or "bytes" property.
+    """
+    mocked_send = MockSend()
+    ws = WebSocket(
+        example_scope,
+        MockReceive([{"type": "websocket.connect"}]),
+        mocked_send,
+    )
+
+    await ws.accept()
+
+    await ws.send_bytes(b"Lorem ipsum dolor sit amet")
+
+    assert len(mocked_send.messages) > 0
+    message = mocked_send.messages[-1]
+
+    assert message.get("bytes") == b"Lorem ipsum dolor sit amet"
+    assert message.get("type") == "websocket.send"
+
+
+@pytest.mark.asyncio
+async def test_websocket_send_json(example_scope):
+    """
+    A message is sent by the server to clients, by sending a message to the underlying
+    ASGI server with type "websocket.send" and a "text" or "bytes" property.
+    """
+    mocked_send = MockSend()
+    ws = WebSocket(
+        example_scope,
+        MockReceive([{"type": "websocket.connect"}]),
+        mocked_send,
+    )
+
+    await ws.accept()
+
+    await ws.send_json({"message": "Lorem ipsum dolor sit amet"})
+
+    assert len(mocked_send.messages) > 0
+    message = mocked_send.messages[-1]
+
+    assert message.get("text") == '{"message":"Lorem ipsum dolor sit amet"}'
+    assert message.get("type") == "websocket.send"
+
+
+@pytest.mark.asyncio
+async def test_websocket_send_json_as_bytes(example_scope):
+    """
+    A message is sent by the server to clients, by sending a message to the underlying
+    ASGI server with type "websocket.send" and a "text" or "bytes" property.
+    """
+    mocked_send = MockSend()
+    ws = WebSocket(
+        example_scope,
+        MockReceive([{"type": "websocket.connect"}]),
+        mocked_send,
+    )
+
+    await ws.accept()
+
+    await ws.send_json({"message": "Lorem ipsum dolor sit amet"}, MessageMode.BYTES)
+
+    assert len(mocked_send.messages) > 0
+    message = mocked_send.messages[-1]
+
+    assert message.get("bytes") == b'{"message":"Lorem ipsum dolor sit amet"}'
+    assert message.get("type") == "websocket.send"
 
 
 @pytest.mark.asyncio
@@ -58,6 +267,25 @@ async def test_connecting_websocket_raises_for_receive(example_scope):
 
     with pytest.raises(InvalidWebSocketStateError) as error:
         await ws.receive()
+
+    assert error.value.current_state == WebSocketState.CONNECTING
+    assert error.value.expected_state == WebSocketState.CONNECTED
+
+    assert str(error.value) == (
+        f"Invalid {error.value.party} state of the WebSocket connection. "
+        f"Expected state: {error.value.expected_state}. "
+        f"Current state: {error.value.current_state}."
+    )
+
+
+@pytest.mark.asyncio
+async def test_connecting_websocket_raises_for_send(example_scope):
+    ws = WebSocket(example_scope, MockReceive(), MockSend())
+
+    assert ws.client_state == WebSocketState.CONNECTING
+
+    with pytest.raises(InvalidWebSocketStateError) as error:
+        await ws.send_text("Error")
 
     assert error.value.current_state == WebSocketState.CONNECTING
     assert error.value.expected_state == WebSocketState.CONNECTED

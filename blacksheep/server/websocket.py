@@ -37,7 +37,7 @@ class InvalidWebSocketStateError(WebSocketError):
         return (
             f"Invalid {self.party} state of the WebSocket connection. "
             f"Expected state: {self.expected_state}. "
-            f"Current state: {self.current_state}. "
+            f"Current state: {self.current_state}."
         )
 
 
@@ -47,7 +47,7 @@ class WebSocketDisconnectError(WebSocketError):
         self.code = code
 
     def __str__(self):
-        return f"Client closed the connection. Code {self.code}."
+        return f"The client closed the connection. WebSocket close code: {self.code}."
 
 
 class WebSocket:
@@ -64,8 +64,8 @@ class WebSocket:
         self.client_state = WebSocketState.CONNECTING
         self.application_state = WebSocketState.CONNECTING
 
-    async def connect(self) -> None:
-        if not self.client_state == WebSocketState.CONNECTING:
+    async def _connect(self) -> None:
+        if self.client_state != WebSocketState.CONNECTING:
             raise InvalidWebSocketStateError(
                 current_state=self.client_state,
                 expected_state=WebSocketState.CONNECTING,
@@ -81,7 +81,7 @@ class WebSocket:
     ) -> None:
         headers = headers or []
 
-        await self.connect()
+        await self._connect()
         self.application_state = WebSocketState.CONNECTED
 
         message = {
@@ -93,7 +93,7 @@ class WebSocket:
         await self._send(message)
 
     async def receive(self) -> MutableMapping[str, AnyStr]:
-        if not self.application_state == WebSocketState.CONNECTED:
+        if self.application_state != WebSocketState.CONNECTED:
             raise InvalidWebSocketStateError(
                 party="application",
                 current_state=self.application_state,
@@ -123,10 +123,10 @@ class WebSocket:
             return json.loads(message["text"])
 
         if mode == MessageMode.BYTES:
-            return json.loads(message["bytes"].decode())
+            return json.loads(message["bytes"].decode("utf8"))
 
     async def send(self, message: MutableMapping[str, AnyStr]) -> None:
-        if not self.client_state == WebSocketState.CONNECTED:
+        if self.client_state != WebSocketState.CONNECTED:
             raise InvalidWebSocketStateError(
                 current_state=self.client_state,
                 expected_state=WebSocketState.CONNECTED,

@@ -681,14 +681,16 @@ class Application(BaseApplication):
         request.content.dispose()
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] == "lifespan":
-            return await self._handle_lifespan(receive, send)
+        if scope["type"] == "http":
+            return await self._handle_http(scope, receive, send)
 
         if scope["type"] == "websocket":
             return await self._handle_websocket(scope, receive, send)
 
-        if scope["type"] == "http":
-            return await self._handle_http(scope, receive, send)
+        if scope["type"] == "lifespan":
+            return await self._handle_lifespan(receive, send)
+
+        raise TypeError(f"Unsupported scope type: {scope['type']}")
 
 
 class MountMixin:

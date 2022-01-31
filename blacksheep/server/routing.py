@@ -321,6 +321,9 @@ class RouterBase:
     def add_patch(self, pattern: str, handler: Callable[..., Any]) -> None:
         self.add(HTTPMethod.PATCH, pattern, handler)
 
+    def add_ws(self, pattern: str, handler: Callable[..., Any]) -> None:
+        self.add(HTTPMethod.GET, pattern, handler)
+
     def head(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
         return self.get_decorator(HTTPMethod.HEAD, pattern)
 

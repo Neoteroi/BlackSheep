@@ -123,7 +123,7 @@ class WebSocket:
             return json.loads(message["text"])
 
         if mode == MessageMode.BYTES:
-            return json.loads(message["bytes"].decode("utf8"))
+            return json.loads(message["bytes"].decode())
 
     async def _send_message(self, message: MutableMapping[str, AnyStr]) -> None:
         if self.client_state != WebSocketState.CONNECTED:

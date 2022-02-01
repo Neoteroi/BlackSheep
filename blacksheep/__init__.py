@@ -24,4 +24,5 @@ from .exceptions import HTTPException
 from .headers import Header, Headers
 from .messages import Request, Response
 from .server import Application, Route, Router
+from .server.websocket import WebSocket, WebSocketDisconnectError
 from .url import URL, InvalidURL

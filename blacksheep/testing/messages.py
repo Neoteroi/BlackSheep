@@ -31,9 +31,12 @@ class MockReceive:
             message = self.messages[self.index]
         except IndexError:
             message = b""
+        else:
+            self.index += 1
+
         if isinstance(message, dict):
             return message
-        self.index += 1
+
         await asyncio.sleep(0)
         return {
             "body": message,

@@ -26,6 +26,7 @@ from blacksheep import Request, Response
 from blacksheep.normalization import copy_special_attributes
 from blacksheep.server import responses
 from blacksheep.server.routing import Route
+from blacksheep.server.websocket import WebSocket
 
 from .bindings import (
     Binder,
@@ -300,6 +301,12 @@ def _get_parameter_binder(
 
     if isinstance(annotation, (str, ForwardRef)):  # pragma: no cover
         raise UnsupportedForwardRefInSignatureError(original_annotation)
+
+    if annotation is Request:
+        return RequestBinder()
+
+    if annotation is WebSocket:
+        return WebSocketBinder()
 
     # 1. is the type annotation of BoundValue[T] type?
     if _is_bound_value_annotation(annotation):

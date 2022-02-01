@@ -86,7 +86,7 @@ class RouteMatch:
 
 
 def _get_parameter_pattern_fragment(
-    parameter_name: bytes, value_pattern: bytes = br"[^\/]+"
+    parameter_name: bytes, value_pattern: bytes = rb"[^\/]+"
 ) -> bytes:
     return b"/(?P<" + parameter_name + b">" + value_pattern + b")"
 
@@ -147,9 +147,9 @@ class Route:
                 )
 
             if b"/*" in pattern:
-                pattern = _route_all_rx.sub(br"?(?P<tail>.*)", pattern)
+                pattern = _route_all_rx.sub(rb"?(?P<tail>.*)", pattern)
             else:
-                pattern = _route_all_rx.sub(br"(?P<tail>.*)", pattern)
+                pattern = _route_all_rx.sub(rb"(?P<tail>.*)", pattern)
 
         # support for < > patterns, e.g. /api/cats/<cat_id>
         # but also: /api/cats/<int:cat_id> or /api/cats/<uuid:cat_id> for more
@@ -167,7 +167,7 @@ class Route:
 
         # route parameters defined using /:name syntax
         if b"/:" in pattern:
-            pattern = _route_param_rx.sub(br"/(?P<\1>[^\/]+)", pattern)
+            pattern = _route_param_rx.sub(rb"/(?P<\1>[^\/]+)", pattern)
 
         # NB: following code is just to throw user friendly errors;
         # regex would fail anyway, but with a more complex message
@@ -243,7 +243,7 @@ class Route:
 
     @property
     def mustache_pattern(self) -> str:
-        return _route_param_rx.sub(br"/{\1}", self.pattern).decode("utf8")
+        return _route_param_rx.sub(rb"/{\1}", self.pattern).decode("utf8")
 
     @property
     def full_pattern(self) -> bytes:
@@ -320,6 +320,9 @@ class RouterBase:
 
     def add_patch(self, pattern: str, handler: Callable[..., Any]) -> None:
         self.add(HTTPMethod.PATCH, pattern, handler)
+
+    def add_ws(self, pattern: str, handler: Callable[..., Any]) -> None:
+        self.add(HTTPMethod.GET, pattern, handler)
 
     def head(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
         return self.get_decorator(HTTPMethod.HEAD, pattern)

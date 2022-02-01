@@ -1,12 +1,8 @@
-import json
 from enum import Enum
 from functools import wraps
 from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
 
-
-class WebSocketDisconnect(Exception):
-    def __init__(self, code: int = 1000):
-        self.code = code
+from blacksheep.plugins import json
 
 
 class WebSocketState(Enum):
@@ -18,6 +14,40 @@ class WebSocketState(Enum):
 class MessageMode(str, Enum):
     TEXT = "text"
     BYTES = "bytes"
+
+
+class WebSocketError(Exception):
+    """A base class for all web sockets errors."""
+
+
+class InvalidWebSocketStateError(WebSocketError):
+    def __init__(
+        self,
+        *,
+        party: str = "client",
+        current_state: WebSocketState,
+        expected_state: WebSocketState,
+    ):
+        super().__init__(party, current_state, expected_state)
+        self.party = party
+        self.current_state = current_state
+        self.expected_state = expected_state
+
+    def __str__(self):
+        return (
+            f"Invalid {self.party} state of the WebSocket connection. "
+            f"Expected state: {self.expected_state}. "
+            f"Current state: {self.current_state}."
+        )
+
+
+class WebSocketDisconnectError(WebSocketError):
+    def __init__(self, code: int = 1000):
+        super().__init__(code)
+        self.code = code
+
+    def __str__(self):
+        return f"The client closed the connection. WebSocket close code: {self.code}."
 
 
 class WebSocket:
@@ -34,7 +64,13 @@ class WebSocket:
         self.client_state = WebSocketState.CONNECTING
         self.application_state = WebSocketState.CONNECTING
 
-    async def connect(self) -> None:
+    async def _connect(self) -> None:
+        if self.client_state != WebSocketState.CONNECTING:
+            raise InvalidWebSocketStateError(
+                current_state=self.client_state,
+                expected_state=WebSocketState.CONNECTING,
+            )
+
         message = await self._receive()
         assert message["type"] == "websocket.connect"
 
@@ -43,10 +79,9 @@ class WebSocket:
     async def accept(
         self, headers: Optional[List] = None, subprotocol: str = None
     ) -> None:
-        assert self.client_state == WebSocketState.CONNECTING
-        await self.connect()
-
         headers = headers or []
+
+        await self._connect()
         self.application_state = WebSocketState.CONNECTED
 
         message = {
@@ -58,7 +93,12 @@ class WebSocket:
         await self._send(message)
 
     async def receive(self) -> MutableMapping[str, AnyStr]:
-        assert self.application_state == WebSocketState.CONNECTED
+        if self.application_state != WebSocketState.CONNECTED:
+            raise InvalidWebSocketStateError(
+                party="application",
+                current_state=self.application_state,
+                expected_state=WebSocketState.CONNECTED,
+            )
 
         message = await self._receive()
         assert message["type"] == "websocket.receive"
@@ -74,7 +114,7 @@ class WebSocket:
         return message["bytes"]
 
     async def receive_json(
-        self, mode: str = MessageMode.TEXT
+        self, mode: MessageMode = MessageMode.TEXT
     ) -> MutableMapping[str, Any]:
         assert mode in list(MessageMode)
         message = await self.receive()
@@ -85,18 +125,22 @@ class WebSocket:
         if mode == MessageMode.BYTES:
             return json.loads(message["bytes"].decode())
 
-    async def send(self, message: MutableMapping[str, AnyStr]) -> None:
-        assert self.client_state == WebSocketState.CONNECTED
+    async def _send_message(self, message: MutableMapping[str, AnyStr]) -> None:
+        if self.client_state != WebSocketState.CONNECTED:
+            raise InvalidWebSocketStateError(
+                current_state=self.client_state,
+                expected_state=WebSocketState.CONNECTED,
+            )
         await self._send(message)
 
     async def send_text(self, data: str) -> None:
-        await self.send({"type": "websocket.send", "text": data})
+        await self._send_message({"type": "websocket.send", "text": data})
 
     async def send_bytes(self, data: bytes) -> None:
-        await self.send({"type": "websocket.send", "bytes": data})
+        await self._send_message({"type": "websocket.send", "bytes": data})
 
     async def send_json(
-        self, data: MutableMapping[Any, Any], mode: str = MessageMode.TEXT
+        self, data: MutableMapping[Any, Any], mode: MessageMode = MessageMode.TEXT
     ):
         assert mode in list(MessageMode)
         text = json.dumps(data)
@@ -114,7 +158,7 @@ class WebSocket:
 
             if message["type"] == "websocket.disconnect":
                 self.application_state = self.client_state = WebSocketState.DISCONNECTED
-                raise WebSocketDisconnect(message["code"])
+                raise WebSocketDisconnectError(message["code"])
 
             return message
 

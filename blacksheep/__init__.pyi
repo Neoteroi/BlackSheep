@@ -20,5 +20,7 @@ from .messages import Response as Response
 from .server import Application as Application
 from .server import Route as Route
 from .server import Router as Router
+from .server.websocket import WebSocket as WebSocket
+from .server.websocket import WebSocketDisconnectError as WebSocketDisconnectError
 from .url import URL as URL
 from .url import InvalidURL as InvalidURL

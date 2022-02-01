@@ -422,6 +422,9 @@ def test_router_match_among_many():
     def delete_foo():
         ...
 
+    def ws():
+        ...
+
     router.add_trace("/", home_verbose)
     router.add_options("/", home_options)
     router.add_connect("/", home_connect)
@@ -430,6 +433,7 @@ def test_router_match_among_many():
     router.add_patch("/foo", patch_foo)
     router.add_post("/foo", create_foo)
     router.add_delete("/foo", delete_foo)
+    router.add_ws("/ws", ws)
 
     m = router.get_match(HTTPMethod.GET, b"/")
     assert m is not None
@@ -465,6 +469,10 @@ def test_router_match_among_many():
     m = router.get_match(HTTPMethod.DELETE, b"/foo")
     assert m is not None
     assert m.handler is delete_foo
+
+    m = router.get_match(HTTPMethod.GET, b"/ws")
+    assert m is not None
+    assert m.handler is ws
 
 
 def test_router_match_among_many_decorators():

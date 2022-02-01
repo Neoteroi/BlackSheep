@@ -3268,6 +3268,26 @@ async def test_user_binding(app):
 
 
 @pytest.mark.asyncio
+async def test_request_binding(app):
+    @app.router.get("/")
+    async def example(req: Request):
+        assert isinstance(req, Request)
+        return "Foo"
+
+    await app.start()
+
+    await app(
+        get_example_scope("GET", "/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    content = await app.response.text()
+    assert app.response.status == 200
+    assert content == "Foo"
+
+
+@pytest.mark.asyncio
 async def test_use_auth_raises_if_app_is_already_started(app):
     class MockAuthHandler(AuthenticationHandler):
         async def authenticate(self, context):
@@ -3690,3 +3710,15 @@ async def test_async_event_raises_for_fire_method():
 
     with pytest.raises(TypeError):
         await event.fire()
+
+
+@pytest.mark.asyncio
+async def test_application_raises_for_unhandled_scope_type(app):
+    with pytest.raises(TypeError) as app_type_error:
+        await app(
+            {"type": "foo"},
+            MockReceive(),
+            MockSend(),
+        )
+
+    assert str(app_type_error.value) == "Unsupported scope type: foo"

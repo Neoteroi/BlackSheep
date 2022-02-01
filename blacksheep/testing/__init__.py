@@ -1,5 +1,6 @@
 from blacksheep.contents import FormContent, JSONContent, TextContent
 from blacksheep.testing.client import TestClient
+from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.testing.simulator import AbstractTestSimulator
 
 __all__ = [
@@ -8,4 +9,6 @@ __all__ = [
     "JSONContent",
     "TextContent",
     "FormContent",
+    "MockReceive",
+    "MockSend",
 ]

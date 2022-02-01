@@ -17,33 +17,15 @@ def example_scope():
 
 
 @pytest.mark.asyncio
-async def test_websocket_connect(example_scope):
-    """
-    A websocket gets connected when the ASGI server sends a message of type
-    'websocket.connect'.
-    """
-    ws = WebSocket(
-        example_scope, MockReceive([{"type": "websocket.connect"}]), MockSend()
-    )
-
-    await ws._connect()
-
-    assert ws.client_state == WebSocketState.CONNECTED
-
-    # application state is still connecting because the server did not accept, yet
-    assert ws.application_state == WebSocketState.CONNECTING
-
-
-@pytest.mark.asyncio
 async def test_connect_raises_if_not_connecting(example_scope):
     ws = WebSocket(
         example_scope, MockReceive([{"type": "websocket.connect"}]), MockSend()
     )
 
-    await ws.accept()
+    ws.client_state = WebSocketState.CONNECTED
 
     with pytest.raises(InvalidWebSocketStateError) as error:
-        await ws._connect()
+        await ws.accept()
 
     assert error.value.current_state == WebSocketState.CONNECTED
     assert error.value.expected_state == WebSocketState.CONNECTING

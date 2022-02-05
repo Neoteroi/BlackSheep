@@ -186,6 +186,7 @@ Refer to the documentation for more details and examples.
   functions](https://www.neoteroi.dev/blacksheep/request-handlers/), or [class
   methods](https://www.neoteroi.dev/blacksheep/controllers/)
 * [Middlewares](https://www.neoteroi.dev/blacksheep/middlewares/)
+* [WebSocket](https://www.neoteroi.dev/blacksheep/websocket/)
 * [Built-in support for dependency
   injection](https://www.neoteroi.dev/blacksheep/dependency-injection/)
 * [Support for automatic binding of route and query parameters to request

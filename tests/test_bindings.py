@@ -691,6 +691,5 @@ def test_duplicate_type_alias_raises():
             type_alias = X
 
     assert str(duplicate_alias_error.value) == (
-        "There is already a type alias defined for 'X', "
-        "the second type is: XBinder2"
+        "There is already a type alias defined for 'X', the second type is: XBinder2"
     )

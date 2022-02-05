@@ -2,12 +2,12 @@ import pytest
 
 from blacksheep.server.application import Application
 from blacksheep.server.routing import (
-    RouteMethod,
     InvalidValuePatternName,
     Mount,
     Route,
     RouteDuplicate,
     RouteException,
+    RouteMethod,
     Router,
 )
 

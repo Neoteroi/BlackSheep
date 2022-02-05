@@ -58,6 +58,24 @@ class BinderAlreadyDefinedException(BindingException):
         )
 
 
+class NameAliasAlreadyDefinedException(BindingException):
+    def __init__(self, alias: str, overriding_class_name: str) -> None:
+        super().__init__(
+            f"There is already a name alias defined for '{alias}', "
+            f"the second type is: {overriding_class_name}"
+        )
+        self.alias = alias
+
+
+class TypeAliasAlreadyDefinedException(BindingException):
+    def __init__(self, alias: Any, overriding_class_name: str) -> None:
+        super().__init__(
+            f"There is already a type alias defined for '{alias.__name__}', "
+            f"the second type is: {overriding_class_name}"
+        )
+        self.alias = alias
+
+
 class BinderNotRegisteredForValueType(BindingException):
     def __init__(self, value_type: Type["BoundValue"]) -> None:
         super().__init__(
@@ -69,10 +87,23 @@ class BinderNotRegisteredForValueType(BindingException):
 
 class BinderMeta(type):
     handlers: Dict[Type[Any], Type["Binder"]] = {}
+    aliases: Dict[Any, Callable[[Services], "Binder"]] = {}
 
     def __init__(cls, name, bases, attr_dict):
         super().__init__(name, bases, attr_dict)
         handle = getattr(cls, "handle", None)
+        name_alias = getattr(cls, "name_alias", None)
+        type_alias = getattr(cls, "type_alias", None)
+
+        if name_alias:
+            if name_alias in cls.aliases:
+                raise NameAliasAlreadyDefinedException(name_alias, name)
+            cls.aliases[name_alias] = cls.from_alias  # type: ignore
+
+        if type_alias:
+            if type_alias in cls.aliases:
+                raise TypeAliasAlreadyDefinedException(type_alias, name)
+            cls.aliases[type_alias] = cls.from_alias  # type: ignore
 
         if handle:
             if handle in cls.handlers:
@@ -208,14 +239,16 @@ class RequestMethod(BoundValue[str]):
     """
 
 
-class Binder(metaclass=BinderMeta):
+class Binder(metaclass=BinderMeta):  # type: ignore
     handle: ClassVar[Type[BoundValue]]
+    name_alias: ClassVar[str] = ""
+    type_alias: ClassVar[Any] = None
     _implicit: bool
     default: Any
 
     def __init__(
         self,
-        expected_type: T,
+        expected_type: Any,
         name: str = "",
         implicit: bool = False,
         required: bool = True,
@@ -228,6 +261,10 @@ class Binder(metaclass=BinderMeta):
         self.root_required = True
         self.converter = converter
         self.default = empty
+
+    @classmethod
+    def from_alias(cls, services: Services):
+        return cls()  # type: ignore
 
     @property
     def implicit(self) -> bool:
@@ -260,7 +297,7 @@ class Binder(metaclass=BinderMeta):
             return str
         return item_type
 
-    async def get_parameter(self, request: Request) -> Union[T, BoundValue[T]]:
+    async def get_parameter(self, request: Request) -> Any:
         """
         Gets a parameter to be passed to a request handler.
 
@@ -297,7 +334,7 @@ class Binder(metaclass=BinderMeta):
         return self.handle(value)
 
     @abstractmethod
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Any:
         """Gets a value from the given request object."""
 
 
@@ -789,18 +826,24 @@ class ControllerBinder(ServiceBinder):
 
 
 class RequestBinder(Binder):
+    name_alias = "request"
+    type_alias = Request
+
     def __init__(self, implicit: bool = True):
         super().__init__(Request, implicit=implicit)
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Any:
         return request
 
 
 class WebSocketBinder(Binder):
+    name_alias = "websocket"
+    type_alias = WebSocket
+
     def __init__(self, implicit: bool = True):
         super().__init__(WebSocket, implicit=implicit)
 
-    async def get_value(self, websocket: WebSocket) -> Optional[T]:
+    async def get_value(self, websocket: WebSocket) -> Optional[WebSocket]:
         return websocket
 
 
@@ -818,6 +861,14 @@ class ExactBinder(Binder):
 
     async def get_value(self, request: Request) -> Any:
         return self.exact_object
+
+
+class ServicesBinder(ExactBinder):
+    name_alias = "services"
+
+    @classmethod
+    def from_alias(cls, services: Services) -> "ServicesBinder":
+        return cls(services)
 
 
 class ClientInfoBinder(Binder):

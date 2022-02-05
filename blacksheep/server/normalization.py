@@ -282,14 +282,8 @@ def _get_parameter_binder(
 ) -> Binder:
     name = parameter.name
 
-    if name == "request":
-        return RequestBinder()
-
-    if name == "websocket":
-        return WebSocketBinder()
-
-    if name == "services":
-        return ExactBinder(services)
+    if name in Binder.aliases:
+        return Binder.aliases[name](services)
 
     original_annotation = parameter.annotation
 
@@ -302,11 +296,8 @@ def _get_parameter_binder(
     if isinstance(annotation, (str, ForwardRef)):  # pragma: no cover
         raise UnsupportedForwardRefInSignatureError(original_annotation)
 
-    if annotation is Request:
-        return RequestBinder()
-
-    if annotation is WebSocket:
-        return WebSocketBinder()
+    if annotation in Binder.aliases:
+        return Binder.aliases[annotation](services)
 
     # 1. is the type annotation of BoundValue[T] type?
     if _is_bound_value_annotation(annotation):

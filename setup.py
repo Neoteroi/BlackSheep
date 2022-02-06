@@ -11,7 +11,7 @@ COMPILE_ARGS = ["-O2"]
 
 setup(
     name="blacksheep",
-    version="1.2.2",
+    version="1.2.3",
     description="Fast web framework and HTTP client for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -52,7 +52,9 @@ setup(
     ],
     ext_modules=[
         Extension(
-            "blacksheep.url", ["blacksheep/url.c"], extra_compile_args=COMPILE_ARGS
+            "blacksheep.url",
+            ["blacksheep/url.c"],
+            extra_compile_args=COMPILE_ARGS,
         ),
         Extension(
             "blacksheep.exceptions",
@@ -107,6 +109,7 @@ setup(
         "full": [
             "cryptography~=35.0.0",
             "PyJWT~=2.3.0",
+            "websockets~=10.1",
         ]
     },
     include_package_data=True,

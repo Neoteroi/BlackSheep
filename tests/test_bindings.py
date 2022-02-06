@@ -22,12 +22,14 @@ from blacksheep.server.bindings import (
     JSONBinder,
     MissingBodyError,
     MissingConverterError,
+    NameAliasAlreadyDefinedException,
     QueryBinder,
     RequestMethodBinder,
     RequestURLBinder,
     RouteBinder,
     ServiceBinder,
     SyncBinder,
+    TypeAliasAlreadyDefinedException,
     get_binder_by_type,
 )
 from blacksheep.url import URL
@@ -659,3 +661,35 @@ async def test_request_url_binder(url):
     parameter = RequestURLBinder()
     value = await parameter.get_value(request)
     assert value == URL(url)
+
+
+def test_duplicate_name_alias_raises():
+    class FooBinder1(Binder):
+        name_alias = "foo_absurd_example"
+
+    with pytest.raises(NameAliasAlreadyDefinedException) as duplicate_alias_error:
+
+        class FooBinder2(Binder):
+            name_alias = "foo_absurd_example"
+
+    assert str(duplicate_alias_error.value) == (
+        "There is already a name alias defined for 'foo_absurd_example', "
+        "the second type is: FooBinder2"
+    )
+
+
+def test_duplicate_type_alias_raises():
+    class X:
+        pass
+
+    class XBinder1(Binder):
+        type_alias = X
+
+    with pytest.raises(TypeAliasAlreadyDefinedException) as duplicate_alias_error:
+
+        class XBinder2(Binder):
+            type_alias = X
+
+    assert str(duplicate_alias_error.value) == (
+        "There is already a type alias defined for 'X', the second type is: XBinder2"
+    )

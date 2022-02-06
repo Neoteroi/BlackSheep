@@ -9,18 +9,20 @@ from urllib.parse import unquote
 from blacksheep.utils import ensure_bytes, ensure_str
 
 __all__ = [
+    "HTTPMethod",
     "Router",
     "Route",
     "RouteMatch",
     "RouteDuplicate",
     "RegisteredRoute",
     "RoutesRegistry",
-    "HTTPMethod",
+    "RouteMethod",
 ]
 
 
-class HTTPMethod:
+class RouteMethod:
     GET = "GET"
+    GET_WS = "GET_WS"
     HEAD = "HEAD"
     POST = "POST"
     PUT = "PUT"
@@ -29,6 +31,10 @@ class HTTPMethod:
     OPTIONS = "OPTIONS"
     CONNECT = "CONNECT"
     PATCH = "PATCH"
+
+
+# for backward compatibility
+HTTPMethod = RouteMethod
 
 
 _route_all_rx = re.compile(b"\\*")
@@ -295,64 +301,64 @@ class RouterBase:
         return decorator
 
     def add_head(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.HEAD, pattern, handler)
+        self.add(RouteMethod.HEAD, pattern, handler)
 
     def add_get(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.GET, pattern, handler)
+        self.add(RouteMethod.GET, pattern, handler)
 
     def add_post(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.POST, pattern, handler)
+        self.add(RouteMethod.POST, pattern, handler)
 
     def add_put(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.PUT, pattern, handler)
+        self.add(RouteMethod.PUT, pattern, handler)
 
     def add_delete(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.DELETE, pattern, handler)
+        self.add(RouteMethod.DELETE, pattern, handler)
 
     def add_trace(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.TRACE, pattern, handler)
+        self.add(RouteMethod.TRACE, pattern, handler)
 
     def add_options(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.OPTIONS, pattern, handler)
+        self.add(RouteMethod.OPTIONS, pattern, handler)
 
     def add_connect(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.CONNECT, pattern, handler)
+        self.add(RouteMethod.CONNECT, pattern, handler)
 
     def add_patch(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.PATCH, pattern, handler)
+        self.add(RouteMethod.PATCH, pattern, handler)
 
     def add_ws(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(HTTPMethod.GET, pattern, handler)
+        self.add(RouteMethod.GET_WS, pattern, handler)
 
     def head(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.HEAD, pattern)
+        return self.get_decorator(RouteMethod.HEAD, pattern)
 
     def get(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.GET, pattern)
+        return self.get_decorator(RouteMethod.GET, pattern)
 
     def post(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.POST, pattern)
+        return self.get_decorator(RouteMethod.POST, pattern)
 
     def put(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.PUT, pattern)
+        return self.get_decorator(RouteMethod.PUT, pattern)
 
     def delete(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.DELETE, pattern)
+        return self.get_decorator(RouteMethod.DELETE, pattern)
 
     def trace(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.TRACE, pattern)
+        return self.get_decorator(RouteMethod.TRACE, pattern)
 
     def options(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.OPTIONS, pattern)
+        return self.get_decorator(RouteMethod.OPTIONS, pattern)
 
     def connect(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.CONNECT, pattern)
+        return self.get_decorator(RouteMethod.CONNECT, pattern)
 
     def patch(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.PATCH, pattern)
+        return self.get_decorator(RouteMethod.PATCH, pattern)
 
     def ws(self, pattern) -> Callable[..., Any]:
-        return self.get_decorator(HTTPMethod.GET, pattern)
+        return self.get_decorator(RouteMethod.GET_WS, pattern)
 
 
 class Router(RouterBase):
@@ -444,7 +450,7 @@ class Router(RouterBase):
         return RouteMatch(self._fallback, None)
 
     def get_ws_match(self, value: AnyStr) -> Optional[RouteMatch]:
-        return self.get_match(HTTPMethod.GET, value)
+        return self.get_match(RouteMethod.GET_WS, value)
 
     @lru_cache(maxsize=1200)
     def get_matching_route(self, method: AnyStr, value: AnyStr) -> Optional[Route]:

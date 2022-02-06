@@ -46,6 +46,7 @@ delete = router.delete
 trace = router.trace
 options = router.options
 connect = router.connect
+ws = router.ws
 
 
 class CannotDetermineDefaultViewNameError(RuntimeError):

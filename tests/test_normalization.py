@@ -9,6 +9,8 @@ from rodi import Container, Services, inject
 
 from blacksheep import Request
 from blacksheep.server.bindings import (
+    Binder,
+    ExactBinder,
     FromHeader,
     FromJSON,
     FromQuery,
@@ -18,14 +20,13 @@ from blacksheep.server.bindings import (
     IdentityBinder,
     JSONBinder,
     QueryBinder,
+    RequestBinder,
     RouteBinder,
     ServiceBinder,
 )
 from blacksheep.server.normalization import (
     AmbiguousMethodSignatureError,
-    ExactBinder,
     NormalizationError,
-    RequestBinder,
     RouteBinderMismatch,
     UnsupportedSignatureError,
     _check_union,
@@ -634,3 +635,24 @@ def test_pascal_case_route_parameter():
 
     assert isinstance(binders[0], RouteBinder)
     assert binders[0].parameter_name == "StatusKey"
+
+
+def test_normalization_with_parameter_alias():
+    class CustomBinder(Binder):
+        name_alias = "sunn_o"
+
+        def __init__(self):
+            super().__init__(str)
+
+        async def get_value(self, request: Request) -> Optional[str]:
+            return "sunn_o"
+
+    def handler(sunn_o):
+        ...
+
+    container = Container()
+
+    binders = get_binders(Route("/", handler), container.build_provider())
+    assert len(binders) == 1
+
+    assert isinstance(binders[0], CustomBinder)

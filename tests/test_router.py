@@ -2,12 +2,12 @@ import pytest
 
 from blacksheep.server.application import Application
 from blacksheep.server.routing import (
-    HTTPMethod,
     InvalidValuePatternName,
     Mount,
     Route,
     RouteDuplicate,
     RouteException,
+    RouteMethod,
     Router,
 )
 
@@ -318,15 +318,15 @@ def test_router_match_any_by_extension():
     router.add_get("/a/*.js", a)
     router.add_get("/b/*.css", b)
 
-    m = router.get_match(HTTPMethod.GET, b"/a/anything/really")
+    m = router.get_match(RouteMethod.GET, b"/a/anything/really")
     assert m is None
 
-    m = router.get_match(HTTPMethod.GET, b"/a/anything/really.js")
+    m = router.get_match(RouteMethod.GET, b"/a/anything/really.js")
     assert m is not None
     assert m.handler is a
     assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HTTPMethod.GET, b"/b/anything/really.css")
+    m = router.get_match(RouteMethod.GET, b"/b/anything/really.css")
     assert m is not None
     assert m.handler is b
     assert m.values.get("tail") == "anything/really"
@@ -352,46 +352,46 @@ def test_router_match_any_below():
     router.add_get("/c/*", c)
     router.add_get("/d/*", d)
 
-    m = router.get_match(HTTPMethod.GET, b"/a")
+    m = router.get_match(RouteMethod.GET, b"/a")
     assert m is not None
     assert m.handler is a
     assert m.values.get("tail") == ""
 
-    m = router.get_match(HTTPMethod.GET, b"/a/")
+    m = router.get_match(RouteMethod.GET, b"/a/")
     assert m is not None
     assert m.handler is a
     assert m.values.get("tail") == ""
 
-    m = router.get_match(HTTPMethod.GET, b"/a/anything/really")
+    m = router.get_match(RouteMethod.GET, b"/a/anything/really")
     assert m is not None
     assert m.handler is a
     assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HTTPMethod.GET, b"/b/anything/really")
+    m = router.get_match(RouteMethod.GET, b"/b/anything/really")
     assert m is not None
     assert m.handler is b
     assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HTTPMethod.GET, b"/c/anything/really")
+    m = router.get_match(RouteMethod.GET, b"/c/anything/really")
     assert m is not None
     assert m.handler is c
     assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HTTPMethod.GET, b"/d/anything/really")
+    m = router.get_match(RouteMethod.GET, b"/d/anything/really")
     assert m is not None
     assert m.handler is d
     assert m.values.get("tail") == "anything/really"
 
-    m = router.get_match(HTTPMethod.POST, b"/a/anything/really")
+    m = router.get_match(RouteMethod.POST, b"/a/anything/really")
     assert m is None
 
-    m = router.get_match(HTTPMethod.POST, b"/b/anything/really")
+    m = router.get_match(RouteMethod.POST, b"/b/anything/really")
     assert m is None
 
-    m = router.get_match(HTTPMethod.POST, b"/c/anything/really")
+    m = router.get_match(RouteMethod.POST, b"/c/anything/really")
     assert m is None
 
-    m = router.get_match(HTTPMethod.POST, b"/d/anything/really")
+    m = router.get_match(RouteMethod.POST, b"/d/anything/really")
     assert m is None
 
 
@@ -435,42 +435,63 @@ def test_router_match_among_many():
     router.add_delete("/foo", delete_foo)
     router.add_ws("/ws", ws)
 
-    m = router.get_match(HTTPMethod.GET, b"/")
+    m = router.get_match(RouteMethod.GET, b"/")
     assert m is not None
     assert m.handler is home
 
-    m = router.get_match(HTTPMethod.TRACE, b"/")
+    m = router.get_match(RouteMethod.TRACE, b"/")
     assert m is not None
     assert m.handler is home_verbose
 
-    m = router.get_match(HTTPMethod.CONNECT, b"/")
+    m = router.get_match(RouteMethod.CONNECT, b"/")
     assert m is not None
     assert m.handler is home_connect
 
-    m = router.get_match(HTTPMethod.OPTIONS, b"/")
+    m = router.get_match(RouteMethod.OPTIONS, b"/")
     assert m is not None
     assert m.handler is home_options
 
-    m = router.get_match(HTTPMethod.POST, b"/")
+    m = router.get_match(RouteMethod.POST, b"/")
     assert m is None
 
-    m = router.get_match(HTTPMethod.GET, b"/foo")
+    m = router.get_match(RouteMethod.GET, b"/foo")
     assert m is not None
     assert m.handler is get_foo
 
-    m = router.get_match(HTTPMethod.POST, b"/foo")
+    m = router.get_match(RouteMethod.POST, b"/foo")
     assert m is not None
     assert m.handler is create_foo
 
-    m = router.get_match(HTTPMethod.PATCH, b"/foo")
+    m = router.get_match(RouteMethod.PATCH, b"/foo")
     assert m is not None
     assert m.handler is patch_foo
 
-    m = router.get_match(HTTPMethod.DELETE, b"/foo")
+    m = router.get_match(RouteMethod.DELETE, b"/foo")
     assert m is not None
     assert m.handler is delete_foo
 
-    m = router.get_match(HTTPMethod.GET, b"/ws")
+    m = router.get_match(RouteMethod.GET_WS, b"/ws")
+    assert m is not None
+    assert m.handler is ws
+
+
+def test_router_match_ws_get_sharing_path():
+    router = Router()
+
+    def home():
+        ...
+
+    def ws():
+        ...
+
+    router.add_get("/", home)
+    router.add_ws("/", ws)
+
+    m = router.get_match(RouteMethod.GET, b"/")
+    assert m is not None
+    assert m.handler is home
+
+    m = router.get_match(RouteMethod.GET_WS, b"/")
     assert m is not None
     assert m.handler is ws
 
@@ -510,38 +531,38 @@ def test_router_match_among_many_decorators():
     def delete_foo():
         ...
 
-    m = router.get_match(HTTPMethod.GET, b"/")
+    m = router.get_match(RouteMethod.GET, b"/")
     assert m is not None
     assert m.handler is home
 
-    m = router.get_match(HTTPMethod.TRACE, b"/")
+    m = router.get_match(RouteMethod.TRACE, b"/")
     assert m is not None
     assert m.handler is home_verbose
 
-    m = router.get_match(HTTPMethod.CONNECT, b"/")
+    m = router.get_match(RouteMethod.CONNECT, b"/")
     assert m is not None
     assert m.handler is home_connect
 
-    m = router.get_match(HTTPMethod.OPTIONS, b"/")
+    m = router.get_match(RouteMethod.OPTIONS, b"/")
     assert m is not None
     assert m.handler is home_options
 
-    m = router.get_match(HTTPMethod.POST, b"/")
+    m = router.get_match(RouteMethod.POST, b"/")
     assert m is None
 
-    m = router.get_match(HTTPMethod.GET, b"/foo")
+    m = router.get_match(RouteMethod.GET, b"/foo")
     assert m is not None
     assert m.handler is get_foo
 
-    m = router.get_match(HTTPMethod.POST, b"/foo")
+    m = router.get_match(RouteMethod.POST, b"/foo")
     assert m is not None
     assert m.handler is create_foo
 
-    m = router.get_match(HTTPMethod.PATCH, b"/foo")
+    m = router.get_match(RouteMethod.PATCH, b"/foo")
     assert m is not None
     assert m.handler is patch_foo
 
-    m = router.get_match(HTTPMethod.DELETE, b"/foo")
+    m = router.get_match(RouteMethod.DELETE, b"/foo")
     assert m is not None
     assert m.handler is delete_foo
 
@@ -558,17 +579,17 @@ def test_router_match_with_trailing_slash():
     router.add_get("/foo", get_foo)
     router.add_post("/foo", create_foo)
 
-    m = router.get_match(HTTPMethod.GET, b"/foo/")
+    m = router.get_match(RouteMethod.GET, b"/foo/")
 
     assert m is not None
     assert m.handler is get_foo
 
-    m = router.get_match(HTTPMethod.POST, b"/foo/")
+    m = router.get_match(RouteMethod.POST, b"/foo/")
 
     assert m is not None
     assert m.handler is create_foo
 
-    m = router.get_match(HTTPMethod.POST, b"/foo//")
+    m = router.get_match(RouteMethod.POST, b"/foo//")
 
     assert m is None
 
@@ -583,7 +604,7 @@ def test_fallback_route():
     assert isinstance(router.fallback, Route)
     assert router.fallback.handler is not_found_handler
 
-    m = router.get_match(HTTPMethod.POST, b"/")
+    m = router.get_match(RouteMethod.POST, b"/")
 
     assert m is not None
     assert m.handler is not_found_handler

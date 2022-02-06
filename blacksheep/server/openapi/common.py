@@ -310,6 +310,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         routes_dictionary: Dict[str, Dict[str, T]] = {}
 
         for method, routes in router.routes.items():
+            if b"_" in method:
+                # Non standard method, used internally to support more scenarios.
+                # This is used for WebSocket.
+                continue
+
             for route in routes:
                 key = route.mustache_pattern
 

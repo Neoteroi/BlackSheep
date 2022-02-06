@@ -189,7 +189,7 @@ jobs:
       - name: Install build dependencies
         run: |
           pip install cython==0.29.24 --install-option="--no-cython-compile"
-          python -m pip install --upgrade setuptools pip wheel
+          python -m pip install setuptools==59.4.0 pip==22.0.2 wheel==0.37.0
 
       - name: Compile Cython extensions
         run: |
@@ -217,16 +217,16 @@ jobs:
         run: |
           python setup.py bdist_wheel
 
+      - uses: actions/upload-artifact@v1
+        with:
+          name: dist
+          path: dist
+
       - name: Test wheels
         if: |
           !startsWith(matrix.os, 'windows')
         run: |
           pip install --pre blacksheep -f "file:///${GITHUB_WORKSPACE}/dist"
-
-      - uses: actions/upload-artifact@v1
-        with:
-          name: dist
-          path: dist
 
   publish:
     runs-on: ubuntu-18.04

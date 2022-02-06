@@ -11,6 +11,7 @@ from blacksheep.server.application import RequiresServiceContainerError
 from blacksheep.server.controllers import ApiController, Controller, RoutesRegistry
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
+from blacksheep.server.websocket import WebSocket
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils import ensure_str
@@ -64,6 +65,32 @@ async def test_handler_through_controller(app):
     assert app.response.status == 200
     body = await app.response.text()
     assert body == "foo"
+
+
+@pytest.mark.asyncio
+async def test_ws_handler_through_controller(app):
+    app.controllers_router = RoutesRegistry()
+    ws = app.controllers_router.ws
+
+    called = False
+
+    class Home(Controller):
+        @ws("/web-socket")
+        async def foo(self, websocket):
+            nonlocal called
+            called = True
+            assert isinstance(self, Home)
+            assert isinstance(websocket, WebSocket)
+            await websocket.accept()
+
+    app.setup_controllers()
+    await app(
+        {"type": "websocket", "path": "/web-socket"},
+        MockReceive([{"type": "websocket.connect"}]),
+        MockSend(),
+    )
+
+    assert called is True
 
 
 @pytest.mark.asyncio

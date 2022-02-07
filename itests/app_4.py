@@ -13,6 +13,7 @@ from blacksheep.plugins.json import default_json_dumps
 from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
 from blacksheep.server.responses import json
+from blacksheep.server.websocket import WebSocket
 
 SINGLE_PID = None
 
@@ -119,6 +120,33 @@ def get_json_dataclass():
             data=b"test-data",
         )
     )
+
+
+@app_4.router.ws('/websocket-echo-text')
+async def echo_text(websocket: WebSocket):
+    await websocket.accept()
+
+    while True:
+        msg = await websocket.receive_text()
+        await websocket.send_text(msg)
+
+
+@app_4.router.ws('/websocket-echo-bytes')
+async def echo_bytes(websocket: WebSocket):
+    await websocket.accept()
+
+    while True:
+        msg = await websocket.receive_bytes()
+        await websocket.send_bytes(msg)
+
+
+@app_4.router.ws('/websocket-echo-json')
+async def echo_json(websocket: WebSocket):
+    await websocket.accept()
+
+    while True:
+        msg = await websocket.receive_json()
+        await websocket.send_json(msg)
 
 
 if __name__ == "__main__":

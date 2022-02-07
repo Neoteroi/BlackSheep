@@ -1,6 +1,7 @@
 name: Main
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
   push:
@@ -168,7 +169,7 @@ jobs:
 
   build-wheels:
     needs: build
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -188,7 +189,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          pip install cython==0.29.24 --install-option="--no-cython-compile"
+          pip install cython --install-option="--no-cython-compile"
           python -m pip install --upgrade setuptools pip wheel
 
       - name: Compile Cython extensions
@@ -217,16 +218,17 @@ jobs:
         run: |
           python setup.py bdist_wheel
 
-      - name: Test wheels
-        if: |
-          !startsWith(matrix.os, 'windows')
-        run: |
-          pip install --pre blacksheep -f "file:///${GITHUB_WORKSPACE}/dist"
-
       - uses: actions/upload-artifact@v1
         with:
           name: dist
           path: dist
+
+      - name: Test wheels
+        if: |
+          !startsWith(matrix.os, 'windows')
+        run: |
+          pip install blacksheep -f "file:///${GITHUB_WORKSPACE}/dist"
+          pip freeze | grep blacksheep
 
   publish:
     runs-on: ubuntu-18.04

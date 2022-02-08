@@ -6,6 +6,7 @@ from urllib.parse import unquote
 from uuid import uuid4
 
 import pytest
+import websockets
 import yaml
 
 from .client_fixtures import get_static_path
@@ -766,3 +767,22 @@ def test_post_json_to_app_using_custom_json_settings(session_4, data):
     ensure_success(response)
 
     assert response.json() == data
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "route,data",
+    [
+        ["websocket-echo-text", "Hello world!"],
+        ["websocket-echo-bytes", b"Hello world!"],
+        ["websocket-echo-json", '{"msg":"Hello world!"}'],
+    ],
+)
+async def test_websocket(server_host, server_port_4, route, data):
+    uri = f"ws://{server_host}:{server_port_4}/{route}"
+
+    async with websockets.connect(uri) as ws:
+        await ws.send(data)
+        echo = await ws.recv()
+
+        assert data == echo

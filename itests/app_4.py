@@ -122,7 +122,7 @@ def get_json_dataclass():
     )
 
 
-@app_4.router.ws('/websocket-echo-text')
+@app_4.router.ws("/websocket-echo-text")
 async def echo_text(websocket: WebSocket):
     await websocket.accept()
 
@@ -131,7 +131,7 @@ async def echo_text(websocket: WebSocket):
         await websocket.send_text(msg)
 
 
-@app_4.router.ws('/websocket-echo-bytes')
+@app_4.router.ws("/websocket-echo-bytes")
 async def echo_bytes(websocket: WebSocket):
     await websocket.accept()
 
@@ -140,7 +140,7 @@ async def echo_bytes(websocket: WebSocket):
         await websocket.send_bytes(msg)
 
 
-@app_4.router.ws('/websocket-echo-json')
+@app_4.router.ws("/websocket-echo-json")
 async def echo_json(websocket: WebSocket):
     await websocket.accept()
 

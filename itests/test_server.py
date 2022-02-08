@@ -775,8 +775,8 @@ def test_post_json_to_app_using_custom_json_settings(session_4, data):
     [
         ["websocket-echo-text", "Hello world!"],
         ["websocket-echo-bytes", b"Hello world!"],
-        ["websocket-echo-json", '{"msg":"Hello world!"}']
-    ]
+        ["websocket-echo-json", '{"msg":"Hello world!"}'],
+    ],
 )
 async def test_websocket(server_host, server_port_4, route, data):
     uri = f"ws://{server_host}:{server_port_4}/{route}"

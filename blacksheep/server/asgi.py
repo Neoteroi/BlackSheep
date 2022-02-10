@@ -70,3 +70,16 @@ def incoming_request(scope, receive=None) -> Request:
     if receive:
         request.content = ASGIContent(receive)
     return request
+
+
+def get_full_path(scope) -> bytes:
+    """
+    Returns the full path of the HTTP message from an ASGI scope.
+    """
+    path = scope["path"].encode()
+    query = scope["query_string"]
+
+    if query:
+        return path + b"?" + query
+
+    return path

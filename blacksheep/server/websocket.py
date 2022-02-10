@@ -4,6 +4,7 @@ from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
 
 from blacksheep.messages import Request
 from blacksheep.plugins import json
+from blacksheep.server.asgi import get_full_path
 
 
 class WebSocketState(Enum):
@@ -56,7 +57,7 @@ class WebSocket(Request):
         self, scope: MutableMapping[str, Any], receive: Callable, send: Callable
     ):
         assert scope["type"] == "websocket"
-        super().__init__("GET", scope["path"].encode(), scope.get("headers", []))
+        super().__init__("GET", get_full_path(scope), scope["headers"])
 
         self._scope = scope
         self._receive = self._wrap_receive(receive)

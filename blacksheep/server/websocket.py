@@ -2,6 +2,7 @@ from enum import Enum
 from functools import wraps
 from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
 
+from blacksheep.messages import Request
 from blacksheep.plugins import json
 
 
@@ -50,11 +51,12 @@ class WebSocketDisconnectError(WebSocketError):
         return f"The client closed the connection. WebSocket close code: {self.code}."
 
 
-class WebSocket:
+class WebSocket(Request):
     def __init__(
         self, scope: MutableMapping[str, Any], receive: Callable, send: Callable
     ):
         assert scope["type"] == "websocket"
+        super().__init__("GET", scope["path"].encode(), scope.get("headers", []))
 
         self._scope = scope
         self._receive = self._wrap_receive(receive)
@@ -63,6 +65,9 @@ class WebSocket:
 
         self.client_state = WebSocketState.CONNECTING
         self.application_state = WebSocketState.CONNECTING
+
+    def __repr__(self):
+        return f"<WebSocket {self.url.value.decode()}>"
 
     async def _connect(self) -> None:
         if self.client_state != WebSocketState.CONNECTING:

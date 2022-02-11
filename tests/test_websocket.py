@@ -1,5 +1,6 @@
 import pytest
 
+from blacksheep.server.bindings import FromHeader
 from blacksheep.server.websocket import (
     InvalidWebSocketStateError,
     MessageMode,
@@ -355,6 +356,61 @@ async def test_application_handling_proper_websocket_request():
         mock_receive,
         mock_send,
     )
+
+
+@pytest.mark.asyncio
+async def test_application_handling_proper_websocket_request_with_query():
+    app = FakeApplication()
+    mock_send = MockSend()
+    mock_receive = MockReceive([{"type": "websocket.connect"}])
+
+    @app.router.ws("/ws/{foo}")
+    async def websocket_handler(websocket, foo, from_query: int):
+        assert isinstance(websocket, WebSocket)
+        assert websocket.application_state == WebSocketState.CONNECTING
+        assert websocket.client_state == WebSocketState.CONNECTING
+
+        assert foo == "001"
+        assert from_query == 200
+
+        await websocket.accept()
+
+    await app.start()
+    await app(
+        {
+            "type": "websocket",
+            "path": "/ws/001",
+            "query_string": b"from_query=200",
+            "headers": [],
+        },
+        mock_receive,
+        mock_send,
+    )
+
+
+@pytest.mark.asyncio
+async def test_application_handling_proper_websocket_request_header_binding(
+    example_scope,
+):
+    app = FakeApplication()
+    mock_send = MockSend()
+    mock_receive = MockReceive([{"type": "websocket.connect"}])
+
+    class UpgradeHeader(FromHeader[str]):
+        name = "Upgrade"
+
+    called = False
+
+    @app.router.ws("/ws")
+    async def websocket_handler(connect_header: UpgradeHeader):
+        assert connect_header.value == "websocket"
+
+        nonlocal called
+        called = True
+
+    await app.start()
+    await app(example_scope, mock_receive, mock_send)
+    assert called is True
 
 
 @pytest.mark.asyncio

@@ -57,7 +57,7 @@ class WebSocket(Request):
         self, scope: MutableMapping[str, Any], receive: Callable, send: Callable
     ):
         assert scope["type"] == "websocket"
-        super().__init__("GET", get_full_path(scope), scope["headers"])
+        super().__init__("GET", get_full_path(scope), list(scope["headers"]))
 
         self.scope = scope  # type: ignore
         self._receive = self._wrap_receive(receive)

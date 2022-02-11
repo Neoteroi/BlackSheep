@@ -59,7 +59,7 @@ class WebSocket(Request):
         assert scope["type"] == "websocket"
         super().__init__("GET", get_full_path(scope), scope["headers"])
 
-        self._scope = scope
+        self.scope = scope  # type: ignore
         self._receive = self._wrap_receive(receive)
         self._send = send
         self.route_values = {}

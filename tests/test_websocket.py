@@ -13,7 +13,12 @@ from tests.utils.application import FakeApplication
 
 @pytest.fixture
 def example_scope():
-    return {"type": "websocket"}
+    return {
+        "type": "websocket",
+        "path": "/ws",
+        "query_string": "",
+        "headers": [(b"upgrade", b"websocket")],
+    }
 
 
 @pytest.mark.asyncio
@@ -309,7 +314,7 @@ async def test_websocket_raises_for_receive_when_closed_by_client(example_scope)
 
 
 @pytest.mark.asyncio
-async def test_application_handling_websocket_request_not_found():
+async def test_application_handling_websocket_request_not_found(example_scope):
     """
     If a client tries to open a WebSocket connection on an endpoint that is not handled,
     the application returns an ASGI message to close the connection.
@@ -318,7 +323,7 @@ async def test_application_handling_websocket_request_not_found():
     mock_send = MockSend()
     mock_receive = MockReceive()
 
-    await app({"type": "websocket", "path": "/ws"}, mock_receive, mock_send)
+    await app(example_scope, mock_receive, mock_send)
 
     close_message = mock_send.messages[0]
     assert close_message == {"type": "websocket.close", "code": 1000}
@@ -345,7 +350,11 @@ async def test_application_handling_proper_websocket_request():
         await websocket.accept()
 
     await app.start()
-    await app({"type": "websocket", "path": "/ws/001"}, mock_receive, mock_send)
+    await app(
+        {"type": "websocket", "path": "/ws/001", "query_string": "", "headers": []},
+        mock_receive,
+        mock_send,
+    )
 
 
 @pytest.mark.asyncio
@@ -366,4 +375,8 @@ async def test_application_websocket_binding_by_type_annotation():
         await my_ws.accept()
 
     await app.start()
-    await app({"type": "websocket", "path": "/ws"}, mock_receive, mock_send)
+    await app(
+        {"type": "websocket", "path": "/ws", "query_string": "", "headers": []},
+        mock_receive,
+        mock_send,
+    )

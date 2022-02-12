@@ -22,6 +22,12 @@ def example_scope():
     }
 
 
+def test_websocket_repr(example_scope):
+    ws = WebSocket(example_scope, MockReceive([]), MockSend())
+
+    assert str(ws) == "<WebSocket /ws>"
+
+
 @pytest.mark.asyncio
 async def test_connect_raises_if_not_connecting(example_scope):
     ws = WebSocket(

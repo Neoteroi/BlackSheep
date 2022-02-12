@@ -2097,3 +2097,94 @@ components:
                     - 3
 """.strip()
     )
+
+
+@pytest.mark.asyncio
+async def test_websockets_routes_are_ignored(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    app = get_app()
+
+    @app.router.post("/foo")
+    def one(data: FromForm[CreateFooInput]) -> Foo:
+        ...
+
+    @app.router.ws("/ws")
+    def websocket_route() -> None:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /foo:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Foo'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/CreateFooInput'
+                    application/x-www-form-urlencoded:
+                        schema:
+                            $ref: '#/components/schemas/CreateFooInput'
+                required: true
+components:
+    schemas:
+        Foo:
+            type: object
+            required:
+            - a
+            - b
+            properties:
+                a:
+                    type: string
+                    nullable: false
+                b:
+                    type: boolean
+                    nullable: false
+                level:
+                    type: integer
+                    nullable: false
+                    enum:
+                    - 1
+                    - 2
+                    - 3
+        CreateFooInput:
+            type: object
+            required:
+            - a
+            - b
+            properties:
+                a:
+                    type: string
+                    nullable: false
+                b:
+                    type: boolean
+                    nullable: false
+                level:
+                    type: integer
+                    nullable: false
+                    enum:
+                    - 1
+                    - 2
+                    - 3
+""".strip()
+    )

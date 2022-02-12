@@ -2,7 +2,9 @@ from enum import Enum
 from functools import wraps
 from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
 
+from blacksheep.messages import Request
 from blacksheep.plugins import json
+from blacksheep.server.asgi import get_full_path
 
 
 class WebSocketState(Enum):
@@ -11,13 +13,13 @@ class WebSocketState(Enum):
     DISCONNECTED = 2
 
 
-class MessageMode(str, Enum):
+class MessageMode(Enum):
     TEXT = "text"
     BYTES = "bytes"
 
 
 class WebSocketError(Exception):
-    """A base class for all web sockets errors."""
+    """Base class for all web sockets errors."""
 
 
 class InvalidWebSocketStateError(WebSocketError):
@@ -50,19 +52,23 @@ class WebSocketDisconnectError(WebSocketError):
         return f"The client closed the connection. WebSocket close code: {self.code}."
 
 
-class WebSocket:
+class WebSocket(Request):
     def __init__(
         self, scope: MutableMapping[str, Any], receive: Callable, send: Callable
     ):
         assert scope["type"] == "websocket"
+        super().__init__("GET", get_full_path(scope), list(scope["headers"]))
 
-        self._scope = scope
+        self.scope = scope  # type: ignore
         self._receive = self._wrap_receive(receive)
         self._send = send
         self.route_values = {}
 
         self.client_state = WebSocketState.CONNECTING
         self.application_state = WebSocketState.CONNECTING
+
+    def __repr__(self):
+        return f"<WebSocket {self.url.value.decode()}>"
 
     async def _connect(self) -> None:
         if self.client_state != WebSocketState.CONNECTING:
@@ -116,7 +122,6 @@ class WebSocket:
     async def receive_json(
         self, mode: MessageMode = MessageMode.TEXT
     ) -> MutableMapping[str, Any]:
-        assert mode in list(MessageMode)
         message = await self.receive()
 
         if mode == MessageMode.TEXT:
@@ -142,7 +147,6 @@ class WebSocket:
     async def send_json(
         self, data: MutableMapping[Any, Any], mode: MessageMode = MessageMode.TEXT
     ):
-        assert mode in list(MessageMode)
         text = json.dumps(data)
 
         if mode == MessageMode.TEXT:

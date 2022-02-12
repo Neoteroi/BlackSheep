@@ -85,7 +85,7 @@ async def test_ws_handler_through_controller(app):
 
     app.setup_controllers()
     await app(
-        {"type": "websocket", "path": "/web-socket"},
+        {"type": "websocket", "path": "/web-socket", "query_string": "", "headers": []},
         MockReceive([{"type": "websocket.connect"}]),
         MockSend(),
     )

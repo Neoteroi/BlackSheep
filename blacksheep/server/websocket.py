@@ -13,13 +13,13 @@ class WebSocketState(Enum):
     DISCONNECTED = 2
 
 
-class MessageMode(str, Enum):
+class MessageMode(Enum):
     TEXT = "text"
     BYTES = "bytes"
 
 
 class WebSocketError(Exception):
-    """A base class for all web sockets errors."""
+    """Base class for all web sockets errors."""
 
 
 class InvalidWebSocketStateError(WebSocketError):
@@ -122,7 +122,6 @@ class WebSocket(Request):
     async def receive_json(
         self, mode: MessageMode = MessageMode.TEXT
     ) -> MutableMapping[str, Any]:
-        assert mode in list(MessageMode)
         message = await self.receive()
 
         if mode == MessageMode.TEXT:
@@ -148,7 +147,6 @@ class WebSocket(Request):
     async def send_json(
         self, data: MutableMapping[Any, Any], mode: MessageMode = MessageMode.TEXT
     ):
-        assert mode in list(MessageMode)
         text = json.dumps(data)
 
         if mode == MessageMode.TEXT:

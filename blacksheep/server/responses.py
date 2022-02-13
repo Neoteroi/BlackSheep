@@ -12,6 +12,13 @@ MessageType = Any
 
 
 class ContentDispositionType(Enum):
+    """
+    Represents the type for a Content-Disposition header (inline or attachment).
+    The Content-Disposition response header is a header indicating if the content
+    is expected to be displayed inline in the browser as part of a Web page
+    or as an attachment, that is downloaded and saved locally.
+    """
+
     INLINE = "inline"
     ATTACHMENT = "attachment"
 

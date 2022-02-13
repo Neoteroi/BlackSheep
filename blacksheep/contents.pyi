@@ -1,15 +1,5 @@
 import uuid
-from typing import (
-    Any,
-    AsyncIterable,
-    Callable,
-    Coroutine,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, AsyncIterable, Callable, Dict, List, Optional, Tuple, Union
 
 class Content:
     def __init__(self, content_type: bytes, data: bytes):

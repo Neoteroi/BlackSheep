@@ -1,11 +1,8 @@
 from typing import Any, Awaitable, Callable, Optional, Sequence, Tuple
 
-from guardpost.asynchronous.authorization import (
-    AsyncRequirement,
-    AuthorizationStrategy,
-    Policy,
-)
-from guardpost.synchronous.authorization import Requirement, UnauthorizedError
+from guardpost.asynchronous.authorization import AsyncRequirement, AuthorizationStrategy
+from guardpost.authorization import Policy, UnauthorizedError
+from guardpost.synchronous.authorization import Requirement
 
 from blacksheep import Request, Response, TextContent
 

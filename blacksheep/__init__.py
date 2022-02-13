@@ -66,6 +66,8 @@ from .server.routing import Router as Router
 from .server.routing import RoutesRegistry as RoutesRegistry
 from .server.templating import use_templates as use_templates
 from .server.websocket import WebSocket as WebSocket
+from .server.websocket import WebSocketError as WebSocketError
+from .server.websocket import WebSocketState as WebSocketState
 from .server.websocket import WebSocketDisconnectError as WebSocketDisconnectError
 from .url import URL as URL
 from .url import InvalidURL as InvalidURL

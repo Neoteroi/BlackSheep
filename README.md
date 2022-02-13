@@ -23,8 +23,7 @@ pip install blacksheep
 
 ```python
 from datetime import datetime
-from blacksheep.server import Application
-from blacksheep.server.responses import text
+from blacksheep import Application, text
 
 
 app = Application()
@@ -83,7 +82,10 @@ here](https://www.neoteroi.dev/blacksheep/requests/).
 ```python
 from dataclasses import dataclass
 
-from blacksheep.server.bindings import FromJSON
+from blacksheep import Application, FromJSON, FromQuery
+
+
+app = Application()
 
 
 @dataclass

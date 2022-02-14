@@ -6,8 +6,7 @@ from datetime import datetime
 
 import uvicorn
 
-from blacksheep.contents import JSONContent
-from blacksheep.messages import Response
+from blacksheep import JSONContent, Response
 from blacksheep.plugins import json as json_plugin
 from blacksheep.plugins.json import default_json_dumps
 from blacksheep.server import Application

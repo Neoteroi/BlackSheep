@@ -786,3 +786,20 @@ async def test_websocket(server_host, server_port_4, route, data):
         echo = await ws.recv()
 
         assert data == echo
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "route,data",
+    [
+        ["websocket-echo-text", "Hello world!"],
+    ],
+)
+async def test_websocket_auth(server_host, server_port_2, route, data):
+    uri = f"ws://{server_host}:{server_port_2}/{route}"
+
+    async with websockets.connect(uri) as ws:
+        await ws.send(data)
+        echo = await ws.recv()
+
+        assert data == echo

@@ -168,5 +168,5 @@ class WebSocket(Request):
 
         return disconnect
 
-    async def close(self, code: int = 1000) -> None:
-        await self._send({"type": "websocket.close", "code": code})
+    async def close(self, code: int = 1000, reason: Optional[str] = None) -> None:
+        await self._send({"type": "websocket.close", "code": code, "reason": reason})

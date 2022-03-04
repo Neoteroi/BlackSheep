@@ -658,7 +658,12 @@ class Application(BaseApplication):
 
         if route:
             ws.route_values = route.values
-            return await route.handler(ws)
+            try:
+                return await route.handler(ws)
+            except UnauthorizedError:
+                await ws.close(401, "Unauthorized")
+            except HTTPException as http_exception:
+                await ws.close(http_exception.status, str(http_exception))
         await ws.close()
 
     async def _handle_http(self, scope, receive, send):

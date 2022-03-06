@@ -84,6 +84,26 @@ async def test_anti_forgery_token_generation(home_model):
 
 
 @pytest.mark.asyncio
+async def test_anti_forgery_token_click_jacking_protection(home_model):
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home(request):
+        return render("form_1", home_model, request=request)
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    assert app.response is not None
+
+    csp = app.response.headers[b"Content-Security-Policy"]
+    assert csp == (b"frame-ancestors: 'self';",)
+
+    x_frame_options = app.response.headers[b"X-Frame-Options"]
+    assert x_frame_options == (b"SAMEORIGIN",)
+
+
+@pytest.mark.asyncio
 async def test_anti_forgery_token_generation_multiple(home_model):
     """
     Verifies that using {% af_input %} doesn't generate multiple values for the same

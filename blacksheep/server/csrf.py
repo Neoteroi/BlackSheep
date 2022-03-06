@@ -33,6 +33,26 @@ class MissingRequestContextError(TypeError):
         )
 
 
+class SecurityPolicyHandler:
+    """
+    Class used to protect responses from click-jacking.
+
+    Subclass this class, or implement its same protocol, to modify how protection
+    against click-jacking is achieved.
+    """
+
+    def protect(self, response: Response) -> None:
+        """
+        Applies response headers, to configure Content-Security-Policy and
+        X-Frame-Options.
+        """
+        # for modern browsers
+        response.add_header(b"Content-Security-Policy", b"frame-ancestors: 'self';")
+
+        # for old browsers
+        response.add_header(b"X-Frame-Options", b"SAMEORIGIN")
+
+
 class AntiForgeryHandler:
     def __init__(
         self,
@@ -41,6 +61,7 @@ class AntiForgeryHandler:
         header_name: str = "RequestVerificationToken",
         secret_keys: Optional[Sequence[str]] = None,
         serializer: Optional[Serializer] = None,
+        security_handler: Optional[SecurityPolicyHandler] = None,
     ) -> None:
         """
         Creates a new instance of AntiForgeryHandler, that validates incoming
@@ -63,6 +84,9 @@ class AntiForgeryHandler:
         serializer : Optional[Serializer], optional
             If specified, controls the serializer used to sign and verify the values
             of cookies used for identities, by default None
+        security_handler : Optional[SecurityPolicyHandler], optional
+            Object used to protect responses that contain anti-forgery tokens against
+            click-jacking.
         """
         self.cookie_name = cookie_name
         self.header_name = header_name
@@ -70,6 +94,7 @@ class AntiForgeryHandler:
         self._serializer = serializer or get_serializer(secret_keys, "antiforgery")
         self.tokens = weakref.WeakKeyDictionary()
         self.reuse_tokens_among_requests = True
+        self.security_policy = security_handler or SecurityPolicyHandler()
         self.logger = get_logger()
 
     VALIDATE_METHODS = set("PATCH POST PUT DELETE".split())
@@ -85,7 +110,7 @@ class AntiForgeryHandler:
             except AntiForgeryTokenError as token_error:
                 return Response(401, [(b"Reason", str(token_error).encode())])
 
-        response = await handler(request)
+        response: Response = await handler(request)
 
         # is there a token issued for the current request?
         tokens = self.tokens.get(request)
@@ -93,6 +118,7 @@ class AntiForgeryHandler:
         # TODO: use walrus := when we drop support for Python 3.7
         if tokens:
             self.set_cookie(response, tokens[0])
+            self.security_policy.protect(response)
 
         return response
 

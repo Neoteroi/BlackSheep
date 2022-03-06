@@ -59,18 +59,18 @@ def use_templates(app, loader: PackageLoader, enable_async: bool = False):
 
     if enable_async:
 
-        async def async_view(name: str, model: Any = None):
+        async def async_view(name: str, model: Any = None, **kwargs):
             return get_response(
                 await render_template_async(
-                    env.get_template(template_name(name)), model
+                    env.get_template(template_name(name)), model, **kwargs
                 )
             )
 
         return async_view
 
-    def sync_view(name: str, model: Any = None):
+    def sync_view(name: str, model: Any = None, **kwargs):
         return get_response(
-            render_template(env.get_template(template_name(name)), model)
+            render_template(env.get_template(template_name(name)), model, **kwargs)
         )
 
     return sync_view
@@ -86,7 +86,9 @@ def model_to_view_params(model):
     return model
 
 
-def view(jinja_environment: Environment, name: str, model: Any = None) -> Response:
+def view(
+    jinja_environment: Environment, name: str, model: Any = None, **kwargs
+) -> Response:
     """
     Returns a Response object with HTML obtained from synchronous rendering.
 
@@ -96,18 +98,17 @@ def view(jinja_environment: Environment, name: str, model: Any = None) -> Respon
         return get_response(
             render_template(
                 jinja_environment.get_template(template_name(name)),
-                **model_to_view_params(model)
+                **model_to_view_params(model),
+                **kwargs
             )
         )
     return get_response(
-        render_template(
-            jinja_environment.get_template(template_name(name)),
-        )
+        render_template(jinja_environment.get_template(template_name(name)), **kwargs)
     )
 
 
 async def view_async(
-    jinja_environment: Environment, name: str, model: Any = None
+    jinja_environment: Environment, name: str, model: Any = None, **kwargs
 ) -> Response:
     """
     Returns a Response object with HTML obtained from synchronous rendering.
@@ -116,9 +117,12 @@ async def view_async(
         return get_response(
             await render_template_async(
                 jinja_environment.get_template(template_name(name)),
-                **model_to_view_params(model)
+                **model_to_view_params(model),
+                **kwargs
             )
         )
     return get_response(
-        await render_template_async(jinja_environment.get_template(template_name(name)))
+        await render_template_async(
+            jinja_environment.get_template(template_name(name)), **kwargs
+        )
     )

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.5] - 2022-03-??
 * Improves WebSocket to handle built-in exception types: Unauthorized, HTTPException
+* Adds built-in support for [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) (to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks)
+* Modifies the Request and Response classes to support weak references
+* Adds the possibility to use `**kwargs` in view functions, returning HTML built
+  using Jinja2
 
 ## [1.2.4] - 2022-02-13 :cat:
 * Modifies the `WebSocket` class to support built-in binders
@@ -57,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrades `Jinja2` dependency to version `3.0.2`
 - Modifies `setup.py` dependencies to be less strict (`~=` instead of `==`)
 
-## [1.0.9] - 2021-07-14 🇮🇹
+## [1.0.9] - 2021-07-14 :italy:
 - Adds support for application mounts (see [discussion #160](https://github.com/Neoteroi/BlackSheep/discussions/160))
 - Applies sorting of imports using `isort`, enforces linters in the CI pipeline
   with both `black` and `isort`

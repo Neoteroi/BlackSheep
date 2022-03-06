@@ -18,6 +18,7 @@ from .url cimport URL
 cdef class Message:
     cdef list __headers
     cdef public Content content
+    cdef object __weakref__
 
     cpdef list get_headers(self, bytes key)
     cpdef bytes get_first_header(self, bytes key)

@@ -7,7 +7,7 @@ MessageType = Union[bytes, Dict[str, Any]]
 class MockReceive:
     """
     Class used to mock the messages received by an ASGI framework and passed to the
-    dependant web framework.
+    web framework.
 
     Example:
 

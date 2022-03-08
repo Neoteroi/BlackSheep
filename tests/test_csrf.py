@@ -1,12 +1,12 @@
 import re
 
 import pytest
-from jinja2 import PackageLoader
+from jinja2 import Environment, PackageLoader
 from blacksheep.contents import write_www_form_urlencoded
 from blacksheep.messages import Response
 from blacksheep.server.controllers import Controller
 
-from blacksheep.server.csrf import use_anti_forgery
+from blacksheep.server.csrf import AntiForgeryBaseExtension, use_anti_forgery
 from blacksheep.server.responses import no_content
 from blacksheep.server.routing import RoutesRegistry
 from blacksheep.server.templating import (
@@ -166,21 +166,7 @@ async def test_anti_forgery_missing_request_context(home_model):
     ) in text
 
 
-@pytest.mark.asyncio
-async def test_anti_forgery_token_validation_using_input_1(home_model):
-    """
-    Tests a valid scenario.
-    """
-    app, render = get_app(False)
-
-    @app.router.get("/")
-    async def home(request):
-        return render("form_1", home_model, request=request)
-
-    @app.router.post("/user")
-    async def create_username():
-        return no_content()
-
+async def _valid_scenario(app: FakeApplication):
     await app.start()
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
@@ -219,6 +205,112 @@ async def test_anti_forgery_token_validation_using_input_1(home_model):
 
 
 @pytest.mark.asyncio
+async def test_anti_forgery_token_validation_using_input_1(home_model):
+    """
+    Tests a valid scenario.
+    """
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home(request):
+        return render("form_1", home_model, request=request)
+
+    @app.router.post("/user")
+    async def create_username():
+        return no_content()
+
+    await _valid_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_anti_forgery_token_validation_using_input_1_view_fn(home_model):
+    """
+    Tests a valid scenario using responses.view function.
+    """
+    app, _ = get_app(False)
+
+    @app.router.get("/")
+    async def home(env: Environment, request):
+        return view(env, "form_1", home_model, request=request)
+
+    @app.router.post("/user")
+    async def create_username():
+        return no_content()
+
+    await _valid_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_anti_forgery_token_validation_using_input_1_async_view_fn(home_model):
+    """
+    Tests a valid scenario using responses.view function.
+    """
+    app, _ = get_app(True)
+
+    @app.router.get("/")
+    async def home(env: Environment, request):
+        return await view_async(env, "form_1", home_model, request=request)
+
+    @app.router.post("/user")
+    async def create_username():
+        return no_content()
+
+    await _valid_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_anti_forgery_token_validation_using_input_1b(home_model):
+    """
+    Tests handling of an anomalous situation when the same form contains two elements
+    for the verification.
+    """
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home(request):
+        return render("form_1", home_model, request=request)
+
+    @app.router.post("/user")
+    async def create_username():
+        return no_content()
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    assert app.response is not None
+
+    text = await app.response.text()
+
+    af_cookie = app.response.cookies["aftoken"]
+    assert af_cookie is not None
+
+    # a valid request includes both the control value and the cookie:
+    # extract the anti-forgery token, then do POST
+    control_value = read_control_value_from_input(text).encode()
+    await app(
+        get_example_scope(
+            "POST",
+            "/user",
+            extra_headers={"Content-Type": "application/x-www-form-urlencoded"},
+            cookies={"aftoken": af_cookie.value},
+        ),
+        MockReceive(
+            [
+                b"username=Charlie+Brown"
+                + b"&__RequestVerificationToken="
+                + control_value
+                + b"&__RequestVerificationToken="
+                + control_value
+            ]
+        ),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 204
+
+
+@pytest.mark.asyncio
 async def test_anti_forgery_cookie_must_be_http_only(home_model):
     app, render = get_app(False)
 
@@ -239,7 +331,9 @@ async def test_anti_forgery_cookie_must_be_http_only(home_model):
 @pytest.mark.asyncio
 async def test_tokens_reuse_across_requests(home_model):
     """
-    When the same client has multiple pages open on the same
+    When the same client has multiple pages open on the same website, they should use
+    by default the same cookie (otherwise opening a new tab breaks the previous tabs
+    since the control values in input elements would not be updated!)
     """
     app, render = get_app(False)
 
@@ -301,6 +395,42 @@ async def test_tokens_reuse_across_requests(home_model):
 
     response = app.response
     assert response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_tokens_reuse_across_requests_invalid_token(home_model):
+    """
+    Tests an invalid value sent for aftoken cookie.
+    """
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home(request):
+        return render("form_1", home_model, request=request)
+
+    @app.router.post("/user")
+    async def create_username():
+        return no_content()
+
+    await app.start()
+
+    # now get the same page, but with a request cookie that already contains an
+    # anti-forgery token that was generated previously (this could happen in the same
+    # page or in another page of the same website)
+    await app(
+        get_example_scope("GET", "/", cookies={"aftoken": "invalid value"}),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+
+    # the second response doesn't have a set-cookie header because it's not necessary:
+    # the client already has a cookie for anti-forgery validation
+    # but we can make a web request with a new control value generated for the second
+    # response
+    second_cookie = app.response.cookies.get("aftoken")
+    assert second_cookie is not None
 
 
 @pytest.mark.asyncio
@@ -431,11 +561,16 @@ async def test_anti_forgery_token_validation_using_input_4(home_model):
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response is not None
 
-    af_cookie = app.response.cookies["aftoken"]
-    assert af_cookie is not None
-
+    text = await app.response.text()
+    control_value = read_control_value_from_input(text)
     # a valid request includes both the control value and the cookie:
     # extract the anti-forgery token, then do POST
+
+    # make another web request, which results in obtaining a new unrelated AF token,
+    # then use the cookie AF token with the unrelated control value
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    af_cookie = app.response.cookies["aftoken"]
+    assert af_cookie is not None
 
     # a request with invalid control value will fail:
     await app(
@@ -450,7 +585,7 @@ async def test_anti_forgery_token_validation_using_input_4(home_model):
                 write_www_form_urlencoded(
                     {
                         "username": "Charlie Brown",
-                        "__RequestVerificationToken": "This is wrong",
+                        "__RequestVerificationToken": control_value,
                     }
                 )
             ]
@@ -462,6 +597,47 @@ async def test_anti_forgery_token_validation_using_input_4(home_model):
     assert response.status == 401
     reason = response.headers[b"Reason"]
     assert reason == (b"Invalid anti-forgery token",)
+
+
+@pytest.mark.asyncio
+async def test_missing_control_value(home_model):
+    """
+    Tests missing control value, which was generated for another request.
+    """
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home(request):
+        return render("form_1", home_model, request=request)
+
+    @app.router.post("/user")
+    async def create_username():
+        return no_content()
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    assert app.response is not None
+
+    af_cookie = app.response.cookies["aftoken"]
+    assert af_cookie is not None
+
+    # a request with invalid control value will fail:
+    await app(
+        get_example_scope(
+            "POST",
+            "/user",
+            extra_headers={"Content-Type": "application/x-www-form-urlencoded"},
+            cookies={"aftoken": af_cookie.value},
+        ),
+        MockReceive([write_www_form_urlencoded({"username": "Charlie Brown"})]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 401
+    reason = response.headers[b"Reason"]
+    assert reason == (b"Missing anti-forgery token control value",)
 
 
 @pytest.mark.asyncio
@@ -541,3 +717,22 @@ async def test_controller_async_view_generation(home_model):
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response is not None
     await _assert_generation_scenario(app.response)
+
+
+@pytest.mark.asyncio
+async def test_anti_forgery_base_extension_raises_without_handler(home_model):
+    app, _ = get_app(False)
+
+    env = app.templates_environment  # type: ignore
+
+    with pytest.raises(TypeError):
+        AntiForgeryBaseExtension(env)
+
+    class Foo(AntiForgeryBaseExtension):
+        af_handler = object()  # type: ignore
+
+    instance = Foo(env)
+    instance.af_handler = None
+
+    with pytest.raises(TypeError):
+        instance.handler

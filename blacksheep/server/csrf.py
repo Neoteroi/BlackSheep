@@ -13,6 +13,7 @@ from blacksheep.exceptions import Unauthorized
 from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
 from blacksheep.server.dataprotection import generate_secret, get_serializer
+from blacksheep.server.security import SecurityPolicyHandler
 
 
 class AntiForgeryTokenError(Unauthorized):
@@ -33,12 +34,10 @@ class MissingRequestContextError(TypeError):
         )
 
 
-class SecurityPolicyHandler:
+class ClickJackingProtection(SecurityPolicyHandler):
     """
-    Class used to protect responses from click-jacking.
-
-    Subclass this class, or implement its same protocol, to modify how protection
-    against click-jacking is achieved.
+    Class used to protect responses from click-jacking. This class is applied by default
+    when using Anti-Forgery validation.
     """
 
     def protect(self, response: Response) -> None:
@@ -85,8 +84,9 @@ class AntiForgeryHandler:
             If specified, controls the serializer used to sign and verify the values
             of cookies used for identities, by default None
         security_handler : Optional[SecurityPolicyHandler], optional
-            Object used to protect responses that contain anti-forgery tokens against
-            click-jacking.
+            Object used to protect responses that contain anti-forgery tokens. By
+            default documents are protected against click-jacking allowing iframes only
+            from the same site. Provide a custom object to control security rules.
         """
         self.cookie_name = cookie_name
         self.header_name = header_name
@@ -94,7 +94,7 @@ class AntiForgeryHandler:
         self._serializer = serializer or get_serializer(secret_keys, "antiforgery")
         self.tokens = weakref.WeakKeyDictionary()
         self.reuse_tokens_among_requests = True
-        self.security_policy = security_handler or SecurityPolicyHandler()
+        self.security_policy = security_handler or ClickJackingProtection()
         self.logger = get_logger()
 
     VALIDATE_METHODS = set("PATCH POST PUT DELETE".split())
@@ -104,6 +104,9 @@ class AntiForgeryHandler:
         return self._serializer
 
     async def __call__(self, request: Request, handler):
+        # 1. support explicit @anti_forgery?
+        # 2. support explicit @ignore_anti_forgery?
+        # ---
         if self.should_validate_request(request):
             try:
                 await self.validate_request(request)
@@ -200,12 +203,11 @@ class AntiForgeryHandler:
         if form_data is not None and self.form_name in form_data:
             value = form_data[self.form_name]
             if not isinstance(value, str):
-                self.logger.info(
-                    "Invalid Anti-Forgery token: the control value is not a string."
-                )
-                raise InvalidAntiForgeryTokenError(
-                    "Expected a string anti-forgery token control value"
-                )
+                # the value can only be a list, this happens when more than one input
+                # is configured (for example a mistake where {% af_input %} appears
+                # more than once in the same form; use only the first value
+                assert isinstance(value, list)
+                return value[0]
             return value
 
         raise AntiForgeryTokenError("Missing anti-forgery token control value")

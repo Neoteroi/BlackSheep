@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.5] - 2022-03-??
 * Improves WebSocket to handle built-in exception types: Unauthorized, HTTPException
-* Adds built-in support for [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) (to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks)
+* Adds built-in support for [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks
 * Modifies the Request and Response classes to support weak references
 * Adds the possibility to use `**kwargs` in view functions, returning HTML built
   using Jinja2

@@ -2,20 +2,14 @@ import re
 
 import pytest
 from jinja2 import Environment, PackageLoader
+
 from blacksheep.contents import write_www_form_urlencoded
 from blacksheep.messages import Response
 from blacksheep.server.controllers import Controller
-
 from blacksheep.server.csrf import AntiForgeryBaseExtension, use_anti_forgery
 from blacksheep.server.responses import no_content
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.templating import (
-    model_to_view_params,
-    template_name,
-    use_templates,
-    view,
-    view_async,
-)
+from blacksheep.server.templating import use_templates, view, view_async
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication

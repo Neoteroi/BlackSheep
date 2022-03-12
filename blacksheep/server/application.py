@@ -194,51 +194,8 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
+        self.base_path: str = ""
         self._mount_registry = mount
-
-    def mount(self, path: str, app: Callable) -> None:
-        """
-        Mounts an ASGI application at the given path. When a web request has a URL path
-        that starts with the mount path, it is handled by the mounted app (the mount
-        path is stripped from the final URL path received by the child application).
-
-        If the child application is a BlackSheep application, it requires handling of
-        its lifecycle events. This can be automatic, if the environment variable
-
-            APP_MOUNT_AUTO_EVENTS is set to "1" or "true" (case insensitive)
-
-        or explicitly enabled, if the parent app's is configured this way:
-
-            parent_app.mount_registry.auto_events = True
-        """
-        self._mount_registry.mount(path, app)
-
-        if isinstance(app, Application) and self._mount_registry.auto_events:
-
-            @self.on_start
-            async def handle_child_app_start(_):
-                await app.start()
-
-            @self.after_start
-            async def handle_child_app_after_start(_):
-                await app.after_start.fire()
-
-            @self.on_middlewares_configuration
-            def handle_child_app_on_middlewares_configuration(_):
-                app.on_middlewares_configuration.fire_sync()
-
-            @self.on_stop
-            async def handle_child_app_stop(_):
-                await app.stop()
-
-        if len(self._mount_registry.mounted_apps) == 1:
-            # the first time a mount is configured, extend the application
-            # to use mounts when handling web requests
-            self.extend(MountMixin)
-
-    @property
-    def mount_registry(self) -> MountRegistry:
-        return self._mount_registry
 
     @property
     def service_provider(self) -> Services:
@@ -265,6 +222,55 @@ class Application(BaseApplication):
                 + "Use `app.use_cors()` method before using this property."
             )
         return self._cors_strategy
+
+    @property
+    def mount_registry(self) -> MountRegistry:
+        return self._mount_registry
+
+    def mount(self, path: str, app: Callable) -> None:
+        """
+        Mounts an ASGI application at the given path. When a web request has a URL path
+        that starts with the mount path, it is handled by the mounted app (the mount
+        path is stripped from the final URL path received by the child application).
+
+        If the child application is a BlackSheep application, it requires handling of
+        its lifecycle events. This can be automatic, if the environment variable
+
+            APP_MOUNT_AUTO_EVENTS is set to "1" or "true" (case insensitive)
+
+        or explicitly enabled, if the parent app's is configured this way:
+
+            parent_app.mount_registry.auto_events = True
+        """
+        self._mount_registry.mount(path, app)
+
+        if isinstance(app, Application):
+            app.base_path = path
+
+            if self._mount_registry.auto_events:
+                self._bind_child_app_events(app)
+
+        if len(self._mount_registry.mounted_apps) == 1:
+            # the first time a mount is configured, extend the application
+            # to use mounts when handling web requests
+            self.extend(MountMixin)
+
+    def _bind_child_app_events(self, app: "Application") -> None:
+        @self.on_start
+        async def handle_child_app_start(_):
+            await app.start()
+
+        @self.after_start
+        async def handle_child_app_after_start(_):
+            await app.after_start.fire()
+
+        @self.on_middlewares_configuration
+        def handle_child_app_on_middlewares_configuration(_):
+            app.on_middlewares_configuration.fire_sync()
+
+        @self.on_stop
+        async def handle_child_app_stop(_):
+            await app.stop()
 
     def use_sessions(
         self,
@@ -746,6 +752,7 @@ class Application(BaseApplication):
 
 class MountMixin:
     _mount: MountRegistry
+    base_path: str
 
     def handle_mount_path(self, scope, route_match):
         assert route_match.values is not None
@@ -768,7 +775,9 @@ class MountMixin:
                 (
                     b"Location",
                     _ensure_bytes(
-                        f"{get_request_url_from_scope(scope, trailing_slash=True)}"
+                        get_request_url_from_scope(
+                            scope, trailing_slash=True, base_path=self.base_path
+                        )
                     ),
                 )
             ],

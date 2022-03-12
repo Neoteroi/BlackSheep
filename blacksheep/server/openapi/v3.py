@@ -282,9 +282,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if app.mount_registry.mounted_apps and app.mount_registry.handle_docs:
             for route in app.mount_registry.mounted_apps:
                 if isinstance(route.handler, Application):
+                    full_prefix = route.pattern.decode().rstrip("/*")
+                    if path_prefix:
+                        full_prefix = path_prefix.rstrip("/") + full_prefix
+
                     child_docs = self.get_paths(
                         route.handler,
-                        route.pattern.decode().rstrip("/*"),
+                        full_prefix,
                     )
                     own_paths.update(child_docs)
 

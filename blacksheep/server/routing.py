@@ -491,12 +491,18 @@ class RoutesRegistry(RouterBase):
         self.routes.append(RegisteredRoute(method, pattern, handler))
 
 
-class Mount:
-    __slots__ = ("_mounted_apps", "_mounted_paths")
+class MountRegistry:
+    """
+    Holds information about mounted applications and how they should be handled.
+    """
 
-    def __init__(self):
+    __slots__ = ("_mounted_apps", "_mounted_paths", "auto_events", "handle_docs")
+
+    def __init__(self, auto_events: bool = True, handle_docs: bool = False):
         self._mounted_apps = []
         self._mounted_paths = set()
+        self.auto_events = auto_events
+        self.handle_docs = handle_docs
 
     @property
     def mounted_apps(self) -> List[Route]:
@@ -519,3 +525,6 @@ class Mount:
             path = f"{path.rstrip('/*')}/*"
 
         self._mounted_apps.append(Route(path, app))
+
+
+Mount = MountRegistry

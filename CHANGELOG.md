@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.5] - 2022-03-?? :dove:
+## [1.2.5] - 2022-03-12 :dove:
 * Improves WebSocket to handle built-in exception types: Unauthorized, HTTPException
 * Adds built-in support for [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks
 * Modifies the Request and Response classes to support weak references
@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   using Jinja2
 * Adds support for automatic handling of child application events when BlackSheep
   applications are mounted into a parent BlackSheep application
+* Adds support for OpenAPI Documentation generated for children BlackSheep apps,
+  when using mounts
 
 ## [1.2.4] - 2022-02-13 :cat:
 * Modifies the `WebSocket` class to support built-in binders

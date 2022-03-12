@@ -47,7 +47,12 @@ from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.responses import _ensure_bytes
-from blacksheep.server.routing import Mount, RegisteredRoute, Router, RoutesRegistry
+from blacksheep.server.routing import (
+    MountRegistry,
+    RegisteredRoute,
+    Router,
+    RoutesRegistry,
+)
 from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import Encryptor, SessionMiddleware, SessionSerializer, Signer
 from blacksheep.utils import ensure_bytes, join_fragments
@@ -158,7 +163,7 @@ class Application(BaseApplication):
         services: Optional[Container] = None,
         debug: bool = False,
         show_error_details: Optional[bool] = None,
-        mount: Optional[Mount] = None,
+        mount: Optional[MountRegistry] = None,
     ):
         env_settings = EnvironmentSettings()
         if router is None:
@@ -168,7 +173,7 @@ class Application(BaseApplication):
         if show_error_details is None:
             show_error_details = env_settings.show_error_details
         if mount is None:
-            mount = Mount()
+            mount = MountRegistry(env_settings.mount_auto_events)
         super().__init__(show_error_details, router)
 
         self.services: Container = services
@@ -189,13 +194,26 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
-        self.mount_auto_events = env_settings.mount_auto_events
-        self._mount = mount
+        self._mount_registry = mount
 
     def mount(self, path: str, app: Callable) -> None:
-        self._mount.mount(path, app)
+        """
+        Mounts an ASGI application at the given path. When a web request has a URL path
+        that starts with the mount path, it is handled by the mounted app (the mount
+        path is stripped from the final URL path received by the child application).
 
-        if isinstance(app, Application) and self.mount_auto_events:
+        If the child application is a BlackSheep application, it requires handling of
+        its lifecycle events. This can be automatic, if the environment variable
+
+            APP_MOUNT_AUTO_EVENTS is set to "1" or "true" (case insensitive)
+
+        or explicitly enabled, if the parent app's is configured this way:
+
+            parent_app.mount_registry.auto_events = True
+        """
+        self._mount_registry.mount(path, app)
+
+        if isinstance(app, Application) and self._mount_registry.auto_events:
 
             @self.on_start
             async def handle_child_app_start(_):
@@ -213,10 +231,14 @@ class Application(BaseApplication):
             async def handle_child_app_stop(_):
                 await app.stop()
 
-        if len(self._mount.mounted_apps) == 1:
+        if len(self._mount_registry.mounted_apps) == 1:
             # the first time a mount is configured, extend the application
             # to use mounts when handling web requests
             self.extend(MountMixin)
+
+    @property
+    def mount_registry(self) -> MountRegistry:
+        return self._mount_registry
 
     @property
     def service_provider(self) -> Services:
@@ -723,7 +745,7 @@ class Application(BaseApplication):
 
 
 class MountMixin:
-    _mount: Mount
+    _mount: MountRegistry
 
     def handle_mount_path(self, scope, route_match):
         assert route_match.values is not None
@@ -757,7 +779,7 @@ class MountMixin:
         if scope["type"] == "lifespan":
             return await super()._handle_lifespan(receive, send)  # type: ignore
 
-        for route in self._mount.mounted_apps:  # type: ignore
+        for route in self.mount_registry.mounted_apps:  # type: ignore
             route_match = route.match(scope["raw_path"])
             if route_match:
                 raw_path = scope["raw_path"]

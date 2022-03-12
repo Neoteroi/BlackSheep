@@ -3,7 +3,7 @@ import pytest
 from blacksheep.server.application import Application
 from blacksheep.server.routing import (
     InvalidValuePatternName,
-    Mount,
+    MountRegistry,
     Route,
     RouteDuplicate,
     RouteException,
@@ -825,7 +825,7 @@ def test_mount_add_method(mount_path, expected_scope_path):
             pass
 
     app = ASGIHandler()
-    mount = Mount()
+    mount = MountRegistry()
     mount.mount(mount_path, app)
 
     assert any(
@@ -836,7 +836,7 @@ def test_mount_add_method(mount_path, expected_scope_path):
 
 
 def test_mount_mounted_paths():
-    mount = Mount()
+    mount = MountRegistry()
     assert mount.mounted_paths == set()
 
     mount.mount("/foo", Application())
@@ -851,6 +851,6 @@ def test_mount_mounted_paths():
 
 def test_mount_add_raise_error_if_path_exist():
     with pytest.raises(AssertionError):
-        mount = Mount()
+        mount = MountRegistry()
         mount.mount("/foo", None)
         mount.mount("/foo", None)

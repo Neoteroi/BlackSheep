@@ -1,4 +1,5 @@
 import json
+import os
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -3366,6 +3367,60 @@ async def test_start_stop_events(app):
     assert on_stop_called is False
 
     await app.stop()
+
+    assert on_start_called is True
+    assert on_after_start_called is True
+    assert on_stop_called is True
+
+
+@pytest.mark.parametrize("method", ["environ", "explicit"])
+@pytest.mark.asyncio
+async def test_mounted_app_auto_events(method: str):
+    if method == "environ":
+        os.environ["APP_MOUNT_AUTO_EVENTS"] = "1"
+
+    parent_app = FakeApplication()
+
+    if method == "explicit":
+        parent_app.mount_auto_events = True
+
+    app = FakeApplication()
+
+    parent_app.mount("/", app)
+
+    on_start_called = False
+    on_after_start_called = False
+    on_stop_called = False
+
+    async def before_start(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_start_called
+        on_start_called = True
+
+    async def after_start(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_after_start_called
+        on_after_start_called = True
+
+    async def on_stop(application: FakeApplication) -> None:
+        assert isinstance(application, FakeApplication)
+        assert application is app
+        nonlocal on_stop_called
+        on_stop_called = True
+
+    app.on_start += before_start
+    app.after_start += after_start
+    app.on_stop += on_stop
+
+    await parent_app.start()
+
+    assert on_start_called is True
+    assert on_after_start_called is True
+    assert on_stop_called is False
+
+    await parent_app.stop()
 
     assert on_start_called is True
     assert on_after_start_called is True

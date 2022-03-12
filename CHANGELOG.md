@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Modifies the Request and Response classes to support weak references
 * Adds the possibility to use `**kwargs` in view functions, returning HTML built
   using Jinja2
+* Adds support for automatic handling of child application events when BlackSheep
+  applications are mounted into a parent BlackSheep application
 
 ## [1.2.4] - 2022-02-13 :cat:
 * Modifies the `WebSocket` class to support built-in binders

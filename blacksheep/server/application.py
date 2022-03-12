@@ -146,10 +146,11 @@ def _extend(obj, cls):
     obj.__class__ = type(base_cls_name, (cls, base_cls), {})
 
 
-env_settings = EnvironmentSettings()
-
-
 class Application(BaseApplication):
+    """
+    Server application class.
+    """
+
     def __init__(
         self,
         *,
@@ -159,6 +160,7 @@ class Application(BaseApplication):
         show_error_details: Optional[bool] = None,
         mount: Optional[Mount] = None,
     ):
+        env_settings = EnvironmentSettings()
         if router is None:
             router = Router()
         if services is None:
@@ -187,10 +189,29 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
+        self.mount_auto_events = env_settings.mount_auto_events
         self._mount = mount
 
     def mount(self, path: str, app: Callable) -> None:
         self._mount.mount(path, app)
+
+        if isinstance(app, Application) and self.mount_auto_events:
+
+            @self.on_start
+            async def handle_child_app_start(_):
+                await app.start()
+
+            @self.after_start
+            async def handle_child_app_after_start(_):
+                await app.after_start.fire()
+
+            @self.on_middlewares_configuration
+            def handle_child_app_on_middlewares_configuration(_):
+                app.on_middlewares_configuration.fire_sync()
+
+            @self.on_stop
+            async def handle_child_app_stop(_):
+                await app.stop()
 
         if len(self._mount.mounted_apps) == 1:
             # the first time a mount is configured, extend the application
@@ -366,10 +387,12 @@ class Application(BaseApplication):
             strategy.add(Policy("authenticated").add(AuthenticatedRequirement()))
 
         self._authorization_strategy = strategy
-        self.exceptions_handlers[
-            AuthenticateChallenge
-        ] = handle_authentication_challenge
-        self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
+        self.exceptions_handlers.update(
+            {  # type: ignore
+                AuthenticateChallenge: handle_authentication_challenge,
+                UnauthorizedError: handle_unauthorized,
+            }
+        )
         return strategy
 
     def route(

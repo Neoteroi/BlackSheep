@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Adds support for OpenAPI Documentation generated for children BlackSheep apps,
   when using mounts
 * Corrects bugs that prevented mounted routes to work recursively in descendants
-* Updates `httptools` dependency to >0.4
+* Updates dependencies
 
 ## [1.2.4] - 2022-02-13 :cat:
 * Modifies the `WebSocket` class to support built-in binders

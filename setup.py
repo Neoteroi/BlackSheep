@@ -103,7 +103,7 @@ setup(
         "essentials-openapi>=0.1.4,<1.0",
         "typing_extensions; python_version < '3.8'",
         "python-dateutil~=2.8.2",
-        "itsdangerous~=2.0.1",
+        "itsdangerous~=2.1.1",
     ],
     extras_require={
         "full": [

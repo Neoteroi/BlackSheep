@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrades `Jinja2` dependency to version `3.0.2`
 - Modifies `setup.py` dependencies to be less strict (`~=` instead of `==`)
 
-## [1.0.9] - 2021-07-14 :italy:
+## [1.0.9] - 2021-07-14 🇮🇹
 - Adds support for application mounts (see [discussion #160](https://github.com/Neoteroi/BlackSheep/discussions/160))
 - Applies sorting of imports using `isort`, enforces linters in the CI pipeline
   with both `black` and `isort`

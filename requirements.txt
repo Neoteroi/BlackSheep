@@ -68,7 +68,6 @@ rodi==1.1.1
 six==1.13.0
 toml==0.10.1
 tomli==1.2.1
-typed-ast==1.4.3
 typing-extensions==3.10.0.2
 urllib3==1.26.5
 uvicorn==0.17.6

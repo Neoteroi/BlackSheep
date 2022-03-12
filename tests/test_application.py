@@ -3777,3 +3777,8 @@ async def test_application_raises_for_unhandled_scope_type(app):
         )
 
     assert str(app_type_error.value) == "Unsupported scope type: foo"
+
+
+def test_mounting_self_raises(app):
+    with pytest.raises(TypeError):
+        app.mount("/nope", app)

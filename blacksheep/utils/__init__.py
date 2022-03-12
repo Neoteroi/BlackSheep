@@ -25,7 +25,7 @@ def remove_duplicate_slashes(value: str) -> str:
 
 
 def join_fragments(*args: AnyStr) -> str:
-    """Joins URL fragments bytes"""
+    """Joins URL fragments"""
     return "/" + "/".join(
         remove_duplicate_slashes(ensure_str(arg)).strip("/") for arg in args if arg
     )

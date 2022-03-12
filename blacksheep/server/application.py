@@ -242,10 +242,15 @@ class Application(BaseApplication):
 
             parent_app.mount_registry.auto_events = True
         """
+        if app is self:
+            raise TypeError("Cannot mount an application into itself")
+
         self._mount_registry.mount(path, app)
 
         if isinstance(app, Application):
-            app.base_path = path
+            app.base_path = (
+                join_fragments(self.base_path, path) if self.base_path else path
+            )
 
             if self._mount_registry.auto_events:
                 self._bind_child_app_events(app)

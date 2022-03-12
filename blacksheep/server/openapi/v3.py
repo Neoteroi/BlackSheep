@@ -276,8 +276,23 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             info=self.info, paths=self.get_paths(app), components=self.components
         )
 
-    def get_paths(self, app: Application) -> Dict[str, PathItem]:
-        return self.get_routes_docs(app.router)
+    def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:
+        own_paths = self.get_routes_docs(app.router, path_prefix)
+
+        if app.mount_registry.mounted_apps and app.mount_registry.handle_docs:
+            for route in app.mount_registry.mounted_apps:
+                if isinstance(route.handler, Application):
+                    full_prefix = route.pattern.decode().rstrip("/*")
+                    if path_prefix:
+                        full_prefix = path_prefix.rstrip("/") + full_prefix
+
+                    child_docs = self.get_paths(
+                        route.handler,
+                        full_prefix,
+                    )
+                    own_paths.update(child_docs)
+
+        return own_paths
 
     def get_type_name_for_generic(
         self,
@@ -879,7 +894,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_operation_id(self, docs: Optional[EndpointDocs], handler) -> str:
         return handler.__name__
 
-    def get_routes_docs(self, router: Router) -> Dict[str, PathItem]:
+    def get_routes_docs(
+        self, router: Router, path_prefix: str = ""
+    ) -> Dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""
         paths_doc: Dict[str, PathItem] = {}
         raw_dict = self.router_to_paths_dict(router, lambda route: route)
@@ -908,7 +925,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 self.events.on_operation_created.fire_sync(operation)
                 setattr(path_item, method, operation)
 
-            paths_doc[path] = path_item
+            path_value = path_prefix + path
+            if path_value != "/" and path_value.endswith("/"):
+                path_value = path_value.rstrip("/")
+            paths_doc[path_value] = path_item
 
         self.events.on_paths_created.fire_sync(paths_doc)
         return paths_doc

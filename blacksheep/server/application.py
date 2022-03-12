@@ -47,7 +47,12 @@ from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.responses import _ensure_bytes
-from blacksheep.server.routing import Mount, RegisteredRoute, Router, RoutesRegistry
+from blacksheep.server.routing import (
+    MountRegistry,
+    RegisteredRoute,
+    Router,
+    RoutesRegistry,
+)
 from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import Encryptor, SessionMiddleware, SessionSerializer, Signer
 from blacksheep.utils import ensure_bytes, join_fragments
@@ -146,10 +151,11 @@ def _extend(obj, cls):
     obj.__class__ = type(base_cls_name, (cls, base_cls), {})
 
 
-env_settings = EnvironmentSettings()
-
-
 class Application(BaseApplication):
+    """
+    Server application class.
+    """
+
     def __init__(
         self,
         *,
@@ -157,8 +163,9 @@ class Application(BaseApplication):
         services: Optional[Container] = None,
         debug: bool = False,
         show_error_details: Optional[bool] = None,
-        mount: Optional[Mount] = None,
+        mount: Optional[MountRegistry] = None,
     ):
+        env_settings = EnvironmentSettings()
         if router is None:
             router = Router()
         if services is None:
@@ -166,7 +173,7 @@ class Application(BaseApplication):
         if show_error_details is None:
             show_error_details = env_settings.show_error_details
         if mount is None:
-            mount = Mount()
+            mount = MountRegistry(env_settings.mount_auto_events)
         super().__init__(show_error_details, router)
 
         self.services: Container = services
@@ -187,15 +194,8 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
-        self._mount = mount
-
-    def mount(self, path: str, app: Callable) -> None:
-        self._mount.mount(path, app)
-
-        if len(self._mount.mounted_apps) == 1:
-            # the first time a mount is configured, extend the application
-            # to use mounts when handling web requests
-            self.extend(MountMixin)
+        self.base_path: str = ""
+        self._mount_registry = mount
 
     @property
     def service_provider(self) -> Services:
@@ -222,6 +222,60 @@ class Application(BaseApplication):
                 + "Use `app.use_cors()` method before using this property."
             )
         return self._cors_strategy
+
+    @property
+    def mount_registry(self) -> MountRegistry:
+        return self._mount_registry
+
+    def mount(self, path: str, app: Callable) -> None:
+        """
+        Mounts an ASGI application at the given path. When a web request has a URL path
+        that starts with the mount path, it is handled by the mounted app (the mount
+        path is stripped from the final URL path received by the child application).
+
+        If the child application is a BlackSheep application, it requires handling of
+        its lifecycle events. This can be automatic, if the environment variable
+
+            APP_MOUNT_AUTO_EVENTS is set to "1" or "true" (case insensitive)
+
+        or explicitly enabled, if the parent app's is configured this way:
+
+            parent_app.mount_registry.auto_events = True
+        """
+        if app is self:
+            raise TypeError("Cannot mount an application into itself")
+
+        self._mount_registry.mount(path, app)
+
+        if isinstance(app, Application):
+            app.base_path = (
+                join_fragments(self.base_path, path) if self.base_path else path
+            )
+
+            if self._mount_registry.auto_events:
+                self._bind_child_app_events(app)
+
+        if len(self._mount_registry.mounted_apps) == 1:
+            # the first time a mount is configured, extend the application
+            # to use mounts when handling web requests
+            self.extend(MountMixin)
+
+    def _bind_child_app_events(self, app: "Application") -> None:
+        @self.on_start
+        async def handle_child_app_start(_):
+            await app.start()
+
+        @self.after_start
+        async def handle_child_app_after_start(_):
+            await app.after_start.fire()
+
+        @self.on_middlewares_configuration
+        def handle_child_app_on_middlewares_configuration(_):
+            app.on_middlewares_configuration.fire_sync()
+
+        @self.on_stop
+        async def handle_child_app_stop(_):
+            await app.stop()
 
     def use_sessions(
         self,
@@ -366,10 +420,12 @@ class Application(BaseApplication):
             strategy.add(Policy("authenticated").add(AuthenticatedRequirement()))
 
         self._authorization_strategy = strategy
-        self.exceptions_handlers[
-            AuthenticateChallenge
-        ] = handle_authentication_challenge
-        self.exceptions_handlers[UnauthorizedError] = handle_unauthorized
+        self.exceptions_handlers.update(
+            {  # type: ignore
+                AuthenticateChallenge: handle_authentication_challenge,
+                UnauthorizedError: handle_unauthorized,
+            }
+        )
         return strategy
 
     def route(
@@ -700,7 +756,8 @@ class Application(BaseApplication):
 
 
 class MountMixin:
-    _mount: Mount
+    _mount: MountRegistry
+    base_path: str
 
     def handle_mount_path(self, scope, route_match):
         assert route_match.values is not None
@@ -723,7 +780,9 @@ class MountMixin:
                 (
                     b"Location",
                     _ensure_bytes(
-                        f"{get_request_url_from_scope(scope, trailing_slash=True)}"
+                        get_request_url_from_scope(
+                            scope, trailing_slash=True, base_path=self.base_path
+                        )
                     ),
                 )
             ],
@@ -734,7 +793,7 @@ class MountMixin:
         if scope["type"] == "lifespan":
             return await super()._handle_lifespan(receive, send)  # type: ignore
 
-        for route in self._mount.mounted_apps:  # type: ignore
+        for route in self.mount_registry.mounted_apps:  # type: ignore
             route_match = route.match(scope["raw_path"])
             if route_match:
                 raw_path = scope["raw_path"]

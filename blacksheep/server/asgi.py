@@ -4,6 +4,7 @@ from blacksheep.messages import Request
 
 def get_request_url_from_scope(
     scope,
+    base_path: str = "",
     include_query: bool = True,
     trailing_slash: bool = False,
 ) -> str:
@@ -38,7 +39,7 @@ def get_request_url_from_scope(
         if not include_query or not scope.get("query_string")
         else ("?" + scope.get("query_string").decode("utf8"))
     )
-    return f"{protocol}://{host}{port_part}{path}{query_part}"
+    return f"{protocol}://{host}{port_part}{base_path}{path}{query_part}"
 
 
 def get_request_url(request: Request) -> str:

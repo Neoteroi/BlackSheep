@@ -30,7 +30,7 @@ from blacksheep.server.bindings import (
     FromQuery,
     FromServices,
 )
-from blacksheep.server.controllers import ApiController, delete, get, post
+from blacksheep.server.controllers import ApiController
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
@@ -44,9 +44,18 @@ from blacksheep.server.openapi.common import (
 from blacksheep.server.openapi.ui import ReDocUIProvider
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import text
+from blacksheep.server.routing import RoutesRegistry
 from itests.utils import CrashTest
 
 app_2 = Application()
+
+
+controllers_router = RoutesRegistry()
+app_2.controllers_router = controllers_router
+
+get = controllers_router.get
+post = controllers_router.post
+delete = controllers_router.delete
 
 
 # OpenAPI v3 configuration:

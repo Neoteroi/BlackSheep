@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 import websockets
 import yaml
+from websockets.exceptions import InvalidStatusCode
 
 from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
@@ -786,3 +787,22 @@ async def test_websocket(server_host, server_port_4, route, data):
         echo = await ws.recv()
 
         assert data == echo
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "route",
+    [
+        "websocket-echo-text-auth",
+        "websocket-echo-text-http-exp",
+    ],
+)
+async def test_websocket_auth(server_host, server_port_2, route):
+    uri = f"ws://{server_host}:{server_port_2}/{route}"
+
+    with pytest.raises(InvalidStatusCode) as error:
+        async with websockets.connect(uri):
+            pass
+
+    assert error.value.status_code == 403
+    assert "server rejected" in str(error.value)

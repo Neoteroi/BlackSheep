@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{title}}</title>
+</head>
+<body>
+    <h1>{{heading}}</h1>
+    <p>{{paragraph}}</p>
+    <form action="/user" method="post">
+        {% af_input %}
+        <input type="text" name="username" />
+        <input type="submit" value="Submit" />
+    </form>
+    <script>
+        EXAMPLE = {"token": "{% af_token %}"}
+    </script>
+    <form action="/foo" method="post">
+        {% af_input %}
+        <input type="text" name="value" />
+        <input type="submit" value="Submit" />
+    </form>
+</body>
+</html>

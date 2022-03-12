@@ -23,6 +23,7 @@ from rodi import Container, Services
 from blacksheep.baseapp import BaseApplication
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
+from blacksheep.exceptions import HTTPException
 from blacksheep.messages import Request, Response
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.scribe import send_asgi_response
@@ -658,7 +659,12 @@ class Application(BaseApplication):
 
         if route:
             ws.route_values = route.values
-            return await route.handler(ws)
+            try:
+                return await route.handler(ws)
+            except UnauthorizedError:
+                await ws.close(401, "Unauthorized")
+            except HTTPException as http_exception:
+                await ws.close(http_exception.status, str(http_exception))
         await ws.close()
 
     async def _handle_http(self, scope, receive, send):

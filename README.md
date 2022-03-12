@@ -23,14 +23,14 @@ pip install blacksheep
 
 ```python
 from datetime import datetime
-from blacksheep import Application, text
+from blacksheep import Application
 
 
 app = Application()
 
 @app.route("/")
-async def home(request):
-    return text(f"Hello, World! {datetime.utcnow().isoformat()}")
+async def home():
+    return f"Hello, World! {datetime.utcnow().isoformat()}"
 
 ```
 
@@ -101,10 +101,10 @@ async def example(data: FromJSON[CreateCatInput]):
 
 
 @app.router.get("/:culture_code/:area")
-async def home(request, culture_code, area):
+async def home(culture_code, area):
     # in this example, both parameters are obtained from routes with
     # matching names
-    return text(f"Request for: {culture_code} {area}")
+    return f"Request for: {culture_code} {area}"
 
 
 @app.router.get("/api/products")
@@ -132,6 +132,7 @@ def get_products2(
     ...
 
 ```
+
 It also supports [dependency
 injection](https://www.neoteroi.dev/blacksheep/dependency-injection/), a
 feature that provides a consistent and clean way to use dependencies in request
@@ -219,6 +220,7 @@ Refer to the documentation for more details and examples.
   [`pydantic`](https://pydantic-docs.helpmanual.io) models to handle the
   request body payload expected by request handlers
 * [`TestClient` class to simplify testing of applications](https://www.neoteroi.dev/blacksheep/testing/)
+* [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks
 
 ## Client features
 BlackSheep includes an HTTP Client.

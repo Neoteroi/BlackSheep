@@ -333,7 +333,7 @@ async def test_application_handling_websocket_request_not_found(example_scope):
     await app(example_scope, mock_receive, mock_send)
 
     close_message = mock_send.messages[0]
-    assert close_message == {"type": "websocket.close", "code": 1000}
+    assert close_message == {"type": "websocket.close", "reason": None, "code": 1000}
 
 
 @pytest.mark.asyncio

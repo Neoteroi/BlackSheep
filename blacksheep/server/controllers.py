@@ -341,7 +341,9 @@ class Controller(metaclass=ControllerMeta):
         """
         return f"{self.class_name()}/{name}"
 
-    def view(self, name: Optional[str] = None, model: Optional[Any] = None) -> Response:
+    def view(
+        self, name: Optional[str] = None, model: Optional[Any] = None, **kwargs
+    ) -> Response:
         """
         Returns a view rendered synchronously.
 
@@ -357,15 +359,11 @@ class Controller(metaclass=ControllerMeta):
             raise TemplatingNotConfiguredException()
 
         if model:
-            return view(
-                self.templates,
-                self.full_view_name(name),
-                model,
-            )
+            return view(self.templates, self.full_view_name(name), model, **kwargs)
         return view(self.templates, self.full_view_name(name))
 
     async def view_async(
-        self, name: Optional[str] = None, model: Optional[Any] = None
+        self, name: Optional[str] = None, model: Optional[Any] = None, **kwargs
     ) -> Response:
         """
         Returns a view rendered asynchronously.
@@ -382,8 +380,10 @@ class Controller(metaclass=ControllerMeta):
             raise TemplatingNotConfiguredException()
 
         if model:
-            return await view_async(self.templates, self.full_view_name(name), model)
-        return await view_async(self.templates, self.full_view_name(name))
+            return await view_async(
+                self.templates, self.full_view_name(name), model, **kwargs
+            )
+        return await view_async(self.templates, self.full_view_name(name), **kwargs)
 
 
 class ApiController(Controller):

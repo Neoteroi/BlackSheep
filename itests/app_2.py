@@ -17,7 +17,8 @@ from openapidocs.v3 import Response as ResponseDoc
 from openapidocs.v3 import Schema
 from pydantic import BaseModel
 
-from blacksheep import Response, TextContent
+from blacksheep import Response, TextContent, WebSocket
+from blacksheep.exceptions import BadRequest
 from blacksheep.server import Application
 from blacksheep.server.authentication import AuthenticationHandler
 from blacksheep.server.authorization import Policy, Requirement, auth
@@ -127,6 +128,21 @@ def not_documented():
 @app_2.router.get("/only-for-admins")
 async def only_for_admins():
     return None
+
+
+@auth("admin")
+@app_2.router.ws("/websocket-echo-text-auth")
+async def echo_text_admin_users(websocket: WebSocket):
+    await websocket.accept()
+
+    while True:
+        msg = await websocket.receive_text()
+        await websocket.send_text(msg)
+
+
+@app_2.router.ws("/websocket-echo-text-http-exp")
+async def echo_text_http_exp(websocket: WebSocket):
+    raise BadRequest("Example")
 
 
 @auth("authenticated")

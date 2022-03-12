@@ -527,4 +527,5 @@ class MountRegistry:
         self._mounted_apps.append(Route(path, app))
 
 
+# For backward compatibility
 Mount = MountRegistry

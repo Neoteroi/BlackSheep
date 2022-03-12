@@ -276,14 +276,14 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             info=self.info, paths=self.get_paths(app), components=self.components
         )
 
-    def get_paths(self, app: Application) -> Dict[str, PathItem]:
-        own_paths = self.get_routes_docs(app.router)
+    def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:
+        own_paths = self.get_routes_docs(app.router, path_prefix)
 
         if app.mount_registry.mounted_apps and app.mount_registry.handle_docs:
             for route in app.mount_registry.mounted_apps:
                 if isinstance(route.handler, Application):
-                    child_docs = self.get_routes_docs(
-                        route.handler.router,
+                    child_docs = self.get_paths(
+                        route.handler,
                         route.pattern.decode().rstrip("/*"),
                     )
                     own_paths.update(child_docs)

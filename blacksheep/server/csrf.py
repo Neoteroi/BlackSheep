@@ -1,5 +1,5 @@
 import weakref
-from typing import Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple
 
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
@@ -395,7 +395,7 @@ def use_anti_forgery(app: Application) -> AntiForgeryHandler:
             "anti-forgery tokens with Jinja2 won't be configured."
         )
     else:
-        if TYPE_CHECKING:
+        if TYPE_CHECKING:  # pragma: no cover
             from jinja2 import Environment
 
             assert isinstance(env, Environment)

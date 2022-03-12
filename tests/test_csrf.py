@@ -6,7 +6,11 @@ from jinja2 import Environment, PackageLoader
 from blacksheep.contents import write_www_form_urlencoded
 from blacksheep.messages import Response
 from blacksheep.server.controllers import Controller
-from blacksheep.server.csrf import AntiForgeryBaseExtension, use_anti_forgery
+from blacksheep.server.csrf import (
+    AntiForgeryBaseExtension,
+    ignore_anti_forgery,
+    use_anti_forgery,
+)
 from blacksheep.server.responses import no_content
 from blacksheep.server.routing import RoutesRegistry
 from blacksheep.server.templating import use_templates, view, view_async
@@ -730,3 +734,42 @@ async def test_anti_forgery_base_extension_raises_without_handler(home_model):
 
     with pytest.raises(TypeError):
         instance.handler
+
+
+@pytest.mark.asyncio
+async def test_anti_forgery_ignore_decorator(home_model):
+    """
+    Tests a valid scenario, using the ignore_anti_forgery decorator.
+    """
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home(request):
+        return render("form_1", home_model, request=request)
+
+    @ignore_anti_forgery()
+    @app.router.post("/user")
+    async def create_username():
+        return no_content()
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    assert app.response is not None
+
+    assert app.response is not None
+    af_cookie = app.response.cookies["aftoken"]
+    assert af_cookie is not None, "An Anti-Forgery token is still issued for the home."
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/user",
+            extra_headers={"Content-Type": "application/x-www-form-urlencoded"},
+        ),
+        MockReceive([write_www_form_urlencoded({"username": "Charlie Brown"})]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 204

@@ -1,5 +1,5 @@
 import weakref
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, TYPE_CHECKING
 
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
@@ -104,10 +104,7 @@ class AntiForgeryHandler:
         return self._serializer
 
     async def __call__(self, request: Request, handler):
-        # 1. support explicit @anti_forgery?
-        # 2. support explicit @ignore_anti_forgery?
-        # ---
-        if self.should_validate_request(request):
+        if self._should_validate_route(request, handler):
             try:
                 await self.validate_request(request)
             except AntiForgeryTokenError as token_error:
@@ -115,15 +112,21 @@ class AntiForgeryHandler:
 
         response: Response = await handler(request)
 
-        # is there a token issued for the current request?
+        # are there tokens issued for the current request?
+        # TODO: use walrus := when support for Python 3.7 is dropped
         tokens = self.tokens.get(request)
 
-        # TODO: use walrus := when we drop support for Python 3.7
         if tokens:
             self.set_cookie(response, tokens[0])
             self.security_policy.protect(response)
 
         return response
+
+    def _should_validate_route(self, request: Request, handler) -> bool:
+        if _is_ignored_handler(handler):
+            return False
+
+        return self.should_validate_request(request)
 
     def should_validate_request(self, request: Request) -> bool:
         """
@@ -328,6 +331,34 @@ class AntiForgeryValueExtension(AntiForgeryBaseExtension):
         return self.get_token(context)
 
 
+_IGNORED_HANDLERS = {}
+
+
+def _is_ignored_handler(handler) -> bool:
+    """
+    Returns a value indicating whether the given request handler is explicitly ignored
+    for anti-forgery validation (for example to support cases that use alternative
+    ways to authenticate the request, not vulnerable to CRSF).
+    """
+    if (
+        handler in _IGNORED_HANDLERS
+        or getattr(handler, "root_fn", None) in _IGNORED_HANDLERS
+    ):
+        return True
+
+    return False
+
+
+def ignore_anti_forgery(value: bool = True):
+    """Optionally excludes a request handler from anti forgery validation."""
+
+    def decorator(fn):
+        _IGNORED_HANDLERS[fn] = value
+        return fn
+
+    return decorator
+
+
 def use_anti_forgery(app: Application) -> AntiForgeryHandler:
     """
     Configures Anti-Forgery validation on the given application, to protect against
@@ -364,9 +395,10 @@ def use_anti_forgery(app: Application) -> AntiForgeryHandler:
             "anti-forgery tokens with Jinja2 won't be configured."
         )
     else:
-        from jinja2 import Environment
+        if TYPE_CHECKING:
+            from jinja2 import Environment
 
-        assert isinstance(env, Environment)
+            assert isinstance(env, Environment)
 
         class BoundAntiForgeryInputExtension(AntiForgeryInputExtension):
             af_handler = anti_forgery_handler

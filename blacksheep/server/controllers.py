@@ -360,7 +360,7 @@ class Controller(metaclass=ControllerMeta):
 
         if model:
             return view(self.templates, self.full_view_name(name), model, **kwargs)
-        return view(self.templates, self.full_view_name(name))
+        return view(self.templates, self.full_view_name(name), **kwargs)
 
     async def view_async(
         self, name: Optional[str] = None, model: Optional[Any] = None, **kwargs

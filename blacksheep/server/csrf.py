@@ -359,7 +359,9 @@ def ignore_anti_forgery(value: bool = True):
     return decorator
 
 
-def use_anti_forgery(app: Application) -> AntiForgeryHandler:
+def use_anti_forgery(
+    app: Application, handler: Optional[AntiForgeryHandler] = None
+) -> AntiForgeryHandler:
     """
     Configures Anti-Forgery validation on the given application, to protect against
     Cross-Site Request Forgery (XSRF/CSRF) attacks.
@@ -385,12 +387,13 @@ def use_anti_forgery(app: Application) -> AntiForgeryHandler:
     When an anti-forgery token is rendered in a view, the HTTP Response object receives
     also a cookie with a control value.
     """
-    anti_forgery_handler = AntiForgeryHandler()
+    if handler is None:
+        handler = AntiForgeryHandler()
 
     env = getattr(app, "templates_environment")
 
     if env is None:  # pragma: no cover
-        anti_forgery_handler.logger.info(
+        handler.logger.info(
             "Templating is not configured on the application, extensions to render "
             "anti-forgery tokens with Jinja2 won't be configured."
         )
@@ -401,14 +404,14 @@ def use_anti_forgery(app: Application) -> AntiForgeryHandler:
             assert isinstance(env, Environment)
 
         class BoundAntiForgeryInputExtension(AntiForgeryInputExtension):
-            af_handler = anti_forgery_handler
+            af_handler = handler
 
         class BoundAntiForgeryValueExtension(AntiForgeryValueExtension):
-            af_handler = anti_forgery_handler
+            af_handler = handler
 
         env.add_extension(BoundAntiForgeryInputExtension)
         env.add_extension(BoundAntiForgeryValueExtension)
 
-    app.middlewares.append(anti_forgery_handler)
+    app.middlewares.append(handler)
 
-    return anti_forgery_handler
+    return handler

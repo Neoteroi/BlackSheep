@@ -796,7 +796,10 @@ class ServiceBinder(Binder):
             # (across parameters and middlewares)
             context = None
 
-        return self.services.get(self.expected_type, context)
+        try:
+            return self.services.get(self.expected_type, context)
+        except CannotResolveTypeException:
+            return None
 
 
 class ControllerParameter(BoundValue[T]):

@@ -397,7 +397,7 @@ def get_default_class_converter(expected_type):
                 + f"caused by type {_try_get_type_name(expected_type)} or "
                 + "one of its subproperties. Error: "
                 + _generalize_init_type_error_message(type_error)
-            )
+            ) from type_error
 
     return converter
 
@@ -507,11 +507,11 @@ class BodyBinder(Binder):
 
         return None
 
-    def parse_value(self, data: dict) -> T:
+    def parse_value(self, data: dict):
         try:
             return self.converter(data)
-        except ValueError as ve:
-            raise InvalidRequestBody(str(ve))
+        except ValueError as value_error:
+            raise InvalidRequestBody(str(value_error)) from value_error
 
 
 class JSONBinder(BodyBinder):
@@ -691,17 +691,17 @@ class SyncBinder(Binder):
     def _empty_iterable(self, value):
         return value in self._empty_iterables
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Optional[Any]:
         # TODO: support get_raw_value returning None, to not instantiate lists
         # when a parameter is not present
         raw_value = self.get_raw_value(request)
         try:
             value = self.converter(raw_value)
-        except (ValueError, BadRequest):
+        except (ValueError, BadRequest) as converter_error:
             raise BadRequest(
                 f"Invalid value {raw_value} for parameter `{self.parameter_name}`; "
                 f"expected a valid {self.expected_type.__name__}."
-            )
+            ) from converter_error
 
         if self.default is not empty and (value is None or self._empty_iterable(value)):
             return None
@@ -780,7 +780,7 @@ class ServiceBinder(Binder):
 
     def __init__(
         self,
-        service: T,
+        service,
         name: str = "",
         implicit: bool = False,
         services: Optional[Services] = None,
@@ -788,7 +788,7 @@ class ServiceBinder(Binder):
         super().__init__(service, name, implicit, False, None)
         self.services = services
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> Any:
         try:
             context = request.services_context  # type: ignore
         except AttributeError:
@@ -796,10 +796,7 @@ class ServiceBinder(Binder):
             # (across parameters and middlewares)
             context = None
 
-        try:
-            return self.services.get(self.expected_type, context)
-        except CannotResolveTypeException:
-            return None
+        return self.services.get(self.expected_type, context)
 
 
 class ControllerParameter(BoundValue[T]):

@@ -11,6 +11,7 @@ import pkg_resources
 import pytest
 from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
+from pydantic import BaseModel, ValidationError
 from rodi import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
@@ -3976,3 +3977,49 @@ async def test_custom_handler_for_500_internal_server_error(app):
     assert response
     actual_response_text = await response.text()
     assert actual_response_text == "Called"
+
+
+def get_pydantic_error(cls, data) -> str:
+    expected_error = None
+
+    try:
+        cls(**data)
+    except ValidationError as validation_error:
+        expected_error = validation_error.json()
+
+    assert isinstance(expected_error, str)
+    return expected_error
+
+
+@pytest.mark.asyncio
+async def test_application_pydantic_json_error(app):
+    class CreateCatInput(BaseModel):
+        name: str
+        type: str
+
+    @app.router.post("/api/cat")
+    async def create_cat(data: CreateCatInput):
+        ...
+
+    # invalid JSON:
+    content = b'{"foo":"not valid"}'
+
+    expected_error = get_pydantic_error(CreateCatInput, {"foo": "not valid"})
+
+    await app.start()
+    await app(
+        get_example_scope(
+            "POST",
+            "/api/cat",
+            [
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"application/json"),
+            ],
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 400
+    assert response.content.body.decode() == expected_error

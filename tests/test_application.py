@@ -14,12 +14,14 @@ from guardpost.authentication import Identity, User
 from rodi import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
+from blacksheep.contents import FormPart
 from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.bindings import (
     ClientInfo,
     FromBytes,
     FromCookie,
     FromFiles,
+    FromForm,
     FromHeader,
     FromJSON,
     FromQuery,
@@ -55,6 +57,16 @@ class Item2:
 class Foo:
     def __init__(self, item) -> None:
         self.item = Item(**item)
+
+
+def read_multipart_mix_dat():
+    with open(
+        pkg_resources.resource_filename(
+            __name__, os.path.join("res", "multipart-mix.dat")
+        ),
+        mode="rb",
+    ) as dat_file:
+        return dat_file.read()
 
 
 @pytest.mark.asyncio
@@ -1739,6 +1751,162 @@ async def test_handler_from_files(app):
         MockSend(),
     )
     assert app.response.status == 204
+
+
+async def _multipart_mix_scenario(app):
+    app.normalize_handlers()
+
+    content = read_multipart_mix_dat()
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                (b"content-length", str(len(content)).encode()),
+                (
+                    b"content-type",
+                    b"multipart/form-data; boundary=----WebKitFormBoundarygKWtIe0dRcq6RJaJ",
+                ),
+            ],
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_handler_from_files_and_form(app):
+    """
+    Tests proper handling of a separate FromFiles and FromForm binders, with class
+    definition for the FromForm - not including the files.
+    """
+
+    @dataclass(init=False)
+    class OtherInput:
+        textfield: str
+        checkbox1: bool
+        checkbox2: bool
+
+        def __init__(
+            self,
+            textfield: str,
+            checkbox1: Optional[str],
+            checkbox2: Optional[str] = None,
+            **kwargs,
+        ):
+            self.textfield = textfield
+            self.checkbox1 = checkbox1 == "on"
+            self.checkbox2 = checkbox2 == "on"
+
+    @app.router.post("/")
+    async def home(files: FromFiles, other: FromForm[OtherInput]):
+        assert files is not None
+        assert files.value is not None
+        assert len(files.value) == 1
+        file1 = files.value[0]
+
+        assert file1.name == b"files"
+        assert file1.file_name == b"red-dot.png"
+
+        assert other.value.checkbox1 is True
+        assert other.value.checkbox2 is False
+        assert other.value.textfield == "Hello World!"
+
+    await _multipart_mix_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_handler_from_form_handling_whole_multipart_with_class(app):
+    """
+    Tests proper handling of a single FromForm binder, handling multipart with files
+    and other input.
+    """
+
+    @dataclass(init=False)
+    class WholeInput:
+        textfield: str
+        checkbox1: bool
+        checkbox2: bool
+        files: list
+
+        def __init__(
+            self,
+            textfield: str,
+            checkbox1: Optional[str] = None,
+            checkbox2: Optional[str] = None,
+            files: Optional[List[FormPart]] = None,
+            **kwargs,
+        ):
+            self.textfield = textfield
+            self.checkbox1 = checkbox1 == "on"
+            self.checkbox2 = checkbox2 == "on"
+            self.files = files or []
+
+    @app.router.post("/")
+    async def home(data: FromForm[WholeInput]):
+        files = data.value.files
+        assert files is not None
+        assert len(files) == 1
+        file1 = files[0]
+
+        assert file1.name == b"files"
+        assert file1.file_name == b"red-dot.png"
+
+        assert data.value.checkbox1 is True
+        assert data.value.checkbox2 is False
+        assert data.value.textfield == "Hello World!"
+
+    await _multipart_mix_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_handler_from_form_handling_whole_multipart_without_class(app):
+    """
+    Tests proper handling of a single FromForm binder, handling multipart with files
+    and other input with dictionary.
+    """
+
+    @app.router.post("/")
+    async def home(data: FromForm):
+        files = data.value.get("files")
+        assert files is not None
+        assert len(files) == 1
+        file1 = files[0]
+
+        assert file1.name == b"files"
+        assert file1.file_name == b"red-dot.png"
+
+        assert data.value.get("checkbox1") == "on"
+        assert data.value.get("checkbox2") is None
+        assert data.value.get("textfield") == "Hello World!"
+
+    await _multipart_mix_scenario(app)
+
+
+@pytest.mark.asyncio
+async def test_handler_from_files_and_form_dict(app):
+    """
+    Tests proper handling of a separate FromFiles and FromForm binders, without class
+    definition for the FromForm - not including the files.
+    """
+
+    @app.router.post("/")
+    async def home(files: FromFiles, other: FromForm):
+        assert files is not None
+        assert files.value is not None
+        assert len(files.value) == 1
+        file1 = files.value[0]
+
+        assert file1.name == b"files"
+        assert file1.file_name == b"red-dot.png"
+
+        assert other.value.get("checkbox1") == "on"
+        assert other.value.get("checkbox2") is None
+        assert other.value.get("textfield") == "Hello World!"
+
+    await _multipart_mix_scenario(app)
 
 
 @pytest.mark.asyncio

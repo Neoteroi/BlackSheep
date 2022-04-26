@@ -156,13 +156,20 @@ cdef dict multiparts_to_dictionary(list parts):
 
         # NB: we cannot assume that the value of a multipart form part can be decoded as UTF8;
         # here we try to decode it, just to be more consistent with values read from www-urlencoded form data
-        if key in data:
-            if isinstance(data[key], str):
-                data[key] = [data[key], try_decode(part.data, charset)]
+        if part.file_name:
+            # Files need special handling, must be kept as-is
+            if key in data:
+                data[key].append(part)
             else:
-                data[key].append(try_decode(part.data, charset))
+                data[key] = [part]
         else:
-            data[key] = try_decode(part.data, charset)
+            if key in data:
+                if isinstance(data[key], list):
+                    data[key].append(try_decode(part.data, charset))
+                else:
+                    data[key] = [data[key], try_decode(part.data, charset)]
+            else:
+                data[key] = try_decode(part.data, charset)
 
     return data
 

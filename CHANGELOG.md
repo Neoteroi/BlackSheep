@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.6] - 2022-??-??
 - Fixes #248
+- Improves support for pydantic (fixes #249)
 - Adds support for configuring the Internal Server Error 500 handler for
   unhandled exceptions (see #247)
+
 
 ## [1.2.5] - 2022-03-12 :dove:
 - Improves WebSocket to handle built-in exception types: Unauthorized, HTTPException

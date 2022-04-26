@@ -178,10 +178,10 @@ def validate_source_path(source_folder: str) -> None:
     source_folder_path = Path(source_folder)
 
     if not source_folder_path.exists():
-        raise InvalidArgument("given root path does not exist")
+        raise InvalidArgument("The given root path does not exist.")
 
     if not source_folder_path.is_dir():
-        raise InvalidArgument("given root path is not a directory")
+        raise InvalidArgument("The given root path is not a directory.")
 
 
 class ServeFilesOptions:
@@ -209,7 +209,9 @@ class ServeFilesOptions:
         index_document: Optional[str] = "index.html",
         fallback_document: Optional[str] = None,
     ):
-        """Options for static files serving.
+        """
+        Options for static files serving.
+
         Args:
             source_folder (str): Path to the source folder containing static files.
             extensions: The set of files extensions to serve.

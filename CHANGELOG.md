@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixes #248
 - Adds support for configuring the Internal Server Error 500 handler for
   unhandled exceptions (see #247)
-- When configuring Jinja2 templates for the application, binds the `view`
-  function to `app.get_view_response` property
 
 ## [1.2.5] - 2022-03-12 :dove:
 - Improves WebSocket to handle built-in exception types: Unauthorized, HTTPException

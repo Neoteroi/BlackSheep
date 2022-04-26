@@ -66,7 +66,6 @@ def use_templates(app, loader: PackageLoader, enable_async: bool = False):
                 )
             )
 
-        app.get_view_response = async_view
         return async_view
 
     def sync_view(name: str, model: Any = None, **kwargs):
@@ -74,7 +73,6 @@ def use_templates(app, loader: PackageLoader, enable_async: bool = False):
             render_template(env.get_template(template_name(name)), model, **kwargs)
         )
 
-    app.get_view_response = sync_view
     return sync_view
 
 

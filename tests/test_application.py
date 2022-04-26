@@ -3950,3 +3950,29 @@ async def test_application_raises_for_unhandled_scope_type(app):
 def test_mounting_self_raises(app):
     with pytest.raises(TypeError):
         app.mount("/nope", app)
+
+
+@pytest.mark.asyncio
+async def test_custom_handler_for_500_internal_server_error(app):
+    @app.exception_handler(500)
+    async def unhandled_exception_handler(
+        self: FakeApplication, request: Request, exc: Exception
+    ) -> Response:
+        nonlocal app
+        assert self is app
+        assert isinstance(exc, TypeError)
+        return Response(200, content=TextContent("Called"))
+
+    @app.router.get("/")
+    async def home():
+        raise TypeError()
+
+    await app.start()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response
+    actual_response_text = await response.text()
+    assert actual_response_text == "Called"

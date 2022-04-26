@@ -6,36 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.2.6] - 2022-??-??
-* Fixes #248
+- Fixes #248
+- Adds support for configuring the Internal Server Error 500 handler for
+  unhandled exceptions (see #247)
+- When configuring Jinja2 templates for the application, binds the `view`
+  function to `app.get_view_response` property
 
 ## [1.2.5] - 2022-03-12 :dove:
-* Improves WebSocket to handle built-in exception types: Unauthorized, HTTPException
-* Adds built-in support for [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks
-* Modifies the Request and Response classes to support weak references
-* Adds the possibility to use `**kwargs` in view functions, returning HTML built
+- Improves WebSocket to handle built-in exception types: Unauthorized, HTTPException
+- Adds built-in support for [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks
+- Modifies the Request and Response classes to support weak references
+- Adds the possibility to use `**kwargs` in view functions, returning HTML built
   using Jinja2
-* Adds support for automatic handling of child application events when BlackSheep
+- Adds support for automatic handling of child application events when BlackSheep
   applications are mounted into a parent BlackSheep application
-* Adds support for OpenAPI Documentation generated for children BlackSheep apps,
+- Adds support for OpenAPI Documentation generated for children BlackSheep apps,
   when using mounts
-* Corrects bugs that prevented mounted routes to work recursively in descendants
-* Updates dependencies
+- Corrects bugs that prevented mounted routes to work recursively in descendants
+- Updates dependencies
 
 ## [1.2.4] - 2022-02-13 :cat:
-* Modifies the `WebSocket` class to support built-in binders
-* Re-exports the most common types from the `blacksheep` module to reduce
+- Modifies the `WebSocket` class to support built-in binders
+- Re-exports the most common types from the `blacksheep` module to reduce
   the verbosity of import statements
 
 ## [1.2.3] - 2022-02-06 :cat2:
-* Adds support for [WebSocket](https://www.neoteroi.dev/blacksheep/websocket/)
+- Adds support for [WebSocket](https://www.neoteroi.dev/blacksheep/websocket/)
 
 ## [1.2.2] - 2021-12-03 :gift:
-* Fixes wrong mime type in OpenAPI Documentation for the `form` binder (#212)
-* Adds `OpenAPIEvents` to the class handling the generation of OpenAPI Documentation
-* Updates default environment variable prefix for app secrets to be `APP_SECRET`
+- Fixes wrong mime type in OpenAPI Documentation for the `form` binder (#212)
+- Adds `OpenAPIEvents` to the class handling the generation of OpenAPI Documentation
+- Updates default environment variable prefix for app secrets to be `APP_SECRET`
   instead of `APPSECRET` (also accepts the value without underscore for backward
   compatibility)
-* Adds missing server import to `blacksheep/__init__.pyi`
+- Adds missing server import to `blacksheep/__init__.pyi`
 
 ## [1.2.1] - 2021-11-15 :shield:
 - Adds built-in support for `JWT` bearer authentication, and validation

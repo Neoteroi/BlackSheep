@@ -113,6 +113,19 @@ cdef class BaseApplication:
         return None
 
     async def handle_internal_server_error(self, Request request, Exception exc):
+        """
+        Handles an unhandled exception.
+        """
+        if 500 in self.exceptions_handlers:
+            # give a chance to run to the custom exception handler - but if it
+            # fails, handle the failure (otherwise the
+            try:
+                return await self.exceptions_handlers[500](self, request, exc)
+            except Exception:
+                self.logger.exception(
+                    "An exception occurred while trying to apply a custom 500 Internal Server Error handler!"
+                )
+                return Response(500, content=TextContent('Internal Server Error'))
         if self.show_error_details:
             return self.server_error_details_handler.produce_response(request, exc)
         return Response(500, content=TextContent("Internal server error."))

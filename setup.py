@@ -43,6 +43,7 @@ setup(
         "blacksheep.server.remotes",
         "blacksheep.server.res",
         "blacksheep.server.openapi",
+        "blacksheep.server.security",
         "blacksheep.client",
         "blacksheep.common",
         "blacksheep.common.files",

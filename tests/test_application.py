@@ -35,6 +35,7 @@ from blacksheep.server.bindings import (
 from blacksheep.server.di import dependency_injection_middleware
 from blacksheep.server.normalization import ensure_response
 from blacksheep.server.responses import status_code, text
+from blacksheep.server.security.hsts import HSTSMiddleware
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
@@ -4040,3 +4041,22 @@ async def test_app_fallback_route(app):
     response = app.response
     assert response.status == 404
     assert (await response.text()) == "Example"
+
+
+@pytest.mark.asyncio
+async def test_hsts_middleware(app):
+    @app.router.get("/")
+    async def home():
+        return "OK"
+
+    app.middlewares.append(HSTSMiddleware())
+
+    await app.start()
+    await app(get_example_scope("GET", "/", []), MockReceive(), MockSend())
+
+    response = app.response
+    assert response.status == 200
+    assert (await response.text()) == "OK"
+    strict_transport = response.headers.get_first(b"Strict-Transport-Security")
+
+    assert strict_transport == b"max-age=31536000; includeSubDomains;"

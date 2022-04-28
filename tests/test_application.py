@@ -4023,3 +4023,20 @@ async def test_application_pydantic_json_error(app):
     response = app.response
     assert response.status == 400
     assert response.content.body.decode() == expected_error
+
+
+@pytest.mark.asyncio
+async def test_app_fallback_route(app):
+    def not_found_handler():
+        return text("Example", 404)
+
+    app.router.fallback = not_found_handler
+
+    await app.start()
+    await app(
+        get_example_scope("GET", "/not-registered", []), MockReceive(), MockSend()
+    )
+
+    response = app.response
+    assert response.status == 404
+    assert (await response.text()) == "Example"

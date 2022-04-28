@@ -19,6 +19,11 @@ cdef class URL:
         cdef object port
 
         try:
+            # if the value starts with a dot, prepend a slash;
+            # urllib.parse urlparse handles those, while httptools raises
+            # an exception
+            if value and value[0] == 46:
+                value = b"/" + value
             parsed = httptools.parse_url(value)
         except errors.HttpParserInvalidURLError:
             raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()})')

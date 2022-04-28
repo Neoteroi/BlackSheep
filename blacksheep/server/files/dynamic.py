@@ -189,7 +189,7 @@ def get_files_route_handler(
             )
         except NotFound:
             if fallback_document is None:
-                return Response(404)
+                raise
 
             return get_response_for_resource_path(
                 request,

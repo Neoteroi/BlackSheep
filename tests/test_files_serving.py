@@ -22,6 +22,7 @@ from blacksheep.server.files import (
 )
 from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
+from blacksheep.server.responses import text
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils.aio import get_running_loop
@@ -813,3 +814,52 @@ async def test_get_response_for_static_content_handles_304():
     )
 
     assert response.status == 304
+
+
+@pytest.mark.asyncio
+async def test_app_fallback_route_static_files(app):
+    called = False
+
+    def not_found_handler():
+        nonlocal called
+        called = True
+        return text("Example", 404)
+
+    app.router.fallback = not_found_handler
+
+    app.serve_files(get_folder_path("files3"))
+
+    await app.start()
+    await app(
+        get_example_scope("GET", "/not-registered", []), MockReceive(), MockSend()
+    )
+
+    response = app.response
+    response_text = await response.text()
+    assert response.status == 404
+    assert called is True
+    assert response_text == "Example"
+
+
+@pytest.mark.asyncio
+async def test_app_404_handler_static_files_not_found(app):
+    called = False
+
+    @app.exception_handler(404)
+    async def not_found_handler(*args):
+        nonlocal called
+        called = True
+        return text("Example", 404)
+
+    app.serve_files(get_folder_path("files3"))
+
+    await app.start()
+    await app(
+        get_example_scope("GET", "/not-registered", []), MockReceive(), MockSend()
+    )
+
+    response = app.response
+    response_text = await response.text()
+    assert response.status == 404
+    assert called is True
+    assert response_text == "Example"

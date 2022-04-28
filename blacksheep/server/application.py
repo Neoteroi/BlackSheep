@@ -20,7 +20,7 @@ from guardpost.authorization import Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from rodi import Container, Services
 
-from blacksheep.baseapp import BaseApplication
+from blacksheep.baseapp import BaseApplication, handle_not_found
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.exceptions import HTTPException
@@ -625,7 +625,22 @@ class Application(BaseApplication):
 
             route.handler = normalize_handler(route, self.service_provider)
             configured_handlers.add(route.handler)
+
+        self._normalize_fallback_route()
         configured_handlers.clear()
+
+    def _normalize_fallback_route(self):
+        fallback = self.router.fallback
+
+        if fallback is not None and self._has_default_not_found_handler():
+
+            async def fallback_handler(app, request, exc) -> Response:
+                return await fallback.handler(request)  # type: ignore
+
+            self.exceptions_handlers[404] = fallback_handler  # type: ignore
+
+    def _has_default_not_found_handler(self):
+        return self.exceptions_handlers.get(404) is handle_not_found
 
     def configure_middlewares(self):
         if self._middlewares_configured:

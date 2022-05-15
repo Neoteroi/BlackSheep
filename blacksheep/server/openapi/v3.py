@@ -136,6 +136,13 @@ class DataClassTypeHandler(ObjectTypeHandler):
         return [FieldInfo(field.name, field.type) for field in fields(object_type)]
 
 
+def _try_is_subclass(object_type, check_type):
+    try:
+        return issubclass(object_type, check_type)
+    except TypeError:
+        return False
+
+
 class PydanticModelTypeHandler(ObjectTypeHandler):
     def handles_type(self, object_type) -> bool:
         if isinstance(object_type, GenericAlias):
@@ -148,7 +155,7 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
         if (
             BaseModel is not ...
             and inspect.isclass(object_type)
-            and issubclass(object_type, BaseModel)  # type: ignore
+            and _try_is_subclass(object_type, BaseModel)  # type: ignore
         ):
             return True
         return False

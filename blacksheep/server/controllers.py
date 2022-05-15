@@ -386,7 +386,7 @@ class Controller(metaclass=ControllerMeta):
         return await view_async(self.templates, self.full_view_name(name), **kwargs)
 
 
-class ApiController(Controller):
+class APIController(Controller):
     @classmethod
     def version(cls) -> Optional[str]:
         """
@@ -413,3 +413,7 @@ class ApiController(Controller):
         if cls_version and cls_name.endswith(cls_version.lower()):
             cls_name = cls_name[: -len(cls_version)]
         return join_fragments("api", cls_version, cls_name)
+
+
+# For backward compatibility
+ApiController = APIController

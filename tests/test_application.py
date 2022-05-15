@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -11,6 +12,7 @@ import pkg_resources
 import pytest
 from guardpost.asynchronous.authentication import AuthenticationHandler
 from guardpost.authentication import Identity, User
+from openapidocs.v3 import Info
 from pydantic import BaseModel, ValidationError
 from rodi import Container, inject
 
@@ -34,6 +36,7 @@ from blacksheep.server.bindings import (
 )
 from blacksheep.server.di import dependency_injection_middleware
 from blacksheep.server.normalization import ensure_response
+from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import status_code, text
 from blacksheep.server.security.hsts import HSTSMiddleware
 from blacksheep.testing.helpers import get_example_scope
@@ -1522,6 +1525,32 @@ async def test_handler_from_json_parameter(app):
         MockSend(),
     )
     assert app.response.status == 204
+
+
+if sys.version_info >= (3, 9):
+    from typing import Annotated
+
+    @pytest.mark.asyncio
+    async def test_handler_from_json_annotated_parameter(app):
+        @app.router.post("/")
+        async def home(item: Annotated[Item, FromJSON]):
+            assert item is not None
+            value = item
+            assert value.a == "Hello"
+            assert value.b == "World"
+            assert value.c == 10
+
+        app.normalize_handlers()
+        await app(
+            get_example_scope(
+                "POST",
+                "/",
+                [(b"content-type", b"application/json"), (b"content-length", b"32")],
+            ),
+            MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+            MockSend(),
+        )
+        assert app.response.status == 204
 
 
 @pytest.mark.asyncio
@@ -4060,3 +4089,40 @@ async def test_hsts_middleware(app):
     strict_transport = response.headers.get_first(b"Strict-Transport-Security")
 
     assert strict_transport == b"max-age=31536000; includeSubDomains;"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
+@pytest.mark.asyncio
+async def test_pep_593(app):
+    """
+    Tests a scenario that was reported as bug here:
+    https://github.com/Neoteroi/BlackSheep/issues/257
+
+    Application start-up failed
+    """
+    from dataclasses import dataclass
+
+    @dataclass
+    class Pet:
+        name: str
+        age: int | None
+
+    @app.router.get("/pets")
+    def pets() -> list[Pet]:
+        return [
+            Pet(name="Ren", age=None),
+            Pet(name="Stimpy", age=3),
+        ]
+
+    docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
+    docs.bind_app(app)
+
+    await app.start()
+    await app(get_example_scope("GET", "/pets", []), MockReceive(), MockSend())
+
+    response = app.response
+    assert response.status == 200
+    assert (await response.json()) == [
+        {"name": "Ren", "age": None},
+        {"name": "Stimpy", "age": 3},
+    ]

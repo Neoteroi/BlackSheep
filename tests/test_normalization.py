@@ -1,3 +1,4 @@
+import sys
 from dataclasses import dataclass
 from inspect import Parameter, _ParameterKind
 from typing import List, Optional, Sequence, Union
@@ -345,6 +346,17 @@ def test_check_union():
     optional, value = _check_union(
         Parameter("foo", kind=_ParameterKind.POSITIONAL_ONLY),
         Union[None, str],
+        len,
+    )
+    assert optional is True
+    assert value is str
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
+def test_check_union_or_none():
+    optional, value = _check_union(
+        Parameter("foo", kind=_ParameterKind.POSITIONAL_ONLY),
+        str | None,
         len,
     )
     assert optional is True

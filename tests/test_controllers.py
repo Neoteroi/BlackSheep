@@ -8,7 +8,7 @@ from rodi import Services, inject
 
 from blacksheep import Request, Response
 from blacksheep.server.application import RequiresServiceContainerError
-from blacksheep.server.controllers import ApiController, Controller, RoutesRegistry
+from blacksheep.server.controllers import APIController, Controller, RoutesRegistry
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
 from blacksheep.server.websocket import WebSocket
@@ -675,7 +675,7 @@ async def test_api_controller_without_version(app):
     delete = app.controllers_router.delete
     patch = app.controllers_router.patch
 
-    class Cat(ApiController):
+    class Cat(APIController):
         @get(":cat_id")
         def get_cat(self, cat_id: str):
             return text("1")
@@ -718,7 +718,7 @@ async def test_api_controller_with_version(app):
     delete = app.controllers_router.delete
     patch = app.controllers_router.patch
 
-    class Cat(ApiController):
+    class Cat(APIController):
         @classmethod
         def version(cls) -> Optional[str]:
             return "v1"
@@ -765,7 +765,7 @@ async def test_api_controller_with_version_2(app):
     delete = app.controllers_router.delete
     patch = app.controllers_router.patch
 
-    class CatV1(ApiController):
+    class CatV1(APIController):
         @classmethod
         def version(cls) -> Optional[str]:
             return "v1"
@@ -786,7 +786,7 @@ async def test_api_controller_with_version_2(app):
         def delete_cat(self):
             return text("4")
 
-    class CatV2(ApiController):
+    class CatV2(APIController):
         @classmethod
         def version(cls) -> Optional[str]:
             return "v2"

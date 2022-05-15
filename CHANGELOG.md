@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.7] - 2022-05-15 :gemini:
 - Fixes #257 (bug causing OpenAPI Documentation handler to fail on app start
   when using PEP 585)
+- Adds support for PEP 604 (T | None)
+- Corrects a bug related to handling of optional parameters and `nullable` value
+  in schemas generated for OpenAPI Documentation V3
 - Corrects the capitalization of "ApiController" to be "APIController", still
   keeping the first name for backward compatibility
 - Verifies in tests that `Annotated` is supported by BlackSheep

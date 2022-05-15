@@ -44,6 +44,23 @@ from .bindings import (
 _next_handler_binder = object()
 
 
+# region PEP 604
+try:
+    # Python >= 3.10
+    from types import UnionType
+except ImportError:
+    UnionType = ...
+
+
+def _is_union_type(annotation):
+    if UnionType is not ... and isinstance(annotation, UnionType):  # type: ignore
+        return True
+    return False
+
+
+# endregion
+
+
 # region PEP 563
 
 
@@ -201,8 +218,11 @@ def _check_union(
     the request object.
     """
 
-    if hasattr(annotation, "__origin__") and annotation.__origin__ is Union:
-        # support only Union[None, Type] - that is equivalent of Optional[Type]
+    if (
+        hasattr(annotation, "__origin__") and annotation.__origin__ is Union
+    ) or _is_union_type(annotation):
+        # support only Union[None, Type] - that is equivalent of Optional[Type],
+        # and also PEP 604 T | Non; None | T
         if type(None) not in annotation.__args__ or len(annotation.__args__) > 2:
             raise NormalizationError(
                 f'Unsupported parameter type "{parameter.name}" '
@@ -215,6 +235,7 @@ def _check_union(
             if type(None) is possible_type:
                 continue
             return True, possible_type
+
     return False, annotation
 
 

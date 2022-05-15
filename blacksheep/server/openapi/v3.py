@@ -69,12 +69,33 @@ except ImportError:  # pragma: no cover
     BaseModel = ...  # type: ignore
 
 
+# region PEP 604
+try:
+    # Python >= 3.10
+    from types import UnionType
+except ImportError:
+    UnionType = ...
+
+
+def _is_union_type(annotation):
+    if UnionType is not ... and isinstance(annotation, UnionType):  # type: ignore
+        return True
+    return False
+
+
+# endregion
+
+
 def get_origin(object_type):
     return getattr(object_type, "__origin__", None)
 
 
 def check_union(object_type: Any) -> Tuple[bool, Any]:
-    if hasattr(object_type, "__origin__") and object_type.__origin__ is Union:
+    if (
+        hasattr(object_type, "__origin__")
+        and object_type.__origin__ is Union
+        or _is_union_type(object_type)
+    ):
         # support only Union[None, Type] - that is equivalent of Optional[Type]
         if type(None) not in object_type.__args__ or len(object_type.__args__) > 2:
             raise UnsupportedUnionTypeException(object_type)
@@ -400,7 +421,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 if field.name in annotations:
                     child_type = annotations[field.name]
 
-            properties[field.name] = self.get_schema_by_type(child_type)
+            properties[field.name] = self.get_schema_by_type(
+                child_type, root_optional=is_optional
+            )
 
         return self._handle_object_type(object_type, properties, required)
 
@@ -444,6 +467,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self,
         object_type: Union[Type, Schema],
         type_args: Optional[Dict[Any, Type]] = None,
+        *,
+        root_optional: Optional[bool] = None,
     ) -> Union[Schema, Reference]:
         if isinstance(object_type, Schema):
             return object_type
@@ -454,8 +479,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         is_optional, child_type = check_union(object_type)
         schema = self._get_schema_by_type(child_type, type_args)
-        if isinstance(schema, Schema) and not is_optional:
-            schema.nullable = is_optional
+        if isinstance(schema, Schema):
+            if is_optional or root_optional:
+                schema.nullable = True
+            else:
+                schema.nullable = False
         return schema
 
     def _get_schema_by_type(

@@ -478,7 +478,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -541,7 +541,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -628,7 +628,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -685,7 +685,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -774,7 +774,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -2071,7 +2071,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -2090,7 +2090,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -2162,7 +2162,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2
@@ -2181,7 +2181,7 @@ components:
                     nullable: false
                 level:
                     type: integer
-                    nullable: false
+                    nullable: true
                     enum:
                     - 1
                     - 2

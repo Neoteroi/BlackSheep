@@ -109,7 +109,7 @@ setup(
     extras_require={
         "full": [
             "cryptography~=35.0.0",
-            "PyJWT~=2.3.0",
+            "PyJWT>=2.3,<2.5",
             "websockets~=10.1",
         ]
     },

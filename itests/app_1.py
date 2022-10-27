@@ -35,7 +35,7 @@ app.serve_files(static_folder_path, discovery=True)
 
 @app.route("/hello-world")
 async def hello_world():
-    return text(f"Hello, World!")
+    return text("Hello, World!")
 
 
 @app.route("/plain-json")

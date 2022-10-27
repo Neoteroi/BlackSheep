@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.8] - 2022-10-27 :snake:
+- Upgrades pinned dependencies to support Python 3.11
+- Drops active support for Python 3.7 (it is not tested anymore in CI pipelines)
+- Fixes #271 and #274
+
 ## [1.2.7] - 2022-05-15 :gemini:
 - Fixes #257 (bug causing OpenAPI Documentation handler to fail on app start
   when using PEP 585)

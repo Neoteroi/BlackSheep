@@ -191,8 +191,8 @@ def test_post_multipart_form_with_files(session_1):
     )
     ensure_success(response)
 
-    assert_files_equals(f"./out/one.jpg", get_static_path("pexels-photo-126407.jpeg"))
-    assert_files_equals(f"./out/two.jpg", get_static_path("pexels-photo-923360.jpeg"))
+    assert_files_equals("./out/one.jpg", get_static_path("pexels-photo-126407.jpeg"))
+    assert_files_equals("./out/two.jpg", get_static_path("pexels-photo-923360.jpeg"))
 
 
 def test_exception_handling_with_details(session_1):

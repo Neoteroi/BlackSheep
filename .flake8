@@ -8,3 +8,11 @@ per-file-ignores =
     blacksheep/server/__init__.py:F401
     tests/*:E501
     itests/*:E501
+
+exclude =
+    env
+    .env
+    venv
+    venv311
+    build
+    .eggs

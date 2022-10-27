@@ -11,17 +11,17 @@ COMPILE_ARGS = ["-O2"]
 
 setup(
     name="blacksheep",
-    version="1.2.7",
-    description="Fast web framework and HTTP client for Python asyncio",
+    version="1.2.8",
+    description="Fast web framework for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Environment :: Web Environment",
         "Operating System :: OS Independent",
         "Framework :: AsyncIO",
@@ -94,9 +94,9 @@ setup(
         ),
     ],
     install_requires=[
-        "httptools>=0.4",
-        "Jinja2~=3.0.2",
-        "certifi>=2020.12.5",
+        "httptools>=0.5",
+        "Jinja2~=3.1.2",
+        "certifi>=2022.9.24",
         "cchardet~=2.1.7",
         "guardpost~=0.0.9",
         "rodi~=1.1.1",
@@ -104,13 +104,13 @@ setup(
         "essentials-openapi>=0.1.4,<1.0",
         "typing_extensions; python_version < '3.8'",
         "python-dateutil~=2.8.2",
-        "itsdangerous~=2.1.1",
+        "itsdangerous~=2.1.2",
     ],
     extras_require={
         "full": [
-            "cryptography~=35.0.0",
-            "PyJWT~=2.3.0",
-            "websockets~=10.1",
+            "cryptography~=38.0.1",
+            "PyJWT~=2.6.0",
+            "websockets~=10.3",
         ]
     },
     include_package_data=True,

@@ -35,6 +35,7 @@ class BaseForwardedHeadersMiddleware(TrustedHostsMiddleware, ABC):
         known_proxies: Optional[Sequence[IPAddress]] = None,
         known_networks: Optional[Sequence[IPNetwork]] = None,
         forward_limit: int = 1,
+        accept_only_proxied_requests: bool = True,
     ) -> None:
         super().__init__(allowed_hosts)
         self.known_proxies: List[IPAddress] = (
@@ -43,7 +44,7 @@ class BaseForwardedHeadersMiddleware(TrustedHostsMiddleware, ABC):
         self.known_networks: List[IPNetwork] = (
             list(known_networks) if known_networks else []
         )
-        self.accept_only_proxied_requests = True
+        self.accept_only_proxied_requests = accept_only_proxied_requests
         self.forward_limit = forward_limit
 
     def parse_ip(self, value: str) -> IPAddress:
@@ -161,8 +162,16 @@ class ForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
         allowed_hosts: Optional[Sequence[str]] = None,
         known_proxies: Optional[Sequence[IPAddress]] = None,
         known_networks: Optional[Sequence[IPNetwork]] = None,
+        forward_limit: int = 1,
+        accept_only_proxied_requests: bool = True,
     ) -> None:
-        super().__init__(allowed_hosts, known_proxies, known_networks)
+        super().__init__(
+            allowed_hosts,
+            known_proxies,
+            known_networks,
+            forward_limit=forward_limit,
+            accept_only_proxied_requests=accept_only_proxied_requests,
+        )
 
     def get_forwarded_values(self, headers: Headers) -> Iterable[ForwardedHeaderEntry]:
         forwarded_headers = headers[b"Forwarded"]
@@ -229,6 +238,7 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
         known_proxies: Optional[Sequence[IPAddress]] = None,
         known_networks: Optional[Sequence[IPNetwork]] = None,
         forward_limit: int = 1,
+        accept_only_proxied_requests: bool = True,
     ) -> None:
         """
         Creates a new instance of XForwardedHeadersMiddleware which handles X-Forwarded
@@ -254,7 +264,11 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
             The maximum number of forwards that are allowed. By default 1
         """
         super().__init__(
-            allowed_hosts, known_proxies, known_networks, forward_limit=forward_limit
+            allowed_hosts,
+            known_proxies,
+            known_networks,
+            forward_limit=forward_limit,
+            accept_only_proxied_requests=accept_only_proxied_requests,
         )
         self.forwarded_for_header_name = b"X-Forwarded-For"
         self.forwarded_host_header_name = b"X-Forwarded-Host"

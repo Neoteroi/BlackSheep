@@ -271,11 +271,15 @@ class ClientConnection(asyncio.Protocol):
         # NB: check if headers declare a content-length
         if self._has_content():
             self.response.content = IncomingContent(
-                self.response.get_single_header(b"content-type")
+                (
+                    self.response.get_first_header(b"content-type")
+                    or b"application/octet-stream"
+                )
             )
         self.response_ready.set()
 
     def _has_content(self) -> bool:
+        assert self.response is not None
         content_length = self.response.get_first_header(b"content-length")
 
         if content_length:

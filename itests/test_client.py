@@ -222,8 +222,8 @@ async def test_post_multipart_form_with_images(session):
     )
     ensure_success(response)
 
-    assert_files_equals(f"./out/three.jpg", file_one_path)
-    assert_files_equals(f"./out/four.jpg", file_two_path)
+    assert_files_equals("./out/three.jpg", file_one_path)
+    assert_files_equals("./out/four.jpg", file_two_path)
 
 
 @pytest.mark.asyncio

@@ -30,7 +30,7 @@ from blacksheep.server.bindings import (
     FromQuery,
     FromServices,
 )
-from blacksheep.server.controllers import ApiController
+from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
@@ -73,7 +73,7 @@ class HandledException(Exception):
 
 
 async def handle_test_exception(app, request, http_exception):
-    return Response(200, content=TextContent(f"Fake exception, to test handlers"))
+    return Response(200, content=TextContent("Fake exception, to test handlers"))
 
 
 app_2.exceptions_handlers[HandledException] = handle_test_exception
@@ -389,7 +389,7 @@ def on_polymorph_example_docs_created_pydantic(
     )
 
 
-class Cats(ApiController):
+class Cats(APIController):
     @get()
     @docs(
         parameters={

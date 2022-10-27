@@ -107,7 +107,7 @@ jobs:
             pip install -U --no-index --find-links=deps deps/*
           fi
 
-          pip install black isort==5.9.1
+          pip install black isort flake8
 
       - name: Compile Cython extensions
         run: |

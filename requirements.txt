@@ -8,7 +8,7 @@ charset-normalizer==2.1.1
 click==8.1.3
 coverage==6.5.0
 cryptography==38.0.1
-Cython==0.29.32
+Cython==0.29.32; platform_system != "Windows"
 essentials==1.1.5
 essentials-openapi==1.0.3
 Flask==2.2.2

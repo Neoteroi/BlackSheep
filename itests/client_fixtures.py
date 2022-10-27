@@ -65,7 +65,7 @@ def session_alt(event_loop):
 
 
 def start_server():
-    print(f"[*] Flask app listening on 0.0.0.0:44777")
+    print("[*] Flask app listening on 0.0.0.0:44777")
     app.run(host="127.0.0.1", port=44777)
 
 

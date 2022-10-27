@@ -97,7 +97,7 @@ setup(
         "httptools>=0.5",
         "Jinja2~=3.1.2",
         "certifi>=2022.9.24",
-        "cchardet~=2.1.7",
+        "cchardet~=2.1.7; python_version < '3.11'",
         "guardpost~=0.0.9",
         "rodi~=1.1.1",
         "essentials>=1.1.4,<2.0",

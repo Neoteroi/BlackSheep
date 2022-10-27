@@ -4,7 +4,10 @@ from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from urllib.parse import parse_qs, quote, unquote
 
-import cchardet as chardet
+try:
+    import cchardet as chardet
+except ImportError:
+    import chardet
 
 from blacksheep.multipart import parse_multipart
 from blacksheep.plugins import json as json_plugin
@@ -151,9 +154,7 @@ cdef class Message:
                     return body.decode('ISO-8859-1')
                 except UnicodeDecodeError:
                     # fallback to chardet;
-                    result = chardet.detect(body)
-                    encoding = result['encoding']
-                    return body.decode(encoding)
+                    return body.decode(chardet.detect(body)['encoding'])
 
     async def form(self):
         cdef str text

@@ -1,6 +1,6 @@
 asgiref==3.5.2
 attrs==22.1.0
-cchardet==2.1.7
+cchardet==2.1.7; python_version < '3.11'
 certifi==2022.9.24
 cffi==1.15.1
 chardet==3.0.4

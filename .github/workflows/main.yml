@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, "3.10"]
+        python-version: [3.8, 3.9, "3.10", "3.11"]
     runs-on: windows-latest
     if: github.event_name == 'pull_request' || github.event_name == 'push'
 
@@ -35,13 +35,13 @@ jobs:
           submodules: false
 
       - name: Use Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          pip install cython==0.29.24 --install-option="--no-cython-compile"
+          pip install cython==0.29.32 --install-option="--no-cython-compile"
           pip install -r requirements.txt
           pip install flake8
 
@@ -73,7 +73,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.7, 3.8, 3.9, "3.10"]
+        python-version: [3.7, 3.8, 3.9, "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -83,7 +83,7 @@ jobs:
           submodules: false
 
       - name: Use Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -155,18 +155,18 @@ jobs:
 
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel
-        if: matrix.os == 'ubuntu-18.04' && matrix.python-version == 3.9
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.10
 
       - name: Create distribution package
         run: python setup.py sdist
-        if: matrix.os == 'ubuntu-18.04' && matrix.python-version == 3.9
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.10
 
       - name: Upload distribution package
         uses: actions/upload-artifact@master
         with:
           name: dist
           path: dist
-        if: matrix.os == 'ubuntu-18.04' && matrix.python-version == 3.9
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.10
 
   build-wheels:
     needs: build
@@ -175,7 +175,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10"]
+        python-version: [3.7, 3.8, 3.9, "3.10", "3.11"]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -184,7 +184,7 @@ jobs:
           fetch-depth: 9
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -232,7 +232,7 @@ jobs:
           pip freeze | grep blacksheep
 
   publish:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     needs: [build, build-wheels]
     if: github.event_name == 'release'
     steps:

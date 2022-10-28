@@ -98,6 +98,7 @@ setup(
         "Jinja2~=3.1.2",
         "certifi>=2022.9.24",
         "cchardet~=2.1.7; python_version < '3.11'",
+        "chardet==5.0.0; python_version > '3.10'"
         "guardpost~=0.0.9",
         "rodi~=1.1.1",
         "essentials>=1.1.4,<2.0",

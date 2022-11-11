@@ -7,9 +7,8 @@ from blacksheep.messages import Response
 from blacksheep.server.controllers import Controller
 from blacksheep.server.csrf import ignore_anti_forgery, use_anti_forgery
 from blacksheep.server.rendering.jinja2 import AntiForgeryBaseExtension, JinjaRenderer
-from blacksheep.server.responses import no_content
+from blacksheep.server.responses import no_content, view, view_async
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.templating import view, view_async
 from blacksheep.settings.html import html
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend

@@ -6,6 +6,7 @@ from typing import Any, AnyStr, AsyncIterable, Callable, Optional, Union
 
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
 from blacksheep.common.files.asyncfs import FilesHandler
+from blacksheep.settings.html import html as html_settings
 from blacksheep.settings.json import json as json_settings
 
 MessageType = Any
@@ -317,3 +318,36 @@ def file(
     Not Modified, according to use case.
     """
     return _file(value, content_type, content_disposition, file_name)
+
+
+def _create_html_response(html: str):
+    """Creates a Response to serve dynamic HTML. Caching is disabled."""
+    return Response(200, [(b"Cache-Control", b"no-cache")]).with_content(
+        Content(b"text/html; charset=utf-8", html.encode("utf8"))
+    )
+
+
+def view(name: str, model: Any = None, **kwargs) -> Response:
+    """
+    Returns a Response object with HTML obtained using synchronous rendering.
+    """
+    renderer = html_settings.renderer
+    if model:
+        return _create_html_response(
+            renderer.render(name, html_settings.model_to_params(model), **kwargs)
+        )
+    return _create_html_response(renderer.render(name, None, **kwargs))
+
+
+async def view_async(name: str, model: Any = None, **kwargs) -> Response:
+    """
+    Returns a Response object with HTML obtained using asynchronous rendering.
+    """
+    renderer = html_settings.renderer
+    if model:
+        return _create_html_response(
+            await renderer.render_async(
+                name, html_settings.model_to_params(model), **kwargs
+            )
+        )
+    return _create_html_response(await renderer.render_async(name, None, **kwargs))

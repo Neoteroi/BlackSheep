@@ -25,9 +25,10 @@ from blacksheep.server.responses import (
     temporary_redirect,
     text,
     unauthorized,
+    view,
+    view_async,
 )
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.templating import view, view_async
 from blacksheep.utils import AnyStr, join_fragments
 
 # singleton router used to store initial configuration,

@@ -5,7 +5,8 @@ import pytest
 from pydantic import BaseModel
 
 from blacksheep.server.controllers import Controller, RoutesRegistry
-from blacksheep.server.templating import get_template_name, view, view_async
+from blacksheep.server.rendering.jinja2 import get_template_name
+from blacksheep.server.responses import view, view_async
 from blacksheep.settings.html import html as html_settings
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend

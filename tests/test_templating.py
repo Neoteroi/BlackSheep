@@ -2,18 +2,11 @@ from dataclasses import dataclass
 from typing import List
 
 import pytest
-from jinja2 import PackageLoader
 from pydantic import BaseModel
 
-from blacksheep.server import Application
 from blacksheep.server.controllers import Controller, RoutesRegistry
-from blacksheep.server.templating import (
-    model_to_view_params,
-    template_name,
-    use_templates,
-    view,
-    view_async,
-)
+from blacksheep.server.templating import get_template_name, view, view_async
+from blacksheep.settings.html import html as html_settings
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
@@ -21,12 +14,7 @@ from tests.utils.application import FakeApplication
 
 def get_app(enable_async):
     app = FakeApplication()
-    render = use_templates(
-        app,
-        loader=PackageLoader("tests.testapp", "templates"),
-        enable_async=enable_async,
-    )
-    return app, render
+    return app, view_async if enable_async else view
 
 
 @pytest.fixture()
@@ -169,7 +157,7 @@ async def _view_scenario(app: FakeApplication, expected_text, url="/"):
 
 
 @pytest.mark.asyncio
-async def test_jinja_async_mode(home_model):
+async def test_jinja_async_mode(home_model, async_jinja_env):
     app, render = get_app(True)
 
     @app.router.get("/")
@@ -191,28 +179,6 @@ async def test_jinja_sync_mode(home_model):
 
 
 @pytest.mark.asyncio
-async def test_jinja_async_mode_with_verbose_method(home_model):
-    app, _ = get_app(True)
-
-    @app.router.get("/")
-    async def home(jinja):
-        return await view_async(jinja, "home", home_model)
-
-    await _home_scenario(app)
-
-
-@pytest.mark.asyncio
-async def test_jinja_sync_mode_with_verbose_method(home_model):
-    app, _ = get_app(False)
-
-    @app.router.get("/")
-    async def home(jinja):
-        return view(jinja, "home", home_model)
-
-    await _home_scenario(app)
-
-
-@pytest.mark.asyncio
 async def test_controller_conventional_view_name(home_model):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -229,7 +195,7 @@ async def test_controller_conventional_view_name(home_model):
 
 
 @pytest.mark.asyncio
-async def test_controller_conventional_view_name_async(home_model):
+async def test_controller_conventional_view_name_async(home_model, async_jinja_env):
     app, _ = get_app(True)
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -260,7 +226,9 @@ async def test_controller_specific_view_name(home_model, specific_text):
 
 
 @pytest.mark.asyncio
-async def test_controller_specific_view_name_async(home_model, specific_text):
+async def test_controller_specific_view_name_async(
+    home_model, specific_text, async_jinja_env
+):
     app, _ = get_app(True)
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -275,7 +243,7 @@ async def test_controller_specific_view_name_async(home_model, specific_text):
 
 
 @pytest.mark.asyncio
-async def test_controller_specific_view_name_async_no_model():
+async def test_controller_specific_view_name_async_no_model(async_jinja_env):
     app, _ = get_app(True)
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -361,16 +329,7 @@ async def test_controller_conventional_view_name_extraneous_function(home_model)
     ],
 )
 def test_template_name(value, expected_name):
-    assert template_name(value) == expected_name
-
-
-def test_use_templates_throws_for_invalid_services():
-    app = Application(services={})  # type: ignore
-
-    with pytest.raises(TypeError):
-        use_templates(
-            app, loader=PackageLoader("tests.testapp", "templates"), enable_async=False
-        )
+    assert get_template_name(value) == expected_name
 
 
 @pytest.mark.asyncio
@@ -403,5 +362,5 @@ async def test_controller_model_interop(model_fixture):
 
 
 def test_model_to_view_params_passes_unhandled_argument():
-    assert model_to_view_params(2) == 2
-    assert model_to_view_params("Something") == "Something"
+    assert html_settings.model_to_params(2) == 2
+    assert html_settings.model_to_params("Something") == "Something"

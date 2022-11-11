@@ -11,7 +11,7 @@ COMPILE_ARGS = ["-O2"]
 
 setup(
     name="blacksheep",
-    version="1.2.8",
+    version="2.0.0",
     description="Fast web framework for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -95,7 +95,6 @@ setup(
     ],
     install_requires=[
         "httptools>=0.5",
-        "Jinja2~=3.1.2",
         "certifi>=2022.9.24",
         "cchardet~=2.1.7; python_version < '3.11'",
         "chardet==5.0.0; python_version > '3.10'",
@@ -109,10 +108,12 @@ setup(
     ],
     extras_require={
         "full": [
-            "cryptography~=38.0.1",
             "PyJWT~=2.6.0",
             "websockets~=10.3",
-        ]
+        ],
+        "jinja": [
+            "Jinja2~=3.1.2",
+        ],
     },
     include_package_data=True,
     zip_safe=False,

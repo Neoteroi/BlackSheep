@@ -7,12 +7,12 @@ from datetime import datetime
 import uvicorn
 
 from blacksheep import JSONContent, Response
-from blacksheep.plugins import json as json_plugin
-from blacksheep.plugins.json import default_json_dumps
 from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
 from blacksheep.server.responses import json
 from blacksheep.server.websocket import WebSocket
+from blacksheep.settings.json import default_json_dumps
+from blacksheep.settings.json import json as json_settings
 
 SINGLE_PID = None
 
@@ -62,7 +62,7 @@ def custom_loads(value):
 
 
 def configure_json_settings():
-    json_plugin.use(
+    json_settings.use(
         loads=custom_loads,
         dumps=custom_dumps,
     )

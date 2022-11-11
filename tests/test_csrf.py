@@ -1,19 +1,16 @@
 import re
 
 import pytest
-from jinja2 import Environment, PackageLoader
 
 from blacksheep.contents import write_www_form_urlencoded
 from blacksheep.messages import Response
 from blacksheep.server.controllers import Controller
-from blacksheep.server.csrf import (
-    AntiForgeryBaseExtension,
-    ignore_anti_forgery,
-    use_anti_forgery,
-)
+from blacksheep.server.csrf import ignore_anti_forgery, use_anti_forgery
+from blacksheep.server.rendering.jinja2 import AntiForgeryBaseExtension, JinjaRenderer
 from blacksheep.server.responses import no_content
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.templating import use_templates, view, view_async
+from blacksheep.server.templating import view, view_async
+from blacksheep.settings.html import html
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
@@ -28,15 +25,8 @@ def read_control_value_from_input(text: str) -> str:
 
 def get_app(enable_async=False):
     app = FakeApplication()
-    render = use_templates(
-        app,
-        loader=PackageLoader("tests.testapp", "templates"),
-        enable_async=enable_async,
-    )
-
     use_anti_forgery(app)
-
-    return app, render
+    return app, view_async if enable_async else view
 
 
 @pytest.fixture()
@@ -212,42 +202,6 @@ async def test_anti_forgery_token_validation_using_input_1(home_model):
     @app.router.get("/")
     async def home(request):
         return render("form_1", home_model, request=request)
-
-    @app.router.post("/user")
-    async def create_username():
-        return no_content()
-
-    await _valid_scenario(app)
-
-
-@pytest.mark.asyncio
-async def test_anti_forgery_token_validation_using_input_1_view_fn(home_model):
-    """
-    Tests a valid scenario using responses.view function.
-    """
-    app, _ = get_app(False)
-
-    @app.router.get("/")
-    async def home(env: Environment, request):
-        return view(env, "form_1", home_model, request=request)
-
-    @app.router.post("/user")
-    async def create_username():
-        return no_content()
-
-    await _valid_scenario(app)
-
-
-@pytest.mark.asyncio
-async def test_anti_forgery_token_validation_using_input_1_async_view_fn(home_model):
-    """
-    Tests a valid scenario using responses.view function.
-    """
-    app, _ = get_app(True)
-
-    @app.router.get("/")
-    async def home(env: Environment, request):
-        return await view_async(env, "form_1", home_model, request=request)
 
     @app.router.post("/user")
     async def create_username():
@@ -700,7 +654,7 @@ async def test_controller_view_generation(home_model):
 
 
 @pytest.mark.asyncio
-async def test_controller_async_view_generation(home_model):
+async def test_controller_async_view_generation(home_model, async_jinja_env):
     app, _ = get_app(True)
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -719,9 +673,8 @@ async def test_controller_async_view_generation(home_model):
 
 @pytest.mark.asyncio
 async def test_anti_forgery_base_extension_raises_without_handler(home_model):
-    app, _ = get_app(False)
-
-    env = app.templates_environment  # type: ignore
+    assert isinstance(html.renderer, JinjaRenderer)
+    env = html.renderer.env
 
     with pytest.raises(TypeError):
         AntiForgeryBaseExtension(env)

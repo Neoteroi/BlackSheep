@@ -3,8 +3,8 @@ from functools import wraps
 from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
 
 from blacksheep.messages import Request
-from blacksheep.plugins import json
 from blacksheep.server.asgi import get_full_path
+from blacksheep.settings.json import json
 
 
 class WebSocketState(Enum):

@@ -1,13 +1,11 @@
 import time
 
 import pytest
-from cryptography.fernet import Fernet
 
 from blacksheep.cookies import parse_cookie
 from blacksheep.messages import Request
 from blacksheep.server.responses import text
 from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
-from blacksheep.sessions.crypto import FernetEncryptor
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 
@@ -271,64 +269,6 @@ async def test_session_middleware_use_method(app):
 
 
 @pytest.mark.asyncio
-async def test_session_middleware_with_encryptor(app):
-    app.middlewares.append(
-        SessionMiddleware(
-            "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
-        )
-    )
-
-    @app.router.get("/")
-    def home(request: Request):
-        session = request.session
-
-        assert isinstance(session, Session)
-        session["foo"] = "Some value"
-
-        return text("Hello, World")
-
-    @app.router.get("/second")
-    def second(request: Request):
-        session = request.session
-
-        assert "foo" in session
-        assert session["foo"] == "Some value"
-
-        return text("Hello, World")
-
-    await app.start()
-
-    await app(
-        get_example_scope(
-            "GET",
-            "/",
-        ),
-        MockReceive(),
-        MockSend(),
-    )
-
-    response = app.response
-    assert response.status == 200
-
-    session_set_cookie = response.headers.get_single(b"Set-Cookie")
-    assert session_set_cookie is not None
-
-    cookie = parse_cookie(session_set_cookie)
-
-    await app(
-        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
-        MockReceive(),
-        MockSend(),
-    )
-
-    response = app.response
-    assert response.status == 200
-
-    session_set_cookie = response.headers.get_first(b"Set-Cookie")
-    assert session_set_cookie is None
-
-
-@pytest.mark.asyncio
 async def test_session_middleware_handling_of_invalid_signature(app):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
 
@@ -412,43 +352,6 @@ async def test_session_middleware_handling_of_expired_signature(app):
 
     session_set_cookie = response.headers.get_first(b"Set-Cookie")
     assert session_set_cookie is None
-
-
-@pytest.mark.asyncio
-async def test_session_middleware_handling_of_invalid_encrypted_signature(app):
-    app.middlewares.append(
-        SessionMiddleware(
-            "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
-        )
-    )
-
-    @app.router.get("/")
-    def home(request: Request):
-        session = request.session
-
-        assert isinstance(session, Session)
-        assert len(session) == 0
-        assert "user_id" not in session
-
-        return text("Hello, World")
-
-    await app.start()
-
-    # arrange invalid session cookie
-    impostor_middleware = SessionMiddleware(
-        "LOREM_IPSUM", encryptor=FernetEncryptor(Fernet.generate_key())
-    )
-
-    forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
-
-    await app(
-        get_example_scope("GET", "/", {"cookie": f"session={forged_cookie}"}),
-        MockReceive(),
-        MockSend(),
-    )
-
-    response = app.response
-    assert response.status == 200
 
 
 def test_exception_for_invalid_max_age():

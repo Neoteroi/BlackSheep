@@ -2,11 +2,11 @@ import ntpath
 from enum import Enum
 from functools import lru_cache
 from io import BytesIO
-from typing import Any, AnyStr, AsyncIterable, Callable, Union
+from typing import Any, AnyStr, AsyncIterable, Callable, Optional, Union
 
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
 from blacksheep.common.files.asyncfs import FilesHandler
-from blacksheep.plugins import json as json_plugin
+from blacksheep.settings.json import json as json_settings
 
 MessageType = Any
 
@@ -32,7 +32,7 @@ def _ensure_bytes(value: AnyStr) -> bytes:
 
 
 def _json_serialize(obj) -> str:
-    return json_plugin.dumps(obj)
+    return json_settings.dumps(obj)
 
 
 def _json_content(obj) -> JSONContent:
@@ -195,7 +195,7 @@ def json(data: Any, status: int = 200) -> Response:
         None,
         Content(
             b"application/json",
-            json_plugin.dumps(data).encode("utf8"),
+            json_settings.dumps(data).encode("utf8"),
         ),
     )
 
@@ -214,7 +214,7 @@ def pretty_json(
         None,
         Content(
             b"application/json",
-            json_plugin.pretty_dumps(data).encode("utf8"),
+            json_settings.pretty_dumps(data).encode("utf8"),
         ),
     )
 
@@ -235,7 +235,7 @@ def _file(
     value: FileInput,
     content_type: str,
     content_disposition_type: ContentDispositionType,
-    file_name: str = None,
+    file_name: Optional[str] = None,
 ) -> Response:
     if file_name:
         exact_file_name = ntpath.basename(file_name)
@@ -303,7 +303,7 @@ def file(
     value: FileInput,
     content_type: str,
     *,
-    file_name: str = None,
+    file_name: Optional[str] = None,
     content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,
 ) -> Response:
     """

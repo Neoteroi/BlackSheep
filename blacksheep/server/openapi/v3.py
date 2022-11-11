@@ -73,7 +73,7 @@ except ImportError:  # pragma: no cover
 try:
     # Python >= 3.10
     from types import UnionType
-except ImportError:
+except ImportError:  # pragma: no cover
     UnionType = ...
 
 

@@ -11,7 +11,6 @@ from blacksheep import Content, Cookie, Response, scribe
 from blacksheep.server.controllers import (
     CannotDetermineDefaultViewNameError,
     Controller,
-    TemplatingNotConfiguredException,
 )
 from blacksheep.server.responses import (
     ContentDispositionType,
@@ -1004,26 +1003,6 @@ async def test_redirect_method_in_controller(method, expected_status, app):
     assert response.status == expected_status
     location = response.headers.get_single(b"location")
     assert location == b"https://foo.org/somewhere"
-
-
-@pytest.mark.asyncio
-async def test_view_methods_in_controller_throw_if_templating_not_configured(app):
-    app.controllers_router = RoutesRegistry()
-    get = app.controllers_router.get
-
-    class Home(Controller):
-        @get("/")
-        def greet(self):
-            self.view("foo")
-
-    await app.start()
-
-    home = Home()
-    with pytest.raises(TemplatingNotConfiguredException):
-        home.greet()
-
-    with pytest.raises(TemplatingNotConfiguredException):
-        await home.view_async("foo")
 
 
 @pytest.mark.asyncio

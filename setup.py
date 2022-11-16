@@ -108,6 +108,7 @@ setup(
     ],
     extras_require={
         "full": [
+            "cryptography~=38.0.1",
             "PyJWT~=2.6.0",
             "websockets~=10.3",
         ],

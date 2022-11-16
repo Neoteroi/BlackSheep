@@ -11,8 +11,7 @@ from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
 from blacksheep.server.responses import json
 from blacksheep.server.websocket import WebSocket
-from blacksheep.settings.json import default_json_dumps
-from blacksheep.settings.json import json_settings
+from blacksheep.settings.json import default_json_dumps, json_settings
 
 SINGLE_PID = None
 

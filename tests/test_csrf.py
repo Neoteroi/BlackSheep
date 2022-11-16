@@ -9,7 +9,7 @@ from blacksheep.server.csrf import ignore_anti_forgery, use_anti_forgery
 from blacksheep.server.rendering.jinja2 import AntiForgeryBaseExtension, JinjaRenderer
 from blacksheep.server.responses import no_content, view, view_async
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.settings.html import html
+from blacksheep.settings.html import html_settings
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
@@ -672,8 +672,8 @@ async def test_controller_async_view_generation(home_model, async_jinja_env):
 
 @pytest.mark.asyncio
 async def test_anti_forgery_base_extension_raises_without_handler(home_model):
-    assert isinstance(html.renderer, JinjaRenderer)
-    env = html.renderer.env
+    assert isinstance(html_settings.renderer, JinjaRenderer)
+    env = html_settings.renderer.env
 
     with pytest.raises(TypeError):
         AntiForgeryBaseExtension(env)

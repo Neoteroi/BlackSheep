@@ -8,7 +8,7 @@ from itsdangerous.exc import BadSignature, SignatureExpired
 
 from blacksheep.cookies import Cookie
 from blacksheep.messages import Request, Response
-from blacksheep.settings.json import json as json_settings
+from blacksheep.settings.json import json_settings
 from blacksheep.utils import ensure_str
 
 

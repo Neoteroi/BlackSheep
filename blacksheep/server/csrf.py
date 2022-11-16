@@ -11,7 +11,7 @@ from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
 from blacksheep.server.dataprotection import generate_secret, get_serializer
 from blacksheep.server.security import SecurityPolicyHandler
-from blacksheep.settings.html import html as html_settings
+from blacksheep.settings.html import html_settings
 
 
 class AntiForgeryTokenError(Unauthorized):
@@ -342,8 +342,8 @@ def use_anti_forgery(
         renderer.bind_antiforgery_handler(handler)
     except NotImplementedError:
         handler.logger.info(
-            "Templating is not configured on the application, extensions to render "
-            "anti-forgery tokens with Jinja2 won't be configured."
+            "The configured HTML renderer is not configured, or does not support "
+            "anti-forgery extensions to render anti-forgery tokens in views."
         )
 
     app.middlewares.append(handler)

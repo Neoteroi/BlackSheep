@@ -38,4 +38,4 @@ class JSONSettings:
         return self._pretty_dumps(obj)
 
 
-json = JSONSettings()
+json_settings = JSONSettings()

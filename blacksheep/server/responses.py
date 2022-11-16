@@ -6,8 +6,8 @@ from typing import Any, AnyStr, AsyncIterable, Callable, Optional, Union
 
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
 from blacksheep.common.files.asyncfs import FilesHandler
-from blacksheep.settings.html import html as html_settings
-from blacksheep.settings.json import json as json_settings
+from blacksheep.settings.html import html_settings
+from blacksheep.settings.json import json_settings
 
 MessageType = Any
 
@@ -330,6 +330,10 @@ def _create_html_response(html: str):
 def view(name: str, model: Any = None, **kwargs) -> Response:
     """
     Returns a Response object with HTML obtained using synchronous rendering.
+
+    This method relies on the engine configured for rendering (defaults to Jinja2):
+    see `blacksheep.settings.html.html_settings.renderer`
+    and `blacksheep.server.rendering.abc.Renderer`.
     """
     renderer = html_settings.renderer
     if model:
@@ -342,6 +346,10 @@ def view(name: str, model: Any = None, **kwargs) -> Response:
 async def view_async(name: str, model: Any = None, **kwargs) -> Response:
     """
     Returns a Response object with HTML obtained using asynchronous rendering.
+
+    This method relies on the engine configured for rendering (defaults to Jinja2):
+    see `blacksheep.settings.html.html_settings.renderer`
+    and `blacksheep.server.rendering.abc.Renderer`.
     """
     renderer = html_settings.renderer
     if model:

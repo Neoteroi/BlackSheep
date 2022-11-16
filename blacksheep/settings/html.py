@@ -36,4 +36,4 @@ class HTMLSettings:
                 continue
 
 
-html = HTMLSettings()
+html_settings = HTMLSettings()

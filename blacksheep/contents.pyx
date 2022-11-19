@@ -5,7 +5,7 @@ from inspect import isasyncgenfunction
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import parse_qsl, quote_plus
 
-from blacksheep.settings.json import json as json_settings
+from blacksheep.settings.json import json_settings
 
 from .exceptions cimport MessageAborted
 

@@ -82,7 +82,6 @@ class AntiForgeryValueExtension(AntiForgeryBaseExtension):
 class JinjaRenderer(Renderer):
     def __init__(
         self,
-        /,
         loader: Optional[PackageLoader] = None,
         debug: bool = False,
         enable_async: bool = False,

@@ -35,7 +35,6 @@ setup(
     license="MIT",
     packages=[
         "blacksheep",
-        "blacksheep.plugins",
         "blacksheep.server",
         "blacksheep.server.authentication",
         "blacksheep.server.authorization",
@@ -44,6 +43,7 @@ setup(
         "blacksheep.server.res",
         "blacksheep.server.openapi",
         "blacksheep.server.security",
+        "blacksheep.settings",
         "blacksheep.client",
         "blacksheep.common",
         "blacksheep.common.files",

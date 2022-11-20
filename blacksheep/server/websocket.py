@@ -3,8 +3,8 @@ from functools import wraps
 from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
 
 from blacksheep.messages import Request
-from blacksheep.plugins import json
 from blacksheep.server.asgi import get_full_path
+from blacksheep.settings.json import json_settings
 
 
 class WebSocketState(Enum):
@@ -125,10 +125,10 @@ class WebSocket(Request):
         message = await self.receive()
 
         if mode == MessageMode.TEXT:
-            return json.loads(message["text"])
+            return json_settings.loads(message["text"])
 
         if mode == MessageMode.BYTES:
-            return json.loads(message["bytes"].decode())
+            return json_settings.loads(message["bytes"].decode())
 
     async def _send_message(self, message: MutableMapping[str, AnyStr]) -> None:
         if self.client_state != WebSocketState.CONNECTED:
@@ -147,7 +147,7 @@ class WebSocket(Request):
     async def send_json(
         self, data: MutableMapping[Any, Any], mode: MessageMode = MessageMode.TEXT
     ):
-        text = json.dumps(data)
+        text = json_settings.dumps(data)
 
         if mode == MessageMode.TEXT:
             return await self.send_text(text)

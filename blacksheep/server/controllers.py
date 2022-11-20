@@ -25,9 +25,10 @@ from blacksheep.server.responses import (
     temporary_redirect,
     text,
     unauthorized,
+    view,
+    view_async,
 )
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.templating import Environment, view, view_async
 from blacksheep.utils import AnyStr, join_fragments
 
 # singleton router used to store initial configuration,
@@ -68,27 +69,8 @@ class ControllerMeta(type):
                 setattr(value, "controller_type", cls)
 
 
-class TemplatingNotConfiguredException(Exception):
-    def __init__(self) -> None:
-        super().__init__(
-            "Server side HTML templating is not configured. Configure templating using "
-            "the function `use_templates` from blacksheep.server.templating."
-        )
-
-
 class Controller(metaclass=ControllerMeta):
     """Base class for all controllers."""
-
-    templates: Optional[Environment] = None
-    """
-    Templates environment: this class property is configured automatically
-    by the application object at startup,
-    because controllers activated by an application need to use the same
-    templating engine of the application.
-
-    Templates are available only if the application uses templating -
-    which is not necessary.
-    """
 
     @classmethod
     def route(cls) -> Optional[str]:
@@ -355,12 +337,7 @@ class Controller(metaclass=ControllerMeta):
         if name is None:
             name = self.get_default_view_name()
 
-        if self.templates is None:
-            raise TemplatingNotConfiguredException()
-
-        if model:
-            return view(self.templates, self.full_view_name(name), model, **kwargs)
-        return view(self.templates, self.full_view_name(name), **kwargs)
+        return view(self.full_view_name(name), model, **kwargs)
 
     async def view_async(
         self, name: Optional[str] = None, model: Optional[Any] = None, **kwargs
@@ -376,14 +353,7 @@ class Controller(metaclass=ControllerMeta):
         if name is None:
             name = self.get_default_view_name()
 
-        if self.templates is None:
-            raise TemplatingNotConfiguredException()
-
-        if model:
-            return await view_async(
-                self.templates, self.full_view_name(name), model, **kwargs
-            )
-        return await view_async(self.templates, self.full_view_name(name), **kwargs)
+        return await view_async(self.full_view_name(name), model, **kwargs)
 
 
 class APIController(Controller):

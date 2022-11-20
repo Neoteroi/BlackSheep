@@ -187,7 +187,7 @@ cpdef bytes py_write_small_request(Request request):
 
 async def write_request_body_only(Request request):
     # This method is used only for Expect: 100-continue scenario;
-    # in such case the request headers are sent before and then the body
+    # in such case the request headers are sent before the body
     cdef bytes data
     cdef bytes chunk
     cdef Content content

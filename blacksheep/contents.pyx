@@ -5,16 +5,18 @@ from inspect import isasyncgenfunction
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import parse_qsl, quote_plus
 
-from blacksheep.plugins import json as json_plugin
+from blacksheep.settings.json import json_settings
 
 from .exceptions cimport MessageAborted
 
 
 cdef class Content:
 
-    def __init__(self,
-                 bytes content_type,
-                 bytes data):
+    def __init__(
+        self,
+        bytes content_type,
+        bytes data
+    ):
         self.type = content_type
         self.body = data
         self.length = len(data)
@@ -25,9 +27,11 @@ cdef class Content:
 
 cdef class StreamedContent(Content):
 
-    def __init__(self,
-                 bytes content_type,
-                 object data_provider):
+    def __init__(
+        self,
+        bytes content_type,
+        object data_provider
+    ):
         self.type = content_type
         self.body = None
         self.length = -1
@@ -111,7 +115,7 @@ cdef class HTMLContent(Content):
 
 cdef class JSONContent(Content):
 
-    def __init__(self, object data, dumps=json_plugin.dumps):
+    def __init__(self, object data, dumps=json_settings.dumps):
         super().__init__(b'application/json', dumps(data).encode('utf8'))
 
 

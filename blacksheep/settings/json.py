@@ -12,7 +12,7 @@ def default_pretty_json_dumps(obj):
     return dumps(obj, indent=4)
 
 
-class JSONPlugin:
+class JSONSettings:
     def __init__(self):
         self._loads = json.loads
         self._dumps = default_json_dumps
@@ -36,3 +36,6 @@ class JSONPlugin:
 
     def pretty_dumps(self, obj: Any) -> str:
         return self._pretty_dumps(obj)
+
+
+json_settings = JSONSettings()

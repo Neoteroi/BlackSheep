@@ -1,6 +1,5 @@
 import base64
 import logging
-import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
@@ -9,7 +8,7 @@ from itsdangerous.exc import BadSignature, SignatureExpired
 
 from blacksheep.cookies import Cookie
 from blacksheep.messages import Request, Response
-from blacksheep.plugins import json as json_plugin
+from blacksheep.settings.json import json_settings
 from blacksheep.utils import ensure_str
 
 
@@ -20,7 +19,7 @@ def get_logger():
 
 
 class Session:
-    def __init__(self, values: Mapping[str, Any] = None) -> None:
+    def __init__(self, values: Optional[Mapping[str, Any]] = None) -> None:
         if values is None:
             values = {}
         self._modified = False
@@ -81,22 +80,12 @@ class SessionSerializer(ABC):
         """Creates the string representation of a session."""
 
 
-class Encryptor(ABC):
-    @abstractmethod
-    def encrypt(self, value: str) -> str:
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def decrypt(self, value: str) -> str:
-        pass  # pragma: no cover
-
-
 class JSONSerializer(SessionSerializer):
     def read(self, value: str) -> Session:
-        return Session(json_plugin.loads(value))
+        return Session(json_settings.loads(value))
 
     def write(self, session: Session) -> str:
-        return json_plugin.dumps(session.to_dict())
+        return json_settings.dumps(session.to_dict())
 
 
 class SessionMiddleware:
@@ -107,36 +96,17 @@ class SessionMiddleware:
         session_cookie: str = "session",
         serializer: Optional[SessionSerializer] = None,
         signer: Optional[Serializer] = None,
-        encryptor: Optional[Encryptor] = None,
         session_max_age: Optional[int] = None,
     ) -> None:
-        if encryptor is not None:
-            warnings.warn(
-                "The `encryptor` for sessions is deprecated and will be removed in "
-                "version 1.3.x.",
-                DeprecationWarning,
-            )
         self._signer = signer or URLSafeTimedSerializer(secret_key)
         self._serializer = serializer or JSONSerializer()
         self._session_cookie = session_cookie
-        self._encryptor = encryptor
         self._logger = get_logger()
         if session_max_age is not None and session_max_age < 1:
             raise ValueError("session_max_age must be a positive number greater than 0")
         self.session_max_age = session_max_age
 
     def try_read_session(self, raw_value: str) -> Session:
-        if self._encryptor:
-            try:
-                raw_value = self._encryptor.decrypt(raw_value)
-            except Exception as decrypt_error:
-                # the client might be sending forged tokens
-                self._logger.info(
-                    "The session value decryption failed.",
-                    exc_info=decrypt_error,
-                )
-                return Session()
-
         try:
             if self.session_max_age:
                 assert isinstance(self._signer, URLSafeTimedSerializer), (
@@ -165,12 +135,7 @@ class SessionMiddleware:
         payload = base64.b64encode(
             self._serializer.write(session).encode("utf8")
         ).decode()
-        signed = ensure_str(self._signer.dumps(payload))  # type: ignore
-
-        if self._encryptor:
-            return self._encryptor.encrypt(signed)
-
-        return signed
+        return ensure_str(self._signer.dumps(payload))  # type: ignore
 
     def prepare_cookie(self, value: str) -> Cookie:
         return Cookie(self._session_cookie, value, path="/", http_only=True)

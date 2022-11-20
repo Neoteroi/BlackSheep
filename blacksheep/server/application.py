@@ -54,7 +54,7 @@ from blacksheep.server.routing import (
     RoutesRegistry,
 )
 from blacksheep.server.websocket import WebSocket
-from blacksheep.sessions import Encryptor, SessionMiddleware, SessionSerializer, Signer
+from blacksheep.sessions import SessionMiddleware, SessionSerializer, Signer
 from blacksheep.utils import ensure_bytes, join_fragments
 
 __all__ = ("Application",)
@@ -284,7 +284,6 @@ class Application(BaseApplication):
         session_cookie: str = "session",
         serializer: Optional[SessionSerializer] = None,
         signer: Optional[Signer] = None,
-        encryptor: Optional[Encryptor] = None,
         session_max_age: Optional[int] = None,
     ) -> None:
         self._session_middleware = SessionMiddleware(
@@ -292,7 +291,6 @@ class Application(BaseApplication):
             session_cookie=session_cookie,
             serializer=serializer,
             signer=signer,
-            encryptor=encryptor,
             session_max_age=session_max_age,
         )
 
@@ -580,12 +578,6 @@ class Application(BaseApplication):
             )
         return controller_types
 
-    def bind_controller_type(self, controller_type: Type):
-        templates_environment = getattr(self, "templates_environment", None)
-
-        if templates_environment:
-            setattr(controller_type, "templates", templates_environment)
-
     def register_controllers(self, controller_types: List[Type]):
         """
         Registers controller types as transient services
@@ -604,8 +596,6 @@ class Application(BaseApplication):
         for controller_class in controller_types:
             if controller_class in self.services:
                 continue
-
-            self.bind_controller_type(controller_class)
 
             if getattr(controller_class, "__init__") is object.__init__:
                 self.services.add_transient_by_factory(

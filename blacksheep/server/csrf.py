@@ -1,11 +1,8 @@
 import weakref
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
-from jinja2 import nodes
-from jinja2.ext import Extension
-from jinja2.utils import pass_context
 
 from blacksheep.baseapp import get_logger
 from blacksheep.cookies import Cookie
@@ -14,6 +11,7 @@ from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
 from blacksheep.server.dataprotection import generate_secret, get_serializer
 from blacksheep.server.security import SecurityPolicyHandler
+from blacksheep.settings.html import html_settings
 
 
 class AntiForgeryTokenError(Unauthorized):
@@ -279,58 +277,6 @@ class AntiForgeryHandler:
         return (value_one, value_two)
 
 
-class AntiForgeryBaseExtension(Extension):
-    af_handler: Optional[AntiForgeryHandler] = None
-
-    def __init__(self, environment):
-        super().__init__(environment)
-
-        if self.af_handler is None:
-            raise TypeError("Define a subclass bound to an AntiForgeryHandler")
-
-    @property
-    def handler(self) -> AntiForgeryHandler:
-        if self.af_handler is None:
-            raise TypeError("Missing anti_forgery_handler")
-        return self.af_handler
-
-    def parse(self, parser):
-        line_number = next(parser.stream).lineno
-        return nodes.CallBlock(self.call_method("get_html"), [], [], "").set_lineno(
-            line_number
-        )
-
-    def get_token(self, context) -> str:
-        try:
-            request = context["request"]
-        except KeyError:
-            raise MissingRequestContextError()
-        assert isinstance(request, Request)
-
-        tokens = self.handler.get_tokens(request)
-        return tokens[1]
-
-
-class AntiForgeryInputExtension(AntiForgeryBaseExtension):
-    tags = {"csrf_input", "af_input"}
-
-    @pass_context
-    def get_html(self, context, caller):
-        value = self.get_token(context)
-        return (
-            f'<input type="hidden" name="{self.handler.form_name}" '
-            f'value="{value}" />'
-        )
-
-
-class AntiForgeryValueExtension(AntiForgeryBaseExtension):
-    tags = {"csrf_token", "af_token"}
-
-    @pass_context
-    def get_html(self, context, caller):
-        return self.get_token(context)
-
-
 _IGNORED_HANDLERS = {}
 
 
@@ -390,27 +336,15 @@ def use_anti_forgery(
     if handler is None:
         handler = AntiForgeryHandler()
 
-    env = getattr(app, "templates_environment")
+    renderer = html_settings.renderer
 
-    if env is None:  # pragma: no cover
+    try:
+        renderer.bind_antiforgery_handler(handler)
+    except NotImplementedError:
         handler.logger.info(
-            "Templating is not configured on the application, extensions to render "
-            "anti-forgery tokens with Jinja2 won't be configured."
+            "The configured HTML renderer is not configured, or does not support "
+            "anti-forgery extensions to render anti-forgery tokens in views."
         )
-    else:
-        if TYPE_CHECKING:  # pragma: no cover
-            from jinja2 import Environment
-
-            assert isinstance(env, Environment)
-
-        class BoundAntiForgeryInputExtension(AntiForgeryInputExtension):
-            af_handler = handler
-
-        class BoundAntiForgeryValueExtension(AntiForgeryValueExtension):
-            af_handler = handler
-
-        env.add_extension(BoundAntiForgeryInputExtension)
-        env.add_extension(BoundAntiForgeryValueExtension)
 
     app.middlewares.append(handler)
 

@@ -10,8 +10,8 @@ except ImportError:
     import chardet
 
 from blacksheep.multipart import parse_multipart
-from blacksheep.plugins import json as json_plugin
 from blacksheep.sessions import Session
+from blacksheep.settings.json import json_settings
 
 from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
@@ -215,7 +215,7 @@ cdef class Message:
             return [part for part in data if part.file_name and part.name == name]
         return [part for part in data if part.file_name]
 
-    async def json(self, loads=json_plugin.loads):
+    async def json(self, loads=json_settings.loads):
         if not self.declares_json():
             return None
 

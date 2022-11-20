@@ -6,8 +6,8 @@ from .asgi import ASGIScopeInterface
 from .contents import Content, FormPart
 from .cookies import Cookie
 from .headers import Headers, HeaderType
-from .plugins import json as json_plugin
 from .sessions import Session
+from .settings import json as json_plugin
 from .url import URL
 
 class Message:

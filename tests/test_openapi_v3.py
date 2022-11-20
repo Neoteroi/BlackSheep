@@ -265,7 +265,6 @@ async def test_raises_for_duplicated_content_example(docs):
         await app.start()
 
 
-@pytest.mark.asyncio
 def test_raises_for_union_type(docs):
     with pytest.raises(UnsupportedUnionTypeException):
         docs.get_schema_by_type(Union[Foo, Ufo])

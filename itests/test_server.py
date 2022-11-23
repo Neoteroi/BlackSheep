@@ -10,7 +10,6 @@ import websockets
 import yaml
 from websockets.exceptions import InvalidStatusCode
 
-from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
 from .utils import assert_files_equals, ensure_success
 

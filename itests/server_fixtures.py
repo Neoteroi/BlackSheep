@@ -1,5 +1,6 @@
 import asyncio
 import os
+import pathlib
 import socket
 from multiprocessing import Process
 from time import sleep
@@ -7,13 +8,18 @@ from time import sleep
 import pytest
 import uvicorn
 from hypercorn.asyncio import serve as hypercorn_serve
-from hypercorn.run import Config as HypercornConfig
+from hypercorn.config import Config as HypercornConfig
 
 from .app_1 import app
 from .app_2 import app_2
 from .app_3 import app_3
 from .app_4 import app_4, configure_json_settings
 from .utils import ClientSession, get_sleep_time
+
+
+def get_static_path(file_name):
+    static_folder_path = pathlib.Path(__file__).parent.absolute() / "static"
+    return os.path.join(str(static_folder_path), file_name.lstrip("/"))
 
 
 @pytest.fixture(scope="module")

@@ -297,7 +297,7 @@ cdef class Request(Message):
     @property
     def host(self) -> str:
         if not self.__dict__.get("host"):
-            if self._url is not None and self._url.is_absolute:
+            if self._url is not None and self._url.host:
                 self.__dict__["host"] = self._url.host.decode()
             else:
                 # default to host header

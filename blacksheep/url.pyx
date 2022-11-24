@@ -95,7 +95,7 @@ cdef class URL:
 
         base_url = self.schema + b'://' + self.host
 
-        if self.port != 0:
+        if self.port != 0 and b":" not in base_url:
             if (self.schema == b'http' and self.port != 80) or (self.schema == b'https' and self.port != 443):
                 base_url = base_url + b':' + str(self.port).encode()
 

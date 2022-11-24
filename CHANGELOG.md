@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renames the `plugins` namespace to `settings`
 - Adds options to control `Jinja2` settings through environment variables
 - Removes the implementation of HTTP Client
-- Modifies how incoming web are instantiated, to optimize their initialization
+- Modifies how incoming web are instantiated, optimizing their initialization
   time (`Request.__init__`)
 - Makes `httptools` an optional dependency
 

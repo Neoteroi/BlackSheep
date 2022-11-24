@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removes the implementation of HTTP Client
 - Modifies how incoming web are instantiated, to optimize their initialization
   time (`Request.__init__`)
+- Makes `httptools` an optional dependency
 
 ## [1.2.8] - 2022-10-27 :snake:
 - Upgrades pinned dependencies to support Python 3.11

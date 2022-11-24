@@ -44,7 +44,6 @@ setup(
         "blacksheep.server.openapi",
         "blacksheep.server.security",
         "blacksheep.settings",
-        "blacksheep.client",
         "blacksheep.common",
         "blacksheep.common.files",
         "blacksheep.sessions",
@@ -94,7 +93,6 @@ setup(
         ),
     ],
     install_requires=[
-        "httptools>=0.5",
         "certifi>=2022.9.24",
         "cchardet~=2.1.7; python_version < '3.11'",
         "chardet==5.0.0; python_version > '3.10'",
@@ -108,6 +106,7 @@ setup(
     ],
     extras_require={
         "full": [
+            "httptools>=0.5",
             "cryptography~=38.0.1",
             "PyJWT~=2.6.0",
             "websockets~=10.3",

@@ -1,20 +1,8 @@
-import httptools
-from httptools.parser import errors
+try:
+    import httptools
+    from httptools.parser import errors
 
-
-cdef class InvalidURL(Exception):
-    def __init__(self, str message):
-        super().__init__(message)
-
-
-def valid_schema(schema):
-    if schema and schema != b'https' and schema != b'http':
-        raise InvalidURL(f'Expected http or https schema; got instead {schema.decode()}')
-
-
-cdef class URL:
-
-    def __init__(self, bytes value):
+    def _set_url_data(URL url, bytes value):
         cdef bytes schema
         cdef object port
 
@@ -30,14 +18,58 @@ cdef class URL:
         schema = parsed.schema
         valid_schema(schema)
 
-        self.value = value or b''
-        self.schema = schema
-        self.host = parsed.host
-        self.port = parsed.port or 0
-        self.path = parsed.path
-        self.query = parsed.query
-        self.fragment = parsed.fragment
-        self.is_absolute = parsed.schema is not None
+        url.value = value or b''
+        url.schema = schema
+        url.host = parsed.host
+        url.port = parsed.port or 0
+        url.path = parsed.path
+        url.query = parsed.query
+        url.fragment = parsed.fragment
+        url.is_absolute = bool(parsed.schema)
+
+
+except ImportError:
+    # fallback to built-in urllib.parse
+    from urllib.parse import urlparse
+
+    def _set_url_data(URL url, bytes value):
+        cdef bytes schema
+        cdef object port
+
+        if not value:
+            raise InvalidURL("The value cannot be parsed as URL. Empty value.")
+
+        try:
+            parsed = urlparse(value)
+        except:
+            raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()})')
+        schema = parsed.scheme
+        valid_schema(schema)
+
+        url.value = value or b''
+        url.schema = schema or None
+        url.host = parsed.netloc or None
+        url.port = parsed.port or 0
+        url.path = parsed.path or None
+        url.query = parsed.query or None
+        url.fragment = parsed.fragment or None
+        url.is_absolute = bool(parsed.scheme)
+
+
+cdef class InvalidURL(Exception):
+    def __init__(self, str message):
+        super().__init__(message)
+
+
+def valid_schema(schema):
+    if schema and schema != b'https' and schema != b'http':
+        raise InvalidURL(f'Expected http or https schema; got instead {schema.decode()}')
+
+
+cdef class URL:
+
+    def __init__(self, bytes value):
+        _set_url_data(self, value)
 
     def __repr__(self):
         return f'<URL {self.value}>'

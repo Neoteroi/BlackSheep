@@ -266,17 +266,16 @@ cdef class Request(Message):
     def __init__(
         self,
         str method,
-        bytes url,
-        list headers
+        bytes path,
+        list headers,
+        bytes query = b"",
     ):
-        cdef URL _url = URL(url) if url else None
-        self.__headers = headers or []
         self.method = method
-        self._url = _url
+        self._url = None
         self._session = None
-        if _url:
-            self._path = _url.path
-            self._raw_query = _url.query
+        self._path = path
+        self._raw_query = query
+        self.__headers = headers or []
 
     @property
     def identity(self):
@@ -357,16 +356,12 @@ cdef class Request(Message):
     def session(self, value: Session):
         self._session = value
 
-    @classmethod
-    def incoming(cls, str method, bytes path, bytes query, list headers):
-        request = cls(method, None, headers)
-        request._path = path
-        request._raw_query = query
-        return request
-
     @property
     def query(self):
         if self._raw_query:
+            return parse_qs(self._raw_query.decode('utf8'))
+        if b"?" in self.url.value:
+            self._raw_query = self.url.query
             return parse_qs(self._raw_query.decode('utf8'))
         return {}
 

@@ -69,11 +69,11 @@ class TestSimulator(AbstractTestSimulator):
         cookies: CookiesType = None,
     ) -> Response:
         scope = _create_scope(method, path, headers, query, cookies=cookies)
-        request = Request.incoming(
+        request = Request(
             scope["method"],
             scope["raw_path"],
-            scope["query_string"],
             scope["headers"],
+            scope["query_string"],
         )
 
         request.scope = scope  # type: ignore

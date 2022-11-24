@@ -731,11 +731,11 @@ class Application(BaseApplication):
     async def _handle_http(self, scope, receive, send):
         assert scope["type"] == "http"
 
-        request = Request.incoming(
+        request = Request(
             scope["method"],
             scope["raw_path"],
-            scope["query_string"],
             list(scope["headers"]),
+            scope["query_string"],
         )
 
         request.scope = scope

@@ -61,11 +61,11 @@ def incoming_request(scope, receive=None) -> Request:
     This function is intentionally not used in
     `blacksheep.server.application.Application`.
     """
-    request = Request.incoming(
+    request = Request(
         scope["method"],
         scope["raw_path"],
-        scope["query_string"],
         list(scope["headers"]),
+        scope["query_string"],
     )
     request.scope = scope
     if receive:

@@ -11,7 +11,7 @@ import yaml
 from websockets.exceptions import InvalidStatusCode
 
 from .server_fixtures import *  # NoQA
-from .utils import assert_files_equals, ensure_success
+from .utils import assert_files_equals, ensure_success, get_static_path
 
 
 def test_hello_world(session_1):

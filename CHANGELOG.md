@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the default library if the user doesn´t specify how HTML should be rendered
 - Renames the `plugins` namespace to `settings`
 - Adds options to control `Jinja2` settings through environment variables
+- Removes the implementation of HTTP Client
+- Modifies how incoming web are instantiated, to optimize their initialization
+  time (`Request.__init__`)
 
 ## [1.2.8] - 2022-10-27 :snake:
 - Upgrades pinned dependencies to support Python 3.11

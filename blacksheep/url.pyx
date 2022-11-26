@@ -48,7 +48,7 @@ except ImportError:
 
         url.value = value or b''
         url.schema = schema or None
-        url.host = parsed.netloc or None
+        url.host = parsed.netloc.split(b":")[0] if parsed.netloc else None
         url.port = parsed.port or 0
         url.path = parsed.path or None
         url.query = parsed.query or None
@@ -95,7 +95,7 @@ cdef class URL:
 
         base_url = self.schema + b'://' + self.host
 
-        if self.port != 0 and b":" not in base_url:
+        if self.port != 0:
             if (self.schema == b'http' and self.port != 80) or (self.schema == b'https' and self.port != 443):
                 base_url = base_url + b':' + str(self.port).encode()
 

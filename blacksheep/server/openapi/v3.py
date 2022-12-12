@@ -204,10 +204,7 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
             )
 
         if value_type == "boolean":
-            return Schema(
-                type=ValueType.BOOLEAN,
-                nullable=nullable
-            )
+            return Schema(type=ValueType.BOOLEAN, nullable=nullable)
 
         if value_type == "file":
             # TODO: improve support for file type,

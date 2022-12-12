@@ -793,6 +793,14 @@ def test_router_iterable():
             "/api/cats/:cat_id/friends/:friend_id",
             "/api/cats/{cat_id}/friends/{friend_id}",
         ],
+        [
+            "/api/cats/{int:cat_id}/friends/{uuid:friend_id}",
+            "/api/cats/{cat_id}/friends/{friend_id}",
+        ],
+        [
+            "/api/cats/<int:cat_id>/friends/<uuid:friend_id>",
+            "/api/cats/{cat_id}/friends/{friend_id}",
+        ],
     ],
 )
 def test_route_to_openapi_pattern(route_pattern, expected_pattern):

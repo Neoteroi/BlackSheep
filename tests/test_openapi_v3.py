@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
 from typing import Generic, List, Optional, Sequence, TypeVar, Union
+from uuid import UUID
 
 import pytest
 from openapidocs.common import Format, Serializer
@@ -1917,6 +1918,10 @@ async def test_handles_ref_for_optional_type(
     def three(cat_id: int) -> Cat:
         ...
 
+    @app.route("/cats_value_pattern/{uuid:cat_id}")
+    def three(cat_id: UUID) -> Cat:
+        ...
+
     docs.bind_app(app)
     await app.start()
 
@@ -1977,6 +1982,25 @@ paths:
                 schema:
                     type: integer
                     format: int64
+                    nullable: false
+                description: ''
+                required: true
+    /cats_value_pattern/{cat_id}:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Cat'
+            operationId: three
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: string
+                    format: uuid
                     nullable: false
                 description: ''
                 required: true

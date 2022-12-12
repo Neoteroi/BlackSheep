@@ -1918,7 +1918,7 @@ async def test_handles_ref_for_optional_type(
         ...
 
     @app.route("/cats_value_pattern/{uuid:cat_id}")
-    def three(cat_id: UUID) -> Cat:
+    def four(cat_id: UUID) -> Cat:
         ...
 
     docs.bind_app(app)
@@ -1993,7 +1993,7 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Cat'
-            operationId: three
+            operationId: four
             parameters:
             -   name: cat_id
                 in: path

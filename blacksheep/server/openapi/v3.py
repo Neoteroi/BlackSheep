@@ -95,7 +95,11 @@ def check_union(object_type: Any) -> Tuple[bool, Any]:
         hasattr(object_type, "__origin__")
         and object_type.__origin__ is Union
         or _is_union_type(object_type)
+        or (hasattr(object_type, "nullable"))
     ):
+        # For Pydantic
+        if hasattr(object_type, "nullable"):
+            return object_type.nullable, object_type
         # support only Union[None, Type] - that is equivalent of Optional[Type]
         if type(None) not in object_type.__args__ or len(object_type.__args__) > 2:
             raise UnsupportedUnionTypeException(object_type)
@@ -200,7 +204,7 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
             )
 
         if value_type == "boolean":
-            return bool
+            return Schema(type=ValueType.BOOLEAN, nullable=nullable)
 
         if value_type == "file":
             # TODO: improve support for file type,

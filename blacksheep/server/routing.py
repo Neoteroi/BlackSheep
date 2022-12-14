@@ -247,9 +247,25 @@ class Route:
     def __repr__(self) -> str:
         return f"<Route {self.pattern.decode('utf8')}>"
 
+    @staticmethod
+    def _normalize_rich_parameter(match: re.Match):
+        matched_parameter = next(iter(match.groups()))
+        parts = matched_parameter.split(b":")
+        parameter_name = parts[1] if len(parts) > 1 else matched_parameter
+        return b"/{" + parameter_name + b"}"
+
     @property
     def mustache_pattern(self) -> str:
-        return _route_param_rx.sub(rb"/{\1}", self.pattern).decode("utf8")
+        pattern = self.pattern
+        if b"<" in pattern:
+            pattern = _angle_bracket_route_param_rx.sub(
+                self._normalize_rich_parameter, pattern
+            )
+        if b"{" in pattern:
+            pattern = _mustache_route_param_rx.sub(
+                self._normalize_rich_parameter, pattern
+            )
+        return _route_param_rx.sub(rb"/{\1}", pattern).decode("utf8")
 
     @property
     def full_pattern(self) -> bytes:

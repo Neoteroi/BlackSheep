@@ -258,9 +258,13 @@ class Route:
     def mustache_pattern(self) -> str:
         pattern = self.pattern
         if b"<" in pattern:
-            pattern = _angle_bracket_route_param_rx.sub(self._normalize_rich_parameter, pattern)
+            pattern = _angle_bracket_route_param_rx.sub(
+                self._normalize_rich_parameter, pattern
+            )
         if b"{" in pattern:
-            pattern = _mustache_route_param_rx.sub(self._normalize_rich_parameter, pattern)
+            pattern = _mustache_route_param_rx.sub(
+                self._normalize_rich_parameter, pattern
+            )
         return _route_param_rx.sub(rb"/{\1}", pattern).decode("utf8")
 
     @property

@@ -4,7 +4,7 @@ from inspect import Parameter, _ParameterKind
 from typing import List, Optional, Sequence, Union
 
 import pytest
-from guardpost.authentication import Identity, User
+from neoteroi.auth import Identity, User
 from pytest import raises
 from rodi import Container, Services, inject
 
@@ -478,13 +478,13 @@ def test_raises_for_unsupported_signature():
         return services
 
     with pytest.raises(UnsupportedSignatureError):
-        normalize_handler(Route(b"/", handler), Services())
+        normalize_handler(Route(b"/", handler), Container())
 
     with pytest.raises(UnsupportedSignatureError):
-        normalize_handler(Route(b"/", handler2), Services())
+        normalize_handler(Route(b"/", handler2), Container())
 
     with pytest.raises(UnsupportedSignatureError):
-        normalize_handler(Route(b"/", handler3), Services())
+        normalize_handler(Route(b"/", handler3), Container())
 
 
 async def fake_handler(_):
@@ -493,16 +493,19 @@ async def fake_handler(_):
 
 @pytest.mark.asyncio
 async def test_middleware_normalization():
-    services = {"context": object()}
+    container = Container()
+    container.add_singleton(object)
+    container.add_alias("context", object)
+
     fake_request = Request("GET", b"/", None)
 
-    async def middleware(request, handler, context):
+    async def middleware(request, handler, context: object):
         assert request is fake_request
         assert handler is fake_handler
-        assert context is services.get("context")
+        assert context is container.resolve("context")
         return await handler(request)
 
-    normalized = normalize_middleware(middleware, services)
+    normalized = normalize_middleware(middleware, container)
 
     # NB: middlewares base signature is (request, handler)
     result = await normalized(fake_request, fake_handler)  # type: ignore
@@ -511,7 +514,7 @@ async def test_middleware_normalization():
 
 @pytest.mark.asyncio
 async def test_middleware_normalization_2():
-    services = {"context": object(), "foo": object()}
+    services = Container()  # {"context": object(), "foo": object()}
     fake_request = Request("GET", b"/", None)
 
     async def middleware(context, foo):

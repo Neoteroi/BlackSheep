@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the default library if the user doesn´t specify how HTML should be rendered
 - Renames the `plugins` namespace to `settings`
 - Adds options to control `Jinja2` settings through environment variables
+- Adds support for alternative implementation of containers for dependency
+  injection, removing direct references to `rodi` in most of the source code
+  (except for the default service container for the `Application` class).
+  Replaces direct dependency on `rodi` classes with protocols.
+- Replaces `guardpost` with `neoteroi-auth`, which includes support for
+  dependency injection in authentication handlers and authorization requirements.
 
 ## [1.2.8] - 2022-10-27 :snake:
 - Upgrades pinned dependencies to support Python 3.11

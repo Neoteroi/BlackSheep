@@ -1,10 +1,9 @@
 from datetime import datetime
 from typing import Any, Optional, Sequence
 
-from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
+from neoteroi.auth import AuthenticationHandler, Identity
 
 from blacksheep.baseapp import get_logger
 from blacksheep.cookies import Cookie

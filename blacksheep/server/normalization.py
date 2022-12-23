@@ -19,8 +19,8 @@ from typing import (
 )
 from uuid import UUID
 
-from guardpost.authentication import Identity, User
-from rodi import Services
+from neoteroi.auth import Identity, User
+from rodi import ContainerProtocol
 
 from blacksheep import Request, Response
 from blacksheep.normalization import copy_special_attributes
@@ -240,7 +240,7 @@ def _check_union(
 
 
 def _get_parameter_binder_without_annotation(
-    services: Services,
+    services: ContainerProtocol,
     route: Optional[Route],
     name: str,
 ) -> Binder:
@@ -293,7 +293,7 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
 
 def _get_parameter_binder(
     parameter: inspect.Parameter,
-    services: Services,
+    services: ContainerProtocol,
     route: Optional[Route],
     method: Callable[..., Any],
 ) -> Binder:
@@ -370,7 +370,7 @@ def _get_parameter_binder(
 
 def get_parameter_binder(
     parameter: inspect.Parameter,
-    services: Services,
+    services: ContainerProtocol,
     route: Optional[Route],
     method: Callable[..., Any],
 ) -> Binder:
@@ -383,7 +383,7 @@ def get_parameter_binder(
 
 
 def _get_binders_for_function(
-    method: Callable[..., Any], services: Services, route: Optional[Route]
+    method: Callable[..., Any], services: ContainerProtocol, route: Optional[Route]
 ) -> List[Binder]:
     parameters = _get_method_annotations_base(method)
     body_binder = None
@@ -405,7 +405,7 @@ def _get_binders_for_function(
     return binders
 
 
-def get_binders(route: Route, services: Services) -> List[Binder]:
+def get_binders(route: Route, services: ContainerProtocol) -> List[Binder]:
     """
     Returns a list of binders to extract parameters
     for a request handler.
@@ -416,7 +416,7 @@ def get_binders(route: Route, services: Services) -> List[Binder]:
 
 
 def get_binders_for_middleware(
-    method: Callable[..., Any], services: Services
+    method: Callable[..., Any], services: ContainerProtocol
 ) -> Sequence[Binder]:
     return _get_binders_for_function(method, services, None)
 
@@ -464,7 +464,7 @@ def _get_async_wrapper_for_controller(
 
 
 def get_sync_wrapper(
-    services: Services,
+    services: ContainerProtocol,
     route: Route,
     method: Callable[..., Any],
     params: Mapping[str, ParamInfo],
@@ -500,7 +500,7 @@ def get_sync_wrapper(
 
 
 def get_async_wrapper(
-    services: Services,
+    services: ContainerProtocol,
     route: Route,
     method: Callable[..., Any],
     params: Mapping[str, ParamInfo],
@@ -546,7 +546,7 @@ def _get_async_wrapper_for_output(
 
 
 def normalize_handler(
-    route: Route, services: Services
+    route: Route, services: ContainerProtocol
 ) -> Callable[[Request], Awaitable[Response]]:
     method = route.handler
 
@@ -597,7 +597,7 @@ def _is_basic_middleware_signature(parameters: Mapping[str, inspect.Parameter]) 
 
 
 def _get_middleware_async_binder(
-    method: Callable[..., Awaitable[Response]], services: Services
+    method: Callable[..., Awaitable[Response]], services: ContainerProtocol
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     binders = get_binders_for_middleware(method, services)
 
@@ -623,7 +623,7 @@ def _get_middleware_async_binder(
 
 
 def normalize_middleware(
-    middleware: Callable[..., Awaitable[Response]], services: Services
+    middleware: Callable[..., Awaitable[Response]], services: ContainerProtocol
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     if not inspect.iscoroutinefunction(middleware) and not inspect.iscoroutinefunction(
         getattr(middleware, "__call__", None)

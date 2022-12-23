@@ -14,11 +14,14 @@ from typing import (
     Union,
 )
 
-from guardpost.asynchronous.authentication import AuthenticationStrategy
-from guardpost.asynchronous.authorization import AuthorizationStrategy
-from guardpost.authorization import Policy, UnauthorizedError
-from guardpost.common import AuthenticatedRequirement
-from rodi import Container, Services
+from neoteroi.auth import (
+    AuthenticationStrategy,
+    AuthorizationStrategy,
+    Policy,
+    UnauthorizedError,
+)
+from neoteroi.auth.common import AuthenticatedRequirement
+from rodi import ContainerProtocol
 
 from blacksheep.baseapp import BaseApplication, handle_not_found
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -55,6 +58,7 @@ from blacksheep.server.routing import (
 )
 from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import SessionMiddleware, SessionSerializer, Signer
+from blacksheep.settings.di import di_settings
 from blacksheep.utils import ensure_bytes, join_fragments
 
 __all__ = ("Application",)
@@ -127,15 +131,6 @@ class ApplicationStartupError(RuntimeError):
     ...
 
 
-class RequiresServiceContainerError(ApplicationStartupError):
-    def __init__(self, details: str):
-        super().__init__(
-            f"The application requires services to be a Container "
-            f"at this point of execution. Details: {details}"
-        )
-        self.details = details
-
-
 class ApplicationAlreadyStartedCORSError(TypeError):
     def __init__(self) -> None:
         super().__init__(
@@ -160,7 +155,7 @@ class Application(BaseApplication):
         self,
         *,
         router: Optional[Router] = None,
-        services: Optional[Container] = None,
+        services: Optional[ContainerProtocol] = None,
         debug: bool = False,
         show_error_details: Optional[bool] = None,
         mount: Optional[MountRegistry] = None,
@@ -169,15 +164,15 @@ class Application(BaseApplication):
         if router is None:
             router = Router()
         if services is None:
-            services = Container()
+            services = di_settings.get_default_container()
         if show_error_details is None:
             show_error_details = env_settings.show_error_details
         if mount is None:
             mount = MountRegistry(env_settings.mount_auto_events)
         super().__init__(show_error_details, router)
 
-        self.services: Container = services
-        self._service_provider: Optional[Services] = None
+        assert services is not None
+        self._services: ContainerProtocol = services
         self.debug = debug
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []
         self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
@@ -198,13 +193,11 @@ class Application(BaseApplication):
         self._mount_registry = mount
 
     @property
-    def service_provider(self) -> Services:
+    def services(self) -> ContainerProtocol:
         """
         Returns the object that provides services of this application.
         """
-        if self._service_provider is None:
-            raise TypeError("The service provider is not build for this application.")
-        return self._service_provider
+        return self._services
 
     @property
     def default_headers(self) -> Optional[Tuple[Tuple[str, str], ...]]:
@@ -521,7 +514,7 @@ class Application(BaseApplication):
 
     def _normalize_middlewares(self):
         self.middlewares = [
-            normalize_middleware(middleware, self.service_provider)
+            normalize_middleware(middleware, self.services)
             for middleware in self.middlewares
         ]
 
@@ -586,23 +579,11 @@ class Application(BaseApplication):
         if not controller_types:
             return
 
-        if not isinstance(self.services, Container):
-            raise RequiresServiceContainerError(
-                "When using controllers, the application.services must be "
-                "a service `Container` (`rodi.Container`; not a built service "
-                "provider)."
-            )
-
         for controller_class in controller_types:
             if controller_class in self.services:
                 continue
 
-            if getattr(controller_class, "__init__") is object.__init__:
-                self.services.add_transient_by_factory(
-                    controller_class, controller_class
-                )
-            else:
-                self.services.add_exact_transient(controller_class)
+            self.services.register(controller_class)
 
     def normalize_handlers(self):
         configured_handlers = set()
@@ -613,7 +594,7 @@ class Application(BaseApplication):
             if route.handler in configured_handlers:
                 continue
 
-            route.handler = normalize_handler(route, self.service_provider)
+            route.handler = normalize_handler(route, self.services)
             configured_handlers.add(route.handler)
 
         self._normalize_fallback_route()
@@ -667,9 +648,6 @@ class Application(BaseApplication):
         if self.middlewares:
             self._apply_middlewares_in_routes()
 
-    def build_services(self):
-        self._service_provider = self.services.build_provider()
-
     def extend(self, mixin) -> None:
         """
         Extends the class with additional features, applying the given mixin class.
@@ -685,7 +663,6 @@ class Application(BaseApplication):
             await self.on_start.fire()
 
         self.use_controllers()
-        self.build_services()
         self.normalize_handlers()
         self.configure_middlewares()
 

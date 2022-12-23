@@ -30,8 +30,8 @@ from urllib.parse import unquote
 from uuid import UUID
 
 from dateutil.parser import parse as dateutil_parser
-from guardpost.authentication import Identity
-from rodi import CannotResolveTypeException, Services
+from neoteroi.auth import Identity
+from rodi import CannotResolveTypeException, ContainerProtocol, get_scope
 
 from blacksheep import Request
 from blacksheep.contents import FormPart
@@ -87,7 +87,7 @@ class BinderNotRegisteredForValueType(BindingException):
 
 class BinderMeta(type):
     handlers: Dict[Type[Any], Type["Binder"]] = {}
-    aliases: Dict[Any, Callable[[Services], "Binder"]] = {}
+    aliases: Dict[Any, Callable[[ContainerProtocol], "Binder"]] = {}
 
     def __init__(cls, name, bases, attr_dict):
         super().__init__(name, bases, attr_dict)
@@ -263,7 +263,7 @@ class Binder(metaclass=BinderMeta):  # type: ignore
         self.default = empty
 
     @classmethod
-    def from_alias(cls, services: Services):
+    def from_alias(cls, services: ContainerProtocol):
         return cls()  # type: ignore
 
     @property
@@ -783,21 +783,21 @@ class ServiceBinder(Binder):
         service,
         name: str = "",
         implicit: bool = False,
-        services: Optional[Services] = None,
+        services: Optional[ContainerProtocol] = None,
     ):
         super().__init__(service, name, implicit, False, None)
         self.services = services
 
     async def get_value(self, request: Request) -> Any:
         try:
-            context = request.services_context  # type: ignore
+            scope = request.services_context  # type: ignore
         except AttributeError:
             # no support for scoped services
             # (across parameters and middlewares)
-            context = None
-
+            scope = None
+        assert self.services is not None
         try:
-            return self.services.get(self.expected_type, context)
+            return self.services.resolve(self.expected_type, scope)
         except CannotResolveTypeException:
             return None
 
@@ -867,7 +867,7 @@ class ServicesBinder(ExactBinder):
     name_alias = "services"
 
     @classmethod
-    def from_alias(cls, services: Services) -> "ServicesBinder":
+    def from_alias(cls, services: ContainerProtocol) -> "ServicesBinder":
         return cls(services)
 
 

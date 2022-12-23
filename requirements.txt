@@ -13,7 +13,7 @@ essentials-openapi==1.0.3
 Flask==2.2.2
 gevent==22.10.1
 greenlet==1.1.3.post0
-guardpost==0.0.9
+neoteroi-auth==1.0.0
 h11==0.11.0
 h2==4.1.0
 hpack==4.0.0

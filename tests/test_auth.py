@@ -4,10 +4,9 @@ from typing import Any, Dict, Optional
 import jwt
 import pkg_resources
 import pytest
-from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext, Policy, UnauthorizedError
-from guardpost.common import AuthenticatedRequirement
-from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
+from neoteroi.auth import Identity, AuthorizationContext, Policy, UnauthorizedError
+from neoteroi.auth.common import AuthenticatedRequirement
+from neoteroi.auth.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from pytest import raises
 
 from blacksheep.server.application import Application

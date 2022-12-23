@@ -9,9 +9,8 @@ from uuid import UUID
 
 import uvicorn
 from dateutil.parser import parse as dateutil_parse
-from guardpost.authentication import Identity
-from guardpost.authorization import AuthorizationContext
-from guardpost.common import AuthenticatedRequirement
+from neoteroi.auth import AuthorizationContext, Identity
+from neoteroi.auth.common import AuthenticatedRequirement
 from openapidocs.v3 import Discriminator, Info, MediaType, Operation
 from openapidocs.v3 import Response as ResponseDoc
 from openapidocs.v3 import Schema

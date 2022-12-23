@@ -10,11 +10,11 @@ from enum import Enum
 from typing import Any, AnyStr, Awaitable, Callable, Dict, Optional, Sequence
 from urllib.parse import urlencode
 
-from guardpost.authorization import UnauthorizedError
-from guardpost.jwts import InvalidAccessToken, JWTValidator
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
 from jwt import InvalidTokenError
+from neoteroi.auth import UnauthorizedError
+from neoteroi.auth.jwts import InvalidAccessToken, JWTValidator
 
 from blacksheep.cookies import Cookie
 from blacksheep.exceptions import BadRequest, Unauthorized

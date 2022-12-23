@@ -7,9 +7,8 @@ from typing import Any, List, Optional, Tuple
 from urllib.parse import parse_qs, urlencode
 
 import pytest
-from guardpost.authentication import Identity
-from guardpost.authorization import Policy
-from guardpost.common import AuthenticatedRequirement
+from neoteroi.auth import Identity, Policy
+from neoteroi.auth.common import AuthenticatedRequirement
 
 from blacksheep.cookies import parse_cookie
 from blacksheep.exceptions import BadRequest, Unauthorized

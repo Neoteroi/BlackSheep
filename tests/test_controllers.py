@@ -3,11 +3,11 @@ from functools import wraps
 from typing import Optional
 
 import pytest
-from guardpost.authentication import User
-from rodi import Services, inject
+from neoteroi.auth import User
+from rodi import inject
 
 from blacksheep import Request, Response
-from blacksheep.server.application import RequiresServiceContainerError
+from blacksheep.server.application import Application
 from blacksheep.server.controllers import APIController, Controller, RoutesRegistry
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
@@ -325,7 +325,7 @@ async def test_handler_through_controller_supports_generic_decorator(app):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("value", ["Hello World", "Charlie Brown"])
-async def test_controller_with_dependency(value, app):
+async def test_controller_with_dependency(value, app: Application):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -512,25 +512,6 @@ async def test_application_raises_for_invalid_route_class_attribute(app):
             return text(self.greet())
 
     with pytest.raises(RuntimeError):
-        app.setup_controllers()
-
-
-@pytest.mark.asyncio
-async def test_application_raises_for_controllers_for_invalid_services():
-    app = FakeApplication(services=Services())
-    app.controllers_router = RoutesRegistry()
-    get = app.controllers_router.get
-
-    class Home(Controller):
-        def greet(self):
-            return "Hello World"
-
-        @get()
-        async def index(self, request: Request):
-            assert isinstance(self, Home)
-            return text(self.greet())
-
-    with pytest.raises(RequiresServiceContainerError):
         app.setup_controllers()
 
 

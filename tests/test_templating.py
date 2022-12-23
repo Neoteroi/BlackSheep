@@ -126,7 +126,6 @@ nomodel_text = """<!DOCTYPE html>
 
 
 async def _home_scenario(app: FakeApplication, url="/", expected_text=None):
-    app.build_services()
     app.normalize_handlers()
     await app(get_example_scope("GET", url), MockReceive(), MockSend())
     text = await app.response.text()
@@ -149,7 +148,6 @@ async def _home_scenario(app: FakeApplication, url="/", expected_text=None):
 
 
 async def _view_scenario(app: FakeApplication, expected_text, url="/"):
-    app.build_services()
     app.normalize_handlers()
     await app(get_example_scope("GET", url), MockReceive(), MockSend())
     text = await app.response.text()

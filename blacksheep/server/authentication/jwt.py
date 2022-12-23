@@ -1,10 +1,9 @@
 from typing import Optional, Sequence
 
-from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity
-from guardpost.jwks import KeysProvider
-from guardpost.jwts import InvalidAccessToken, JWTValidator
 from jwt.exceptions import InvalidTokenError
+from neoteroi.auth import AuthenticationHandler, Identity
+from neoteroi.auth.jwks import KeysProvider
+from neoteroi.auth.jwts import InvalidAccessToken, JWTValidator
 
 from blacksheep.baseapp import get_logger
 from blacksheep.messages import Request

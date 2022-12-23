@@ -11,13 +11,10 @@ class FakeApplication(Application):
         self.response: Optional[Response] = None
 
     def normalize_handlers(self):
-        if self._service_provider is None:
-            self.build_services()
         super().normalize_handlers()
 
     def setup_controllers(self):
         self.use_controllers()
-        self.build_services()
         self.normalize_handlers()
 
     async def handle(self, request):

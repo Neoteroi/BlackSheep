@@ -14,6 +14,7 @@ from typing import (
     Union,
 )
 
+from itsdangerous import Serializer
 from neoteroi.auth import (
     AuthenticationStrategy,
     AuthorizationStrategy,
@@ -44,6 +45,7 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
+from blacksheep.server.di import di_scope_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import ServeFilesOptions
@@ -57,7 +59,7 @@ from blacksheep.server.routing import (
     RoutesRegistry,
 )
 from blacksheep.server.websocket import WebSocket
-from blacksheep.sessions import SessionMiddleware, SessionSerializer, Signer
+from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import ensure_bytes, join_fragments
 
@@ -276,7 +278,7 @@ class Application(BaseApplication):
         *,
         session_cookie: str = "session",
         serializer: Optional[SessionSerializer] = None,
-        signer: Optional[Signer] = None,
+        signer: Optional[Serializer] = None,
         session_max_age: Optional[int] = None,
     ) -> None:
         self._session_middleware = SessionMiddleware(
@@ -383,7 +385,7 @@ class Application(BaseApplication):
             return self._authentication_strategy
 
         if not strategy:
-            strategy = AuthenticationStrategy()
+            strategy = AuthenticationStrategy(container=self.services)
 
         self._authentication_strategy = strategy
         return strategy
@@ -401,7 +403,7 @@ class Application(BaseApplication):
             return self._authorization_strategy
 
         if not strategy:
-            strategy = AuthorizationStrategy()
+            strategy = AuthorizationStrategy(container=self.services)
 
         if strategy.default_policy is None:
             # by default, a default policy is configured with no requirements,

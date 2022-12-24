@@ -619,7 +619,7 @@ def test_normalization_with_service_json_route_param():
     container = Container()
     container.add_transient(SomeService)
 
-    binders = get_binders(Route("/{foo_id}", handler), container.build_provider())
+    binders = get_binders(Route("/{foo_id}", handler), container)
     assert len(binders) == 3
 
     assert isinstance(binders[0], RouteBinder)

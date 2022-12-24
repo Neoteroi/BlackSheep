@@ -31,7 +31,7 @@ from uuid import UUID
 
 from dateutil.parser import parse as dateutil_parser
 from neoteroi.auth import Identity
-from rodi import CannotResolveTypeException, ContainerProtocol, get_scope
+from rodi import CannotResolveTypeException, ContainerProtocol
 
 from blacksheep import Request
 from blacksheep.contents import FormPart
@@ -790,7 +790,7 @@ class ServiceBinder(Binder):
 
     async def get_value(self, request: Request) -> Any:
         try:
-            scope = request.services_context  # type: ignore
+            scope = request._di_scope  # type: ignore
         except AttributeError:
             # no support for scoped services
             # (across parameters and middlewares)

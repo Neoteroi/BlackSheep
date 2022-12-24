@@ -16,14 +16,11 @@ class Renderer(ABC):
     @abstractmethod
     def render(self, template: str, model, **kwargs) -> str:
         """Renders a view synchronously."""
-        raise NotImplementedError()
 
     @abstractmethod
     async def render_async(self, template: str, model, **kwargs) -> str:
         """Renders a view asynchronously."""
-        raise NotImplementedError()
 
     @abstractmethod
     def bind_antiforgery_handler(self, handler) -> None:
         """Applies extensions for an antiforgery handler."""
-        raise NotImplementedError()

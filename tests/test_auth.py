@@ -4,11 +4,13 @@ from typing import Any, Dict, Optional
 import jwt
 import pkg_resources
 import pytest
-from neoteroi.auth import Identity, AuthorizationContext, Policy, UnauthorizedError
+from neoteroi.auth import AuthorizationContext, Identity, Policy, UnauthorizedError
 from neoteroi.auth.common import AuthenticatedRequirement
 from neoteroi.auth.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from pytest import raises
+from rodi import Container
 
+from blacksheep.messages import Request
 from blacksheep.server.application import Application
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
@@ -22,9 +24,11 @@ from blacksheep.server.authorization import (
     auth,
     get_www_authenticated_header_from_generic_unauthorized_error,
 )
+from blacksheep.server.di import di_scope_middleware
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_folder_path
+from tests.utils.application import FakeApplication
 
 
 def get_file_path(file_name, folder_name: str = "res") -> str:
@@ -553,3 +557,135 @@ def test_set_authentication_strategy_more_than_once(app: Application):
 def test_set_authorization_strategy_more_than_once(app: Application):
     auth_strategy = app.use_authorization()
     assert app.use_authorization() is auth_strategy
+
+
+class Foo:
+    pass
+
+
+class TestHandler(AuthenticationHandler):
+    foo: Foo
+
+    def authenticate(self, context: Request) -> Optional[Identity]:
+        context.foo = self.foo  # type: ignore
+        return Identity({"test": True})
+
+
+class TestHandlerReqDep(AuthenticationHandler):
+    """Example class to test injection of the Request object. Not recommended."""
+
+    request: Request
+
+    def authenticate(self, context: Request) -> Optional[Identity]:
+        assert context is self.request
+        return Identity()
+
+
+@pytest.mark.asyncio
+async def test_di_works_with_auth_handlers(app: Application):
+    app.services.register(Foo)
+    app.services.register(TestHandler)
+
+    auth_strategy = app.use_authentication()
+    auth_strategy += TestHandler
+
+    identity: Optional[Identity] = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.identity
+        return None
+
+    await app.start()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert isinstance(app, FakeApplication)
+    assert app.response is not None
+    assert app.response.status == 204
+
+
+@pytest.mark.asyncio
+async def test_di_supports_scoped_auth_handlers(app: Application):
+    """
+    Verifies that it is possible to have scoped services across request handlers and
+    authentication handlers.
+    This requires opting-in, adding an additional middleware.
+    """
+
+    @app.on_middlewares_configuration
+    def enable_scoped_services(_):
+        app.middlewares.insert(0, di_scope_middleware)
+
+    assert isinstance(app.services, Container)
+    app.services.add_scoped(Foo)
+    app.services.register(TestHandler)
+
+    auth_strategy = app.use_authentication()
+    auth_strategy += TestHandler
+
+    first_foo: Optional[Foo] = None
+
+    @app.router.get("/")
+    async def home(request, foo: Foo):
+        nonlocal first_foo
+        assert request.foo is foo
+        if first_foo is None:
+            first_foo = foo
+        else:
+            # in a second call, a scoped service must be different because the scope
+            # is bound to a web request
+            assert first_foo is not foo
+        return None
+
+    await app.start()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert isinstance(app, FakeApplication)
+    assert app.response is not None
+    assert app.response.status == 204
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+
+@pytest.mark.asyncio
+async def test_di_supports_scoped_auth_handlers_with_request_dep(app: Application):
+    """
+    Verifies that an authentication handler having Request as dependency, is created
+    with the request object.
+
+    THIS IS A BAD PRACTICE, OR AT LEAST NOT RECOMMENDED.
+    (Container services should be abstracted from HTTP requests and runtime data should
+    not be mixed with container data).
+    """
+
+    @app.on_middlewares_configuration
+    def enable_scoped_services(_):
+        app.middlewares.insert(0, di_scope_middleware)
+
+    app.services.register(TestHandlerReqDep)
+
+    assert isinstance(app.services, Container)
+
+    def request_factory(context) -> Request:
+        # The following scoped service is set in a middleware, since in fact we are
+        # mixing runtime data with composition data.
+        return context.scoped_services[Request]
+
+    app.services.add_scoped_by_factory(request_factory)
+
+    auth_strategy = app.use_authentication()
+    auth_strategy += TestHandlerReqDep
+
+    @app.router.get("/")
+    async def home(request):
+        return None
+
+    await app.start()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert isinstance(app, FakeApplication)
+    assert app.response is not None
+    assert app.response.status == 204
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())

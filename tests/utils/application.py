@@ -5,6 +5,8 @@ from blacksheep.server import Application
 
 
 class FakeApplication(Application):
+    """Application class used for testing."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(show_error_details=True, *args, **kwargs)
         self.request: Optional[Request] = None

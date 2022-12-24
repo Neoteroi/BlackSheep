@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Awaitable, Callable, Dict, Mapping, Optional
 
-from itsdangerous import Serializer, Signer, URLSafeTimedSerializer  # noqa
+from itsdangerous import Serializer, URLSafeTimedSerializer  # noqa
 from itsdangerous.exc import BadSignature, SignatureExpired
 
 from blacksheep.cookies import Cookie

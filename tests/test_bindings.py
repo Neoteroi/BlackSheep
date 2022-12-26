@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 from neoteroi.auth import Identity
 from pytest import raises
-from rodi import Container
+from neoteroi.di import Container
 
 from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Request
 from blacksheep.server.bindings import (

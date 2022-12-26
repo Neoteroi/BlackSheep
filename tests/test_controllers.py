@@ -4,7 +4,7 @@ from typing import Optional
 
 import pytest
 from neoteroi.auth import User
-from rodi import inject
+from neoteroi.di import inject
 
 from blacksheep import Request, Response
 from blacksheep.server.application import Application

@@ -13,7 +13,7 @@ import pytest
 from neoteroi.auth import AuthenticationHandler, Identity, User
 from openapidocs.v3 import Info
 from pydantic import BaseModel, ValidationError
-from rodi import Container, inject
+from neoteroi.di import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
 from blacksheep.contents import FormPart

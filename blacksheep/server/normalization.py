@@ -20,7 +20,7 @@ from typing import (
 from uuid import UUID
 
 from neoteroi.auth import Identity, User
-from rodi import ContainerProtocol
+from neoteroi.di import ContainerProtocol
 
 from blacksheep import Request, Response
 from blacksheep.normalization import copy_special_attributes

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Awaitable, Callable
 
-from rodi import ActivationScope, Container, set_scope
+from neoteroi.di import ActivationScope, Container, set_scope
 
 from blacksheep.messages import Request, Response
 
@@ -36,13 +36,13 @@ def register_http_context(app: "Application"):
     """
     Makes the `Request` object accessible through dependency injection for the
     application container.
-    This method requires using `rodi` as solution for dependency injection, since other
-    implementations might not support scoped services and factories using the activation
-    scope.
+    This method requires using `neoteroi-di` as solution for dependency injection, since
+    other implementations might not support scoped services and factories using the
+    activation scope.
 
     This is not a recommended pattern, but it might be desired in certain situations.
     """
-    assert isinstance(app.services, Container), "This method requires rodi."
+    assert isinstance(app.services, Container), "This method requires neoteroi-di."
 
     if di_scope_middleware not in app.middlewares:
 

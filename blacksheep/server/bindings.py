@@ -31,7 +31,7 @@ from uuid import UUID
 
 from dateutil.parser import parse as dateutil_parser
 from neoteroi.auth import Identity
-from rodi import CannotResolveTypeException, ContainerProtocol
+from neoteroi.di import CannotResolveTypeException, ContainerProtocol
 
 from blacksheep import Request
 from blacksheep.contents import FormPart

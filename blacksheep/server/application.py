@@ -22,7 +22,7 @@ from neoteroi.auth import (
     UnauthorizedError,
 )
 from neoteroi.auth.common import AuthenticatedRequirement
-from rodi import ContainerProtocol
+from neoteroi.di import ContainerProtocol
 
 from blacksheep.baseapp import BaseApplication, handle_not_found
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -45,7 +45,6 @@ from blacksheep.server.authorization import (
 from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
-from blacksheep.server.di import di_scope_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import ServeFilesOptions

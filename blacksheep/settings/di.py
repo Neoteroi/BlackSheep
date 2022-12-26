@@ -1,6 +1,6 @@
 from typing import Callable, Optional, Type, TypeVar, Union
 
-from rodi import Container, ContainerProtocol, Services
+from neoteroi.di import Container, ContainerProtocol, Services
 
 T = TypeVar("T")
 

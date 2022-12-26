@@ -19,6 +19,10 @@ Selivanov](https://magic.io/blog/uvloop-blazing-fast-python-networking/).
 pip install blacksheep
 ```
 
+**Important.** This branch contains the code of the version 1 of the web
+framework. The `main` branch contains the code for the currently developed
+version.
+
 ---
 
 ```python

@@ -3274,7 +3274,7 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
         def __init__(self) -> None:
             self.trace_id = uuid4()
 
-    container.add_exact_scoped(OperationContext)
+    container.add_scoped(OperationContext)
     app = FakeApplication(services=container)
 
     @inject()

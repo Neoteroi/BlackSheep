@@ -24,7 +24,7 @@ from blacksheep.server.authorization import (
     auth,
     get_www_authenticated_header_from_generic_unauthorized_error,
 )
-from blacksheep.server.di import di_scope_middleware
+from blacksheep.server.di import di_scope_middleware, register_http_context
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_folder_path
@@ -659,20 +659,11 @@ async def test_di_supports_scoped_auth_handlers_with_request_dep(app: Applicatio
     not be mixed with container data).
     """
 
-    @app.on_middlewares_configuration
-    def enable_scoped_services(_):
-        app.middlewares.insert(0, di_scope_middleware)
+    register_http_context(app)
 
     app.services.register(TestHandlerReqDep)
 
     assert isinstance(app.services, Container)
-
-    def request_factory(context) -> Request:
-        # The following scoped service is set in a middleware, since in fact we are
-        # mixing runtime data with composition data.
-        return context.scoped_services[Request]
-
-    app.services.add_scoped_by_factory(request_factory)
 
     auth_strategy = app.use_authentication()
     auth_strategy += TestHandlerReqDep

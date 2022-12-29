@@ -16,11 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   protocols.
 - Replaces `guardpost` with `neoteroi-auth`, which includes support for
   dependency injection in authentication handlers and authorization requirements.
+- Adds support for Binders instantiated using dependency injection. However,
+  binders are still instantiated once per request handler and are still
+  singletons.
 - Adds a method to make the `Request` object accessible through dependency
   injection (`register_http_context`). This is not a recommended practice,
-  since per best practices the  container of DI should be abstracted from
-  runtime values, and the application front-end, however it can be desired in
-  some circumstances.
+  but it can be desired in some circumstances.
 - Removes the direct dependency on `Jinja2` and adds support for alternative
   ways to achieve Server Side Rendering (SSR) of HTML; however, `Jinja2` is still
   the default library if the user doesn´t specify how HTML should be rendered.

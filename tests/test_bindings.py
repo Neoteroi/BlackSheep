@@ -3,8 +3,8 @@ from uuid import UUID
 
 import pytest
 from neoteroi.auth import Identity
-from pytest import raises
 from neoteroi.di import Container
+from pytest import raises
 
 from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Request
 from blacksheep.server.bindings import (

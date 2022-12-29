@@ -7,8 +7,8 @@ import pytest
 from neoteroi.auth import AuthorizationContext, Identity, Policy, UnauthorizedError
 from neoteroi.auth.common import AuthenticatedRequirement
 from neoteroi.auth.jwks import JWKS, InMemoryKeysProvider, KeysProvider
-from pytest import raises
 from neoteroi.di import Container
+from pytest import raises
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application

@@ -5,8 +5,8 @@ from typing import List, Optional, Sequence, Union
 
 import pytest
 from neoteroi.auth import Identity, User
-from pytest import raises
 from neoteroi.di import Container, Services, inject
+from pytest import raises
 
 from blacksheep import Request
 from blacksheep.server.bindings import (

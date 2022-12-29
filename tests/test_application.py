@@ -11,9 +11,9 @@ from uuid import UUID, uuid4
 import pkg_resources
 import pytest
 from neoteroi.auth import AuthenticationHandler, Identity, User
+from neoteroi.di import Container, inject
 from openapidocs.v3 import Info
 from pydantic import BaseModel, ValidationError
-from neoteroi.di import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
 from blacksheep.contents import FormPart

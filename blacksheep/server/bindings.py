@@ -243,8 +243,6 @@ class Binder(metaclass=BinderMeta):  # type: ignore
     handle: ClassVar[Type[BoundValue]]
     name_alias: ClassVar[str] = ""
     type_alias: ClassVar[Any] = None
-    _implicit: bool
-    default: Any
 
     def __init__(
         self,
@@ -260,7 +258,7 @@ class Binder(metaclass=BinderMeta):  # type: ignore
         self.required = required
         self.root_required = True
         self.converter = converter
-        self.default = empty
+        self.default: Any = empty
 
     @classmethod
     def from_alias(cls, services: ContainerProtocol):

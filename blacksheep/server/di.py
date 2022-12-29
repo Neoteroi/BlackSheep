@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Awaitable, Callable
 
-from neoteroi.di import ActivationScope, Container, set_scope
+from neoteroi.di import ActivationScope, Container
 
 from blacksheep.messages import Request, Response
 
@@ -22,7 +22,7 @@ async def di_scope_middleware(
     with ActivationScope() as scope:
         scope.scoped_services[Request] = request  # type: ignore
         scope.scoped_services["__request__"] = request  # type: ignore
-        set_scope(request, scope)
+        request._di_scope = scope  # type: ignore
         return await handler(request)
 
 

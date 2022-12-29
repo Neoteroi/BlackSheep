@@ -328,7 +328,15 @@ def _get_parameter_binder(
 
         parameter_name = annotation.name or name
 
-        binder = binder_type(expected_type, parameter_name, False)
+        if binder_type in services:
+            # use DI container to instantiate
+            # note that, currently, binders are always singletons instantiated at
+            # application start
+            binder = services.resolve(binder_type)
+            binder.expected_type = expected_type
+            binder.parameter_name = parameter_name
+        else:
+            binder = binder_type(expected_type, parameter_name, False)
         binder.required = not is_optional
 
         if is_root_optional:
@@ -491,9 +499,7 @@ def get_sync_wrapper(
 
     @wraps(method)
     async def handler(request):
-        values = []
-        for binder in binders:
-            values.append(await binder.get_parameter(request))
+        values = [await binder.get_parameter(request) for binder in binders]
         return method(*values)
 
     return handler

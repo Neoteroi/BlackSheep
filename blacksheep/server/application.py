@@ -62,8 +62,6 @@ from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import ensure_bytes, join_fragments
 
-__all__ = ("Application",)
-
 
 def get_default_headers_middleware(
     headers: Sequence[Tuple[str, str]],

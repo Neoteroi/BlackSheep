@@ -115,7 +115,7 @@ class AdminRequirement(Requirement):
     def handle(self, context: AuthorizationContext):
         identity = context.identity
 
-        if identity is not None and identity["role"] == "admin":
+        if identity is not None and identity.claims.get("role") == "admin":
             context.succeed(self)
 
 

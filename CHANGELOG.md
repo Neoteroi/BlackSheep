@@ -6,11 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.0.0] - ???
+
+- Renames the `plugins` namespace to `settings`
+- Replaces `rodi` with `neoteroi-di`, which includes improvements.
+- Adds support for alternative implementation of containers for dependency
+  injection, removing direct references to `rodi` (now `neoteroi-di`) in most
+  of the source code (except for the default service container for the
+  `Application` class). Replaces direct dependency on `rodi` classes with
+  protocols.
+- Replaces `guardpost` with `neoteroi-auth`, which includes support for
+  dependency injection in authentication handlers and authorization requirements.
+- Adds support for Binders instantiated using dependency injection. However,
+  binders are still instantiated once per request handler and are still
+  singletons.
+- Adds a method to make the `Request` object accessible through dependency
+  injection (`register_http_context`). This is not a recommended practice,
+  but it can be desired in some circumstances.
 - Removes the direct dependency on `Jinja2` and adds support for alternative
   ways to achieve Server Side Rendering (SSR) of HTML; however, `Jinja2` is still
-  the default library if the user doesn´t specify how HTML should be rendered
-- Renames the `plugins` namespace to `settings`
-- Adds options to control `Jinja2` settings through environment variables
+  the default library if the user doesn´t specify how HTML should be rendered.
+- Adds options to control `Jinja2` settings through environment variables.
 
 ## [1.2.8] - 2022-10-27 :snake:
 - Upgrades pinned dependencies to support Python 3.11

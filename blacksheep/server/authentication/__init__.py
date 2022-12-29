@@ -1,10 +1,10 @@
 from typing import Dict, Optional, Tuple
 
-from guardpost.asynchronous.authentication import (
+from neoteroi.auth import (
     AuthenticationHandler,
     AuthenticationStrategy,
+    AuthorizationError,
 )
-from guardpost.authorization import AuthorizationError
 
 from blacksheep import Response, TextContent
 

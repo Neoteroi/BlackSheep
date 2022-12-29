@@ -1,8 +1,11 @@
 from typing import Any, Awaitable, Callable, Optional, Sequence, Tuple
 
-from guardpost.asynchronous.authorization import AsyncRequirement, AuthorizationStrategy
-from guardpost.authorization import Policy, UnauthorizedError
-from guardpost.synchronous.authorization import Requirement
+from neoteroi.auth.authorization import (
+    AuthorizationStrategy,
+    Policy,
+    Requirement,
+    UnauthorizedError,
+)
 
 from blacksheep import Request, Response, TextContent
 
@@ -13,7 +16,6 @@ __all__ = (
     "allow_anonymous",
     "get_authorization_middleware",
     "Requirement",
-    "AsyncRequirement",
     "handle_unauthorized",
     "Policy",
 )
@@ -70,12 +72,12 @@ def get_authorization_middleware(
 
         if hasattr(handler, "auth"):
             # function decorated by auth;
-            await strategy.authorize(handler.auth_policy, identity)
+            await strategy.authorize(handler.auth_policy, identity, request)
         else:
             # function not decorated by auth; use the default policy.
             # this is necessary to support configuring authorization rules globally
             # without configuring every single request handler
-            await strategy.authorize(None, identity)
+            await strategy.authorize(None, identity, request)
 
         return await handler(request)
 

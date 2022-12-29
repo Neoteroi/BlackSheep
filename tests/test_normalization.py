@@ -4,13 +4,14 @@ from inspect import Parameter, _ParameterKind
 from typing import List, Optional, Sequence, Union
 
 import pytest
-from guardpost.authentication import Identity, User
+from neoteroi.auth import Identity, User
+from neoteroi.di import Container, Services, inject
 from pytest import raises
-from rodi import Container, Services, inject
 
 from blacksheep import Request
 from blacksheep.server.bindings import (
     Binder,
+    BoundValue,
     ExactBinder,
     FromHeader,
     FromJSON,
@@ -61,7 +62,7 @@ def test_parameters_get_binders_default_query():
     def handler(a, b, c):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert binders[0].parameter_name == "a"
@@ -78,7 +79,7 @@ def test_identity_binder_by_param_type(annotation_type):
 
     handler.__annotations__["param"] = annotation_type
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert isinstance(binders[0], IdentityBinder)
 
@@ -87,7 +88,7 @@ def test_parameters_get_binders_from_route():
     def handler(a, b, c):
         ...
 
-    binders = get_binders(Route(b"/:a/:b/:c", handler), Services())
+    binders = get_binders(Route(b"/:a/:b/:c", handler), Container())
 
     assert all(isinstance(binder, RouteBinder) for binder in binders)
     assert binders[0].parameter_name == "a"
@@ -127,7 +128,7 @@ def test_parameters_get_binders_from_body():
     def handler(a: Cat):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route("/", handler), Container())
     assert len(binders) == 1
     binder = binders[0]
 
@@ -140,7 +141,7 @@ def test_parameters_get_binders_from_body_optional():
     def handler(a: Optional[Cat]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
     assert len(binders) == 1
     binder = binders[0]
 
@@ -153,7 +154,7 @@ def test_parameters_get_binders_simple_types_default_from_query():
     def handler(a: str, b: int, c: bool):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert binders[0].parameter_name == "a"
@@ -168,7 +169,7 @@ def test_parameters_get_binders_list_types_default_from_query():
     def handler(a: List[str], b: List[int], c: List[bool]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert binders[0].parameter_name == "a"
@@ -183,7 +184,7 @@ def test_parameters_get_binders_list_types_default_from_query_optional():
     def handler(a: Optional[List[str]]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert all(binder.required is False for binder in binders)
@@ -195,7 +196,7 @@ def test_parameters_get_binders_list_types_default_from_query_required():
     def handler(a: List[str]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert all(binder.required for binder in binders)
@@ -205,7 +206,7 @@ def test_parameters_get_binders_sequence_types_default_from_query():
     def handler(a: Sequence[str], b: Sequence[int], c: Sequence[bool]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert binders[0].parameter_name == "a"
@@ -221,29 +222,29 @@ def test_throw_for_ambiguous_binder_multiple_from_body():
         ...
 
     with pytest.raises(AmbiguousMethodSignatureError):
-        get_binders(Route(b"/", handler), Services())
+        get_binders(Route(b"/", handler), Container())
 
 
 def test_does_not_throw_for_forward_ref():
     def handler(a: "Cat"):
         ...
 
-    get_binders(Route(b"/", handler), Services())
+    get_binders(Route(b"/", handler), Container())
 
     def handler(a: List["str"]):
         ...
 
-    get_binders(Route(b"/", handler), Services())
+    get_binders(Route(b"/", handler), Container())
 
     def handler(a: Optional[List["Cat"]]):
         ...
 
-    get_binders(Route(b"/", handler), Services())
+    get_binders(Route(b"/", handler), Container())
 
     def handler(a: FromQuery["str"]):
         ...
 
-    get_binders(Route(b"/", handler), Services())
+    get_binders(Route(b"/", handler), Container())
 
 
 def test_combination_of_sources():
@@ -256,7 +257,9 @@ def test_combination_of_sources():
     ):
         ...
 
-    binders = get_binders(Route(b"/:d", handler), {Dog: Dog("Snoopy")})
+    container = Container()
+    container.register(Dog, instance=Dog("Snoopy"))
+    binders = get_binders(Route(b"/:d", handler), container)
 
     assert isinstance(binders[0], QueryBinder)
     assert isinstance(binders[1], ServiceBinder)
@@ -274,14 +277,17 @@ def test_implicit_from_services_only_when_annotation_is_none():
     def handler(dog):
         ...
 
-    binders = get_binders(Route(b"/", handler), {"dog": Dog("Snoopy")})
+    container = Container()
+    container.register("dog", instance=Dog("Snoopy"))
+
+    binders = get_binders(Route(b"/", handler), container)
 
     assert isinstance(binders[0], ServiceBinder)
 
     def handler(dog: str):
         ...
 
-    binders = get_binders(Route(b"/", handler), {"dog": Dog("Snoopy")})
+    binders = get_binders(Route(b"/", handler), container)
 
     assert isinstance(binders[0], QueryBinder)
 
@@ -294,7 +300,7 @@ def test_from_query_specific_name():
     def handler(a: FromExampleQuery):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
@@ -307,7 +313,7 @@ def test_from_query_unspecified_type():
     def handler(a: FromQuery):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
@@ -320,7 +326,7 @@ def test_from_query_optional_type():
     def handler(a: FromQuery[Optional[str]]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
@@ -333,7 +339,7 @@ def test_from_query_optional_type_with_union():
     def handler(a: FromQuery[Union[None, str]]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
@@ -367,7 +373,7 @@ def test_from_query_optional_list_type():
     def handler(a: FromQuery[Optional[List[str]]]):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
@@ -384,7 +390,7 @@ def test_from_header_specific_name():
     def handler(a: FromExampleHeader):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert isinstance(binders[0], HeaderBinder)
     assert binders[0].expected_type is str
@@ -399,7 +405,7 @@ def test_from_header_accept_language_example():
     def handler(a: AcceptLanguageHeader):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert isinstance(binders[0], HeaderBinder)
     assert binders[0].expected_type is str
@@ -411,7 +417,7 @@ def test_raises_for_route_mismatch():
         ...
 
     with raises(RouteBinderMismatch):
-        get_binders(Route(b"/", handler), Services())
+        get_binders(Route(b"/", handler), Container())
 
 
 def test_raises_for_route_mismatch_2():
@@ -419,7 +425,7 @@ def test_raises_for_route_mismatch_2():
         ...
 
     with raises(RouteBinderMismatch):
-        get_binders(Route(b"/:b", handler), Services())
+        get_binders(Route(b"/:b", handler), Container())
 
 
 def test_raises_for_unsupported_union():
@@ -427,20 +433,20 @@ def test_raises_for_unsupported_union():
         ...
 
     with raises(NormalizationError):
-        get_binders(Route(b"/:b", handler), Services())
+        get_binders(Route(b"/:b", handler), Container())
 
 
 def test_request_binding():
     def handler(request):
         ...
 
-    binders = get_binders(Route(b"/", handler), Services())
+    binders = get_binders(Route(b"/", handler), Container())
 
     assert isinstance(binders[0], RequestBinder)
 
 
 def test_services_binding():
-    app_services = Services()
+    app_services = Container()
 
     def handler(services):
         assert services is app_services
@@ -452,7 +458,7 @@ def test_services_binding():
 
 @pytest.mark.asyncio
 async def test_services_from_normalization():
-    app_services = Services()
+    app_services = Container()
 
     def handler(services):
         assert services is app_services
@@ -463,7 +469,7 @@ async def test_services_from_normalization():
 
 
 def test_raises_for_unsupported_signature():
-    app_services = Services()
+    app_services = Container()
 
     def handler(services, *args):
         assert services is app_services
@@ -478,13 +484,13 @@ def test_raises_for_unsupported_signature():
         return services
 
     with pytest.raises(UnsupportedSignatureError):
-        normalize_handler(Route(b"/", handler), Services())
+        normalize_handler(Route(b"/", handler), Container())
 
     with pytest.raises(UnsupportedSignatureError):
-        normalize_handler(Route(b"/", handler2), Services())
+        normalize_handler(Route(b"/", handler2), Container())
 
     with pytest.raises(UnsupportedSignatureError):
-        normalize_handler(Route(b"/", handler3), Services())
+        normalize_handler(Route(b"/", handler3), Container())
 
 
 async def fake_handler(_):
@@ -493,16 +499,19 @@ async def fake_handler(_):
 
 @pytest.mark.asyncio
 async def test_middleware_normalization():
-    services = {"context": object()}
+    container = Container()
+    container.add_singleton(object)
+    container.add_alias("context", object)
+
     fake_request = Request("GET", b"/", None)
 
-    async def middleware(request, handler, context):
+    async def middleware(request, handler, context: object):
         assert request is fake_request
         assert handler is fake_handler
-        assert context is services.get("context")
+        assert context is container.resolve("context")
         return await handler(request)
 
-    normalized = normalize_middleware(middleware, services)
+    normalized = normalize_middleware(middleware, container)
 
     # NB: middlewares base signature is (request, handler)
     result = await normalized(fake_request, fake_handler)  # type: ignore
@@ -511,7 +520,7 @@ async def test_middleware_normalization():
 
 @pytest.mark.asyncio
 async def test_middleware_normalization_2():
-    services = {"context": object(), "foo": object()}
+    services = Container()  # {"context": object(), "foo": object()}
     fake_request = Request("GET", b"/", None)
 
     async def middleware(context, foo):
@@ -535,7 +544,9 @@ async def test_middleware_normalization_raises_for_sync_function():
 
 @pytest.mark.asyncio
 async def test_middleware_query_normalization():
-    services = {"context": object()}
+    container = Container()
+    container.register("context", instance=object())
+
     fake_request = Request("GET", b"/?example=Lorem", None)
 
     async def middleware(request, handler, example: FromQuery[str]):
@@ -544,7 +555,7 @@ async def test_middleware_query_normalization():
         assert example.value == "Lorem"
         return await handler(request)
 
-    normalized = normalize_middleware(middleware, services)
+    normalized = normalize_middleware(middleware, container)
 
     # NB: middlewares base signature is (request, handler)
     result = await normalized(fake_request, fake_handler)  # type: ignore
@@ -553,7 +564,8 @@ async def test_middleware_query_normalization():
 
 @pytest.mark.asyncio
 async def test_middleware_header_normalization():
-    services = {"context": object()}
+    container = Container()
+    container.register("context", instance=object())
     fake_request = Request("GET", b"/", [(b"example", b"Lorem")])
 
     async def middleware(request, handler, example: FromHeader[str]):
@@ -562,7 +574,7 @@ async def test_middleware_header_normalization():
         assert example.value == "Lorem"
         return await handler(request)
 
-    normalized = normalize_middleware(middleware, services)
+    normalized = normalize_middleware(middleware, container)
 
     # NB: middlewares base signature is (request, handler)
     result = await normalized(fake_request, fake_handler)  # type: ignore
@@ -571,7 +583,8 @@ async def test_middleware_header_normalization():
 
 @pytest.mark.asyncio
 async def test_middleware_normalization_no_parameters():
-    services = {"context": object()}
+    container = Container()
+    container.register("context", instance=object())
     fake_request = Request("GET", b"/", [(b"example", b"Lorem")])
 
     called = False
@@ -580,7 +593,7 @@ async def test_middleware_normalization_no_parameters():
         nonlocal called
         called = True
 
-    normalized = normalize_middleware(middleware, services)  # type: ignore
+    normalized = normalize_middleware(middleware, container)  # type: ignore
 
     # NB: middlewares base signature is (request, handler)
     # since our middleware above does not handle the next request handler,
@@ -594,7 +607,7 @@ def test_middleware_not_normalized_if_signature_matches_expected_signature():
     async def middleware(request, handler):
         return await handler(request)
 
-    normalized = normalize_middleware(middleware, Services())
+    normalized = normalize_middleware(middleware, Container())
     assert normalized is middleware
 
 
@@ -616,7 +629,7 @@ def test_normalization_with_service_json_route_param():
     container = Container()
     container.add_transient(SomeService)
 
-    binders = get_binders(Route("/{foo_id}", handler), container.build_provider())
+    binders = get_binders(Route("/{foo_id}", handler), container)
     assert len(binders) == 3
 
     assert isinstance(binders[0], RouteBinder)
@@ -633,7 +646,7 @@ def test_camel_case_route_parameter():
     def handler(statusKey: FromRoute[str]):
         ...
 
-    binders = get_binders(Route(b"/:statusKey", handler), Container().build_provider())
+    binders = get_binders(Route(b"/:statusKey", handler), Container())
 
     assert isinstance(binders[0], RouteBinder)
     assert binders[0].parameter_name == "statusKey"
@@ -643,28 +656,52 @@ def test_pascal_case_route_parameter():
     def handler(StatusKey: FromRoute[str]):
         ...
 
-    binders = get_binders(Route(b"/:StatusKey", handler), Container().build_provider())
+    binders = get_binders(Route(b"/:StatusKey", handler), Container())
 
     assert isinstance(binders[0], RouteBinder)
     assert binders[0].parameter_name == "StatusKey"
 
 
-def test_normalization_with_parameter_alias():
-    class CustomBinder(Binder):
-        name_alias = "sunn_o"
+@pytest.mark.asyncio
+async def test_binder_through_di():
+    """
+    Tests support for dependency injection when resolving custom binders.
+    """
 
-        def __init__(self):
-            super().__init__(str)
-
-        async def get_value(self, request: Request) -> Optional[str]:
-            return "sunn_o"
-
-    def handler(sunn_o):
+    class Foo:
         ...
 
-    container = Container()
+    class FromExample(BoundValue[str]):
+        pass
 
-    binders = get_binders(Route("/", handler), container.build_provider())
+    class DIBinder(Binder):
+        handle = FromExample
+
+        def __init__(self, foo: Foo):
+            super().__init__(str)
+            self.foo = foo
+
+        async def get_value(self, request: Request) -> Optional[str]:
+            assert isinstance(self.foo, Foo)
+            return "Foo!"
+
+    def handler(example: FromExample):
+        assert example.value == "Foo!"
+        return example.value
+
+    container = Container()
+    container.register(Foo)
+    container.register(DIBinder)
+
+    binders = get_binders(Route("/", handler), container)
     assert len(binders) == 1
 
-    assert isinstance(binders[0], CustomBinder)
+    assert isinstance(binders[0], DIBinder)
+
+    fake_request = Request("GET", b"/", None)
+
+    method = normalize_handler(Route(b"/", handler), container)
+    response = await method(fake_request)
+    assert response is not None
+    text = await response.text()
+    assert text == "Foo!"

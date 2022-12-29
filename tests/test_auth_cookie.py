@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 
 import pytest
-from guardpost import Identity
+from neoteroi.auth import Identity
 
 from blacksheep.messages import Request, Response
 from blacksheep.server.authentication.cookie import CookieAuthentication

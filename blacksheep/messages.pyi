@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 
-from guardpost.authentication import Identity
+from neoteroi.auth import Identity
 
 from .asgi import ASGIScopeInterface
 from .contents import Content, FormPart

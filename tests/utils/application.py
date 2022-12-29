@@ -5,19 +5,18 @@ from blacksheep.server import Application
 
 
 class FakeApplication(Application):
+    """Application class used for testing."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(show_error_details=True, *args, **kwargs)
         self.request: Optional[Request] = None
         self.response: Optional[Response] = None
 
     def normalize_handlers(self):
-        if self._service_provider is None:
-            self.build_services()
         super().normalize_handlers()
 
     def setup_controllers(self):
         self.use_controllers()
-        self.build_services()
         self.normalize_handlers()
 
     async def handle(self, request):

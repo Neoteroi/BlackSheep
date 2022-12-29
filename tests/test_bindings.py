@@ -2,9 +2,9 @@ from typing import Any, List, Optional, Sequence, Set, Tuple, Type
 from uuid import UUID
 
 import pytest
-from guardpost.authentication import Identity
+from neoteroi.auth import Identity
+from neoteroi.di import Container
 from pytest import raises
-from rodi import Container
 
 from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Request
 from blacksheep.server.bindings import (
@@ -306,7 +306,7 @@ async def test_from_services():
     container = Container()
     container.add_instance(service_instance)
 
-    parameter = ServiceBinder(ExampleOne, "service", False, container.build_provider())
+    parameter = ServiceBinder(ExampleOne, "service", False, container)
     value = await parameter.get_value(request)
 
     assert value is service_instance

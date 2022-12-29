@@ -19,8 +19,8 @@ from typing import (
 )
 from uuid import UUID
 
-from guardpost.authentication import Identity, User
-from rodi import Services
+from neoteroi.auth import Identity, User
+from neoteroi.di import ContainerProtocol
 
 from blacksheep import Request, Response
 from blacksheep.normalization import copy_special_attributes
@@ -240,7 +240,7 @@ def _check_union(
 
 
 def _get_parameter_binder_without_annotation(
-    services: Services,
+    services: ContainerProtocol,
     route: Optional[Route],
     name: str,
 ) -> Binder:
@@ -293,7 +293,7 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
 
 def _get_parameter_binder(
     parameter: inspect.Parameter,
-    services: Services,
+    services: ContainerProtocol,
     route: Optional[Route],
     method: Callable[..., Any],
 ) -> Binder:
@@ -328,7 +328,15 @@ def _get_parameter_binder(
 
         parameter_name = annotation.name or name
 
-        binder = binder_type(expected_type, parameter_name, False)
+        if binder_type in services:
+            # use DI container to instantiate
+            # note that, currently, binders are always singletons instantiated at
+            # application start
+            binder = services.resolve(binder_type)
+            binder.expected_type = expected_type
+            binder.parameter_name = parameter_name
+        else:
+            binder = binder_type(expected_type, parameter_name, False)
         binder.required = not is_optional
 
         if is_root_optional:
@@ -370,7 +378,7 @@ def _get_parameter_binder(
 
 def get_parameter_binder(
     parameter: inspect.Parameter,
-    services: Services,
+    services: ContainerProtocol,
     route: Optional[Route],
     method: Callable[..., Any],
 ) -> Binder:
@@ -383,7 +391,7 @@ def get_parameter_binder(
 
 
 def _get_binders_for_function(
-    method: Callable[..., Any], services: Services, route: Optional[Route]
+    method: Callable[..., Any], services: ContainerProtocol, route: Optional[Route]
 ) -> List[Binder]:
     parameters = _get_method_annotations_base(method)
     body_binder = None
@@ -405,7 +413,7 @@ def _get_binders_for_function(
     return binders
 
 
-def get_binders(route: Route, services: Services) -> List[Binder]:
+def get_binders(route: Route, services: ContainerProtocol) -> List[Binder]:
     """
     Returns a list of binders to extract parameters
     for a request handler.
@@ -416,7 +424,7 @@ def get_binders(route: Route, services: Services) -> List[Binder]:
 
 
 def get_binders_for_middleware(
-    method: Callable[..., Any], services: Services
+    method: Callable[..., Any], services: ContainerProtocol
 ) -> Sequence[Binder]:
     return _get_binders_for_function(method, services, None)
 
@@ -464,7 +472,7 @@ def _get_async_wrapper_for_controller(
 
 
 def get_sync_wrapper(
-    services: Services,
+    services: ContainerProtocol,
     route: Route,
     method: Callable[..., Any],
     params: Mapping[str, ParamInfo],
@@ -491,16 +499,14 @@ def get_sync_wrapper(
 
     @wraps(method)
     async def handler(request):
-        values = []
-        for binder in binders:
-            values.append(await binder.get_parameter(request))
+        values = [await binder.get_parameter(request) for binder in binders]
         return method(*values)
 
     return handler
 
 
 def get_async_wrapper(
-    services: Services,
+    services: ContainerProtocol,
     route: Route,
     method: Callable[..., Any],
     params: Mapping[str, ParamInfo],
@@ -546,7 +552,7 @@ def _get_async_wrapper_for_output(
 
 
 def normalize_handler(
-    route: Route, services: Services
+    route: Route, services: ContainerProtocol
 ) -> Callable[[Request], Awaitable[Response]]:
     method = route.handler
 
@@ -597,7 +603,7 @@ def _is_basic_middleware_signature(parameters: Mapping[str, inspect.Parameter]) 
 
 
 def _get_middleware_async_binder(
-    method: Callable[..., Awaitable[Response]], services: Services
+    method: Callable[..., Awaitable[Response]], services: ContainerProtocol
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     binders = get_binders_for_middleware(method, services)
 
@@ -623,7 +629,7 @@ def _get_middleware_async_binder(
 
 
 def normalize_middleware(
-    middleware: Callable[..., Awaitable[Response]], services: Services
+    middleware: Callable[..., Awaitable[Response]], services: ContainerProtocol
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     if not inspect.iscoroutinefunction(middleware) and not inspect.iscoroutinefunction(
         getattr(middleware, "__call__", None)

@@ -10,11 +10,10 @@ from uuid import UUID, uuid4
 
 import pkg_resources
 import pytest
-from guardpost.asynchronous.authentication import AuthenticationHandler
-from guardpost.authentication import Identity, User
+from neoteroi.auth import AuthenticationHandler, Identity, User
+from neoteroi.di import Container, inject
 from openapidocs.v3 import Info
 from pydantic import BaseModel, ValidationError
-from rodi import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
 from blacksheep.contents import FormPart
@@ -34,7 +33,7 @@ from blacksheep.server.bindings import (
     RequestUser,
     ServerInfo,
 )
-from blacksheep.server.di import dependency_injection_middleware
+from blacksheep.server.di import di_scope_middleware
 from blacksheep.server.normalization import ensure_response
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import status_code, text
@@ -83,14 +82,6 @@ async def test_application_supports_dynamic_attributes(app):
     ), "This test makes sense if such attribute is not defined"
     app.foo = foo  # type: ignore
     assert app.foo is foo  # type: ignore
-
-
-@pytest.mark.asyncio
-async def test_application_service_provider_throws_for_missing_value(app):
-    assert app._service_provider is None
-
-    with pytest.raises(TypeError):
-        app.service_provider
 
 
 @pytest.mark.asyncio
@@ -384,7 +375,6 @@ async def test_application_middlewares_one(app):
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
-    app.build_services()
     app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
@@ -424,7 +414,6 @@ async def test_application_middlewares_as_classes(app):
 
     app.middlewares.append(MiddlewareExample(calls, 0))
     app.middlewares.append(MiddlewareExample(calls, 2))
-    app.build_services()
     app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
@@ -460,7 +449,6 @@ async def test_application_middlewares_are_applied_only_once(app):
         response = await handler(request)
         return response
 
-    app.build_services()
     app.middlewares.append(middleware)
 
     for method, _ in {("GET", 1), ("GET", 2), ("HEAD", 1), ("HEAD", 2)}:
@@ -512,7 +500,6 @@ async def test_application_middlewares_two(app):
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
     app.middlewares.append(middleware_three)
-    app.build_services()
     app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
@@ -557,7 +544,6 @@ async def test_application_middlewares_skip_handler(app):
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
     app.middlewares.append(middleware_three)
-    app.build_services()
     app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
@@ -3201,8 +3187,8 @@ async def test_service_bindings():
         def __init__(self, b: B) -> None:
             self.dep = b
 
-    container.add_exact_scoped(A)
-    container.add_exact_scoped(B)
+    container.add_scoped(A)
+    container.add_scoped(B)
 
     app = FakeApplication(services=container)
 
@@ -3222,7 +3208,6 @@ async def test_service_bindings():
         assert a.dep.foo == "foo"
         return text("OK")
 
-    app.build_services()
     app.normalize_handlers()
 
     for path in {"/explicit", "/implicit"}:
@@ -3247,12 +3232,12 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature():
         def __init__(self) -> None:
             self.trace_id = uuid4()
 
-    container.add_exact_scoped(OperationContext)
+    container.add_scoped(OperationContext)
 
     first_operation: Optional[OperationContext] = None
 
     app = FakeApplication(services=container)
-    app.middlewares.append(dependency_injection_middleware)
+    app.middlewares.append(di_scope_middleware)
 
     @inject()
     @app.router.get("/")
@@ -3275,7 +3260,7 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature():
             MockReceive(),
             MockSend(),
         )
-
+        assert app.response is not None
         content = await app.response.text()
         assert content == "OK"
         assert app.response.status == 200
@@ -3289,7 +3274,7 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
         def __init__(self) -> None:
             self.trace_id = uuid4()
 
-    container.add_exact_scoped(OperationContext)
+    container.add_scoped(OperationContext)
     app = FakeApplication(services=container)
 
     @inject()
@@ -3345,7 +3330,6 @@ async def test_service_bindings_default():
         assert a.dep.foo == "foo"
         return text("OK")
 
-    app.build_services()
     app.normalize_handlers()
 
     for path in {"/explicit", "/implicit"}:
@@ -3398,7 +3382,6 @@ async def test_service_bindings_default_override():
         assert a.dep.foo == "ufo"
         return text("OK")
 
-    app.build_services()
     app.normalize_handlers()
 
     for path in {"/explicit", "/implicit"}:

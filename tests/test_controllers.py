@@ -16,7 +16,6 @@ from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils import ensure_str
 from tests.test_files_serving import get_file_path
-from tests.utils.application import FakeApplication
 
 
 # NB: the following is an example of generic decorator (defined using *args and **kwargs)

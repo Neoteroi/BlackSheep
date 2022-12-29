@@ -662,27 +662,6 @@ def test_pascal_case_route_parameter():
     assert binders[0].parameter_name == "StatusKey"
 
 
-def test_binder_through_di():
-    class CustomBinder(Binder):
-        name_alias = "sunn_o"
-
-        def __init__(self):
-            super().__init__(str)
-
-        async def get_value(self, request: Request) -> Optional[str]:
-            return "sunn_o"
-
-    def handler(sunn_o):
-        ...
-
-    container = Container()
-
-    binders = get_binders(Route("/", handler), container)
-    assert len(binders) == 1
-
-    assert isinstance(binders[0], CustomBinder)
-
-
 @pytest.mark.asyncio
 async def test_binder_through_di():
     """

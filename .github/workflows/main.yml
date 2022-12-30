@@ -17,7 +17,7 @@ on:
       - README.md
 
 env:
-  PROJECT_NAME: blacksheep
+  PROJECT_NAME: neoteroi
 
 jobs:
   windows-validation:
@@ -47,14 +47,14 @@ jobs:
 
       - name: Compile Cython extensions
         run: |
-          cython blacksheep/url.pyx
-          cython blacksheep/exceptions.pyx
-          cython blacksheep/headers.pyx
-          cython blacksheep/cookies.pyx
-          cython blacksheep/contents.pyx
-          cython blacksheep/messages.pyx
-          cython blacksheep/scribe.pyx
-          cython blacksheep/baseapp.pyx
+          cython neoteroi/web/url.pyx
+          cython neoteroi/web/exceptions.pyx
+          cython neoteroi/web/headers.pyx
+          cython neoteroi/web/cookies.pyx
+          cython neoteroi/web/contents.pyx
+          cython neoteroi/web/messages.pyx
+          cython neoteroi/web/scribe.pyx
+          cython neoteroi/web/baseapp.pyx
           python setup.py build_ext --inplace
 
       - name: Run tests
@@ -63,7 +63,7 @@ jobs:
 
       - name: Run linters
         run: |
-          flake8 blacksheep
+          flake8 neoteroi/web
           flake8 tests
 
       - name: Test Hypercorn
@@ -125,13 +125,13 @@ jobs:
         run: |
           echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance."
 
-          flake8 blacksheep
+          flake8 neoteroi/web
           flake8 tests
           flake8 itests
-          isort --check-only blacksheep 2>&1
+          isort --check-only neoteroi/web 2>&1
           isort --check-only tests 2>&1
           isort --check-only itests 2>&1
-          black --check blacksheep 2>&1
+          black --check neoteroi/web 2>&1
           black --check tests 2>&1
           black --check itests 2>&1
 
@@ -200,14 +200,14 @@ jobs:
         run: |
           make clean
 
-          cython blacksheep/url.pyx
-          cython blacksheep/exceptions.pyx
-          cython blacksheep/headers.pyx
-          cython blacksheep/cookies.pyx
-          cython blacksheep/contents.pyx
-          cython blacksheep/messages.pyx
-          cython blacksheep/scribe.pyx
-          cython blacksheep/baseapp.pyx
+          cython neoteroi/web/url.pyx
+          cython neoteroi/web/exceptions.pyx
+          cython neoteroi/web/headers.pyx
+          cython neoteroi/web/cookies.pyx
+          cython neoteroi/web/contents.pyx
+          cython neoteroi/web/messages.pyx
+          cython neoteroi/web/scribe.pyx
+          cython neoteroi/web/baseapp.pyx
 
       - name: Build wheels (linux)
         if: startsWith(matrix.os, 'ubuntu')
@@ -231,8 +231,8 @@ jobs:
         if: |
           !startsWith(matrix.os, 'windows')
         run: |
-          pip install blacksheep -f "file:///${GITHUB_WORKSPACE}/dist"
-          pip freeze | grep blacksheep
+          pip install neoteroi/web -f "file:///${GITHUB_WORKSPACE}/dist"
+          pip freeze | grep neoteroi/web
 
   publish:
     runs-on: ubuntu-latest

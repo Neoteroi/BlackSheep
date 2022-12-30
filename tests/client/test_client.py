@@ -1,9 +1,9 @@
 import pytest
 
-from blacksheep import URL, Request, Response
-from blacksheep.client import ClientSession
-from blacksheep.client.connection import ClientConnection, ConnectionClosedError
-from blacksheep.client.exceptions import UnsupportedRedirect
+from neoteroi.web import URL, Request, Response
+from neoteroi.web.client import ClientSession
+from neoteroi.web.client.connection import ClientConnection, ConnectionClosedError
+from neoteroi.web.client.exceptions import UnsupportedRedirect
 
 
 @pytest.mark.parametrize(

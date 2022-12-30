@@ -2,12 +2,12 @@ import time
 
 import pytest
 
-from blacksheep.cookies import parse_cookie
-from blacksheep.messages import Request
-from blacksheep.server.responses import text
-from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
-from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive, MockSend
+from neoteroi.web.cookies import parse_cookie
+from neoteroi.web.messages import Request
+from neoteroi.web.server.responses import text
+from neoteroi.web.sessions import JSONSerializer, Session, SessionMiddleware
+from neoteroi.web.testing.helpers import get_example_scope
+from neoteroi.web.testing.messages import MockReceive, MockSend
 
 
 def test_friendly_exception_for_request_without_session():

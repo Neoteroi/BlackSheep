@@ -4,29 +4,29 @@ from typing import Any, Dict, Optional
 import jwt
 import pkg_resources
 import pytest
+from pytest import raises
+
 from neoteroi.auth import AuthorizationContext, Identity, Policy, UnauthorizedError
 from neoteroi.auth.common import AuthenticatedRequirement
 from neoteroi.auth.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from neoteroi.di import Container
-from pytest import raises
-
-from blacksheep.messages import Request
-from blacksheep.server.application import Application
-from blacksheep.server.authentication import (
+from neoteroi.web.messages import Request
+from neoteroi.web.server.application import Application
+from neoteroi.web.server.authentication import (
     AuthenticateChallenge,
     AuthenticationHandler,
 )
-from blacksheep.server.authentication.jwt import JWTBearerAuthentication
-from blacksheep.server.authorization import (
+from neoteroi.web.server.authentication.jwt import JWTBearerAuthentication
+from neoteroi.web.server.authorization import (
     AuthorizationWithoutAuthenticationError,
     Requirement,
     allow_anonymous,
     auth,
     get_www_authenticated_header_from_generic_unauthorized_error,
 )
-from blacksheep.server.di import di_scope_middleware, register_http_context
-from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive, MockSend
+from neoteroi.web.server.di import di_scope_middleware, register_http_context
+from neoteroi.web.testing.helpers import get_example_scope
+from neoteroi.web.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_folder_path
 from tests.utils.application import FakeApplication
 
@@ -317,7 +317,7 @@ async def test_static_files_support_authentication_by_route(app):
 
 @pytest.mark.asyncio
 async def test_authorization_supports_allow_anonymous(app):
-    from blacksheep.server.responses import text
+    from neoteroi.web.server.responses import text
 
     app.use_authentication().add(MockNotAuthHandler())
 

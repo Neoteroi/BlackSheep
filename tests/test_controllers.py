@@ -3,18 +3,18 @@ from functools import wraps
 from typing import Optional
 
 import pytest
+
 from neoteroi.auth import User
 from neoteroi.di import inject
-
-from blacksheep import Request, Response
-from blacksheep.server.application import Application
-from blacksheep.server.controllers import APIController, Controller, RoutesRegistry
-from blacksheep.server.responses import text
-from blacksheep.server.routing import RouteDuplicate
-from blacksheep.server.websocket import WebSocket
-from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive, MockSend
-from blacksheep.utils import ensure_str
+from neoteroi.web import Request, Response
+from neoteroi.web.server.application import Application
+from neoteroi.web.server.controllers import APIController, Controller, RoutesRegistry
+from neoteroi.web.server.responses import text
+from neoteroi.web.server.routing import RouteDuplicate
+from neoteroi.web.server.websocket import WebSocket
+from neoteroi.web.testing.helpers import get_example_scope
+from neoteroi.web.testing.messages import MockReceive, MockSend
+from neoteroi.web.utils import ensure_str
 from tests.test_files_serving import get_file_path
 
 

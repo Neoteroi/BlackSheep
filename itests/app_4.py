@@ -6,12 +6,12 @@ from datetime import datetime
 
 import uvicorn
 
-from blacksheep import JSONContent, Response
-from blacksheep.server import Application
-from blacksheep.server.bindings import FromJSON
-from blacksheep.server.responses import json
-from blacksheep.server.websocket import WebSocket
-from blacksheep.settings.json import default_json_dumps, json_settings
+from neoteroi.web import JSONContent, Response
+from neoteroi.web.server import Application
+from neoteroi.web.server.bindings import FromJSON
+from neoteroi.web.server.responses import json
+from neoteroi.web.server.websocket import WebSocket
+from neoteroi.web.settings.json import default_json_dumps, json_settings
 
 SINGLE_PID = None
 

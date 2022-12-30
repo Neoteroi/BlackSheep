@@ -1,7 +1,7 @@
 from typing import Optional
 
-from blacksheep.messages import Request, Response
-from blacksheep.server import Application
+from neoteroi.web.messages import Request, Response
+from neoteroi.web.server import Application
 
 
 class FakeApplication(Application):

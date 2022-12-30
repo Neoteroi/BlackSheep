@@ -9,19 +9,20 @@ from uuid import UUID
 
 import uvicorn
 from dateutil.parser import parse as dateutil_parse
-from neoteroi.auth import AuthorizationContext, Identity
-from neoteroi.auth.common import AuthenticatedRequirement
 from openapidocs.v3 import Discriminator, Info, MediaType, Operation
 from openapidocs.v3 import Response as ResponseDoc
 from openapidocs.v3 import Schema
 from pydantic import BaseModel
 
-from blacksheep import Response, TextContent, WebSocket
-from blacksheep.exceptions import BadRequest
-from blacksheep.server import Application
-from blacksheep.server.authentication import AuthenticationHandler
-from blacksheep.server.authorization import Policy, Requirement, auth
-from blacksheep.server.bindings import (
+from itests.utils import CrashTest
+from neoteroi.auth import AuthorizationContext, Identity
+from neoteroi.auth.common import AuthenticatedRequirement
+from neoteroi.web import Response, TextContent, WebSocket
+from neoteroi.web.exceptions import BadRequest
+from neoteroi.web.server import Application
+from neoteroi.web.server.authentication import AuthenticationHandler
+from neoteroi.web.server.authorization import Policy, Requirement, auth
+from neoteroi.web.server.bindings import (
     FromCookie,
     FromForm,
     FromHeader,
@@ -29,8 +30,8 @@ from blacksheep.server.bindings import (
     FromQuery,
     FromServices,
 )
-from blacksheep.server.controllers import APIController
-from blacksheep.server.openapi.common import (
+from neoteroi.web.server.controllers import APIController
+from neoteroi.web.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
     HeaderInfo,
@@ -40,11 +41,10 @@ from blacksheep.server.openapi.common import (
     ResponseExample,
     ResponseInfo,
 )
-from blacksheep.server.openapi.ui import ReDocUIProvider
-from blacksheep.server.openapi.v3 import OpenAPIHandler
-from blacksheep.server.responses import text
-from blacksheep.server.routing import RoutesRegistry
-from itests.utils import CrashTest
+from neoteroi.web.server.openapi.ui import ReDocUIProvider
+from neoteroi.web.server.openapi.v3 import OpenAPIHandler
+from neoteroi.web.server.responses import text
+from neoteroi.web.server.routing import RoutesRegistry
 
 app_2 = Application()
 

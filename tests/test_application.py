@@ -10,15 +10,15 @@ from uuid import UUID, uuid4
 
 import pkg_resources
 import pytest
-from neoteroi.auth import AuthenticationHandler, Identity, User
-from neoteroi.di import Container, inject
 from openapidocs.v3 import Info
 from pydantic import BaseModel, ValidationError
 
-from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
-from blacksheep.contents import FormPart
-from blacksheep.server.application import Application, ApplicationSyncEvent
-from blacksheep.server.bindings import (
+from neoteroi.auth import AuthenticationHandler, Identity, User
+from neoteroi.di import Container, inject
+from neoteroi.web import HTTPException, JSONContent, Request, Response, TextContent
+from neoteroi.web.contents import FormPart
+from neoteroi.web.server.application import Application, ApplicationSyncEvent
+from neoteroi.web.server.bindings import (
     ClientInfo,
     FromBytes,
     FromCookie,
@@ -33,13 +33,13 @@ from blacksheep.server.bindings import (
     RequestUser,
     ServerInfo,
 )
-from blacksheep.server.di import di_scope_middleware
-from blacksheep.server.normalization import ensure_response
-from blacksheep.server.openapi.v3 import OpenAPIHandler
-from blacksheep.server.responses import status_code, text
-from blacksheep.server.security.hsts import HSTSMiddleware
-from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive, MockSend
+from neoteroi.web.server.di import di_scope_middleware
+from neoteroi.web.server.normalization import ensure_response
+from neoteroi.web.server.openapi.v3 import OpenAPIHandler
+from neoteroi.web.server.responses import status_code, text
+from neoteroi.web.server.security.hsts import HSTSMiddleware
+from neoteroi.web.testing.helpers import get_example_scope
+from neoteroi.web.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 from tests.utils.folder import ensure_folder
 

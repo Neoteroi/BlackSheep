@@ -1,14 +1,14 @@
 import pytest
 
-from blacksheep.server.bindings import FromHeader
-from blacksheep.server.websocket import (
+from neoteroi.web.server.bindings import FromHeader
+from neoteroi.web.server.websocket import (
     InvalidWebSocketStateError,
     MessageMode,
     WebSocket,
     WebSocketDisconnectError,
     WebSocketState,
 )
-from blacksheep.testing.messages import MockReceive, MockSend
+from neoteroi.web.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 
 

@@ -2,16 +2,16 @@ import re
 
 import pytest
 
-from blacksheep.contents import write_www_form_urlencoded
-from blacksheep.messages import Response
-from blacksheep.server.controllers import Controller
-from blacksheep.server.csrf import ignore_anti_forgery, use_anti_forgery
-from blacksheep.server.rendering.jinja2 import AntiForgeryBaseExtension, JinjaRenderer
-from blacksheep.server.responses import no_content, view, view_async
-from blacksheep.server.routing import RoutesRegistry
-from blacksheep.settings.html import html_settings
-from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive, MockSend
+from neoteroi.web.contents import write_www_form_urlencoded
+from neoteroi.web.messages import Response
+from neoteroi.web.server.controllers import Controller
+from neoteroi.web.server.csrf import ignore_anti_forgery, use_anti_forgery
+from neoteroi.web.server.rendering.jinja2 import AntiForgeryBaseExtension, JinjaRenderer
+from neoteroi.web.server.responses import no_content, view, view_async
+from neoteroi.web.server.routing import RoutesRegistry
+from neoteroi.web.settings.html import html_settings
+from neoteroi.web.testing.helpers import get_example_scope
+from neoteroi.web.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 
 
@@ -147,7 +147,7 @@ async def test_anti_forgery_missing_request_context(home_model):
     text = await app.response.text()
     assert text is not None
     assert (
-        "blacksheep.server.csrf.MissingRequestContextError: The request context is "
+        "neoteroi.web.server.csrf.MissingRequestContextError: The request context is "
         "missing from the render call. Pass the request object to the context of the "
         "template."
     ) in text

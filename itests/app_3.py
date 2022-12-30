@@ -1,7 +1,7 @@
 import uvicorn
 
-from blacksheep.server import Application
-from blacksheep.server.responses import json
+from neoteroi.web.server import Application
+from neoteroi.web.server.responses import json
 
 application = Application(show_error_details=True)
 app_3 = Application(show_error_details=True)

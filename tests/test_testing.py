@@ -2,14 +2,14 @@ from typing import Optional
 
 import pytest
 
-from blacksheep import Content
-from blacksheep.contents import JSONContent
-from blacksheep.server.application import Application
-from blacksheep.server.bindings import FromHeader
-from blacksheep.server.controllers import Controller, RoutesRegistry
-from blacksheep.server.responses import Response
-from blacksheep.testing import AbstractTestSimulator, TestClient
-from blacksheep.testing.helpers import (
+from neoteroi.web import Content
+from neoteroi.web.contents import JSONContent
+from neoteroi.web.server.application import Application
+from neoteroi.web.server.bindings import FromHeader
+from neoteroi.web.server.controllers import Controller, RoutesRegistry
+from neoteroi.web.server.responses import Response
+from neoteroi.web.testing import AbstractTestSimulator, TestClient
+from neoteroi.web.testing.helpers import (
     CookiesType,
     HeadersType,
     QueryType,

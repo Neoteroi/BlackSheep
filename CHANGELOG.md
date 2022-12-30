@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - ???
 
+- Renames the web framework to "Neoteroi" and the package to `neoteroi-web`,
+  to adopt PEP 420 and offer a more consistent experience when used with its
+  related libraries. The name BlackSheep will still used as project name for
+  some time.
 - Renames the `plugins` namespace to `settings`
 - Replaces `rodi` with `neoteroi-di`, which includes improvements.
 - Adds support for alternative implementation of containers for dependency

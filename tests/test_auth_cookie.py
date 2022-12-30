@@ -2,11 +2,11 @@ from datetime import datetime
 from typing import Any
 
 import pytest
-from neoteroi.auth import Identity
 
-from blacksheep.messages import Request, Response
-from blacksheep.server.authentication.cookie import CookieAuthentication
-from blacksheep.server.dataprotection import generate_secret
+from neoteroi.auth import Identity
+from neoteroi.web.messages import Request, Response
+from neoteroi.web.server.authentication.cookie import CookieAuthentication
+from neoteroi.web.server.dataprotection import generate_secret
 
 
 def get_auth_cookie(handler: CookieAuthentication, data: Any) -> str:

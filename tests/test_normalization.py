@@ -4,12 +4,12 @@ from inspect import Parameter, _ParameterKind
 from typing import List, Optional, Sequence, Union
 
 import pytest
-from neoteroi.auth import Identity, User
-from neoteroi.di import Container, Services, inject
 from pytest import raises
 
-from blacksheep import Request
-from blacksheep.server.bindings import (
+from neoteroi.auth import Identity, User
+from neoteroi.di import Container, Services, inject
+from neoteroi.web import Request
+from neoteroi.web.server.bindings import (
     Binder,
     BoundValue,
     ExactBinder,
@@ -26,7 +26,7 @@ from blacksheep.server.bindings import (
     RouteBinder,
     ServiceBinder,
 )
-from blacksheep.server.normalization import (
+from neoteroi.web.server.normalization import (
     AmbiguousMethodSignatureError,
     NormalizationError,
     RouteBinderMismatch,
@@ -37,7 +37,7 @@ from blacksheep.server.normalization import (
     normalize_handler,
     normalize_middleware,
 )
-from blacksheep.server.routing import Route
+from neoteroi.web.server.routing import Route
 
 
 class Pet:

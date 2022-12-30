@@ -7,12 +7,12 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from blacksheep import Content, Cookie, Response, scribe
-from blacksheep.server.controllers import (
+from neoteroi.web import Content, Cookie, Response, scribe
+from neoteroi.web.server.controllers import (
     CannotDetermineDefaultViewNameError,
     Controller,
 )
-from blacksheep.server.responses import (
+from neoteroi.web.server.responses import (
     ContentDispositionType,
     accepted,
     bad_request,
@@ -35,9 +35,9 @@ from blacksheep.server.responses import (
     text,
     unauthorized,
 )
-from blacksheep.server.routing import RoutesRegistry
-from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive, MockSend
+from neoteroi.web.server.routing import RoutesRegistry
+from neoteroi.web.testing.helpers import get_example_scope
+from neoteroi.web.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_file_path
 
 STATUS_METHODS_OPTIONAL_BODY = [

@@ -6,9 +6,9 @@ from time import sleep
 
 import pytest
 
-from blacksheep.client import ClientSession
-from blacksheep.client.pool import ClientConnectionPools
 from itests.utils import get_sleep_time
+from neoteroi.web.client import ClientSession
+from neoteroi.web.client.pool import ClientConnectionPools
 
 from .flask_app import app
 

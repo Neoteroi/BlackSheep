@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from blacksheep import (
+from neoteroi.web import (
     Cookie,
     CookieSameSiteMode,
     datetime_from_cookie_format,
@@ -10,7 +10,7 @@ from blacksheep import (
     parse_cookie,
     scribe,
 )
-from blacksheep.cookies import CookieValueExceedsMaximumLength
+from neoteroi.web.cookies import CookieValueExceedsMaximumLength
 
 COOKIES = [
     (

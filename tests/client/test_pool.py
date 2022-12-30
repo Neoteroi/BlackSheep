@@ -2,14 +2,14 @@ import ssl
 
 import pytest
 
-from blacksheep.client.connection import (
+from neoteroi.web.client.connection import (
     INSECURE_SSLCONTEXT,
     SECURE_SSLCONTEXT,
     ClientConnection,
 )
-from blacksheep.client.pool import ClientConnectionPool, get_ssl_context
-from blacksheep.exceptions import InvalidArgument
-from blacksheep.utils.aio import get_running_loop
+from neoteroi.web.client.pool import ClientConnectionPool, get_ssl_context
+from neoteroi.web.exceptions import InvalidArgument
+from neoteroi.web.utils.aio import get_running_loop
 
 example_context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
 example_context.check_hostname = False

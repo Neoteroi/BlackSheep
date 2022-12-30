@@ -2,16 +2,16 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from blacksheep import URL, Cookie, Response, TextContent
-from blacksheep.client import ClientSession
-from blacksheep.client.cookies import (
+from neoteroi.web import URL, Cookie, Response, TextContent
+from neoteroi.web.client import ClientSession
+from neoteroi.web.client.cookies import (
     CookieJar,
     InvalidCookieDomain,
     MissingSchemeInURL,
     StoredCookie,
 )
-from blacksheep.cookies import datetime_from_cookie_format
-from blacksheep.scribe import write_response_cookie
+from neoteroi.web.cookies import datetime_from_cookie_format
+from neoteroi.web.scribe import write_response_cookie
 
 from . import FakePools
 

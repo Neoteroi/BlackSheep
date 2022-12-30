@@ -5,7 +5,8 @@ import pathlib
 
 import uvicorn
 
-from blacksheep import (
+from itests.utils import CrashTest, ensure_folder
+from neoteroi.web import (
     Application,
     Content,
     ContentDispositionType,
@@ -17,7 +18,6 @@ from blacksheep import (
     json,
     text,
 )
-from itests.utils import CrashTest, ensure_folder
 
 app = Application(show_error_details=True)
 

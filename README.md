@@ -4,8 +4,8 @@
 [![codecov](https://codecov.io/gh/Neoteroi/BlackSheep/branch/master/graph/badge.svg?token=Nzi29L0Eg1)](https://codecov.io/gh/Neoteroi/BlackSheep)
 [![license](https://img.shields.io/github/license/Neoteroi/blacksheep.svg)](https://github.com/Neoteroi/blacksheep/blob/main/LICENSE) [![Join the chat at https://gitter.im/Neoteroi/BlackSheep](https://badges.gitter.im/Neoteroi/BlackSheep.svg)](https://gitter.im/Neoteroi/BlackSheep?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![documentation](https://img.shields.io/badge/📖-docs-purple)](https://www.neoteroi.dev/blacksheep/)
 
-# BlackSheep
-BlackSheep is an asynchronous web framework to build event based web
+# Neoteroi Web
+Neoteroi Web is an asynchronous web framework to build event based web
 applications with Python. It is inspired by
 [Flask](https://palletsprojects.com/p/flask/), [ASP.NET
 Core](https://docs.microsoft.com/en-us/aspnet/core/), and the work by [Yury
@@ -16,14 +16,19 @@ Selivanov](https://magic.io/blog/uvloop-blazing-fast-python-networking/).
 </p>
 
 ```bash
-pip install blacksheep
+pip install neoteroi-web
 ```
+
+`neoteroi-web` is the new version of the library previously named
+[`blacksheep`](https://pypi.org/project/blacksheep/). It is currently `alpha` and still
+subject to change.
 
 ---
 
 ```python
 from datetime import datetime
-from blacksheep import Application
+
+from neoteroi.web import Application
 
 
 app = Application()
@@ -44,14 +49,17 @@ The documentation offers getting started tutorials:
 
 These project templates can be used to start new applications faster:
 
-* [BlackSheep MVC project
+* [MVC project
   template](https://github.com/Neoteroi/BlackSheepMVC)
-* [BlackSheep empty project
+* [Empty project
   template](https://github.com/Neoteroi/BlackSheepEmptyProject)
 
 ## Requirements
 
-[Python](https://www.python.org) version **3.7**, **3.8**, **3.9**, or **3.10**.
+[Python](https://www.python.org): any version listed in the project's
+classifiers. The current list is:
+
+[![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/robertoprevato/blacksheep)
 
 BlackSheep belongs to the category of
 [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires
@@ -67,7 +75,7 @@ To run an application like in the example above, use the methods provided by
 the ASGI HTTP Server:
 
 ```bash
-# if the BlackSheep app is defined in a file `server.py`
+# if the web app is defined in a file `server.py`
 
 $ uvicorn server:app
 ```
@@ -83,7 +91,7 @@ here](https://www.neoteroi.dev/blacksheep/requests/).
 ```python
 from dataclasses import dataclass
 
-from blacksheep import Application, FromJSON, FromQuery
+from neoteroi.web import Application, FromJSON, FromQuery
 
 
 app = Application()
@@ -170,7 +178,7 @@ async def only_for_authenticated_users():
     ...
 ```
 
-Since version `1.2.1`, BlackSheep implements:
+The framework includes:
 
 * [Built-in support for OpenID Connect authentication](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
 * [Built-in support for JWT Bearer authentication](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
@@ -229,7 +237,7 @@ BlackSheep includes an HTTP Client.
 **Example:**
 ```python
 import asyncio
-from blacksheep.client import ClientSession
+from neoteroi.web.client import ClientSession
 
 
 async def client_example(loop):
@@ -247,11 +255,8 @@ loop.run_until_complete(client_example(loop))
 ```
 
 ## Supported platforms and runtimes
-* Python 3.7 (cpython)
-* Python 3.8 (cpython)
-* Python 3.9 (cpython)
-* Python 3.10 (cpython)
-* Ubuntu 18.04
+* Python: all versions included in the build matrix
+* Ubuntu
 * Windows 10
 * macOS
 
@@ -259,4 +264,4 @@ loop.run_until_complete(client_example(loop))
 Please refer to the [documentation website](https://www.neoteroi.dev/blacksheep/).
 
 ## Communication
-[BlackSheep community in Gitter](https://gitter.im/Neoteroi/BlackSheep).
+[Community in Gitter](https://gitter.im/Neoteroi/BlackSheep).

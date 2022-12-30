@@ -1,7 +1,7 @@
 import pytest
 
-from blacksheep import Response, TextContent
-from blacksheep.client import ClientSession
+from neoteroi.web import Response, TextContent
+from neoteroi.web.client import ClientSession
 
 from . import FakePools
 

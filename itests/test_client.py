@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Response
+from neoteroi.web import FormContent, FormPart, JSONContent, MultiPartFormData, Response
 
 from .client_fixtures import *  # NoQA
 from .client_fixtures import get_static_path

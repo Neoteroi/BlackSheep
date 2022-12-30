@@ -1,6 +1,6 @@
 import pytest
 
-from blacksheep.common.files.pathsutils import (
+from neoteroi.web.common.files.pathsutils import (
     get_file_extension_from_name,
     get_mime_type_from_name,
 )

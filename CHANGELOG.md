@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.9] - 2023-01-01 :fireworks:
+- Fix invalid OpenAPI doc for route parameter with pattern (#286) - [antipooh](https://github.com/antipooh)'s contribution.
+- Fix a bug related to nullable boolean values https://github.com/Neoteroi/BlackSheep/commit/363616b7fa4cb69bf698c25768e9de04e36feb69 [jack-fireworkhq](https://github.com/jack-fireworkhq)'s contribution.
+- Fix a bug preventing web sockets from working when CORS is enabled (#296) - reported by [netwang on gitter](https://gitter.im/Neoteroi/BlackSheep).
+
 ## [1.2.8] - 2022-10-27 :snake:
 - Upgrades pinned dependencies to support Python 3.11
 - Drops active support for Python 3.7 (it is not tested anymore in CI pipelines)

@@ -4,12 +4,15 @@
 [![codecov](https://codecov.io/gh/Neoteroi/BlackSheep/branch/master/graph/badge.svg?token=Nzi29L0Eg1)](https://codecov.io/gh/Neoteroi/BlackSheep)
 [![license](https://img.shields.io/github/license/Neoteroi/blacksheep.svg)](https://github.com/Neoteroi/blacksheep/blob/main/LICENSE) [![Join the chat at https://gitter.im/Neoteroi/BlackSheep](https://badges.gitter.im/Neoteroi/BlackSheep.svg)](https://gitter.im/Neoteroi/BlackSheep?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![documentation](https://img.shields.io/badge/📖-docs-purple)](https://www.neoteroi.dev/blacksheep/)
 
-# Neoteroi Web
-Neoteroi Web is an asynchronous web framework to build event based web
+# BlackSheep
+BlackSheep is an asynchronous web framework to build event based web
 applications with Python. It is inspired by
 [Flask](https://palletsprojects.com/p/flask/), [ASP.NET
 Core](https://docs.microsoft.com/en-us/aspnet/core/), and the work by [Yury
 Selivanov](https://magic.io/blog/uvloop-blazing-fast-python-networking/).
+
+BlackSheep is the project name of the web framework in Neoteroi. With the
+second version of the framework, the Python package is renamed from `blacksheep` to `neoteroi-web`.
 
 <p align="left">
   <a href="#blacksheep"><img width="320" height="271" src="https://www.neoteroi.dev/blacksheep/img/blacksheep.png" alt="Black Sheep"></a>
@@ -19,9 +22,8 @@ Selivanov](https://magic.io/blog/uvloop-blazing-fast-python-networking/).
 pip install neoteroi-web
 ```
 
-`neoteroi-web` is the new version of the library previously named
-[`blacksheep`](https://pypi.org/project/blacksheep/). It is currently `alpha` and still
-subject to change.
+The first version of the web framework is available as [`blacksheep`](https://pypi.org/project/blacksheep/) and is not going to be _willingly_ modified in non-backward compatible ways (it is stable).
+`neoteroi-web` is currently `alpha` and still subject to change.
 
 ---
 

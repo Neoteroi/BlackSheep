@@ -47,7 +47,6 @@ from neoteroi.web.server.controllers import router as controllers_router
 from neoteroi.web.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from neoteroi.web.server.env import EnvironmentSettings
 from neoteroi.web.server.errors import ServerErrorDetailsHandler
-from neoteroi.web.server.files import ServeFilesOptions
 from neoteroi.web.server.files.dynamic import serve_files_dynamic
 from neoteroi.web.server.normalization import normalize_handler, normalize_middleware
 from neoteroi.web.server.responses import _ensure_bytes
@@ -435,7 +434,8 @@ class Application(BaseApplication):
         self, exception: Union[int, Type[Exception]]
     ) -> Callable[..., Any]:
         """
-        Registers an exception handler function in the application exception handler.
+        Registers an exception handler function in the application exception handlers
+        dictionary.
         """
 
         def decorator(f):
@@ -475,25 +475,6 @@ class Application(BaseApplication):
             response would be otherwise 404 Not Found; e.g. use this to serve SPA that
             use HTML5 History API for client side routing.
         """
-        if isinstance(source_folder, ServeFilesOptions):
-            # deprecated class, will be removed in the next version
-            from typing import cast
-
-            deprecated_arg = cast(ServeFilesOptions, source_folder)
-            deprecated_arg.validate()
-            serve_files_dynamic(
-                self.router,
-                self.files_handler,
-                str(deprecated_arg.source_folder),
-                discovery=deprecated_arg.discovery,
-                cache_time=deprecated_arg.cache_time,
-                extensions=deprecated_arg.extensions,
-                root_path=deprecated_arg.root_path,
-                index_document=deprecated_arg.index_document,
-                fallback_document=deprecated_arg.fallback_document,
-                anonymous_access=deprecated_arg.allow_anonymous,
-            )
-            return
         serve_files_dynamic(
             self.router,
             self.files_handler,

@@ -1,7 +1,7 @@
 import pytest
 
-from neoteroi.web.server.application import Application
-from neoteroi.web.server.routing import (
+from blacksheep.server.application import Application
+from blacksheep.server.routing import (
     InvalidValuePatternName,
     MountRegistry,
     Route,

@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from neoteroi.web.server.rendering.jinja2 import JinjaRenderer
-from neoteroi.web.settings.html import html_settings
+from blacksheep.server.rendering.jinja2 import JinjaRenderer
+from blacksheep.settings.html import html_settings
 from tests.utils.application import FakeApplication
 
 # configures default Jinja settings for tests

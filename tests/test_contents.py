@@ -2,8 +2,8 @@ from typing import List
 
 import pytest
 
-from neoteroi.web import JSONContent, Request, StreamedContent
-from neoteroi.web.contents import (
+from blacksheep import JSONContent, Request, StreamedContent
+from blacksheep.contents import (
     FormPart,
     HTMLContent,
     MultiPartFormData,
@@ -11,12 +11,12 @@ from neoteroi.web.contents import (
     parse_www_form,
     write_www_form_urlencoded,
 )
-from neoteroi.web.multipart import (
+from blacksheep.multipart import (
     get_boundary_from_header,
     parse_content_disposition_values,
     parse_multipart,
 )
-from neoteroi.web.scribe import write_chunks, write_request_body_only
+from blacksheep.scribe import write_chunks, write_request_body_only
 
 
 @pytest.mark.asyncio

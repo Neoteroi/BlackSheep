@@ -11,26 +11,20 @@ applications with Python. It is inspired by
 Core](https://docs.microsoft.com/en-us/aspnet/core/), and the work by [Yury
 Selivanov](https://magic.io/blog/uvloop-blazing-fast-python-networking/).
 
-BlackSheep is the project name of the web framework in Neoteroi. With the
-second version of the framework, the Python package is renamed from `blacksheep` to `neoteroi-web`.
-
 <p align="left">
   <a href="#blacksheep"><img width="320" height="271" src="https://www.neoteroi.dev/blacksheep/img/blacksheep.png" alt="Black Sheep"></a>
 </p>
 
 ```bash
-pip install neoteroi-web
+pip install blacksheep
 ```
-
-The first version of the web framework is available as [`blacksheep`](https://pypi.org/project/blacksheep/) and is not going to be _willingly_ modified in non-backward compatible ways (it is stable).
-`neoteroi-web` is currently `alpha` and still subject to change.
 
 ---
 
 ```python
 from datetime import datetime
 
-from neoteroi.web import Application
+from blacksheep import Application
 
 
 app = Application()
@@ -63,6 +57,7 @@ classifiers. The current list is:
 
 [![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/robertoprevato/blacksheep)
 
+
 BlackSheep belongs to the category of
 [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires
 an ASGI HTTP server to run, such as [uvicorn](http://www.uvicorn.org/), or
@@ -77,7 +72,7 @@ To run an application like in the example above, use the methods provided by
 the ASGI HTTP Server:
 
 ```bash
-# if the web app is defined in a file `server.py`
+# if the BlackSheep app is defined in a file `server.py`
 
 $ uvicorn server:app
 ```
@@ -93,7 +88,7 @@ here](https://www.neoteroi.dev/blacksheep/requests/).
 ```python
 from dataclasses import dataclass
 
-from neoteroi.web import Application, FromJSON, FromQuery
+from blacksheep import Application, FromJSON, FromQuery
 
 
 app = Application()
@@ -180,7 +175,7 @@ async def only_for_authenticated_users():
     ...
 ```
 
-The framework includes:
+Since version `1.2.1`, BlackSheep implements:
 
 * [Built-in support for OpenID Connect authentication](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
 * [Built-in support for JWT Bearer authentication](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
@@ -234,12 +229,14 @@ Refer to the documentation for more details and examples.
 * [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks
 
 ## Client features
+
 BlackSheep includes an HTTP Client.
 
 **Example:**
 ```python
 import asyncio
-from neoteroi.web.client import ClientSession
+
+from blacksheep.client import ClientSession
 
 
 async def client_example(loop):
@@ -266,4 +263,4 @@ loop.run_until_complete(client_example(loop))
 Please refer to the [documentation website](https://www.neoteroi.dev/blacksheep/).
 
 ## Communication
-[Community in Gitter](https://gitter.im/Neoteroi/BlackSheep).
+[BlackSheep community in Gitter](https://gitter.im/Neoteroi/BlackSheep).

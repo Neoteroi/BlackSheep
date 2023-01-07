@@ -3,7 +3,7 @@ import os
 import pytest
 from itsdangerous import BadSignature
 
-from neoteroi.web.server.dataprotection import generate_secret, get_keys, get_serializer
+from blacksheep.server.dataprotection import generate_secret, get_keys, get_serializer
 
 
 def test_get_keys_creates_default_keys():

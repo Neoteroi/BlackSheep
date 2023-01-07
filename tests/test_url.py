@@ -1,6 +1,6 @@
 import pytest
 
-from neoteroi.web.url import URL, InvalidURL
+from blacksheep.url import URL, InvalidURL
 
 
 def test_empty_url():

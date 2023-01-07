@@ -1,6 +1,6 @@
 import pytest
 
-from neoteroi.web.ranges import InvalidRangeValue, Range, RangePart
+from blacksheep.ranges import InvalidRangeValue, Range, RangePart
 
 
 @pytest.mark.parametrize(

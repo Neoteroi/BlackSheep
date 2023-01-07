@@ -1,17 +1,17 @@
 import pytest
 
-from neoteroi.web import Content, Request, scribe
-from neoteroi.web.contents import FormPart, MultiPartFormData
-from neoteroi.web.exceptions import BadRequestFormat
-from neoteroi.web.messages import get_absolute_url_to_path, get_request_absolute_url
-from neoteroi.web.scribe import write_small_request
-from neoteroi.web.server.asgi import (
+from blacksheep import Content, Request, scribe
+from blacksheep.contents import FormPart, MultiPartFormData
+from blacksheep.exceptions import BadRequestFormat
+from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
+from blacksheep.scribe import write_small_request
+from blacksheep.server.asgi import (
     get_request_url,
     get_request_url_from_scope,
     incoming_request,
 )
-from neoteroi.web.testing.helpers import get_example_scope
-from neoteroi.web.url import URL
+from blacksheep.testing.helpers import get_example_scope
+from blacksheep.url import URL
 
 
 def test_request_supports_dynamic_attributes():

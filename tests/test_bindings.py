@@ -2,12 +2,12 @@ from typing import Any, List, Optional, Sequence, Set, Tuple, Type
 from uuid import UUID
 
 import pytest
+from guardpost import Identity
 from pytest import raises
+from rodi import Container
 
-from neoteroi.auth import Identity
-from neoteroi.di import Container
-from neoteroi.web import FormContent, FormPart, JSONContent, MultiPartFormData, Request
-from neoteroi.web.server.bindings import (
+from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Request
+from blacksheep.server.bindings import (
     BadRequest,
     Binder,
     BinderAlreadyDefinedException,
@@ -32,7 +32,7 @@ from neoteroi.web.server.bindings import (
     TypeAliasAlreadyDefinedException,
     get_binder_by_type,
 )
-from neoteroi.web.url import URL
+from blacksheep.url import URL
 
 JSONContentType = (b"Content-Type", b"application/json")
 

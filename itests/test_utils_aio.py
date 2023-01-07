@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from neoteroi.web.utils.aio import (
+from blacksheep.utils.aio import (
     FailedRequestError,
     HTTPHandler,
     _try_parse_content_as_json,

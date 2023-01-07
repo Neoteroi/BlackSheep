@@ -1,18 +1,18 @@
 import pytest
 
-from neoteroi.web.exceptions import BadRequest
-from neoteroi.web.server.application import ApplicationAlreadyStartedCORSError
-from neoteroi.web.server.cors import (
+from blacksheep.exceptions import BadRequest
+from blacksheep.server.application import ApplicationAlreadyStartedCORSError
+from blacksheep.server.cors import (
     CORSConfigurationError,
     CORSPolicy,
     CORSPolicyNotConfiguredError,
     CORSStrategy,
     NotRequestHandlerError,
 )
-from neoteroi.web.server.responses import text
-from neoteroi.web.server.routing import Router
-from neoteroi.web.testing.helpers import get_example_scope
-from neoteroi.web.testing.messages import MockReceive, MockSend
+from blacksheep.server.responses import text
+from blacksheep.server.routing import Router
+from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 
 
 def test_app_raises_type_error_for_cors_property(app):

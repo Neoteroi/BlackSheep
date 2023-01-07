@@ -1,9 +1,9 @@
 include LICENSE
 include README.md
-include neoteroi/web/server/res/*.html
-include neoteroi/web/server/res/*.css
+include blacksheep/server/res/*.html
+include blacksheep/server/res/*.css
 include build_info.txt
-recursive-include neoteroi/web *.pyx *.pxd *.pxi *.pyi *.py *.c *.h
+recursive-include blacksheep *.pyx *.pxd *.pxi *.pyi *.py *.c *.h
 
 # Stubs
-include neoteroi/web/py.typed
+include blacksheep/py.typed

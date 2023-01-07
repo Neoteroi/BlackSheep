@@ -1,6 +1,6 @@
 import os
 
-from neoteroi.web.server.env import EnvironmentSettings
+from blacksheep.server.env import EnvironmentSettings
 
 
 def test_env_settings():

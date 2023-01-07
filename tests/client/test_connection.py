@@ -5,15 +5,15 @@ from typing import AsyncIterable, List
 import pytest
 from httptools.parser.errors import HttpParserCallbackError, HttpParserError
 
-from neoteroi.web import JSONContent, Request, StreamedContent
-from neoteroi.web.client.connection import (
+from blacksheep import JSONContent, Request, StreamedContent
+from blacksheep.client.connection import (
     ClientConnection,
     ConnectionClosedError,
     IncomingContent,
     InvalidResponseFromServer,
     UpgradeResponse,
 )
-from neoteroi.web.client.pool import ClientConnectionPool
+from blacksheep.client.pool import ClientConnectionPool
 
 
 def get_example_headers():

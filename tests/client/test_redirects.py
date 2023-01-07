@@ -2,14 +2,14 @@ import http
 
 import pytest
 
-from neoteroi.web import URL, HTMLContent, Response, TextContent
-from neoteroi.web.client import (
+from blacksheep import URL, HTMLContent, Response, TextContent
+from blacksheep.client import (
     CircularRedirectError,
     ClientSession,
     MaximumRedirectsExceededError,
 )
-from neoteroi.web.client.exceptions import MissingLocationForRedirect
-from neoteroi.web.client.session import RedirectsCache
+from blacksheep.client.exceptions import MissingLocationForRedirect
+from blacksheep.client.session import RedirectsCache
 
 from . import FakePools
 

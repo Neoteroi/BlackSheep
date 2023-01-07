@@ -2,7 +2,7 @@ from typing import AnyStr, Sequence
 
 import pytest
 
-from neoteroi.web.utils import ensure_bytes, ensure_str, join_fragments
+from blacksheep.utils import ensure_bytes, ensure_str, join_fragments
 
 
 @pytest.mark.parametrize(

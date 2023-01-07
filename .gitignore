@@ -112,9 +112,9 @@ tests/out/
 
 *,cover
 
-neoteroi/web/*.c
-neoteroi/web/*.html
-neoteroi/web/includes/*.html
+blacksheep/*.c
+blacksheep/*.html
+blacksheep/includes/*.html
 out/*
 
 # Output of integration tests

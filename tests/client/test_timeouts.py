@@ -1,6 +1,6 @@
 import pytest
 
-from neoteroi.web.client import ClientSession, ConnectionTimeout, RequestTimeout
+from blacksheep.client import ClientSession, ConnectionTimeout, RequestTimeout
 
 from . import FakePools
 

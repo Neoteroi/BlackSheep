@@ -4,12 +4,12 @@ from typing import List
 import pytest
 from pydantic import BaseModel
 
-from neoteroi.web.server.controllers import Controller, RoutesRegistry
-from neoteroi.web.server.rendering.jinja2 import get_template_name
-from neoteroi.web.server.responses import view, view_async
-from neoteroi.web.settings.html import html_settings
-from neoteroi.web.testing.helpers import get_example_scope
-from neoteroi.web.testing.messages import MockReceive, MockSend
+from blacksheep.server.controllers import Controller, RoutesRegistry
+from blacksheep.server.rendering.jinja2 import get_template_name
+from blacksheep.server.responses import view, view_async
+from blacksheep.settings.html import html_settings
+from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 
 

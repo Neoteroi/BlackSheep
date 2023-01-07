@@ -11,25 +11,25 @@ from pydantic import BaseModel, HttpUrl, validator
 from pydantic.generics import GenericModel
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
-from neoteroi.web.server.application import Application
-from neoteroi.web.server.bindings import FromForm
-from neoteroi.web.server.openapi.common import (
+from blacksheep.server.application import Application
+from blacksheep.server.bindings import FromForm
+from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
     OpenAPIEndpointException,
     ResponseInfo,
 )
-from neoteroi.web.server.openapi.exceptions import (
+from blacksheep.server.openapi.exceptions import (
     DuplicatedContentTypeDocsException,
     UnsupportedUnionTypeException,
 )
-from neoteroi.web.server.openapi.v3 import (
+from blacksheep.server.openapi.v3 import (
     DataClassTypeHandler,
     OpenAPIHandler,
     PydanticModelTypeHandler,
     check_union,
 )
-from neoteroi.web.server.routing import RoutesRegistry
+from blacksheep.server.routing import RoutesRegistry
 
 T = TypeVar("T")
 U = TypeVar("U")

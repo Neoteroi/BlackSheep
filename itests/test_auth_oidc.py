@@ -7,16 +7,16 @@ from typing import Any, List, Optional, Tuple
 from urllib.parse import parse_qs, urlencode
 
 import pytest
+from guardpost import Identity, Policy
+from guardpost.common import AuthenticatedRequirement
 
-from neoteroi.auth import Identity, Policy
-from neoteroi.auth.common import AuthenticatedRequirement
-from neoteroi.web.cookies import parse_cookie
-from neoteroi.web.exceptions import BadRequest, Unauthorized
-from neoteroi.web.messages import Request, Response
-from neoteroi.web.server.application import Application
-from neoteroi.web.server.asgi import incoming_request
-from neoteroi.web.server.authentication.cookie import CookieAuthentication
-from neoteroi.web.server.authentication.oidc import (
+from blacksheep.cookies import parse_cookie
+from blacksheep.exceptions import BadRequest, Unauthorized
+from blacksheep.messages import Request, Response
+from blacksheep.server.application import Application
+from blacksheep.server.asgi import incoming_request
+from blacksheep.server.authentication.cookie import CookieAuthentication
+from blacksheep.server.authentication.oidc import (
     CookiesTokensStore,
     MissingClientSecretSettingError,
     OpenIDConfiguration,
@@ -30,10 +30,10 @@ from neoteroi.web.server.authentication.oidc import (
     TokenResponse,
     use_openid_connect,
 )
-from neoteroi.web.testing.helpers import get_example_scope
-from neoteroi.web.testing.messages import MockReceive, MockSend
-from neoteroi.web.url import URL
-from neoteroi.web.utils.aio import FailedRequestError
+from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
+from blacksheep.url import URL
+from blacksheep.utils.aio import FailedRequestError
 from tests.test_auth import get_access_token
 from tests.test_auth_cookie import get_auth_cookie
 from tests.utils.application import FakeApplication

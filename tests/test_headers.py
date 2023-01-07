@@ -1,6 +1,6 @@
 import pytest
 
-from neoteroi.web import Header, Headers
+from blacksheep import Header, Headers
 
 
 @pytest.mark.parametrize(

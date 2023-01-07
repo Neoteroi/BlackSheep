@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from neoteroi.web.common.files.asyncfs import FileContext, FilesHandler
+from blacksheep.common.files.asyncfs import FileContext, FilesHandler
 
 
 @pytest.fixture()

@@ -1,6 +1,6 @@
 import pytest
 
-from neoteroi.web.multipart import (
+from blacksheep.multipart import (
     FormPart,
     _remove_last_crlf,
     parse_multipart,

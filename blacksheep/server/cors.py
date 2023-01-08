@@ -5,6 +5,7 @@ from typing import Any, Awaitable, Callable, Dict, FrozenSet, Iterable, Optional
 from blacksheep.baseapp import BaseApplication
 from blacksheep.messages import Request, Response
 from blacksheep.server.routing import Route, Router
+from blacksheep.server.websocket import WebSocket
 
 from .responses import not_found, ok, status_code
 
@@ -243,6 +244,9 @@ def get_cors_middleware(
     strategy: CORSStrategy,
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     async def cors_middleware(request: Request, handler):
+        if isinstance(request, WebSocket):
+            return await handler(request)
+
         origin = request.get_first_header(b"Origin")
 
         if not origin:

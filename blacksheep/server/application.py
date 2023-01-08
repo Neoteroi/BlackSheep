@@ -47,7 +47,6 @@ from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
-from blacksheep.server.files import ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.responses import _ensure_bytes
@@ -475,25 +474,6 @@ class Application(BaseApplication):
             response would be otherwise 404 Not Found; e.g. use this to serve SPA that
             use HTML5 History API for client side routing.
         """
-        if isinstance(source_folder, ServeFilesOptions):
-            # deprecated class, will be removed in the next version
-            from typing import cast
-
-            deprecated_arg = cast(ServeFilesOptions, source_folder)
-            deprecated_arg.validate()
-            serve_files_dynamic(
-                self.router,
-                self.files_handler,
-                str(deprecated_arg.source_folder),
-                discovery=deprecated_arg.discovery,
-                cache_time=deprecated_arg.cache_time,
-                extensions=deprecated_arg.extensions,
-                root_path=deprecated_arg.root_path,
-                index_document=deprecated_arg.index_document,
-                fallback_document=deprecated_arg.fallback_document,
-                anonymous_access=deprecated_arg.allow_anonymous,
-            )
-            return
         serve_files_dynamic(
             self.router,
             self.files_handler,

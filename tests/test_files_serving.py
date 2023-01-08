@@ -14,7 +14,6 @@ from blacksheep.ranges import Range, RangePart
 from blacksheep.server.files import (
     FileInfo,
     RangeNotSatisfiable,
-    ServeFilesOptions,
     _get_requested_range,
     get_default_extensions,
     get_range_file_getter,
@@ -336,25 +335,6 @@ async def test_serve_files_no_discovery(app):
 
     response = app.response
     assert response.status == 404
-
-
-@pytest.mark.asyncio
-async def test_serve_files_deprecated_serve_files_options(files2_index_contents, app):
-    with pytest.deprecated_call():
-        app.serve_files(ServeFilesOptions(get_folder_path("files2")))  # type: ignore
-
-    await app.start()
-
-    scope = get_example_scope("GET", "/", [])
-    await app(
-        scope,
-        MockReceive(),
-        MockSend(),
-    )
-
-    response = app.response
-    assert response.status == 200
-    assert files2_index_contents == await response.read()
 
 
 @pytest.mark.asyncio

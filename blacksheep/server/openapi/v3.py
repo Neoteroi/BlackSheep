@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
@@ -295,6 +295,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
         ]
+        self._binder_docs: Dict[Type[Binder], Iterable[Parameter]] = {}
 
     @property
     def object_types_handlers(self) -> List[ObjectTypeHandler]:
@@ -697,12 +698,16 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if not hasattr(handler, "binders"):
             return None
         binders: List[Binder] = handler.binders
-        parameters: Mapping[str, Union[Parameter, Reference]] = {}
+        parameters: Dict[str, Union[Parameter, Reference]] = {}
 
         docs = self.get_handler_docs(handler)
         parameters_info = (docs.parameters if docs else None) or dict()
 
         for binder in binders:
+            if binder.__class__ in self._binder_docs:
+                self._handle_binder_docs(binder, parameters)
+                continue
+
             location = self.get_parameter_location_for_binder(binder)
 
             if not location:
@@ -971,3 +976,19 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         self.events.on_paths_created.fire_sync(paths_doc)
         return paths_doc
+
+    def set_binder_docs(self, binder_type: Type[Binder], values: Iterable[Parameter]):
+        """
+        Configures parameters documentation for a given binder type. A binder can
+        read values from one or more input parameters, therefore values here can be
+        applied multiple times.
+        """
+        self._binder_docs[binder_type] = values
+
+    def _handle_binder_docs(
+        self, binder: Binder, parameters: Dict[str, Union[Parameter, Reference]]
+    ):
+        params_docs = self._binder_docs[binder.__class__]
+
+        for i, param_doc in enumerate(params_docs):
+            parameters[f"{binder.__class__.__qualname__}_{i}"] = param_doc

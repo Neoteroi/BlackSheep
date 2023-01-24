@@ -206,7 +206,7 @@ _types_handled_with_query = {
 
 
 def _check_union(
-    parameter: inspect.Parameter, annotation: Any, method: Callable[..., Any]
+    parameter: ParamInfo, annotation: Any, method: Callable[..., Any]
 ) -> Tuple[bool, Any]:
     """
     Checks if the given annotation is Optional[] - in such case unwraps it
@@ -292,7 +292,7 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
 
 
 def _get_parameter_binder(
-    parameter: inspect.Parameter,
+    parameter: ParamInfo,
     services: ContainerProtocol,
     route: Optional[Route],
     method: Callable[..., Any],
@@ -315,6 +315,13 @@ def _get_parameter_binder(
 
     if annotation in Binder.aliases:
         return Binder.aliases[annotation](services)
+
+    if (
+        annotation in Binder.handlers
+        and annotation not in services
+        and not issubclass(annotation, BoundValue)
+    ):
+        return Binder.handlers[annotation](annotation, parameter.name)
 
     # 1. is the type annotation of BoundValue[T] type?
     if _is_bound_value_annotation(annotation):
@@ -377,7 +384,7 @@ def _get_parameter_binder(
 
 
 def get_parameter_binder(
-    parameter: inspect.Parameter,
+    parameter: ParamInfo,
     services: ContainerProtocol,
     route: Optional[Route],
     method: Callable[..., Any],

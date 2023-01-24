@@ -295,7 +295,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
         ]
-        self._binder_docs: Dict[Type[Binder], Iterable[Parameter]] = {}
+        self._binder_docs: Dict[
+            Type[Binder], Iterable[Union[Parameter, Reference]]
+        ] = {}
 
     @property
     def object_types_handlers(self) -> List[ObjectTypeHandler]:
@@ -305,6 +307,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return self.info.title
 
     def generate_documentation(self, app: Application) -> OpenAPI:
+        self._optimize_binders_docs()
         return OpenAPI(
             info=self.info, paths=self.get_paths(app), components=self.components
         )
@@ -977,13 +980,17 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self.events.on_paths_created.fire_sync(paths_doc)
         return paths_doc
 
-    def set_binder_docs(self, binder_type: Type[Binder], values: Iterable[Parameter]):
+    def set_binder_docs(
+        self,
+        binder_type: Type[Binder],
+        params_docs: Iterable[Union[Parameter, Reference]],
+    ):
         """
         Configures parameters documentation for a given binder type. A binder can
         read values from one or more input parameters, therefore values here can be
         applied multiple times.
         """
-        self._binder_docs[binder_type] = values
+        self._binder_docs[binder_type] = params_docs
 
     def _handle_binder_docs(
         self, binder: Binder, parameters: Dict[str, Union[Parameter, Reference]]
@@ -992,3 +999,29 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         for i, param_doc in enumerate(params_docs):
             parameters[f"{binder.__class__.__qualname__}_{i}"] = param_doc
+
+    def _optimize_binders_docs(self):
+        """
+        Optimizes the documentation for custom binders to use references and
+        components.parameters, instead of duplicating parameters documentation in each
+        operation where they are used.
+        """
+        new_dict = {}
+        params_docs: Iterable[Union[Parameter, Reference]]
+
+        for key, params_docs in self._binder_docs.items():
+            new_docs: List[Reference] = []
+
+            for param in params_docs:
+                if isinstance(param, Reference):
+                    new_docs.append(param)
+                else:
+                    if self.components.parameters is None:
+                        self.components.parameters = {}
+
+                    self.components.parameters[param.name] = param
+                    new_docs.append(Reference(f"#/components/parameters/{param.name}"))
+
+            new_dict[key] = new_docs
+
+        self._binder_docs = new_dict

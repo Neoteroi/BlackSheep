@@ -987,8 +987,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ):
         """
         Configures parameters documentation for a given binder type. A binder can
-        read values from one or more input parameters, therefore values here can be
-        applied multiple times.
+        read values from one or more input parameters, this is why this method supports
+        an iterable of Parameter or Reference objects. In most use cases, it is
+        desirable to use a Parameter here. Reference objects are configured
+        automatically when the documentation is built.
         """
         self._binder_docs[binder_type] = params_docs
 

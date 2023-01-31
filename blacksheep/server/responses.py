@@ -235,9 +235,13 @@ def _get_file_provider(file_path: str) -> Callable[[], AsyncIterable[bytes]]:
 def _file(
     value: FileInput,
     content_type: str,
-    content_disposition_type: ContentDispositionType,
+    content_disposition_type: str,
     file_name: Optional[str] = None,
 ) -> Response:
+    if content_disposition_type == "inline":
+        content_disposition_type = ContentDispositionType.INLINE
+    else:
+        content_disposition_type = ContentDispositionType.ATTACHMENT
     if file_name:
         exact_file_name = ntpath.basename(file_name)
         if not exact_file_name:
@@ -303,9 +307,9 @@ def _file(
 def file(
     value: FileInput,
     content_type: str,
+    content_disposition: str,
     *,
     file_name: Optional[str] = None,
-    content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,
 ) -> Response:
     """
     Returns a binary file response with given content type and optional

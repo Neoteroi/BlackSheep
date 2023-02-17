@@ -107,7 +107,6 @@ def parse_multipart(value: bytes) -> Generator[FormPart, None, None]:
     default_charset = None
 
     for part_bytes in split_multipart(value):
-
         try:
             yield parse_part(part_bytes, default_charset)
         except CharsetPart as charset:

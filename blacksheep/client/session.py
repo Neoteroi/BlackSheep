@@ -46,7 +46,6 @@ class RedirectsCache:
 
 
 class ClientRequestContext:
-
     __slots__ = ("path", "cookies")
 
     def __init__(self, request, cookies: Optional[CookieJar] = None):

@@ -78,7 +78,6 @@ class InvalidValuePatternName(RouteException):
 
 
 class RouteMatch:
-
     __slots__ = ("values", "pattern", "handler")
 
     def __init__(self, route: "Route", values: Optional[Dict[str, bytes]]):
@@ -98,7 +97,6 @@ def _get_parameter_pattern_fragment(
 
 
 class Route:
-
     __slots__ = (
         "handler",
         "pattern",
@@ -378,7 +376,6 @@ class RouterBase:
 
 
 class Router(RouterBase):
-
     __slots__ = ("routes", "_map", "_fallback")
 
     def __init__(self):
@@ -478,7 +475,6 @@ class Router(RouterBase):
 
 
 class RegisteredRoute:
-
     __slots__ = ("method", "pattern", "handler")
 
     def __init__(self, method: str, pattern: str, handler: Callable):

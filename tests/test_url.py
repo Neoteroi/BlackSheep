@@ -108,6 +108,5 @@ def test_base_url(value, expected_base_url):
 
 
 def test_raises_for_invalid_scheme():
-
     with pytest.raises(InvalidURL):
         URL(b"file://D:/a/b/c")

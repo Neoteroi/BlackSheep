@@ -81,7 +81,6 @@ class UpgradeResponse(Exception):
 
 
 class ClientConnection(asyncio.Protocol):
-
     __slots__ = (
         "loop",
         "pool",

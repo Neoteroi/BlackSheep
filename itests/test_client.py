@@ -155,7 +155,6 @@ async def test_post_form(session, data):
 
 @pytest.mark.asyncio
 async def test_post_multipart_form_with_files(session):
-
     if os.path.exists("out"):
         shutil.rmtree("out")
 
@@ -192,7 +191,6 @@ async def test_post_multipart_form_with_files(session):
 
 @pytest.mark.asyncio
 async def test_post_multipart_form_with_images(session):
-
     if os.path.exists("out"):
         shutil.rmtree("out")
 

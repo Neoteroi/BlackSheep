@@ -141,7 +141,6 @@ def test_range_eq_not_implemented(item):
 
 
 def test_range_part_raises_if_start_gt_end():
-
     with pytest.raises(ValueError):
         RangePart(400, 300)
 
@@ -155,7 +154,6 @@ def test_range_part_raises_if_start_gt_end():
 
 
 def test_range_part_raises_if_any_part_is_negative():
-
     with pytest.raises(ValueError):
         RangePart(-100, 0)
 

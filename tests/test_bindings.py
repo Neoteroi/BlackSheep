@@ -57,7 +57,6 @@ class ExampleThree:
 
 @pytest.mark.asyncio
 async def test_from_body_json_binding():
-
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent({"a": "world", "b": 9000})
     )
@@ -73,7 +72,6 @@ async def test_from_body_json_binding():
 
 @pytest.mark.asyncio
 async def test_from_body_json_binding_extra_parameters_strategy():
-
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent(
             {
@@ -95,7 +93,6 @@ async def test_from_body_json_binding_extra_parameters_strategy():
 
 @pytest.mark.asyncio
 async def test_from_body_json_with_converter():
-
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent(
             {
@@ -459,7 +456,6 @@ async def test_identity_binder():
 
 @pytest.mark.asyncio
 async def test_from_body_form_binding_urlencoded():
-
     request = Request("POST", b"/", []).with_content(
         FormContent({"a": "world", "b": 9000})
     )
@@ -475,7 +471,6 @@ async def test_from_body_form_binding_urlencoded():
 
 @pytest.mark.asyncio
 async def test_from_body_form_binding_urlencoded_keys_duplicates():
-
     request = Request("POST", b"/", []).with_content(
         FormContent([("a", "world"), ("b", "one"), ("b", "two"), ("b", "three")])
     )
@@ -491,7 +486,6 @@ async def test_from_body_form_binding_urlencoded_keys_duplicates():
 
 @pytest.mark.asyncio
 async def test_from_body_form_binding_multipart():
-
     request = Request("POST", b"/", []).with_content(
         MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
     )
@@ -506,7 +500,6 @@ async def test_from_body_form_binding_multipart():
 
 @pytest.mark.asyncio
 async def test_from_body_form_binding_multipart_keys_duplicates():
-
     request = Request("POST", b"/", []).with_content(
         MultiPartFormData(
             [

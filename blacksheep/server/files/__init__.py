@@ -185,7 +185,6 @@ def validate_source_path(source_folder: str) -> None:
 
 
 class ServeFilesOptions:
-
     __slots__ = (
         "source_folder",
         "extensions",

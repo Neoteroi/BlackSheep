@@ -89,7 +89,6 @@ _array_rx = re.compile(
 
 
 def type_repr_to_type(type_repr: str) -> Optional[Type]:
-
     array_match = _array_rx.match(type_repr)
 
     if array_match:

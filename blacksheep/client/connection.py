@@ -24,6 +24,7 @@ SECURE_SSLCONTEXT.check_hostname = True
 
 INSECURE_SSLCONTEXT = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
 INSECURE_SSLCONTEXT.check_hostname = False
+INSECURE_SSLCONTEXT.verify_mode = ssl.CERT_NONE
 
 
 class IncomingContent(Content):

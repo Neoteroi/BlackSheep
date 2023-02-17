@@ -32,7 +32,6 @@ def not_ip_address(value: str):
 
 
 class StoredCookie:
-
     __slots__ = ("cookie", "persistent", "creation_time", "expiry_time")
 
     def __init__(self, cookie: Cookie):
@@ -203,7 +202,6 @@ class CookieJar:
         schema: str, cookies: Dict[str, StoredCookie]
     ) -> Iterable[Cookie]:
         for cookie_name, stored_cookie in cookies.copy().items():
-
             if stored_cookie.is_expired():
                 del cookies[cookie_name]
                 continue

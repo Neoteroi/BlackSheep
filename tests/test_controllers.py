@@ -468,7 +468,6 @@ async def test_controller_with_base_route_as_string_attribute(app):
     get = app.controllers_router.get
 
     class Home(Controller):
-
         route = "/home"
 
         def greet(self):
@@ -500,7 +499,6 @@ async def test_application_raises_for_invalid_route_class_attribute(app):
     get = app.controllers_router.get
 
     class Home(Controller):
-
         route = False
 
         def greet(self):
@@ -622,7 +620,6 @@ async def test_controllers_with_duplicate_routes_with_base_route_throw(
     # and another handler
 
     class A(Controller):
-
         route = "home"
 
         @get(first_pattern)
@@ -652,7 +649,6 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
     # and another handler
 
     class A(Controller):
-
         route = "home"
 
         @get(first_pattern)

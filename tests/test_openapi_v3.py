@@ -173,7 +173,6 @@ class PydResponse(GenericModel, Generic[T]):
 
 
 class PydConstrained(BaseModel):
-
     a: PositiveInt
     b: NegativeFloat
     big_int: conint(gt=1000, lt=1024)

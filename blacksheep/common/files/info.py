@@ -5,7 +5,6 @@ from .pathsutils import get_mime_type_from_name
 
 
 class FileInfo:
-
     __slots__ = ("etag", "size", "mime", "modified_time")
 
     def __init__(self, size: int, etag: str, mime: str, modified_time: str):

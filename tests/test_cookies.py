@@ -262,7 +262,6 @@ def test_parse_cookie_separators(value, expected_name, expected_value, expected_
 
 
 def test_raise_for_value_exceeding_length():
-
     with pytest.raises(CookieValueExceedsMaximumLength):
         Cookie("crash", "A" * 4967)
 

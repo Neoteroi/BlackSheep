@@ -580,7 +580,6 @@ async def test_non_cors_options_request(app):
 
 @pytest.mark.asyncio
 async def test_use_cors_raises_for_started_app(app):
-
     await app.start()
 
     with pytest.raises(ApplicationAlreadyStartedCORSError):

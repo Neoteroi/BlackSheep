@@ -241,7 +241,7 @@ from blacksheep.client import ClientSession
 
 
 async def client_example():
-    async with ClientSession(ssl=False) as client:
+    async with ClientSession() as client:
         response = await client.get("https://docs.python.org/3/")
 
         assert response is not None

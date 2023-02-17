@@ -11,7 +11,7 @@ COMPILE_ARGS = ["-O2"]
 
 setup(
     name="blacksheep",
-    version="2.0a0",
+    version="2.0a1",
     description="Fast web framework for Python asyncio",
     long_description=readme(),
     long_description_content_type="text/markdown",

@@ -26,7 +26,10 @@ def get_ssl_context(
             "None, False, True, instance of ssl.SSLContext."
         )
 
-    return INSECURE_SSLCONTEXT
+    if ssl:
+        raise InvalidArgument("SSL argument specified for non-https scheme.")
+
+    return None
 
 
 class ClientConnectionPool:

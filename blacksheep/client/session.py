@@ -345,7 +345,7 @@ class ClientSession:
 
         return response
 
-    async def _send_using_connection(self, request) -> Response:
+    async def _send_using_connection(self, request, attempt: int = 1) -> Response:
         connection = await self.get_connection(request.url)
 
         try:
@@ -353,9 +353,9 @@ class ClientSession:
                 connection.send(request), self.request_timeout
             )
         except ConnectionClosedError as connection_closed_error:
-            if connection_closed_error.can_retry:
+            if connection_closed_error.can_retry and attempt < 4:
                 await asyncio.sleep(self.delay_before_retry)
-                return await self._send_using_connection(request)
+                return await self._send_using_connection(request, attempt + 1)
             raise
         except TimeoutError:
             raise RequestTimeout(request.url, self.request_timeout)

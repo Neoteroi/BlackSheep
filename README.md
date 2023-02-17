@@ -240,7 +240,7 @@ import asyncio
 from blacksheep.client import ClientSession
 
 
-async def client_example(loop):
+async def client_example():
     async with ClientSession() as client:
         response = await client.get("https://docs.python.org/3/")
 
@@ -249,9 +249,7 @@ async def client_example(loop):
         print(text)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(client_example(loop))
-
+asyncio.run(client_example())
 ```
 
 ## Supported platforms and runtimes

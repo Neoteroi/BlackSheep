@@ -164,7 +164,6 @@ def test_post_form_urlencoded(session_1, data, echoed):
 
 
 def test_post_multipart_form_with_files(session_1):
-
     if os.path.exists("out"):
         shutil.rmtree("out")
 

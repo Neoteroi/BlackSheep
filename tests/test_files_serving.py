@@ -663,7 +663,6 @@ async def test_serve_files_multiple_folders(files2_index_contents, app):
 
 
 def test_validate_source_path_raises_for_invalid_path():
-
     with pytest.raises(InvalidArgument):
         validate_source_path("./not-existing")
 

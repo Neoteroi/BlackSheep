@@ -2645,7 +2645,6 @@ async def test_valid_route_parameter_parse(
 async def test_valid_header_parameter_parse(
     parameter_type, parameter, expected_value, app
 ):
-
     T = TypeVar("T")
 
     class XFooHeader(FromHeader[T]):
@@ -3880,7 +3879,7 @@ async def test_response_normalization_wrapped(app):
             async def wrapped(*args, **kwargs) -> Response:
                 response = ensure_response(await next_handler(*args, **kwargs))
 
-                for (name, value) in additional_headers:
+                for name, value in additional_headers:
                     response.add_header(name.encode(), value.encode())
 
                 return response

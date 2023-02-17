@@ -25,8 +25,10 @@ def get_ssl_context(
             "Invalid ssl argument, expected one of: "
             "None, False, True, instance of ssl.SSLContext."
         )
+
     if ssl:
         raise InvalidArgument("SSL argument specified for non-https scheme.")
+
     return None
 
 

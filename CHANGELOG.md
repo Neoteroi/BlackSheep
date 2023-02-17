@@ -5,9 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a1] - 2023-02-17 :heart:
+
+- Improves how custom binders can be defined, reducing code verbosity for
+  custom types. This is an important feature to implement common validation of
+  common parameters across multiple endpoints.
+- Adds support for binder types defining OpenAPI Specification for their
+  parameters.
+- Fixes bug #305 (`ClientSession ssl=False` not working as intended).
+
 ## [2.0a0] - 2023-01-08 :hourglass_flowing_sand:
 
-- Renames the `plugins` namespace to `settings`
+- Renames the `plugins` namespace to `settings`.
 - Upgrades `rodi` to v2, which includes improvements.
 - Adds support for alternative implementation of containers for dependency
   injection, using the new `ContainerProtocol` in `rodi`.

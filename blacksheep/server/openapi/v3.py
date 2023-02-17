@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
@@ -295,6 +295,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
         ]
+        self._binder_docs: Dict[
+            Type[Binder], Iterable[Union[Parameter, Reference]]
+        ] = {}
 
     @property
     def object_types_handlers(self) -> List[ObjectTypeHandler]:
@@ -304,6 +307,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return self.info.title
 
     def generate_documentation(self, app: Application) -> OpenAPI:
+        self._optimize_binders_docs()
         return OpenAPI(
             info=self.info, paths=self.get_paths(app), components=self.components
         )
@@ -697,12 +701,16 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if not hasattr(handler, "binders"):
             return None
         binders: List[Binder] = handler.binders
-        parameters: Mapping[str, Union[Parameter, Reference]] = {}
+        parameters: Dict[str, Union[Parameter, Reference]] = {}
 
         docs = self.get_handler_docs(handler)
         parameters_info = (docs.parameters if docs else None) or dict()
 
         for binder in binders:
+            if binder.__class__ in self._binder_docs:
+                self._handle_binder_docs(binder, parameters)
+                continue
+
             location = self.get_parameter_location_for_binder(binder)
 
             if not location:
@@ -971,3 +979,51 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         self.events.on_paths_created.fire_sync(paths_doc)
         return paths_doc
+
+    def set_binder_docs(
+        self,
+        binder_type: Type[Binder],
+        params_docs: Iterable[Union[Parameter, Reference]],
+    ):
+        """
+        Configures parameters documentation for a given binder type. A binder can
+        read values from one or more input parameters, this is why this method supports
+        an iterable of Parameter or Reference objects. In most use cases, it is
+        desirable to use a Parameter here. Reference objects are configured
+        automatically when the documentation is built.
+        """
+        self._binder_docs[binder_type] = params_docs
+
+    def _handle_binder_docs(
+        self, binder: Binder, parameters: Dict[str, Union[Parameter, Reference]]
+    ):
+        params_docs = self._binder_docs[binder.__class__]
+
+        for i, param_doc in enumerate(params_docs):
+            parameters[f"{binder.__class__.__qualname__}_{i}"] = param_doc
+
+    def _optimize_binders_docs(self):
+        """
+        Optimizes the documentation for custom binders to use references and
+        components.parameters, instead of duplicating parameters documentation in each
+        operation where they are used.
+        """
+        new_dict = {}
+        params_docs: Iterable[Union[Parameter, Reference]]
+
+        for key, params_docs in self._binder_docs.items():
+            new_docs: List[Reference] = []
+
+            for param in params_docs:
+                if isinstance(param, Reference):
+                    new_docs.append(param)
+                else:
+                    if self.components.parameters is None:
+                        self.components.parameters = {}
+
+                    self.components.parameters[param.name] = param
+                    new_docs.append(Reference(f"#/components/parameters/{param.name}"))
+
+            new_dict[key] = new_docs
+
+        self._binder_docs = new_dict

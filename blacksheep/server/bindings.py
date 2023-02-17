@@ -239,8 +239,15 @@ class RequestMethod(BoundValue[str]):
     """
 
 
+def _implicit_default(obj: "Binder"):
+    try:
+        return issubclass(obj.handle, BoundValue)
+    except (AttributeError, TypeError):
+        return False
+
+
 class Binder(metaclass=BinderMeta):  # type: ignore
-    handle: ClassVar[Type[BoundValue]]
+    handle: ClassVar[Type[Any]]
     name_alias: ClassVar[str] = ""
     type_alias: ClassVar[Any] = None
 
@@ -252,7 +259,7 @@ class Binder(metaclass=BinderMeta):  # type: ignore
         required: bool = True,
         converter: Optional[Callable] = None,
     ):
-        self._implicit = implicit
+        self._implicit = implicit or not _implicit_default(self)
         self.parameter_name = name
         self.expected_type = expected_type
         self.required = required
@@ -316,7 +323,10 @@ class Binder(metaclass=BinderMeta):  # type: ignore
                 # applied implicitly
                 ...
         """
-        value = await self.get_value(request)
+        try:
+            value = await self.get_value(request)
+        except ValueError as value_error:
+            raise BadRequest("Invalid parameter.") from value_error
 
         if value is None and self.default is not empty:
             return self.default
@@ -334,6 +344,7 @@ class Binder(metaclass=BinderMeta):  # type: ignore
     @abstractmethod
     async def get_value(self, request: Request) -> Any:
         """Gets a value from the given request object."""
+        raise NotImplementedError()
 
 
 def get_binder_by_type(bound_value_type: Type[BoundValue]) -> Type[Binder]:
@@ -405,7 +416,7 @@ class BodyBinder(Binder):
 
     def __init__(
         self,
-        expected_type: T,
+        expected_type,
         name: str = "body",
         implicit: bool = False,
         required: bool = False,
@@ -592,7 +603,7 @@ class SyncBinder(Binder):
 
     def __init__(
         self,
-        expected_type: T = List[str],
+        expected_type: Any = List[str],
         name: str = "",
         implicit: bool = False,
         required: bool = False,

@@ -123,7 +123,6 @@ def _parse_range_value(range_value: str):
 
 
 class Range:
-
     __slots__ = ("_unit", "_parts")
 
     def __init__(self, unit: str, parts: Sequence[RangePart]):

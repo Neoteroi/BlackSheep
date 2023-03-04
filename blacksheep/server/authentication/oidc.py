@@ -10,6 +10,7 @@ from enum import Enum
 from typing import Any, AnyStr, Awaitable, Callable, Dict, Optional, Sequence
 from urllib.parse import urlencode
 
+import jwt
 from guardpost import AuthenticationHandler, Identity, UnauthorizedError
 from guardpost.jwts import InvalidAccessToken, JWTValidator
 from itsdangerous import Serializer
@@ -24,7 +25,7 @@ from blacksheep.server.authentication.cookie import CookieAuthentication
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.dataprotection import generate_secret, get_serializer
-from blacksheep.server.responses import accepted, bad_request, html, json, redirect
+from blacksheep.server.responses import accepted, bad_request, html, json, ok, redirect
 from blacksheep.utils import ensure_str
 from blacksheep.utils.aio import FailedRequestError, HTTPHandler
 
@@ -271,16 +272,16 @@ class TokenResponse:
         return self.data.get("token_type")
 
     @property
+    def id_token(self) -> Optional[str]:
+        return self.data.get("id_token")
+
+    @property
     def access_token(self) -> Optional[str]:
         return self.data.get("access_token")
 
     @property
     def refresh_token(self) -> Optional[str]:
         return self.data.get("refresh_token")
-
-    @property
-    def id_token(self) -> Optional[str]:
-        return self.data.get("id_token")
 
 
 @dataclass(slots=True)
@@ -296,6 +297,10 @@ class IDToken:
 
     def __str__(self) -> str:
         return self.value
+
+    @classmethod
+    def from_trusted_token(cls, token):
+        return cls(token, jwt.decode(token, options={"verify_signature": False}))
 
 
 class TokensStore(ABC):
@@ -349,7 +354,18 @@ class OpenIDTokensHandler(AuthenticationHandler):
     ) -> Response:
         """
         Creates the response after a successful sign-in, used to communicate the
-        access tokens to the client.
+        tokens to the client.
+        """
+
+    @abstractmethod
+    async def get_refresh_tokens_response(
+        self,
+        request: Request,
+        tokens_response: TokenResponse,
+    ) -> Response:
+        """
+        Creates the response after a successful request to refresh tokens, used to
+        communicate new tokens to the client.
         """
 
     @abstractmethod
@@ -358,12 +374,6 @@ class OpenIDTokensHandler(AuthenticationHandler):
     ) -> Response:
         """
         Creates the response for a log-out / sign-out event.
-        """
-
-    @abstractmethod
-    def protect_refresh_token(self, refresh_token: str) -> str:
-        """
-        Returns a protected value for a refresh token.
         """
 
 
@@ -403,7 +413,30 @@ class CookiesOpenIDTokensHandler(OpenIDTokensHandler):
         access_token and refresh_token.
         """
         response = redirect(original_path)
+        await self._set_tokens_in_response(request, response, id_token, token_response)
+        return response
 
+    async def get_refresh_tokens_response(
+        self,
+        request: Request,
+        tokens_response: TokenResponse,
+    ) -> Response:
+        response = ok()
+        await self._set_tokens_in_response(
+            request,
+            response,
+            IDToken.from_trusted_token(tokens_response.id_token),
+            tokens_response,
+        )
+        return response
+
+    async def _set_tokens_in_response(
+        self,
+        request: Request,
+        response: Response,
+        id_token: IDToken,
+        token_response: TokenResponse,
+    ):
         self.auth_handler.set_cookie(
             id_token.data, response, secure=request.scheme == "https"
         )
@@ -421,8 +454,6 @@ class CookiesOpenIDTokensHandler(OpenIDTokensHandler):
                 token_response.refresh_token,
             )
 
-        return response
-
     async def get_logout_response(
         self, request: Request, post_logout_redirect_path: str
     ) -> Response:
@@ -431,9 +462,6 @@ class CookiesOpenIDTokensHandler(OpenIDTokensHandler):
         if self.tokens_store is not None:
             await self.tokens_store.unset_tokens(request)
         return response
-
-    def protect_refresh_token(self, refresh_token: str) -> str:
-        return self._serializer.dumps(refresh_token)  # type: ignore
 
     async def authenticate(self, context: Request) -> Optional[Identity]:
         await self.auth_handler.authenticate(context)
@@ -524,6 +552,18 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
             )
 
         return response
+
+    async def get_refresh_tokens_response(
+        self,
+        request: Request,
+        token_response: TokenResponse,
+    ) -> Response:
+        refresh_token = token_response.data.get("refresh_token")
+        if refresh_token:
+            token_response.data["refresh_token"] = self.protect_refresh_token(
+                refresh_token
+            )
+        return json(token_response.data)
 
     async def get_logout_response(
         self, request: Request, post_logout_redirect_path: str
@@ -917,14 +957,13 @@ class OpenIDConnectHandler:
         if not refresh_token:
             return bad_request("Missing refresh_token in request context.")
 
-        token_response = await self.refresh_token(request.user.refresh_token)
+        token_response = await self.refresh_token(refresh_token)
 
-        refresh_token = token_response.data.get("refresh_token")
-        if refresh_token:
-            token_response.data[
-                "refresh_token"
-            ] = self._auth_handler.protect_refresh_token(refresh_token)
-        return json(token_response.data)
+        await self.events.on_tokens_received.fire(token_response)
+
+        return await self._auth_handler.get_refresh_tokens_response(
+            request, token_response
+        )
 
     async def refresh_token(self, refresh_token: str) -> TokenResponse:
         configuration = await self.get_openid_configuration()

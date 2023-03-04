@@ -280,11 +280,19 @@ cdef class Request(Message):
 
     @property
     def identity(self):
-        return self.__dict__.get("_identity")
+        return self.__dict__.get("_user")
 
     @identity.setter
     def identity(self, value):
-        self.__dict__["_identity"] = value
+        self.__dict__["_user"] = value
+
+    @property
+    def user(self):
+        return self.__dict__.get("_user")
+
+    @user.setter
+    def user(self, value):
+        self.__dict__["_user"] = value
 
     @property
     def scheme(self) -> str:

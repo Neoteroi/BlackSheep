@@ -3403,10 +3403,10 @@ async def test_user_binding(app):
             header_value = context.get_first_header(b"Authorization")
             if header_value:
                 data = json.loads(urlsafe_b64decode(header_value).decode("utf8"))
-                context.identity = Identity(data, "TEST")
+                context.user = Identity(data, "TEST")
             else:
-                context.identity = None
-            return context.identity
+                context.user = None
+            return context.user
 
     app.use_authentication().add(MockAuthHandler())
 
@@ -3476,10 +3476,10 @@ async def test_use_auth_raises_if_app_is_already_started(app):
             header_value = context.get_first_header(b"Authorization")
             if header_value:
                 data = json.loads(urlsafe_b64decode(header_value).decode("utf8"))
-                context.identity = Identity(data, "TEST")
+                context.user = Identity(data, "TEST")
             else:
-                context.identity = None
-            return context.identity
+                context.user = None
+            return context.user
 
     await app.start()
 

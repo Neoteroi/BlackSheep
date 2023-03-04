@@ -97,7 +97,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:
-            context.identity = Identity({})
+            context.user = Identity({})
             return None
 
         if not authorization_value.startswith(b"Bearer "):
@@ -105,7 +105,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
                 "Invalid Authorization header, not starting with `Bearer `, "
                 "the header is ignored."
             )
-            context.identity = Identity({})
+            context.user = Identity({})
             return None
 
         token = authorization_value[7:].decode()
@@ -121,8 +121,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
             )
             pass
         else:
-            context.identity = Identity(decoded, self.auth_mode)
-            return context.identity
+            context.user = Identity(decoded, self.auth_mode)
+            return context.user
 
-        context.identity = Identity({})
+        context.user = Identity({})
         return None

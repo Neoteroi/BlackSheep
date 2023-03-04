@@ -17,6 +17,7 @@ from blacksheep.server.application import Application
 from blacksheep.server.asgi import incoming_request
 from blacksheep.server.authentication.cookie import CookieAuthentication
 from blacksheep.server.authentication.oidc import (
+    CookiesOpenIDTokensHandler,
     CookiesTokensStore,
     MissingClientSecretSettingError,
     OpenIDConfiguration,
@@ -166,7 +167,8 @@ async def test_oidc_handler_auth_post_id_token(app: FakeApplication):
     cookie = parse_cookie(cookie_value)
 
     # the auth_handler can parse the cookie value:
-    parsed_cookie_value = oidc._auth_handler.serializer.loads(cookie.value)
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
+    parsed_cookie_value = oidc.auth_handler.auth_handler.serializer.loads(cookie.value)
     assert parsed_cookie_value == claims
 
 
@@ -243,7 +245,8 @@ async def test_oidc_handler_auth_post_id_token_code_1(app: FakeApplication):
     cookie = parse_cookie(cookie_value)
 
     # the auth_handler can parse the cookie value:
-    parsed_cookie_value = oidc._auth_handler.serializer.loads(cookie.value)
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
+    parsed_cookie_value = oidc.auth_handler.auth_handler.serializer.loads(cookie.value)
     assert parsed_cookie_value == id_token_claims
 
 
@@ -323,7 +326,8 @@ async def test_oidc_handler_auth_post_id_token_code_2(app: FakeApplication):
     cookie = parse_cookie(cookie_value)
 
     # the auth_handler can parse the cookie value:
-    parsed_cookie_value = oidc._auth_handler.serializer.loads(cookie.value)
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
+    parsed_cookie_value = oidc.auth_handler.auth_handler.serializer.loads(cookie.value)
     assert parsed_cookie_value == id_token_claims
 
 
@@ -682,7 +686,8 @@ async def test_oidc_handler_with_secret_and_audience_no_id_token(
     assert cookie_value is not None
     cookie = parse_cookie(cookie_value)
 
-    parsed_cookie_value = oidc._auth_handler.serializer.loads(cookie.value)
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
+    parsed_cookie_value = oidc.auth_handler.auth_handler.serializer.loads(cookie.value)
     assert parsed_cookie_value == {}
 
 
@@ -690,9 +695,10 @@ async def test_oidc_handler_with_secret_and_audience_no_id_token(
 async def test_oidc_handler_auth_post_id_token_code_3(app: FakeApplication):
     """With token store"""
     oidc = configure_test_oidc_with_secret(app)
-    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
+    oidc.auth_handler.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
 
-    assert oidc.tokens_store.scheme_name == oidc.settings.scheme_name
+    assert oidc.auth_handler.tokens_store.scheme_name == oidc.settings.scheme_name
 
     # Note: mock the HTTPHandler to simulate a real authorization server that
     # handles a valid request to the token endpoint
@@ -754,6 +760,7 @@ async def test_oidc_handler_auth_post_id_token_code_3(app: FakeApplication):
 async def test_cookies_tokens_store_restoring_context(
     app: FakeApplication,
 ):
+    tokens_store = CookiesTokensStore()
     oidc = use_openid_connect(
         app,
         OpenIDSettings(
@@ -761,13 +768,16 @@ async def test_cookies_tokens_store_restoring_context(
             client_secret="JUST_AN_EXAMPLE",
             authority=MOCKED_AUTHORITY,
         ),
-        tokens_store=CookiesTokensStore(),
+        auth_handler=CookiesOpenIDTokensHandler(
+            CookieAuthentication(
+                cookie_name="OpenIDConnect".lower(), auth_scheme="OpenIDConnect"
+            ),
+            tokens_store=tokens_store,
+        ),
     )
-    assert oidc.tokens_store in app.middlewares
 
-    assert isinstance(oidc.tokens_store, CookiesTokensStore)
-    access_token = oidc.tokens_store.serializer.dumps("secret")
-    refresh_token = oidc.tokens_store.serializer.dumps("secret-refresh")
+    access_token = tokens_store.serializer.dumps("secret")
+    refresh_token = tokens_store.serializer.dumps("secret-refresh")
 
     assert isinstance(access_token, str)
     assert isinstance(refresh_token, str)
@@ -781,29 +791,11 @@ async def test_cookies_tokens_store_restoring_context(
         )
     )
 
-    request.identity = Identity({})
-    await oidc.tokens_store.restore_tokens(request)
+    request.user = Identity({})
+    await tokens_store.restore_tokens(request)
 
-    assert request.identity.access_token == "secret"
-    assert request.identity.refresh_token == "secret-refresh"
-
-    request = incoming_request(
-        get_example_scope(
-            "GET",
-            "/",
-            cookies={scheme + ".at": access_token, scheme + ".rt": refresh_token},
-        )
-    )
-
-    request.identity = Identity({})
-
-    async def handler(*args):
-        pass
-
-    await oidc.tokens_store(request, handler)  # middleware way
-
-    assert request.identity.access_token == "secret"
-    assert request.identity.refresh_token == "secret-refresh"
+    assert request.user.access_token == "secret"
+    assert request.user.refresh_token == "secret-refresh"
 
 
 @pytest.mark.asyncio
@@ -811,7 +803,9 @@ async def test_cookies_tokens_store_discards_invalid_tokens(
     app: FakeApplication,
 ):
     oidc = configure_test_oidc_with_secret(app)
-    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
+    tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+    oidc.auth_handler.tokens_store = tokens_store
 
     access_token = "invalid"
     refresh_token = "invalid"
@@ -825,11 +819,11 @@ async def test_cookies_tokens_store_discards_invalid_tokens(
         )
     )
 
-    request.identity = Identity({})
-    await oidc.tokens_store.restore_tokens(request)
+    request.user = Identity({})
+    await tokens_store.restore_tokens(request)
 
-    assert getattr(request.identity, "access_token", None) is None
-    assert getattr(request.identity, "refresh_token", None) is None
+    assert getattr(request.user, "access_token", None) is None
+    assert getattr(request.user, "refresh_token", None) is None
 
 
 @pytest.mark.asyncio
@@ -837,7 +831,8 @@ async def test_cookies_tokens_store_handle_missing_cookies(
     app: FakeApplication,
 ):
     oidc = configure_test_oidc_with_secret(app)
-    oidc.tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+    tokens_store = CookiesTokensStore(oidc.settings.scheme_name)
+    oidc.auth_handler.tokens_store = tokens_store
 
     request = incoming_request(
         get_example_scope(
@@ -846,11 +841,11 @@ async def test_cookies_tokens_store_handle_missing_cookies(
         )
     )
 
-    request.identity = Identity({})
-    await oidc.tokens_store.restore_tokens(request)
+    request.user = Identity({})
+    await tokens_store.restore_tokens(request)
 
-    assert getattr(request.identity, "access_token", None) is None
-    assert getattr(request.identity, "refresh_token", None) is None
+    assert getattr(request.user, "access_token", None) is None
+    assert getattr(request.user, "refresh_token", None) is None
 
 
 @pytest.mark.asyncio
@@ -930,6 +925,7 @@ async def test_default_openid_connect_handler_redirects_unauthenticated_users(
 
     # if the user is authenticated, but not authorized to do something,
     # then the server should not redirect to the sign-in page
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
     await app(
         get_example_scope(
             "GET",
@@ -938,7 +934,8 @@ async def test_default_openid_connect_handler_redirects_unauthenticated_users(
                 (
                     b"cookie",
                     get_auth_cookie(
-                        oidc._auth_handler, {"id": 1, "email": "example@neoteroi.dev"}
+                        oidc.auth_handler.auth_handler,
+                        {"id": 1, "email": "example@neoteroi.dev"},
                     ).encode(),
                 )
             ],
@@ -1099,7 +1096,7 @@ def test_token_response_class():
 
 def test_raises_for_missing_authority_and_discovery_endpoint():
     handler = OpenIDConnectHandler(
-        OpenIDSettings(client_id="1"), auth_handler=CookieAuthentication()
+        OpenIDSettings(client_id="1"), auth_handler=CookiesOpenIDTokensHandler()
     )
 
     with pytest.raises(OpenIDConnectConfigurationError):
@@ -1110,7 +1107,7 @@ def test_raises_for_missing_authority_and_discovery_endpoint():
 async def test_raises_for_failed_request_to_fetch_openid_configuration():
     handler = OpenIDConnectHandler(
         OpenIDSettings(client_id="1", discovery_endpoint="http://localhost:44123"),
-        auth_handler=CookieAuthentication(),
+        auth_handler=CookiesOpenIDTokensHandler(),
     )
 
     with pytest.raises(OpenIDConnectRequestError):

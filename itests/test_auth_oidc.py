@@ -6,7 +6,6 @@ import json
 import re
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
-from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, urlencode
 
 import pytest
@@ -50,6 +49,13 @@ from tests.utils.application import FakeApplication
 from .client_fixtures import *  # NoQA
 
 MOCKED_AUTHORITY = "http://127.0.0.1:44777/oidc"
+
+
+try:
+    from unittest.mock import AsyncMock
+except ImportError:
+    # Python 3.7
+    from mock import AsyncMock
 
 
 @pytest.fixture

@@ -284,7 +284,7 @@ class TokenResponse:
         return self.data.get("refresh_token")
 
 
-@dataclass(slots=True)
+@dataclass
 class IDToken:
     """
     Stores information about an id_token that was

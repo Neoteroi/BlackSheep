@@ -300,7 +300,9 @@ class IDToken:
 
     @classmethod
     def from_trusted_token(cls, token):
-        return cls(token, jwt.decode(token, options={"verify_signature": False}))
+        return cls(
+            value=token, data=jwt.decode(token, options={"verify_signature": False})
+        )
 
 
 class TokensStore(ABC):
@@ -496,7 +498,6 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
         refresh_token_key: str = "REFRESH_TOKEN",
         storage_type: HTMLStorageType = HTMLStorageType.SESSION,
         redirect_timeout: int = 50,
-        tokens_store: TokensStore | None = None,
     ) -> None:
         self.auth_handler = auth_handler
         self.id_token_key = id_token_key
@@ -504,7 +505,6 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
         self.refresh_token_key = refresh_token_key
         self.storage_type = storage_type
         self.redirect_timeout = redirect_timeout
-        self.tokens_store = tokens_store
         self._serializer = get_serializer(purpose="oidc-tokens-protection")
 
     async def get_success_response(
@@ -537,19 +537,6 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
                 ),
             )
         )
-
-        if (
-            token_response is not None
-            and self.tokens_store
-            and token_response.access_token is not None
-        ):
-            # ability to store access and refresh tokens
-            await self.tokens_store.store_tokens(
-                request,
-                response,
-                token_response.access_token,
-                token_response.refresh_token,
-            )
 
         return response
 
@@ -627,9 +614,6 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
         await self.auth_handler.authenticate(context)
 
         self.restore_refresh_token(context)
-
-        if self.tokens_store:
-            await self.tokens_store.restore_tokens(context)
 
 
 class TokenType(Enum):

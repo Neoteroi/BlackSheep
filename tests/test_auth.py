@@ -63,9 +63,7 @@ def default_keys_provider() -> KeysProvider:
     return InMemoryKeysProvider(get_test_jwks())
 
 
-def get_access_token(
-    kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = None
-):
+def get_token(kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = None):
     with open(get_file_path(f"{kid}.pem"), "r") as key_file:
         private_key = key_file.read()
 
@@ -470,7 +468,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
     assert identity.is_authenticated() is False
 
     # request with valid Bearer Token
-    access_token = get_access_token(
+    access_token = get_token(
         "0",
         {
             "aud": "a",
@@ -497,7 +495,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
     assert identity["name"] == "Charlie Brown"
 
     # request with invalid Bearer Token (invalid audience)
-    access_token = get_access_token(
+    access_token = get_token(
         "0",
         {
             "aud": "NO",
@@ -523,7 +521,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
     assert identity.is_authenticated() is False
 
     # request with invalid Bearer Token (invalid header)
-    access_token = get_access_token(
+    access_token = get_token(
         "0",
         {
             "aud": "a",

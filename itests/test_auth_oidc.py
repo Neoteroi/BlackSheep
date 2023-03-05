@@ -2,15 +2,18 @@
 This module is under integration tests folder because it uses a partially faked
 authorization server in a running Flask server.
 """
+import json
 import re
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
+from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, urlencode
 
 import pytest
 from guardpost import Identity, Policy
 from guardpost.common import AuthenticatedRequirement
 
+from blacksheep.contents import Content
 from blacksheep.cookies import parse_cookie
 from blacksheep.exceptions import BadRequest, Unauthorized
 from blacksheep.messages import Request, Response
@@ -54,19 +57,44 @@ def app():
     return FakeApplication()
 
 
+def _mock_token_endpoint(oidc, oidc_configuration, id_token_claims):
+    # mock handling of the remote OIDC server
+    async def mocked_post_form(url: str, data: Any):
+        assert url == oidc_configuration.token_endpoint
+
+        access_token_claims = {
+            "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+            "aud": "------------------------------------",
+            "scp": "read:todos",
+            "iss": oidc_configuration.issuer,
+        }
+
+        return {
+            "id_token": get_token("0", id_token_claims),
+            "access_token": get_token("0", access_token_claims),
+            "refresh_token": "00000000-0000-0000-0000-000000000000",
+        }
+
+    oidc._http_handler.post_form = mocked_post_form
+
+
 class FakeTokensStore(TokensStore):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        access_token: Optional[str] = None,
+        refresh_token: Optional[str] = None,
+    ) -> None:
         super().__init__()
-        self._access_token: str | None = None
-        self._refresh_token: str | None = None
+        self._access_token = access_token
+        self._refresh_token = refresh_token
 
     async def store_tokens(
         self,
         request: Request,
         response: Response,
         access_token: str,
-        refresh_token: str | None,
-        expires: datetime | None = None,
+        refresh_token: Optional[str],
+        expires: Optional[datetime] = None,
     ):
         """
         Applies a strategy to store an access token and an optional refresh token for
@@ -92,11 +120,14 @@ class FakeTokensStore(TokensStore):
         request.identity.refresh_token = self._refresh_token
 
 
-def configure_test_oidc_cookie_auth_id_token(app: Application):
+def configure_test_oidc_cookie_auth_id_token(
+    app: Application, secret: Optional[str] = None
+):
     return use_openid_connect(
         app,
         OpenIDSettings(
             client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
+            client_secret=secret,
             authority=MOCKED_AUTHORITY,
         ),
     )
@@ -325,23 +356,7 @@ async def test_oidc_handler_jwt_refresh_token(app: FakeApplication):
     auth_handler = oidc.auth_handler
     assert isinstance(auth_handler, JWTOpenIDTokensHandler)
 
-    async def mocked_post_form(url: str, data: Any):
-        assert url == oidc_configuration.token_endpoint
-
-        access_token_claims = {
-            "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
-            "aud": "------------------------------------",
-            "scp": "read:todos",
-            "iss": oidc_configuration.issuer,
-        }
-
-        return {
-            "id_token": get_token("0", claims),
-            "access_token": get_token("0", access_token_claims),
-            "refresh_token": "00000000-0000-0000-0000-000000000000",
-        }
-
-    oidc._http_handler.post_form = mocked_post_form
+    _mock_token_endpoint(oidc, oidc_configuration, claims)
 
     # call to obtain fresh tokens
     await app(
@@ -365,6 +380,142 @@ async def test_oidc_handler_jwt_refresh_token(app: FakeApplication):
     assert "id_token" in data
     assert "access_token" in data
     assert "refresh_token" in data
+
+
+@pytest.mark.asyncio
+async def test_oidc_handler_jwt_refresh_token_invalid_token(app: FakeApplication):
+    """
+    Tests that the JWT handler ignores invalid refresh tokens.
+    """
+    oidc = configure_test_oidc_jwt_auth_id_token(app, "EXAMPLE")
+
+    await app.start()
+    oidc_configuration = await oidc.get_openid_configuration()
+
+    claims = {
+        "aud": oidc.settings.client_id,
+        "iss": oidc_configuration.issuer,
+        "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+    }
+
+    auth_handler = oidc.auth_handler
+    assert isinstance(auth_handler, JWTOpenIDTokensHandler)
+
+    _mock_token_endpoint(oidc, oidc_configuration, claims)
+
+    # call to obtain fresh tokens
+    await app(
+        get_example_scope(
+            "POST",
+            oidc.settings.refresh_token_path,
+            extra_headers={"X-Refresh-Token": "INVALID_TOKEN"},
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+    assert response.status == 400
+
+    text = await response.text()
+    assert "Missing refresh_token" in text
+
+
+@pytest.mark.asyncio
+async def test_oidc_handler_cookie_refresh_token(app: FakeApplication):
+    """
+    Tests handling of refresh tokens using the JWT handler.
+    """
+    oidc = configure_test_oidc_cookie_auth_id_token(app, secret="TEST_EXAMPLE")
+    oidc.auth_handler.tokens_store = FakeTokensStore(refresh_token="TEST")  # type: ignore
+
+    await app.start()
+    oidc_configuration = await oidc.get_openid_configuration()
+
+    claims = {
+        "aud": oidc.settings.client_id,
+        "iss": oidc_configuration.issuer,
+        "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+    }
+
+    _mock_token_endpoint(oidc, oidc_configuration, claims)
+
+    # call to obtain fresh tokens
+    await app(
+        get_example_scope("POST", oidc.settings.refresh_token_path),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert response.status == 200
+
+    cookie_value = response.headers.get_single(b"set-cookie")
+
+    assert cookie_value is not None
+    cookie = parse_cookie(cookie_value)
+
+    # the auth_handler can parse the cookie value:
+    assert isinstance(oidc.auth_handler, CookiesOpenIDTokensHandler)
+    parsed_cookie_value = oidc.auth_handler.auth_handler.serializer.loads(cookie.value)
+    assert parsed_cookie_value == claims
+
+
+@pytest.mark.asyncio
+async def test_oidc_handler_refresh_token_missing_user_context(app: FakeApplication):
+    oidc = configure_test_oidc_cookie_auth_id_token(app, secret="TEST_EXAMPLE")
+    oidc.auth_handler.tokens_store = FakeTokensStore(refresh_token=None)  # type: ignore
+
+    await app(
+        get_example_scope("POST", oidc.settings.refresh_token_path),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert response.status == 400
+
+    text = await response.text()
+    assert "Missing user" in text
+
+
+@pytest.mark.asyncio
+async def test_oidc_handler_refresh_token_missing_refresh_token_context(
+    app: FakeApplication,
+):
+    oidc = configure_test_oidc_cookie_auth_id_token(app, secret="TEST_EXAMPLE")
+    oidc.auth_handler.tokens_store = FakeTokensStore(refresh_token=None)  # type: ignore
+
+    await app.start()
+    oidc_configuration = await oidc.get_openid_configuration()
+
+    claims = {
+        "aud": oidc.settings.client_id,
+        "iss": oidc_configuration.issuer,
+        "sub": "4534224f-546f-401f-9cab-067b0b2b9abb",
+    }
+
+    _mock_token_endpoint(oidc, oidc_configuration, claims)
+
+    # call to obtain fresh tokens
+    await app(
+        get_example_scope("POST", oidc.settings.refresh_token_path),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+
+    assert response.status == 400
+
+    text = await response.text()
+    assert "Missing refresh_token" in text
 
 
 @pytest.mark.asyncio
@@ -1327,6 +1478,84 @@ async def test_oidc_handler_auth_post_without_input(app: FakeApplication):
     assert response is not None
 
     assert response.status == 202  # accepted
+
+
+@pytest.mark.asyncio
+async def test_logout_cookie_handler_unset_tokens():
+    tokens_store = FakeTokensStore()
+    tokens_store.unset_tokens = AsyncMock()
+    handler = CookiesOpenIDTokensHandler(tokens_store=tokens_store)
+    logout_request = Request("GET", b"/logout", [])
+    await handler.get_logout_response(logout_request, "/")
+
+    assert tokens_store.unset_tokens.call_count == 1
+    assert tokens_store.unset_tokens.call_args == ((logout_request,),)
+
+
+@pytest.mark.asyncio
+async def test_jwt_handler_get_logout_response():
+    handler = JWTOpenIDTokensHandler(
+        JWTBearerAuthentication(
+            authority=MOCKED_AUTHORITY,
+            valid_audiences=["NULL"],
+        )
+    )
+    logout_request = Request("GET", b"/logout", [])
+    response = await handler.get_logout_response(logout_request, "/")
+
+    html = response.content.body.decode("utf8")  # type: ignore
+    assert 'sessionStorage.setItem("ID_TOKEN", ""' in html
+    assert 'sessionStorage.setItem("ACCESS_TOKEN", "");' in html
+    assert 'sessionStorage.setItem("REFRESH_TOKEN", "");' in html
+
+
+@pytest.mark.asyncio
+async def test_jwt_handler_get_refresh_tokens_response():
+    handler = JWTOpenIDTokensHandler(
+        JWTBearerAuthentication(
+            authority=MOCKED_AUTHORITY,
+            valid_audiences=["NULL"],
+        )
+    )
+    response = await handler.get_refresh_tokens_response(
+        Request("POST", b"/example", []),
+        TokenResponse(
+            {"id_token": "example", "access_token": "a", "refresh_token": "b"}
+        ),
+    )
+
+    assert isinstance(response.content, Content)
+    assert response.content.type == b"application/json"
+    raw_json = response.content.body  # type: ignore
+
+    assert b'"id_token":"example"' in raw_json
+    assert b'"access_token":"a"' in raw_json
+
+    # the refresh token must be protected
+    assert b'"refresh_token":"b"' not in raw_json
+    assert b'"refresh_token":"' in raw_json
+
+    data = json.loads(raw_json.decode("utf8"))
+    assert handler._serializer.loads(data["refresh_token"]) == "b"
+
+
+@pytest.mark.asyncio
+async def test_jwt_handler_restore_refresh_token():
+    handler = JWTOpenIDTokensHandler(
+        JWTBearerAuthentication(
+            authority=MOCKED_AUTHORITY,
+            valid_audiences=["NULL"],
+        )
+    )
+    context = Request(
+        "GET",
+        b"/",
+        [(b"X-Refresh-Token", handler.protect_refresh_token("Example").encode())],
+    )
+
+    handler.restore_refresh_token(context)
+    assert context.user is not None
+    assert context.user.refresh_token == "Example"
 
 
 def test_id_token_value():

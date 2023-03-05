@@ -1,6 +1,6 @@
-from typing import Callable, Optional, Type, TypeVar, Union
+from typing import Callable, TypeVar
 
-from rodi import Container, ContainerProtocol, Services
+from rodi import Container, ContainerProtocol
 
 T = TypeVar("T")
 

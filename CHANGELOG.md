@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to handle tokens.
 - Replaces `request.identity` with `request.user`. The property `identity` is
   still kept for backward compatibility, but it will be removed in `v3`.
+- Removes 'HtmlContent' and 'JsonContent' that were kept as alternative names
+  for `HTMLContent` and `JSONContent`.
 
 ## [2.0a1] - 2023-02-17 :heart:
 

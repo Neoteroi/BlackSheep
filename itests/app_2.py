@@ -107,10 +107,10 @@ class MockAuthHandler(AuthenticationHandler):
         header_value = context.get_first_header(b"Authorization")
         if header_value:
             data = json.loads(urlsafe_b64decode(header_value).decode("utf8"))
-            context.identity = Identity(data, "FAKE")
+            context.user = Identity(data, "FAKE")
         else:
-            context.identity = None
-        return context.identity
+            context.user = None
+        return context.user
 
 
 app_2.use_authentication().add(MockAuthHandler())

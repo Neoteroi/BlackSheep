@@ -65,19 +65,19 @@ def get_authorization_middleware(
     strategy: AuthorizationStrategy,
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
     async def authorization_middleware(request, handler):
-        identity = request.identity
+        user = request.user
 
         if getattr(handler, "allow_anonymous", False) is True:
             return await handler(request)
 
         if hasattr(handler, "auth"):
             # function decorated by auth;
-            await strategy.authorize(handler.auth_policy, identity, request)
+            await strategy.authorize(handler.auth_policy, user, request)
         else:
             # function not decorated by auth; use the default policy.
             # this is necessary to support configuring authorization rules globally
             # without configuring every single request handler
-            await strategy.authorize(None, identity, request)
+            await strategy.authorize(None, user, request)
 
         return await handler(request)
 

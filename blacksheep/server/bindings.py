@@ -344,7 +344,6 @@ class Binder(metaclass=BinderMeta):  # type: ignore
     @abstractmethod
     async def get_value(self, request: Request) -> Any:
         """Gets a value from the given request object."""
-        raise NotImplementedError()
 
 
 def get_binder_by_type(bound_value_type: Type[BoundValue]) -> Type[Binder]:

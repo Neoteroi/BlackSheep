@@ -63,9 +63,7 @@ def default_keys_provider() -> KeysProvider:
     return InMemoryKeysProvider(get_test_jwks())
 
 
-def get_access_token(
-    kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = None
-):
+def get_token(kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = None):
     with open(get_file_path(f"{kid}.pem"), "r") as key_file:
         private_key = key_file.read()
 
@@ -84,19 +82,19 @@ class MockAuthHandler(AuthenticationHandler):
     def __init__(self, identity=None):
         if identity is None:
             identity = Identity({"id": "001", "name": "Charlie Brown"}, "JWT")
-        self.identity = identity
+        self.user = identity
 
     async def authenticate(self, context: Any) -> Optional[Identity]:
-        context.identity = self.identity
-        return context.identity
+        context.user = self.user
+        return context.user
 
 
 class MockNotAuthHandler(AuthenticationHandler):
     async def authenticate(self, context: Any) -> Optional[Identity]:
-        context.identity = Identity({"id": "007"})
+        context.user = Identity({"id": "007"})
         # NB: an identity without authentication scheme is treated
         # as anonymous identity
-        return context.identity
+        return context.user
 
 
 class AccessTokenCrashingHandler(AuthenticationHandler):
@@ -133,7 +131,7 @@ async def test_authentication_sets_identity_in_request(app):
     @app.router.get("/")
     async def home(request):
         nonlocal identity
-        identity = request.identity
+        identity = request.user
         return None
 
     app.prepare()
@@ -457,7 +455,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
     @app.router.get("/")
     async def home(request):
         nonlocal identity
-        identity = request.identity
+        identity = request.user
         return None
 
     await app.start()
@@ -470,7 +468,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
     assert identity.is_authenticated() is False
 
     # request with valid Bearer Token
-    access_token = get_access_token(
+    access_token = get_token(
         "0",
         {
             "aud": "a",
@@ -497,7 +495,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
     assert identity["name"] == "Charlie Brown"
 
     # request with invalid Bearer Token (invalid audience)
-    access_token = get_access_token(
+    access_token = get_token(
         "0",
         {
             "aud": "NO",
@@ -523,7 +521,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
     assert identity.is_authenticated() is False
 
     # request with invalid Bearer Token (invalid header)
-    access_token = get_access_token(
+    access_token = get_token(
         "0",
         {
             "aud": "a",
@@ -594,7 +592,7 @@ async def test_di_works_with_auth_handlers(app: Application):
     @app.router.get("/")
     async def home(request):
         nonlocal identity
-        identity = request.identity
+        identity = request.user
         return None
 
     await app.start()

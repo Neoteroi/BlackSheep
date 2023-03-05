@@ -445,13 +445,13 @@ async def test_controller_on_request_setting_identity(app):
 
     class Home(Controller):
         async def on_request(self, request: Request):
-            request.identity = User({"id": "001", "name": "Charlie Brown"}, "JWTBearer")
+            request.user = User({"id": "001", "name": "Charlie Brown"}, "JWTBearer")
 
         @get("/")
         async def index(self, request: Request, user: Optional[User]):
             assert hasattr(request, "identity")
-            assert isinstance(request.identity, User)
-            return text(request.identity["name"])
+            assert isinstance(request.user, User)
+            return text(request.user["name"])
 
     app.setup_controllers()
 

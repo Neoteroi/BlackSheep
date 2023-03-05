@@ -8,7 +8,6 @@ from .contents import Content as Content
 from .contents import FormContent as FormContent
 from .contents import FormPart as FormPart
 from .contents import HTMLContent as HTMLContent
-from .contents import HtmlContent as HtmlContent
 from .contents import JSONContent as JSONContent
 from .contents import MultiPartFormData as MultiPartFormData
 from .contents import StreamedContent as StreamedContent

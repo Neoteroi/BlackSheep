@@ -23,8 +23,8 @@ async def test_cookie_authentication():
 
     await handler.authenticate(request)
 
-    assert request.identity is not None
-    assert request.identity.is_authenticated() is False
+    assert request.user is not None
+    assert request.user.is_authenticated() is False
 
     request = Request(
         "GET",
@@ -41,10 +41,10 @@ async def test_cookie_authentication():
 
     await handler.authenticate(request)
 
-    assert isinstance(request.identity, Identity)
-    assert request.identity.is_authenticated() is True
-    assert request.identity.authentication_mode == handler.auth_scheme
-    assert request.identity.claims.get("email") == "example@neoteroi.dev"
+    assert isinstance(request.user, Identity)
+    assert request.user.is_authenticated() is True
+    assert request.user.authentication_mode == handler.auth_scheme
+    assert request.user.claims.get("email") == "example@neoteroi.dev"
 
 
 @pytest.mark.asyncio
@@ -67,8 +67,8 @@ async def test_cookie_authentication_handles_invalid_signature():
     other_handler = CookieAuthentication(secret_keys=[generate_secret()])
     await other_handler.authenticate(request)
 
-    assert request.identity is not None
-    assert request.identity.is_authenticated() is False
+    assert request.user is not None
+    assert request.user.is_authenticated() is False
 
 
 def test_cookie_authentication_unset_cookie():

@@ -445,13 +445,13 @@ async def test_identity_binder_identity_not_set():
 @pytest.mark.asyncio
 async def test_identity_binder():
     request = Request("GET", b"/", None)
-    request.identity = Identity({})
+    request.user = Identity({})
 
     parameter = IdentityBinder(Identity)
 
     value = await parameter.get_value(request)
 
-    assert value is request.identity
+    assert value is request.user
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a2] - 2023-03-05 :shield:
+
+- Refactors the classes for OpenID Connect integration to support alternative
+  ways to share tokens with clients, and JWT Bearer token authentication out
+  of the box, in alternative to cookie based authentication.
+- It adds built-in support for storing tokens (`id_token`, `access_token`, and
+  `refresh_token`) using the HTML5 Storage API (supportin `localStorage` and
+  `sessionStorage`). Refresh tokens, if present, are automatically protected to
+  prevent leaking. See [the OIDC
+  examples](https://github.com/Neoteroi/BlackSheep-Examples/tree/main/oidc) for
+  more information.
+- Renames `blacksheep.server.authentication.oidc.BaseTokensStore` to `TokensStore`.
+- Removes the `tokens_store` parameter from the `use_openid_connect` method;
+  it is still available as optional parameter of the two built-in classes used
+  to handle tokens.
+- Replaces `request.identity` with `request.user`. The property `identity` is
+  still kept for backward compatibility, but it will be removed in `v3`.
+- Removes 'HtmlContent' and 'JsonContent' that were kept as alternative names
+  for `HTMLContent` and `JSONContent`.
+
 ## [2.0a1] - 2023-02-17 :heart:
 
 - Improves how custom binders can be defined, reducing code verbosity for

@@ -33,6 +33,7 @@ class Session:
         return self._values.get(name, default)
 
     def set(self, name: str, value: Any) -> None:
+        self._modified = True
         self._values[name] = value
 
     def update(self, values: Mapping[str, Any]) -> None:

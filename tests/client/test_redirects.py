@@ -136,11 +136,11 @@ async def test_good_redirect(responses, expected_response_body, pools_factory):
 )
 async def test_not_follow_redirect(responses, expected_location, pools_factory):
     async with ClientSession(
-        base_url=b"http://localhost:8080",
+        base_url="http://localhost:8080",
         pools=pools_factory(responses),
         follow_redirects=False,
     ) as client:
-        response = await client.get(b"/")
+        response = await client.get("/")
 
         assert response.status == 302
 

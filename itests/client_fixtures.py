@@ -7,7 +7,7 @@ from time import sleep
 import pytest
 
 from blacksheep.client import ClientSession
-from blacksheep.client.pool import ClientConnectionPools
+from blacksheep.client.pool import ConnectionPools
 from itests.utils import get_sleep_time
 
 from .flask_app import app
@@ -48,7 +48,7 @@ def session(server_url, event_loop):
     session = ClientSession(
         loop=event_loop,
         base_url=server_url,
-        pools=ClientConnectionPools(event_loop),
+        pools=ConnectionPools(event_loop),
     )
     yield session
     asyncio.run(session.close())

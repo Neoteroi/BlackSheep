@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   working properly after updating `url` (causing `follow_redirects` to not work
   properly in `ClientSession`.
 - Upgrades the `essentials-openapi` dependency, fixing [#316](https://github.com/Neoteroi/BlackSheep/issues/316).
+- Corrects the `Request` class to not generate more than one `Cookie` header
+  when multiple cookies are set, to [respect the specification](https://www.rfc-editor.org/rfc/rfc6265#section-5.4).
 
 ## [2.0a2] - 2023-03-05 :shield:
 

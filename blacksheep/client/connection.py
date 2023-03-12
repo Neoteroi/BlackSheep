@@ -63,9 +63,6 @@ class IncomingContent(Content):
             await self._chunk.wait()
             self._chunk.clear()
 
-            if self._exc:
-                raise self._exc
-
             if not self._body:
                 break
 
@@ -74,6 +71,9 @@ class IncomingContent(Content):
 
             if self.complete.is_set():
                 break
+
+            if self._exc:
+                raise self._exc
 
     async def read(self):
         await self.complete.wait()

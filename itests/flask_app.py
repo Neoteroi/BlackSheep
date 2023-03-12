@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, redirect
+from flask import Flask, jsonify, redirect, request
 from flask.wrappers import Response
 from markupsafe import escape
 

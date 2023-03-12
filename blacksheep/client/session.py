@@ -359,7 +359,7 @@ class ClientSession:
                 # redirect not to HTTP / HTTPS: for example,
                 # it can be a redirect to a URN - this is not followed
                 return response
-            return await self.send(request, True)
+            return await self.send(request)
 
         return response
 

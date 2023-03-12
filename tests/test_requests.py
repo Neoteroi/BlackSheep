@@ -524,3 +524,27 @@ async def test_updating_request_host_in_headers():
         pass
 
     assert request.headers[b"host"] == (b"github.com",)
+
+
+@pytest.mark.asyncio
+async def test_write_request_cookies():
+    request = Request("GET", b"https://www.neoteroi.dev/blacksheep", [])
+
+    request.set_cookie("example_1", "one")
+    request.set_cookie("example_2", "two")
+
+    expected_bytes = b"""GET /blacksheep HTTP/1.1
+cookie: example_1=one;example_2=two
+host: www.neoteroi.dev
+content-length: 0
+
+""".replace(
+        b"\n", b"\r\n"
+    )
+
+    value = bytearray()
+
+    async for chunk in write_request(request):
+        value.extend(chunk)
+
+    assert bytes(value) == expected_bytes

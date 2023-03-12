@@ -115,7 +115,7 @@ class CookieJar:
             return request_domain
 
         if not request_domain.endswith(cookie_domain):
-            client_logger.warning(
+            client_logger.debug(
                 f"A response for {request_url.value} tried to set "
                 f"a cookie with domain {cookie_domain}; this could "
                 f"be a malicious action."

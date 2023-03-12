@@ -447,17 +447,28 @@ cdef class Request(Message):
         return self.cookies.get(name)
 
     def set_cookie(self, str name, str value):
-        self.__headers.append(
-            (b'cookie', (quote(name) + '=' + quote(value)).encode())
-        )
+        """
+        Sets a cookie in the request. This method also ensures that a single
+        `cookie` header is set on the request.
+        """
+        cdef bytes new_value
+        cdef bytes existing_cookie
+
+        new_value = (quote(name) + "=" + quote(value)).encode()
+        existing_cookie = self.get_first_header(b"cookie")
+
+        if existing_cookie:
+            self.set_header(b"cookie", existing_cookie + b";" + new_value)
+        else:
+            self.__headers.append((b"cookie", new_value))
 
     @property
     def etag(self):
-        return self.get_first_header(b'etag')
+        return self.get_first_header(b"etag")
 
     @property
     def if_none_match(self):
-        return self.get_first_header(b'if-none-match')
+        return self.get_first_header(b"if-none-match")
 
     cpdef bint expect_100_continue(self):
         cdef bytes value

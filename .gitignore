@@ -124,4 +124,4 @@ itests/out/*
 example.html
 example.jpg
 nice-cat.jpg
-venvp310
+venv*

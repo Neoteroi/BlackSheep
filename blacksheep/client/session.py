@@ -101,7 +101,7 @@ def _get_default_pools_for_loop(loop):
     try:
         return _default_pools_by_loop_id[loop_id]
     except KeyError:
-        pools = ClientConnectionPools(loop)
+        pools = ConnectionPools(loop)
         _default_pools_by_loop_id[loop_id] = pools
         return pools
 

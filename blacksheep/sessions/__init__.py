@@ -48,6 +48,7 @@ class Session:
         self._values[name] = value
 
     def __delitem__(self, name: str) -> None:
+        self._modified = True
         del self._values[name]
 
     def __contains__(self, name: str) -> bool:

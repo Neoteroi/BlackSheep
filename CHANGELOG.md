@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a3] - 2023-03-12 🥐
+
+- Refactors the `ClientSession` to own by default a connections pool, if none
+  is specified for it. The connections pool is automatically disposed when the
+  client is exited, if it was created for the client.
+- Makes the `ClientSession` more user friendly, supporting headers defined as
+  `dict[str, str]` or `list[tuple[str, str]]`.
+- Improves the type annotations of the `ClientSession`.
+- Corrects a bug in the `ClientSession` that would cause a task lock when the
+  connection is lost while downloading files.
+- Corrects a bug in the `ClientSession` causing `set-cookie` headers to not be
+  properly handled during redirects.
+- Renames the client connection pool classes to remove the prefix "Client".
+- Corrects bug of the `Request` class that would prevent setting `url` using a
+  string instead of an instance of `URL`.
+- Corrects bug of the `Request` class that prevented the `host` property from
+  working properly after updating `url` (causing `follow_redirects` to not work
+  properly in `ClientSession`.
+- Upgrades the `essentials-openapi` dependency, fixing [#316](https://github.com/Neoteroi/BlackSheep/issues/316).
+- Corrects the `Request` class to not generate more than one `Cookie` header
+  when multiple cookies are set, to [respect the specification](https://www.rfc-editor.org/rfc/rfc6265#section-5.4).
+
 ## [2.0a2] - 2023-03-05 :shield:
 
 - Refactors the classes for OpenID Connect integration to support alternative

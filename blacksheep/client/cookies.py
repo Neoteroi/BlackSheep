@@ -31,6 +31,10 @@ def not_ip_address(value: str):
     return False
 
 
+def is_ip_address(value: str):
+    return not not_ip_address(value)
+
+
 class StoredCookie:
     __slots__ = ("cookie", "persistent", "creation_time", "expiry_time")
 
@@ -102,7 +106,7 @@ class CookieJar:
 
         cookie_domain = cookie.domain.lstrip(".").lower()
 
-        if not not_ip_address(cookie_domain):
+        if is_ip_address(cookie_domain):
             # ignore
             return request_domain
 
@@ -111,7 +115,7 @@ class CookieJar:
             return request_domain
 
         if not request_domain.endswith(cookie_domain):
-            client_logger.warning(
+            client_logger.debug(
                 f"A response for {request_url.value} tried to set "
                 f"a cookie with domain {cookie_domain}; this could "
                 f"be a malicious action."

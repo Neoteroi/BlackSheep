@@ -13,7 +13,7 @@ from blacksheep.client.connection import (
     InvalidResponseFromServer,
     UpgradeResponse,
 )
-from blacksheep.client.pool import ClientConnectionPool
+from blacksheep.client.pool import ConnectionPool
 
 
 def get_example_headers():
@@ -46,7 +46,7 @@ def event_loop():
 
 @pytest.fixture(scope="module")
 def pool(event_loop):
-    pool = ClientConnectionPool(event_loop, b"http", b"foo.com", 80, None, max_size=2)
+    pool = ConnectionPool(event_loop, b"http", b"foo.com", 80, None, max_size=2)
     yield pool
     pool.dispose()
 
@@ -167,7 +167,7 @@ async def test_connection_handle_expect_100_continue_and_1xx(
     assert connection.transport.messages[1] == b'{"id":"1","name":"foo"}'
 
 
-class FakePoolThrowingOnRelease(ClientConnectionPool):
+class FakePoolThrowingOnRelease(ConnectionPool):
     def try_return_connection(self, connection: ClientConnection) -> None:
         raise Exception("Crash")
 

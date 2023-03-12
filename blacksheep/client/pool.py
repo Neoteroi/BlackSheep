@@ -5,6 +5,7 @@ from ssl import SSLContext
 from typing import Dict, Optional, Tuple, Union
 
 from blacksheep.exceptions import InvalidArgument
+from blacksheep.utils.aio import get_running_loop
 
 from .connection import INSECURE_SSLCONTEXT, SECURE_SSLCONTEXT, ClientConnection
 
@@ -30,7 +31,7 @@ def get_ssl_context(
     return None
 
 
-class ClientConnectionPool:
+class ConnectionPool:
     def __init__(
         self,
         loop: AbstractEventLoop,
@@ -80,7 +81,7 @@ class ClientConnectionPool:
 
     async def create_connection(self) -> ClientConnection:
         logger.debug(f"Creating connection to: {self.host}:{self.port}")
-        transport, connection = await self.loop.create_connection(
+        _, connection = await self.loop.create_connection(
             lambda: ClientConnection(self.loop, self),
             self.host,
             self.port,
@@ -109,10 +110,10 @@ class ClientConnectionPool:
                 connection.close()
 
 
-class ClientConnectionPools:
-    def __init__(self, loop: AbstractEventLoop) -> None:
-        self.loop = loop
-        self._pools: Dict[Tuple[bytes, bytes, int], ClientConnectionPool] = {}
+class ConnectionPools:
+    def __init__(self, loop: Optional[AbstractEventLoop] = None) -> None:
+        self.loop = loop or get_running_loop()
+        self._pools: Dict[Tuple[bytes, bytes, int], ConnectionPool] = {}
 
     def get_pool(self, scheme, host, port, ssl):
         assert scheme in (b"http", b"https"), "URL schema must be http or https"
@@ -123,11 +124,16 @@ class ClientConnectionPools:
         try:
             return self._pools[key]
         except KeyError:
-            new_pool = ClientConnectionPool(self.loop, scheme, host, port, ssl)
+            new_pool = ConnectionPool(self.loop, scheme, host, port, ssl)
             self._pools[key] = new_pool
             return new_pool
 
     def dispose(self):
-        for _, pool in self._pools.items():
+        for pool in self._pools.values():
             pool.dispose()
         self._pools.clear()
+
+
+# For backward compatibility. Aliases will be removed in the future.
+ClientConnectionPool = ConnectionPool
+ClientConnectionPools = ConnectionPools

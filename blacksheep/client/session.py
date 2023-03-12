@@ -1,7 +1,19 @@
 import asyncio
 import ssl
 from asyncio import AbstractEventLoop, TimeoutError
-from typing import Any, AnyStr, Callable, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import (
+    Any,
+    AnyStr,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 from urllib.parse import urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response
@@ -18,10 +30,32 @@ from .exceptions import (
     RequestTimeout,
     UnsupportedRedirect,
 )
-from .pool import ClientConnection, ClientConnectionPools
+from .pool import ClientConnection, ConnectionPools
 
 URLType = Union[str, bytes, URL]
-Header = Tuple[bytes, bytes]
+KeyValuePair = Tuple[AnyStr, AnyStr]
+Headers = Union[Dict[AnyStr, AnyStr], Iterable[KeyValuePair]]
+Params = Union[Dict[AnyStr, AnyStr], Iterable[KeyValuePair]]
+
+
+def _ensure_header_bytes(value: AnyStr) -> bytes:
+    return value if isinstance(value, bytes) else value.encode("ascii")
+
+
+def normalize_headers(
+    headers: Optional[Headers],
+) -> Optional[List[Tuple[bytes, bytes]]]:
+    if headers is None:
+        return None
+    if isinstance(headers, dict):
+        return [
+            (_ensure_header_bytes(key), _ensure_header_bytes(value))
+            for key, value in headers.items()
+        ]
+    return [
+        (_ensure_header_bytes(key), _ensure_header_bytes(value))
+        for key, value in headers
+    ]
 
 
 class RedirectsCache:
@@ -78,8 +112,8 @@ class ClientSession:
         loop: Optional[AbstractEventLoop] = None,
         base_url: Union[None, bytes, str, URL] = None,
         ssl: Union[None, bool, ssl.SSLContext] = None,
-        pools: Optional[ClientConnectionPools] = None,
-        default_headers: Optional[List[Header]] = None,
+        pools: Optional[ConnectionPools] = None,
+        default_headers: Optional[Headers] = None,
         follow_redirects: bool = True,
         connection_timeout: float = 10.0,
         request_timeout: float = 60.0,
@@ -117,6 +151,7 @@ class ClientSession:
         self._base_url: Optional[URL]
         self.base_url = base_url
         self.ssl = ssl
+        self._default_headers: Optional[List[Tuple[bytes, bytes]]]
         self.default_headers = default_headers
         self.pools = pools
         self.connection_timeout = connection_timeout
@@ -132,6 +167,14 @@ class ClientSession:
         self._middlewares: List[Callable[..., Any]]
         self.middlewares = middlewares
         self.delay_before_retry = 0.5
+
+    @property
+    def default_headers(self) -> Optional[List[Tuple[bytes, bytes]]]:
+        return self._default_headers
+
+    @default_headers.setter
+    def default_headers(self, value: Optional[Headers]):
+        self._default_headers = normalize_headers(value)
 
     @property
     def middlewares(self) -> List[Callable[..., Any]]:
@@ -173,7 +216,7 @@ class ClientSession:
         """Uses specification compliant handling of 301 and 302 redirects"""
         self.non_standard_handling_of_301_302_redirect_method = False
 
-    def get_url(self, url, params=None) -> bytes:
+    def get_url(self, url, params: Optional[Params] = None) -> bytes:
         value = self.get_url_value(url)
         if not params:
             return value
@@ -253,7 +296,10 @@ class ClientSession:
         status = response.status
 
         if status == 301 or status == 302:
-            if self.non_standard_handling_of_301_302_redirect_method:
+            if (
+                self.non_standard_handling_of_301_302_redirect_method
+                and request.method != "GET"
+            ):
                 # Change original request method to GET (Browser-like)
                 request.method = "GET"
 
@@ -277,7 +323,6 @@ class ClientSession:
             return
 
         for header in self.default_headers:
-            # TODO: support tuple and Header?
             if header[0] not in request.headers:
                 request.headers.add(header[0], header[1])
 
@@ -323,15 +368,10 @@ class ClientSession:
 
         if self._handler:
             # using middlewares
-            return await self._handler(request)
-
-        # without middlewares
-        return await self._send_core(request)
-
-    async def _send_core(self, request: Request) -> Response:
-        self.check_permanent_redirects(request)
-
-        response = await self._send_using_connection(request)
+            response = await self._handler(request)
+        else:
+            # without middlewares
+            response = await self._send_core(request)
 
         if self.follow_redirects and response.is_redirect():
             try:
@@ -343,6 +383,11 @@ class ClientSession:
             return await self.send(request)
 
         return response
+
+    async def _send_core(self, request: Request) -> Response:
+        self.check_permanent_redirects(request)
+
+        return await self._send_using_connection(request)
 
     async def _send_using_connection(self, request, attempt: int = 1) -> Response:
         connection = await self.get_connection(request.url)
@@ -360,18 +405,23 @@ class ClientSession:
             raise RequestTimeout(request.url, self.request_timeout)
 
     async def get(
-        self, url: URLType, headers: Optional[List[Header]] = None, params=None
+        self,
+        url: URLType,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        return await self.send(Request("GET", self.get_url(url, params), headers))
+        return await self.send(
+            Request("GET", self.get_url(url, params), normalize_headers(headers))
+        )
 
     async def post(
         self,
         url: URLType,
-        content: Content = None,
-        headers: Optional[List[Header]] = None,
-        params=None,
+        content: Optional[Content] = None,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        request = Request("POST", self.get_url(url, params), headers)
+        request = Request("POST", self.get_url(url, params), normalize_headers(headers))
         return await self.send(
             request.with_content(content) if content is not None else request
         )
@@ -379,11 +429,11 @@ class ClientSession:
     async def put(
         self,
         url: URLType,
-        content: Content = None,
-        headers: Optional[List[Header]] = None,
-        params=None,
+        content: Optional[Content] = None,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        request = Request("PUT", self.get_url(url, params), headers)
+        request = Request("PUT", self.get_url(url, params), normalize_headers(headers))
         return await self.send(
             request.with_content(content) if content is not None else request
         )
@@ -391,33 +441,47 @@ class ClientSession:
     async def delete(
         self,
         url: URLType,
-        content: Content = None,
-        headers: Optional[List[Header]] = None,
-        params=None,
+        content: Optional[Content] = None,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        request = Request("DELETE", self.get_url(url, params), headers)
+        request = Request(
+            "DELETE", self.get_url(url, params), normalize_headers(headers)
+        )
         return await self.send(
             request.with_content(content) if content is not None else request
         )
 
     async def trace(
-        self, url: URLType, headers: Optional[List[Header]] = None, params=None
+        self,
+        url: URLType,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        return await self.send(Request("TRACE", self.get_url(url, params), headers))
+        return await self.send(
+            Request("TRACE", self.get_url(url, params), normalize_headers(headers))
+        )
 
     async def head(
-        self, url: URLType, headers: Optional[List[Header]] = None, params=None
+        self,
+        url: URLType,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        return await self.send(Request("HEAD", self.get_url(url, params), headers))
+        return await self.send(
+            Request("HEAD", self.get_url(url, params), normalize_headers(headers))
+        )
 
     async def patch(
         self,
         url: URLType,
-        content: Content = None,
-        headers: Optional[List[Header]] = None,
-        params=None,
+        content: Optional[Content] = None,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        request = Request("PATCH", self.get_url(url, params), headers)
+        request = Request(
+            "PATCH", self.get_url(url, params), normalize_headers(headers)
+        )
         return await self.send(
             request.with_content(content) if content is not None else request
         )
@@ -425,11 +489,13 @@ class ClientSession:
     async def options(
         self,
         url: URLType,
-        content: Content = None,
-        headers: Optional[List[Header]] = None,
-        params=None,
+        content: Optional[Content] = None,
+        headers: Optional[Headers] = None,
+        params: Optional[Params] = None,
     ) -> Response:
-        request = Request("OPTIONS", self.get_url(url, params), headers)
+        request = Request(
+            "OPTIONS", self.get_url(url, params), normalize_headers(headers)
+        )
         return await self.send(
             request.with_content(content) if content is not None else request
         )

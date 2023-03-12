@@ -4,6 +4,7 @@ from blacksheep import URL, Request, Response
 from blacksheep.client import ClientSession
 from blacksheep.client.connection import ClientConnection, ConnectionClosedError
 from blacksheep.client.exceptions import UnsupportedRedirect
+from blacksheep.client.session import normalize_headers
 
 
 @pytest.mark.parametrize(
@@ -127,3 +128,33 @@ async def test_client_session_validate_url_for_relative_urls_with_base_url():
         client._validate_request_url(request)
 
         assert request.url == URL(b"https://foo.org/home")
+
+
+@pytest.mark.parametrize(
+    "value,expected_result",
+    [
+        [
+            [("accept", "gzip br")],
+            [(b"accept", b"gzip br")],
+        ],
+        [
+            [("accept", b"gzip br"), ("referrer", "http://neoteroi.dev")],
+            [(b"accept", b"gzip br"), (b"referrer", b"http://neoteroi.dev")],
+        ],
+        [
+            [(b"accept", b"gzip br")],
+            [(b"accept", b"gzip br")],
+        ],
+        [
+            {"X-Refresh-Token": "Example"},
+            [(b"X-Refresh-Token", b"Example")],
+        ],
+        [
+            {"x-one": "one", "x-two": "two", "x-three": "three"},
+            [(b"x-one", b"one"), (b"x-two", b"two"), (b"x-three", b"three")],
+        ],
+    ],
+)
+def test_normalize_headers(value, expected_result):
+    result = normalize_headers(value)
+    assert result == expected_result

@@ -4,7 +4,7 @@ from blacksheep import Content, Request, scribe
 from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
 from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
-from blacksheep.scribe import write_small_request
+from blacksheep.scribe import write_request, write_small_request
 from blacksheep.server.asgi import (
     get_request_url,
     get_request_url_from_scope,
@@ -490,3 +490,37 @@ def test_can_set_request_client_ip():
 
     assert request.original_client_ip == "185.152.122.103"
     assert scope["client"] == ("127.0.0.1", 51492)
+
+
+def test_updating_request_url_read_host():
+    request = Request("GET", b"https://www.neoteroi.dev/blacksheep", [])
+
+    assert request.path == "/blacksheep"
+    assert request.host == "www.neoteroi.dev"
+
+    request.url = "https://github.com/RobertoPrevato"
+
+    assert request.path == "/RobertoPrevato"
+    assert request.host == "github.com"
+
+
+@pytest.mark.asyncio
+async def test_updating_request_host_in_headers():
+    request = Request("GET", b"https://www.neoteroi.dev/blacksheep", [])
+
+    assert request.path == "/blacksheep"
+    assert request.host == "www.neoteroi.dev"
+    assert request.headers[b"host"] == tuple()
+
+    async for _ in write_request(request):
+        pass
+
+    assert request.headers[b"host"] == (b"www.neoteroi.dev",)
+    request.url = "https://github.com/RobertoPrevato"
+
+    assert request.headers[b"host"] == tuple()
+
+    async for _ in write_request(request):
+        pass
+
+    assert request.headers[b"host"] == (b"github.com",)

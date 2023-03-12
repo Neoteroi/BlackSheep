@@ -396,9 +396,9 @@ cdef class Request(Message):
         if value:
             if isinstance(value, bytes):
                 _url = URL(value)
-            if isinstance(value, str):
+            elif isinstance(value, str):
                 _url = URL(value.encode('utf8'))
-            if isinstance(value, URL):
+            elif isinstance(value, URL):
                 _url = value
             else:
                 raise TypeError('Invalid value type, expected bytes, str, or URL')
@@ -412,6 +412,9 @@ cdef class Request(Message):
             self._path = None
             self._raw_query = None
         self._url = _url
+        # unset the cached host
+        self.__dict__["host"] = None
+        self.remove_header(b"host")
 
     def __repr__(self):
         return f'<Request {self.method} {self.url.value.decode()}>'

@@ -10,7 +10,7 @@ click==8.1.3
 coverage==6.5.0
 Cython==0.29.32; platform_system != "Windows"
 essentials==1.1.5
-essentials-openapi==1.0.3
+essentials-openapi==1.0.5
 Flask==2.2.2
 gevent==22.10.1
 greenlet==1.1.3.post0

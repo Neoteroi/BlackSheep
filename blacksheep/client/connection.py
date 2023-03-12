@@ -33,6 +33,26 @@ class IncomingContent(Content):
         self._body = bytearray()
         self._chunk = asyncio.Event()
         self.complete = asyncio.Event()
+        self._exc: Optional[Exception] = None
+
+    @property
+    def exc(self) -> Optional[Exception]:
+        """
+        Gets an exception that was set on this content.
+        """
+        return self._exc
+
+    @exc.setter
+    def exc(self, value: Optional[Exception]):
+        """
+        Sets an exception on this content. The exception is used and raised if the
+        caller code is handling a response stream.
+        """
+        self._exc = value
+
+        if value:
+            # resume the loop for streaming content
+            self._chunk.set()
 
     def extend_body(self, chunk: bytes):
         self._body.extend(chunk)
@@ -43,21 +63,50 @@ class IncomingContent(Content):
             await self._chunk.wait()
             self._chunk.clear()
 
+            if not self._body:
+                break
+
             yield bytes(self._body)
             self._body.clear()
 
             if self.complete.is_set():
                 break
 
+            if self._exc:
+                raise self._exc
+
     async def read(self):
         await self.complete.wait()
         return bytes(self._body)
 
 
-class ConnectionClosedError(Exception):
+class ConnectionException(Exception):
+    """
+    Base class for client connections errors.
+    """
+
+
+class ConnectionClosedError(ConnectionException):
+    """
+    Exception raised when a connection that should be open is closed. The connection can
+    have been closed by the remote server or the client.
+    """
+
     def __init__(self, can_retry: bool):
         super().__init__("The connection was closed by the remote server.")
         self.can_retry = can_retry
+
+
+class ConnectionLostError(ConnectionException):
+    """
+    Exception raised when a connection is lost. This can happen for example because of
+    instable internet connection on the client. The client should retry repeating a
+    request - this does not happen always automatically since the client might be using
+    the response stream handling chunks.
+    """
+
+    def __init__(self):
+        super().__init__("The connection with the remote server was lost.")
 
 
 class InvalidResponseFromServer(Exception):
@@ -241,6 +290,12 @@ class ClientConnection(asyncio.Protocol):
     def close(self) -> None:
         if self.open:
             self.open = False
+
+            if self.response is not None and isinstance(
+                self.response.content, IncomingContent
+            ):
+                self.response.content.exc = ConnectionClosedError(True)
+
             if self.transport:
                 self.transport.close()
 
@@ -258,6 +313,12 @@ class ClientConnection(asyncio.Protocol):
         self._connection_lost = True
         self.ready.clear()
         self.open = False
+
+        # if the client was handling a stream, we need to stop the loop
+        if self.response is not None and isinstance(
+            self.response.content, IncomingContent
+        ):
+            self.response.content.exc = ConnectionLostError()
 
         if self._pending_task:
             self.response_ready.set()
@@ -303,7 +364,9 @@ class ClientConnection(asyncio.Protocol):
 
     def on_message_complete(self) -> None:
         if self.response and self.response.content:
+            assert isinstance(self.response.content, IncomingContent)
             self.response.content.complete.set()
+            self.response.content.extend_body(b"")
 
         if self._pending_task:
             # the server returned a response before we ended sending the
@@ -342,4 +405,7 @@ class ClientConnection(asyncio.Protocol):
             self.close()
 
     def on_body(self, value: bytes) -> None:
+        assert self.response is not None and isinstance(
+            self.response.content, IncomingContent
+        )
         self.response.content.extend_body(value)

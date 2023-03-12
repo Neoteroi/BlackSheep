@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, request
 from flask.wrappers import Response
 from markupsafe import escape
 
@@ -36,6 +36,23 @@ def echo_headers():
 def close_connection():
     response = Response("Hello World", 200, mimetype="text/plain")
     response.headers["Connection"] = "close"
+    return response
+
+
+@app.route("/redirect-setting-cookie")
+def redirect_setting_cookie():
+    response = redirect("/redirect-requiring-cookie")
+    response.set_cookie("x-key", "example")
+    return response
+
+
+@app.route("/redirect-requiring-cookie")
+def redirect_requiring_cookie():
+    cookies = request.cookies
+    if cookies.get("x-key") == "example":
+        response = Response("Hello World", 200, mimetype="text/plain")
+    else:
+        response = Response("Unauthorized", 401, mimetype="text/plain")
     return response
 
 

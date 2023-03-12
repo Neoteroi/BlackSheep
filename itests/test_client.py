@@ -27,12 +27,12 @@ async def test_get_plain_text(session):
 
 
 @pytest.mark.asyncio
-async def test_get_wikipedia_home(session):
+async def test_get_neoteroi_home(session):
     for _ in range(2):
-        response = await session.get("https://www.wikipedia.org")
+        response = await session.get("https://www.neoteroi.dev")
         ensure_success(response)
         text = await response.text()
-        assert "Wikipedia" in text
+        assert "Neoteroi" in text
 
 
 @pytest.mark.asyncio
@@ -248,3 +248,13 @@ async def test_close_connection(session):
     for _ in range(3):
         response = await session.get("/close-connection")
         ensure_success(response)
+
+
+@pytest.mark.asyncio
+async def test_cookies_with_redirect(session):
+    """
+    Tests proper handling of set-cookie header and client middlewares in general, when
+    handling redirects.
+    """
+    response = await session.get("/redirect-setting-cookie")
+    ensure_success(response)

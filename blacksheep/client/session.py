@@ -296,7 +296,6 @@ class ClientSession:
             self._permanent_redirects_urls[request.url.value] = redirect_url
 
         request.url = redirect_url
-        print(request.host)
 
     def merge_default_headers(self, request: Request) -> None:
         if not self.default_headers:
@@ -339,19 +338,12 @@ class ClientSession:
                     "for the client, or specify a full URL for the request."
                 )
 
-    async def send(self, request: Request, log_request=False) -> Response:
+    async def send(self, request: Request) -> Response:
         self._validate_request_url(request)
 
         if not hasattr(request, "context"):
             request.context = self.get_new_context(request)  # type: ignore
             self.merge_default_headers(request)
-
-        from blacksheep.scribe import write_request
-
-        if log_request:
-            with open(f"__example.txt", mode="wb") as f:
-                async for chunk in write_request(request):
-                    f.write(chunk)
 
         if self._handler:
             # using middlewares
@@ -396,11 +388,9 @@ class ClientSession:
         url: URLType,
         headers: Optional[Headers] = None,
         params: Optional[Params] = None,
-        log_request=False,
     ) -> Response:
         return await self.send(
-            Request("GET", self.get_url(url, params), normalize_headers(headers)),
-            log_request,
+            Request("GET", self.get_url(url, params), normalize_headers(headers))
         )
 
     async def post(

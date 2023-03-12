@@ -101,6 +101,7 @@ async def test_client_session_without_middlewares_and_cookiejar():
     async def monkey_send_core(request):
         nonlocal called
         called = True
+        return Response(200)
 
     async with ClientSession(cookie_jar=False) as client:
         assert client._handler is None

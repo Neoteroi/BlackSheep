@@ -2,16 +2,18 @@ from asyncio import AbstractEventLoop
 from datetime import datetime
 from pathlib import Path
 from typing import List
+from unittest.mock import create_autospec
 
 import pkg_resources
 import pytest
 from essentials.folders import get_file_extension
 
-from blacksheep import Request
+from blacksheep import Application, Request
 from blacksheep.common.files.asyncfs import FileContext, FilesHandler
 from blacksheep.exceptions import BadRequest, InvalidArgument
 from blacksheep.ranges import Range, RangePart
 from blacksheep.server.files import (
+    DefaultFileOptions,
     FileInfo,
     RangeNotSatisfiable,
     _get_requested_range,
@@ -21,6 +23,7 @@ from blacksheep.server.files import (
 )
 from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
+from blacksheep.server.headers.cache import CacheControlHeaderValue
 from blacksheep.server.responses import text
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
@@ -842,3 +845,95 @@ async def test_app_404_handler_static_files_not_found(app):
     assert response.status == 404
     assert called is True
     assert response_text == "Example"
+
+
+@pytest.mark.asyncio
+async def test_serve_files_index_html_options(files2_index_contents, app: Application):
+    def on_response(request, response):
+        ...
+
+    mock = create_autospec(on_response, return_value=None)
+
+    index_options = DefaultFileOptions(
+        on_response=mock,
+        cache_control=CacheControlHeaderValue(no_cache=True, no_store=True),
+    )
+
+    app.serve_files(get_folder_path("files2"), default_file_options=index_options)
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert mock.call_count == 1
+
+    response = app.response
+    assert response.status == 200
+    assert files2_index_contents == await response.read()
+    assert response.headers[b"cache-control"] == (b"no-cache, no-store",)
+
+    scope = get_example_scope("GET", "/scripts/main.js", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert mock.call_count == 1
+    response = app.response
+    assert response.status == 200
+    assert response.headers[b"cache-control"] != (b"no-cache, no-store",)
+
+
+@pytest.mark.asyncio
+async def test_serve_files_index_html_options_fallback(
+    files2_index_contents, app: Application
+):
+    def on_response(request, response):
+        ...
+
+    mock = create_autospec(on_response, return_value=None)
+
+    index_options = DefaultFileOptions(
+        on_response=mock,
+        cache_control=CacheControlHeaderValue(no_cache=True, no_store=True),
+    )
+
+    app.serve_files(
+        get_folder_path("files2"),
+        fallback_document="index.html",
+        default_file_options=index_options,
+    )
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/not-existent-file", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert mock.call_count == 1
+
+    response = app.response
+    assert response.status == 200
+    assert files2_index_contents == await response.read()
+    assert response.headers[b"cache-control"] == (b"no-cache, no-store",)
+
+    scope = get_example_scope("GET", "/scripts/main.js", [])
+    await app(
+        scope,
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert mock.call_count == 1
+    response = app.response
+    assert response.status == 200
+    assert response.headers[b"cache-control"] != (b"no-cache, no-store",)

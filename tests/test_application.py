@@ -4108,3 +4108,28 @@ async def test_pep_593(app):
         {"name": "Ren", "age": None},
         {"name": "Stimpy", "age": 3},
     ]
+
+
+@pytest.mark.asyncio
+async def test_lifespan_event(app: Application):
+    initialized = False
+    disposed = False
+
+    @app.lifespan
+    async def some_async_gen():
+        nonlocal initialized
+        nonlocal disposed
+
+        initialized = True
+        yield
+        disposed = True
+
+    await app.start()
+
+    assert initialized is True
+    assert disposed is False
+
+    await app.stop()
+
+    assert initialized is True
+    assert disposed is True

@@ -1,6 +1,7 @@
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterable, Callable, Optional, Set
+from typing import AsyncIterable, Callable, Optional, Set, Union
 
 from blacksheep import Request, Response, StreamedContent
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -8,6 +9,24 @@ from blacksheep.common.files.info import FileInfo
 from blacksheep.common.files.pathsutils import get_mime_type_from_name
 from blacksheep.exceptions import BadRequest, InvalidArgument, RangeNotSatisfiable
 from blacksheep.ranges import InvalidRangeValue, Range, RangePart
+from blacksheep.server.headers.cache import CacheControlHeaderValue
+
+
+@dataclass
+class DefaultFileOptions:
+    """
+    Options to configure how the default file (by default index.html) is served to
+    clients.
+    """
+
+    on_response: Optional[Callable[[Request, Response], None]] = None
+    cache_control: Optional[CacheControlHeaderValue] = None
+
+    def handle(self, request: Request, response: Response):
+        if self.cache_control:
+            response.set_header(b"cache-control", self.cache_control.value)
+        if self.on_response:
+            self.on_response(request, response)
 
 
 def _get_content_range_value(part: RangePart, file_size: int) -> bytes:
@@ -174,7 +193,7 @@ def get_default_extensions() -> Set[str]:
     }
 
 
-def validate_source_path(source_folder: str) -> None:
+def validate_source_path(source_folder: Union[str, Path]) -> None:
     source_folder_path = Path(source_folder)
 
     if not source_folder_path.exists():

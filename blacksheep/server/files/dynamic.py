@@ -1,7 +1,7 @@
 import html
 import os
 from pathlib import Path
-from typing import Awaitable, Callable, Dict, Iterable, Optional, Sequence, Set
+from typing import Awaitable, Callable, Dict, Iterable, Optional, Sequence, Set, Union
 from urllib.parse import unquote
 
 from blacksheep import HTMLContent, Request, Response
@@ -9,16 +9,20 @@ from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.common.files.pathsutils import get_file_extension_from_name
 from blacksheep.exceptions import NotFound
 from blacksheep.server.authorization import allow_anonymous
+from blacksheep.server.files import (
+    DefaultFileOptions,
+    get_default_extensions,
+    get_response_for_file,
+    validate_source_path,
+)
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.server.routing import Route, Router
 from blacksheep.utils import join_fragments
 
-from . import get_default_extensions, get_response_for_file, validate_source_path
-
 
 def get_files_to_serve(
     source_folder: Path, extensions: Set[str], root_folder: Optional[Path] = None
-) -> Iterable[Dict[str, str]]:
+) -> Iterable[Dict[str, Union[str, bool]]]:
     assert source_folder.exists(), "The source folder path must exist"
     assert source_folder.is_dir(), "The source folder path must be a directory"
 
@@ -107,6 +111,7 @@ def get_response_for_resource_path(
     extensions: Set[str],
     root_path: str,
     index_document: Optional[str],
+    default_file_options: Optional[DefaultFileOptions] = None,
 ) -> Response:
     resource_path = os.path.join(source_folder_name, tail)
 
@@ -133,7 +138,7 @@ def get_response_for_resource_path(
         else:
             if index_document is not None:
                 # try returning the default index document
-                return get_response_for_resource_path(
+                response = get_response_for_resource_path(
                     request,
                     index_document,
                     files_list_html,
@@ -146,6 +151,11 @@ def get_response_for_resource_path(
                     root_path,
                     None,
                 )
+
+                if default_file_options:
+                    default_file_options.handle(request, response)
+
+                return response
             raise NotFound()
 
     file_extension = get_file_extension_from_name(resource_path)
@@ -165,6 +175,7 @@ def get_files_route_handler(
     root_path: str,
     index_document: Optional[str],
     fallback_document: Optional[str],
+    default_file_options: Optional[DefaultFileOptions] = None,
 ) -> Callable[[Request], Awaitable[Response]]:
     files_list_html = get_resource_file_content("fileslist.html")
     source_folder_full_path = os.path.abspath(str(source_folder_name))
@@ -186,12 +197,13 @@ def get_files_route_handler(
                 extensions,
                 root_path,
                 index_document,
+                default_file_options=default_file_options,
             )
         except NotFound:
             if fallback_document is None:
                 raise
 
-            return get_response_for_resource_path(
+            response = get_response_for_resource_path(
                 request,
                 fallback_document,
                 files_list_html,
@@ -203,7 +215,13 @@ def get_files_route_handler(
                 extensions,
                 root_path,
                 None,
+                default_file_options=default_file_options,
             )
+
+            if default_file_options and index_document == fallback_document:
+                default_file_options.handle(request, response)
+
+            return response
 
     return static_files_handler
 
@@ -221,7 +239,7 @@ def get_static_files_route(path_prefix: str) -> bytes:
 def serve_files_dynamic(
     router: Router,
     files_handler: FilesHandler,
-    source_folder: str,
+    source_folder: Union[str, Path],
     *,
     discovery: bool,
     cache_time: int,
@@ -230,6 +248,7 @@ def serve_files_dynamic(
     index_document: Optional[str],
     fallback_document: Optional[str],
     anonymous_access: bool = True,
+    default_file_options: Optional[DefaultFileOptions] = None,
 ) -> None:
     """
     Configures a route to serve files dynamically, using the given files handler and
@@ -249,6 +268,7 @@ def serve_files_dynamic(
         root_path,
         index_document,
         fallback_document,
+        default_file_options,
     )
 
     if anonymous_access:

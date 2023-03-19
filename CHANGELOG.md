@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a4] - 2023-03-19 :flamingo:
+
+- Adds `@app.lifespan` to support registering objects that must be initialized
+  at application start, and disposed at application shutdown.
+  The solution supports registering as many objects as desired.
+- Adds features to handle `cache-control` response headers: a decorator for
+  request handlers and a middleware to set a default value for all `GET`
+  requests resulting in responses with status `200`.
+- Adds features to control `cache-control` header for the default document
+  (e.g. `index.html`) when serving static files;
+  see [issue 297](https://github.com/Neoteroi/BlackSheep/issues/297).
+- Fixes bug in `sessions` that prevented updating the session data when using
+  the `set` and `__delitem__` methods;
+  [scottrutherford](https://github.com/scottrutherford)'s contribution.
+
+`@app.lifespan` example:
+
+```python
+from blacksheep import Application
+from blacksheep.client.session import ClientSession
+
+app = Application()
+
+
+@app.lifespan
+async def register_http_client():
+    async with ClientSession() as client:
+        print("HTTP client created and registered as singleton")
+        app.services.register(ClientSession, instance=client)
+        yield
+
+    print("HTTP client disposed")
+
+
+@app.router.get("/")
+async def home(http_client: ClientSession):
+    print(http_client)
+    return {"ok": True, "client_instance_id": id(http_client)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=44777, log_level="debug", lifespan="on")
+```
+
 ## [2.0a3] - 2023-03-12 🥐
 
 - Refactors the `ClientSession` to own by default a connections pool, if none

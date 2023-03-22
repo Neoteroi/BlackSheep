@@ -44,8 +44,7 @@ from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
-from blacksheep.server.files import ServeFilesOptions
-from blacksheep.server.files import DefaultFileOptions
+from blacksheep.server.files import DefaultFileOptions, ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.responses import _ensure_bytes

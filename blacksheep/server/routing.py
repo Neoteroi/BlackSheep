@@ -1,11 +1,13 @@
 import logging
 import re
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from functools import lru_cache
 from typing import Any, AnyStr, Callable, Dict, List, Optional, Set, Union
 from urllib.parse import unquote
+from blacksheep.messages import Request
 
+from blacksheep.common.types import HeadersType
 from blacksheep.utils import ensure_bytes, ensure_str
 
 __all__ = [
@@ -88,6 +90,27 @@ class RouteMatch:
             if values
             else None
         )
+
+
+class ActionFilter(ABC):
+    @abstractmethod
+    async def handle(self, request: Request) -> bool:
+        """
+        Returns a value indicating whether a request should be handled by a request
+        handler.
+        For example, to filter requests by headers.
+        """
+
+
+class HeaderActionFilter(ActionFilter):
+    def __init__(self, required_headers) -> None:
+        self.required_headers = required_headers
+
+    async def handle(self, request: Request) -> bool:
+        for key, value in self.required_headers:
+            if request.get_first_header(key) != value:
+                return False
+        return True
 
 
 def _get_parameter_pattern_fragment(
@@ -281,7 +304,7 @@ class Route:
         return RouteMatch(self, match.groupdict() if self.has_params else None)
 
 
-class RouterBase:
+class RouterBase(ABC):
     @abstractmethod
     def add(self, method: str, pattern: str, handler: Callable) -> None:
         """Adds a request handler for the given HTTP method and route pattern."""
@@ -293,7 +316,11 @@ class RouterBase:
         return handler_name.replace("_", "-")
 
     def get_decorator(
-        self, method: str, pattern: Optional[str] = "/"
+        self,
+        method: str,
+        pattern: Optional[str] = "/",
+        headers: Optional[HeadersType] = None,
+        filters: Optional[List[ActionFilter]] = None,
     ) -> Callable[..., Any]:
         def decorator(fn):
             nonlocal pattern
@@ -347,7 +374,12 @@ class RouterBase:
     def head(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
         return self.get_decorator(RouteMethod.HEAD, pattern)
 
-    def get(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def get(
+        self,
+        pattern: Optional[str] = "/",
+        headers: Optional[HeadersType] = None,
+        filters: Optional[List[ActionFilter]] = None,
+    ) -> Callable[..., Any]:
         return self.get_decorator(RouteMethod.GET, pattern)
 
     def post(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
@@ -376,10 +408,11 @@ class RouterBase:
 
 
 class Router(RouterBase):
-    __slots__ = ("routes", "_map", "_fallback")
+    __slots__ = ("routes", "_map", "_filters", "_fallback")
 
     def __init__(self):
         self._map = {}
+        self._filters = {}
         self._fallback = None
         self.routes: Dict[bytes, List[Route]] = defaultdict(list)
 
@@ -425,6 +458,14 @@ class Router(RouterBase):
         self._set_configured_route(method, new_route)
 
     def add(self, method: str, pattern: AnyStr, handler: Any):
+        # aggiungere supporto per Action Filters?
+        # @app.router.get("/")
+        #
+        # Matches if request path is "/" and "Example" header is "B"
+        # @app.router.get("/", headers={"Example": "B"})
+        # ^^^ headers defines filters
+        # @app.router.get("/", filters=[lambda request: some_logic])
+        #
         self.mark_handler(handler)
         method_name = ensure_bytes(method)
         new_route = Route(ensure_bytes(pattern), handler)
@@ -450,6 +491,11 @@ class Router(RouterBase):
             )
 
         self.routes = current_routes
+
+    def get_request_match(self, request: Request) -> Optional[RouteMatch]:
+        """
+        TODO: make this the main access point for a router!
+        """
 
     @lru_cache(maxsize=1200)
     def get_match(self, method: AnyStr, value: AnyStr) -> Optional[RouteMatch]:

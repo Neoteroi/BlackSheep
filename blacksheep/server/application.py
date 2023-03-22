@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import (
     Any,
@@ -43,7 +44,7 @@ from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
-from blacksheep.server.files import ServeFilesOptions
+from blacksheep.server.files import DefaultFileOptions, ServeFilesOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.responses import _ensure_bytes
@@ -103,9 +104,9 @@ class ApplicationEvent:
 
         return decorator
 
-    async def fire(self, *args: Any, **keywargs: Any) -> None:
+    async def fire(self, *args: Any, **kwargs: Any) -> None:
         for handler in self._handlers:
-            await handler(self.context, *args, **keywargs)
+            await handler(self.context, *args, **kwargs)
 
 
 class ApplicationSyncEvent(ApplicationEvent):
@@ -454,6 +455,37 @@ class Application(BaseApplication):
 
         return decorator
 
+    def lifespan(self, callback):
+        """
+        Registers an async generator, or async context manager, to be entered at
+        application start, and exited at application shutdown. This is syntactic sugar
+        alternative to handling application start and stop events directly. It can be
+        useful to handle objects that need to be initialized and disposed, like HTTP
+        clients that use connection pools, or files that needs to be open following the
+        lifespan of the application.
+        """
+        if not hasattr(callback, "__aenter__"):
+            callback = asynccontextmanager(callback)
+
+        obj = None
+
+        @self.on_start
+        async def register_aenter(_):
+            nonlocal obj
+            try:
+                obj = callback(self)
+            except TypeError:
+                obj = callback()
+            await obj.__aenter__()
+
+        @self.on_stop
+        async def register_aexit(_):
+            nonlocal obj
+            if obj is not None:
+                await obj.__aexit__(None, None, None)
+
+        return callback
+
     def serve_files(
         self,
         source_folder: Union[str, Path],
@@ -465,6 +497,7 @@ class Application(BaseApplication):
         index_document: Optional[str] = "index.html",
         fallback_document: Optional[str] = None,
         allow_anonymous: bool = True,
+        default_file_options: Optional[DefaultFileOptions] = None,
     ):
         """
         Configures dynamic file serving from a given folder, relative to the server cwd.
@@ -484,6 +517,8 @@ class Application(BaseApplication):
             fallback_document: Optional file name, for a document to serve when a
             response would be otherwise 404 Not Found; e.g. use this to serve SPA that
             use HTML5 History API for client side routing.
+            default_file_options: Optional options to serve the default file
+            (index.html)
         """
         if isinstance(source_folder, ServeFilesOptions):
             # deprecated class, will be removed in the next version
@@ -515,6 +550,7 @@ class Application(BaseApplication):
             index_document=index_document,
             fallback_document=fallback_document,
             anonymous_access=allow_anonymous,
+            default_file_options=default_file_options,
         )
 
     def _apply_middlewares_in_routes(self):

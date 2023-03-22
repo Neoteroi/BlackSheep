@@ -140,6 +140,26 @@ def test_session_modified():
     assert session.modified is True
 
 
+def test_session_modified_set():
+    session = Session()
+
+    assert session.modified is False
+
+    session.set("foo", "lorem ipsum")
+
+    assert session.modified is True
+
+
+def test_session_modified_del():
+    session = Session({"foo": "lorem ipsum"})
+
+    assert session.modified is False
+
+    del session["foo"]
+
+    assert session.modified is True
+
+
 def test_session_key_error():
     session = Session()
 

@@ -3,7 +3,7 @@ Common types annotations and functions.
 """
 from typing import AnyStr, Dict, Iterable, List, Optional, Tuple, Union
 
-from blacksheep import URL
+from blacksheep.url import URL
 
 KeyValuePair = Tuple[AnyStr, AnyStr]
 HeadersType = Union[Dict[AnyStr, AnyStr], Iterable[KeyValuePair]]

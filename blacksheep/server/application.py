@@ -14,6 +14,7 @@ from typing import (
     Type,
     Union,
 )
+from blacksheep.common import extend
 
 from guardpost import (
     AuthenticationStrategy,
@@ -137,13 +138,6 @@ class ApplicationAlreadyStartedCORSError(TypeError):
             "The application is already running, configure CORS rules "
             "before starting the application"
         )
-
-
-def _extend(obj, cls):
-    """Applies a mixin to an instance of a class."""
-    base_cls = obj.__class__
-    base_cls_name = obj.__class__.__name__
-    obj.__class__ = type(base_cls_name, (cls, base_cls), {})
 
 
 class Application(BaseApplication):
@@ -577,6 +571,7 @@ class Application(BaseApplication):
         controller_types = []
         for route in self.controllers_router:
             handler = route.handler
+            # TODO: migliora questo per decoratori
             controller_type = getattr(handler, "controller_type")
             controller_types.append(controller_type)
             handler.__annotations__["self"] = ControllerParameter[controller_type]
@@ -584,6 +579,7 @@ class Application(BaseApplication):
                 route.method,
                 self.get_controller_handler_pattern(controller_type, route),
                 handler,
+                route.filters,
             )
         return controller_types
 
@@ -667,8 +663,11 @@ class Application(BaseApplication):
     def extend(self, mixin) -> None:
         """
         Extends the class with additional features, applying the given mixin class.
+
+        This method should be used for those scenarios where opting-in for a feature
+        incurs a performance fee, so that said fee is paid only when necessary.
         """
-        _extend(self, mixin)
+        extend(self, mixin)
 
     async def start(self):
         if self.started:
@@ -792,7 +791,7 @@ class MountMixin:
             return await super()._handle_lifespan(receive, send)  # type: ignore
 
         for route in self.mount_registry.mounted_apps:  # type: ignore
-            route_match = route.match(scope["raw_path"])
+            route_match = route.match_by_path(scope["raw_path"])
             if route_match:
                 raw_path = scope["raw_path"]
                 if raw_path == route.pattern.rstrip(b"/*") and scope["type"] == "http":

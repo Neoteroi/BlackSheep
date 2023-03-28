@@ -1,5 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
+from functools import wraps
+from inspect import signature, unwrap
 from pathlib import Path
 from typing import (
     Any,
@@ -14,7 +16,6 @@ from typing import (
     Type,
     Union,
 )
-from blacksheep.common import extend
 
 from guardpost import (
     AuthenticationStrategy,
@@ -27,6 +28,7 @@ from itsdangerous import Serializer
 from rodi import ContainerProtocol
 
 from blacksheep.baseapp import BaseApplication, handle_not_found
+from blacksheep.common import extend
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.exceptions import HTTPException
@@ -87,11 +89,17 @@ class ApplicationEvent:
         self.context = context
 
     def __iadd__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
-        self._handlers.append(handler)
+        self._handlers.append(self._wrap_discard(handler))
         return self
 
     def __isub__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
-        self._handlers.remove(handler)
+        to_remove = [
+            callback
+            for callback in self._handlers
+            if callback is handler or unwrap(callback) is handler
+        ]
+        for callback in to_remove:
+            self._handlers.remove(callback)
         return self
 
     def __len__(self) -> int:
@@ -111,6 +119,21 @@ class ApplicationEvent:
     async def fire(self, *args: Any, **kwargs: Any) -> None:
         for handler in self._handlers:
             await handler(self.context, *args, **kwargs)
+
+    def _wrap_discard(self, function):
+        """
+        If the given function does not accept any parameter, returns a wrapper with a
+        discard parameter; otherwise returns the same function.
+        """
+        if len(signature(function).parameters) == 0:
+
+            @wraps(function)
+            async def wrap_handler(_):
+                await function()
+
+            return wrap_handler
+        else:
+            return function
 
 
 class ApplicationSyncEvent(ApplicationEvent):
@@ -571,7 +594,6 @@ class Application(BaseApplication):
         controller_types = []
         for route in self.controllers_router:
             handler = route.handler
-            # TODO: migliora questo per decoratori
             controller_type = getattr(handler, "controller_type")
             controller_types.append(controller_type)
             handler.__annotations__["self"] = ControllerParameter[controller_type]
@@ -579,7 +601,7 @@ class Application(BaseApplication):
                 route.method,
                 self.get_controller_handler_pattern(controller_type, route),
                 handler,
-                route.filters,
+                controller_type._filters_,
             )
         return controller_types
 

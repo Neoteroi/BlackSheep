@@ -6,8 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.0a4] - 2023-03-??
-- Adds support for user defined filters for request handlers (`ActionFilter` class).
+
+- Adds support for user defined filters for server routes
+  (`ActionFilter` class).
 - Adds built-in support for routing based on request headers.
+- Adds built-in support for routing based on request query parameters.
+- Adds built-in support for routing based on host header value.
+- Adds a `query.setter` to the `Request` class, to set queries using
+  `dict[str, str | sequence[str]]` as input.
+- The functions registered to application events don't need anymore to define
+  the `app` argument (they can be functions without any argument).
 
 ## [2.0a4] - 2023-03-19 :flamingo:
 

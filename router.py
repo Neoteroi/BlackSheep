@@ -1,41 +1,77 @@
+from functools import partial
 from pprint import pprint
+from typing import ClassVar, List
+
+from rodi import Container
 
 from blacksheep import Application
+from blacksheep.server.controllers import Controller, filters, get
+from blacksheep.server.routing import ActionFilter, Router
 
-app = Application()
+area_51 = Router(headers={"X-Area": "51"})
+main_router = Router(sub_routers=[area_51])
+app = Application(router=main_router)
+
+
+def _filters_factory() -> ClassVar[List[ActionFilter]]:  # type: ignore
+    ...
+
+
+assert isinstance(app.services, Container)
+
+app.services.add_scoped_by_factory(_filters_factory)
+
+special = partial(filters, headers={"X-Area": "Special"})
+
+
+special = partial(filters, host="neoteroi.dev", headers={"X-Area": "Special"})
+
+
+@special()
+class Special(Controller):
+    @get("/")
+    def special(self):
+        return self.text("Special")
+
+
+@special()
+class Special2(Controller):
+    @get("/special2")
+    def special(self):
+        return self.text("Special")
 
 
 @app.after_start
-async def log_routes(_):
-    pprint(app.router.routes)
+async def log_routes():
+    pprint(list(app.router))
 
 
-@app.router.get("/")
+@main_router.get("/")
 def home():
     return "Home"
 
 
-@app.router.get("/", headers={"X-Area": "51"})
+@area_51.get("/")
 def secret_home():
     return "Boo"
 
 
-@app.router.get("/another")
+@main_router.get("/another")
 def another():
     return "Another"
 
 
-@app.router.get("/{param}")
+@main_router.get("/{param}")
 def echo(param):
     return param
 
 
-@app.router.get("/another", headers={"X-Area": "51"})
+@area_51.get("/another")
 def secret_another():
     return "Another Secret"
 
 
-@app.router.get("/{param}", headers={"X-Area": "51"})
+@area_51.get("/{param}")
 def echo2(param):
     return param + " 51"
 

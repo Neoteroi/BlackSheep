@@ -285,7 +285,7 @@ class Controller(metaclass=ControllerMeta):
         ],
         content_type: str,
         *,
-        file_name: str = None,
+        file_name: Optional[str] = None,
         content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,
     ) -> Response:
         """
@@ -424,7 +424,3 @@ class APIController(Controller):
         if cls_version and cls_name.endswith(cls_version.lower()):
             cls_name = cls_name[: -len(cls_version)]
         return join_fragments("api", cls_version, cls_name)
-
-
-# For backward compatibility
-ApiController = APIController

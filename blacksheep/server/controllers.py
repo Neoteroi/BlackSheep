@@ -1,6 +1,15 @@
 import sys
 from io import BytesIO
-from typing import Any, AsyncIterable, Callable, ClassVar, List, Optional, Type, Union
+from typing import (
+    Any,
+    AsyncIterable,
+    Callable,
+    ClassVar,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+)
 
 from blacksheep import Request, Response
 from blacksheep.common.types import HeadersType, ParamsType
@@ -29,7 +38,7 @@ from blacksheep.server.responses import (
     view,
     view_async,
 )
-from blacksheep.server.routing import ActionFilter, RoutesRegistry, normalize_filters
+from blacksheep.server.routing import RouteFilter, RoutesRegistry, normalize_filters
 from blacksheep.utils import AnyStr, join_fragments
 
 # singleton router used to store initial configuration,
@@ -52,7 +61,7 @@ ws = router.ws
 
 
 def filters(
-    *filters: ActionFilter,
+    *filters: RouteFilter,
     host: Optional[str] = None,
     headers: Optional[HeadersType] = None,
     params: Optional[ParamsType] = None,
@@ -102,7 +111,7 @@ class ControllerMeta(type):
 class Controller(metaclass=ControllerMeta):
     """Base class for all controllers."""
 
-    _filters_: ClassVar[List[ActionFilter]] = []
+    _filters_: ClassVar[Sequence[RouteFilter]] = []
 
     @classmethod
     def route(cls) -> Optional[str]:

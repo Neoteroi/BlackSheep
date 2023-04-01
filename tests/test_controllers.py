@@ -8,7 +8,12 @@ from rodi import inject
 
 from blacksheep import Request, Response
 from blacksheep.server.application import Application
-from blacksheep.server.controllers import APIController, Controller, RoutesRegistry
+from blacksheep.server.controllers import (
+    APIController,
+    Controller,
+    RoutesRegistry,
+    filters,
+)
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
 from blacksheep.server.websocket import WebSocket
@@ -904,6 +909,33 @@ async def test_handler_through_controller_default_str(app):
 
     app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 200
+    data = await app.response.text()
+    assert data == "Hello World"
+
+
+@pytest.mark.asyncio
+async def test_controller_filters(app):
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    @filters(headers={"X-Area": "51"})
+    class Home(Controller):
+        @get("/")
+        async def index(self) -> str:
+            return "Hello World"
+
+    app.setup_controllers()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 404
+
+    await app(
+        get_example_scope("GET", "/", extra_headers={"X-Area": "51"}),
+        MockReceive(),
+        MockSend(),
+    )
 
     assert app.response.status == 200
     data = await app.response.text()

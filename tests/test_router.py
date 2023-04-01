@@ -1,14 +1,20 @@
+from typing import List
+
 import pytest
 
+from blacksheep.messages import Request
 from blacksheep.server.application import Application
 from blacksheep.server.routing import (
+    HostFilter,
     InvalidValuePatternName,
     MountRegistry,
     Route,
     RouteDuplicate,
     RouteException,
+    RouteFilter,
     RouteMethod,
     Router,
+    normalize_filters,
 )
 
 FAKE = b"FAKE"
@@ -192,7 +198,7 @@ def test_route_raises_for_invalid_parameter_name(pattern, invalid_pattern_name):
 )
 def test_route_repr(pattern: str):
     route = Route(pattern, mock_handler)
-    assert repr(route) == f"<Route \"{pattern}\">"
+    assert repr(route) == f'<Route "{pattern}">'
 
 
 @pytest.mark.parametrize(
@@ -860,5 +866,231 @@ def test_mount_mounted_paths():
 def test_mount_add_raise_error_if_path_exist():
     with pytest.raises(AssertionError):
         mount = MountRegistry()
-        mount.mount("/foo", None)
-        mount.mount("/foo", None)
+        mount.mount("/foo", None)  # type: ignore
+        mount.mount("/foo", None)  # type: ignore
+
+
+def test_route_filter_headers_1():
+    router = Router(headers={"X-Test": "Test"})
+
+    @router.get("/")
+    def home():
+        ...
+
+    match = router.get_match(Request("GET", b"/", []))
+
+    assert match is None
+
+    match = router.get_match(Request("GET", b"/foo", []))
+
+    assert match is None
+
+    match = router.get_match(Request("GET", b"/", [(b"X-Test", b"Test")]))
+
+    assert match is not None
+
+
+def test_route_filter_fallback():
+    router = Router(headers={"X-Test": "Test"})
+
+    @router.get("/")
+    def home():
+        ...
+
+    def fallback():
+        ...
+
+    router.fallback = fallback
+    match = router.get_match(Request("GET", b"/", []))
+
+    assert match is not None
+    assert match.handler is fallback
+
+
+def test_route_filter_headers_2():
+    test_router = Router(headers={"X-Test": "Test"})
+    router = Router(sub_routers=[test_router])
+
+    @router.get("/")
+    def home():
+        ...
+
+    @test_router.get("/")
+    def test_home():
+        ...
+
+    match = router.get_match(Request("GET", b"/", []))
+
+    assert match is not None
+    assert match.handler is home
+
+    match = router.get_match(Request("GET", b"/", [(b"X-Test", b"Test")]))
+
+    assert match is not None
+    assert match.handler is test_home
+
+
+def test_route_filter_params_1():
+    router = Router(params={"foo": "1"})
+
+    @router.get("/")
+    def home():
+        ...
+
+    match = router.get_match(Request("GET", b"/", []))
+
+    assert match is None
+
+    match = router.get_match(Request("GET", b"/?foo=1", []))
+
+    assert match is not None
+
+    match = router.get_match(Request("GET", b"/?foo=2", []))
+
+    assert match is None
+
+
+def test_route_filter_host():
+    router = Router(host="neoteroi.dev")
+
+    @router.get("/")
+    def test_home():
+        ...
+
+    match = router.get_match(Request("GET", b"/", [(b"host", b"localhost")]))
+
+    assert match is None
+
+    for host_value in {b"neoteroi.dev", b"NEOTEROI.DEV", b"neoteroi.dev:3000"}:
+        match = router.get_match(Request("GET", b"/", [(b"host", host_value)]))
+
+        assert match is not None
+        assert match.handler is test_home
+
+
+def test_route_custom_filter():
+    class TimeFilter(RouteFilter):
+        def __init__(self) -> None:
+            self._counter = -1
+
+        def handle(self, request: Request) -> bool:
+            self._counter += 1
+
+            return self._counter % 2 == 0
+
+    router = Router(filters=[TimeFilter()])
+
+    @router.get("/")
+    def test_home():
+        ...
+
+    for i in range(5):
+        match = router.get_match(Request("GET", b"/", []))
+
+        if i % 2 == 0:
+            assert match is not None
+        else:
+            assert match is None
+
+
+def test_host_filter_props():
+    host_filter = HostFilter("www.neoteroi.dev")
+    assert host_filter.host == "www.neoteroi.dev"
+
+
+def test_normalize_filters():
+    class CustomFilter(RouteFilter):
+        def handle(self, request: Request) -> bool:
+            return True
+
+    input_filters: List[RouteFilter] = [CustomFilter()]
+    all_filters = normalize_filters(
+        host="www.neoteroi.dev", headers={"X-Foo": "foo"}, filters=input_filters
+    )
+
+    assert len(input_filters) == 1
+    assert len(all_filters) == 3
+
+
+def test_sub_routers_iter():
+    test_router = Router(headers={"X-Test": "Test"})
+    router = Router(sub_routers=[test_router])
+
+    @router.get("/")
+    def home():
+        ...
+
+    @router.post("/foo")
+    def post_foo():
+        ...
+
+    @test_router.get("/")
+    def test_home():
+        ...
+
+    @test_router.post("/cats")
+    def post_cat():
+        ...
+
+    routes = list(router)
+    assert len(routes) == 4
+    handlers = [route.handler for route in routes]
+    assert set(handlers) == {home, post_foo, test_home, post_cat}
+
+
+def test_sub_routers_sort():
+    test_router = Router(headers={"X-Test": "Test"})
+    router = Router(sub_routers=[test_router])
+
+    @router.get("/")
+    def home():
+        ...
+
+    @router.post("/foo")
+    def post_foo():
+        ...
+
+    @test_router.get("/")
+    def test_home():
+        ...
+
+    @test_router.post("/cats")
+    def post_cat():
+        ...
+
+    router.sort_routes()
+
+    routes = list(router)
+    assert len(routes) == 4
+    handlers = [route.handler for route in routes]
+    assert handlers == [home, post_foo, test_home, post_cat]
+
+
+def test_routes_with_filters_can_have_duplicates():
+    """
+    Verifies that the router does not prevent registering multiple routes for the same
+    method and path, when they have filters.
+    """
+    test_router = Router(headers={"X-Test": "Test"})
+    router = Router(sub_routers=[test_router])
+
+    @router.get("/")
+    def home():
+        ...
+
+    @router.post("/foo")
+    def post_foo():
+        ...
+
+    @test_router.get("/")
+    def test_home():
+        ...
+
+    @test_router.post("/cats")
+    def post_cat():
+        ...
+
+    routes = list(router)
+    assert len(routes) == 4
+    handlers = [route.handler for route in routes]
+    assert set(handlers) == {home, post_foo, test_home, post_cat}

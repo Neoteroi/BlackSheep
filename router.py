@@ -6,20 +6,14 @@ from rodi import Container
 
 from blacksheep import Application
 from blacksheep.server.controllers import Controller, filters, get
-from blacksheep.server.routing import ActionFilter, Router
+from blacksheep.server.routing import Router, HeadersFilter
 
 area_51 = Router(headers={"X-Area": "51"})
 main_router = Router(sub_routers=[area_51])
 app = Application(router=main_router)
 
 
-def _filters_factory() -> ClassVar[List[ActionFilter]]:  # type: ignore
-    ...
-
-
 assert isinstance(app.services, Container)
-
-app.services.add_scoped_by_factory(_filters_factory)
 
 special = partial(filters, headers={"X-Area": "Special"})
 
@@ -29,6 +23,8 @@ special = partial(filters, host="neoteroi.dev", headers={"X-Area": "Special"})
 
 @special()
 class Special(Controller):
+    _filters_ = (HeadersFilter({"X-Area": "Special"}),)
+
     @get("/")
     def special(self):
         return self.text("Special")

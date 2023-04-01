@@ -3,7 +3,7 @@ import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, AnyStr, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, AnyStr, Callable, Dict, List, Optional, Set, Union
 from urllib.parse import unquote
 
 from blacksheep.common import extend
@@ -102,7 +102,7 @@ class RouteMatch:
         return self._values
 
 
-class ActionFilter(ABC):
+class RouteFilter(ABC):
     @abstractmethod
     def handle(self, request: Request) -> bool:
         """
@@ -112,7 +112,7 @@ class ActionFilter(ABC):
         """
 
 
-class HeadersActionFilter(ActionFilter):
+class HeadersFilter(RouteFilter):
     """
     Filters requests by required headers values.
     """
@@ -127,7 +127,7 @@ class HeadersActionFilter(ActionFilter):
         return True
 
 
-class ParamsActionFilter(ActionFilter):
+class ParamsFilter(RouteFilter):
     """
     Filters requests by required query parameters.
     """
@@ -137,12 +137,15 @@ class ParamsActionFilter(ActionFilter):
 
     def handle(self, request: Request) -> bool:
         for key, value in self.required_params:
-            if request.query.get(key) != value:
+            query = request.query.get(key)
+            if query is not None and len(query) == 1 and query[0] == value:
+                continue
+            if query != value:
                 return False
         return True
 
 
-class HostActionFilter(ActionFilter):
+class HostFilter(RouteFilter):
     """
     Filters requests by host value. The comparison is always case insensitive.
     By default the port number is ignored, if present in request headers, unless the
@@ -168,21 +171,21 @@ def normalize_filters(
     host: Optional[str] = None,
     headers: Optional[HeadersType] = None,
     params: Optional[ParamsType] = None,
-    filters: Optional[List[ActionFilter]] = None,
-) -> List[ActionFilter]:
+    filters: Optional[List[RouteFilter]] = None,
+) -> List[RouteFilter]:
     if filters:
         filters = filters.copy()
     else:
         filters = []
 
     if headers:
-        filters.insert(0, HeadersActionFilter(headers))
+        filters.insert(0, HeadersFilter(headers))
 
     if params:
-        filters.insert(0, ParamsActionFilter(params))
+        filters.insert(0, ParamsFilter(params))
 
     if host:
-        filters.insert(0, HostActionFilter(host))
+        filters.insert(0, HostFilter(host))
 
     return filters
 
@@ -406,7 +409,7 @@ class FilterRoute(Route):
         self,
         pattern: Union[str, bytes],
         handler: Any,
-        filters: List[ActionFilter],
+        filters: List[RouteFilter],
     ):
         super().__init__(pattern, handler)
         self.filters = filters
@@ -434,7 +437,7 @@ class RouterBase(ABC):
         host: Optional[str] = None,
         headers: Optional[HeadersType] = None,
         params: Optional[ParamsType] = None,
-        filters: Optional[List[ActionFilter]] = None,
+        filters: Optional[List[RouteFilter]] = None,
     ):
         self._filters = normalize_filters(host, headers, params, filters)
 
@@ -564,7 +567,7 @@ class MultiRouterMixin:
 class RouterFiltersMixin:
     """
     This mixin is activated automatically when any of the routes defined for a web app
-    uses filters (ActionFilter). The rationale for using a mixin is that using filters
+    uses filters (RouteFilter). The rationale for using a mixin is that using filters
     incurs a performance fee, and fees should only be paid when using features.
     """
 
@@ -596,7 +599,7 @@ class Router(RouterBase):
         host: Optional[str] = None,
         headers: Optional[HeadersType] = None,
         params: Optional[ParamsType] = None,
-        filters: Optional[List[ActionFilter]] = None,
+        filters: Optional[List[RouteFilter]] = None,
         sub_routers: Optional[List["Router"]] = None,
     ):
         super().__init__(
@@ -638,7 +641,7 @@ class Router(RouterBase):
             yield self._fallback
 
     def _is_route_configured(self, method: bytes, route: Route):
-        if isinstance(route, FilterRoute):
+        if isinstance(route, FilterRoute):  # pragma: no cover
             # The route defines action filters, we cannot determine if the user is
             # registering twice the same pattern. However, the user opted-in for an
             # advanced feature and should be aware about conflicting routes.
@@ -671,7 +674,7 @@ class Router(RouterBase):
         method: str,
         pattern: AnyStr,
         handler: Any,
-        filters: Optional[List[ActionFilter]] = None,
+        filters: Optional[List[RouteFilter]] = None,
     ):
         if filters and not isinstance(self, RouterFiltersMixin):
             extend(self, RouterFiltersMixin)
@@ -784,7 +787,7 @@ class RoutesRegistry(RouterBase):
         host: Optional[str] = None,
         headers: Optional[HeadersType] = None,
         params: Optional[ParamsType] = None,
-        filters: Optional[List[ActionFilter]] = None,
+        filters: Optional[List[RouteFilter]] = None,
     ):
         super().__init__(host=host, headers=headers, params=params, filters=filters)
         self.routes: List[RegisteredRoute] = []

@@ -100,7 +100,7 @@ setup(
         "cchardet~=2.1.7; python_version < '3.11'",
         "chardet==5.0.0; python_version > '3.10'",
         "guardpost~=1.0.0",
-        "rodi~=2.0.0",
+        "rodi~=2.0.2",
         "essentials>=1.1.4,<2.0",
         "essentials-openapi>=0.1.4,<1.1",
         "typing_extensions; python_version < '3.8'",

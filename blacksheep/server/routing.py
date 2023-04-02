@@ -1,11 +1,19 @@
 import logging
 import re
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from functools import lru_cache
 from typing import Any, AnyStr, Callable, Dict, List, Optional, Set, Union
 from urllib.parse import unquote
 
+from blacksheep.common import extend
+from blacksheep.common.types import (
+    HeadersType,
+    ParamsType,
+    normalize_headers,
+    normalize_params,
+)
+from blacksheep.messages import Request
 from blacksheep.utils import ensure_bytes, ensure_str
 
 __all__ = [
@@ -78,16 +86,108 @@ class InvalidValuePatternName(RouteException):
 
 
 class RouteMatch:
-    __slots__ = ("values", "pattern", "handler")
+    __slots__ = ("_values", "pattern", "handler")
 
     def __init__(self, route: "Route", values: Optional[Dict[str, bytes]]):
         self.handler = route.handler
         self.pattern = route.pattern
-        self.values: Optional[Dict[str, str]] = (
+        self._values: Optional[Dict[str, str]] = (
             {k: unquote(v.decode("utf8")) for k, v in values.items()}
             if values
             else None
         )
+
+    @property
+    def values(self) -> Optional[Dict[str, str]]:
+        return self._values
+
+
+class RouteFilter(ABC):
+    @abstractmethod
+    def handle(self, request: Request) -> bool:
+        """
+        Returns a value indicating whether a request should be handled by a request
+        handler.
+        For example, to filter requests by headers.
+        """
+
+
+class HeadersFilter(RouteFilter):
+    """
+    Filters requests by required headers values.
+    """
+
+    def __init__(self, required_headers: HeadersType) -> None:
+        self.required_headers = normalize_headers(required_headers) or []
+
+    def handle(self, request: Request) -> bool:
+        for key, value in self.required_headers:
+            if request.get_first_header(key) != value:
+                return False
+        return True
+
+
+class ParamsFilter(RouteFilter):
+    """
+    Filters requests by required query parameters.
+    """
+
+    def __init__(self, required_params: ParamsType) -> None:
+        self.required_params = normalize_params(required_params) or []
+
+    def handle(self, request: Request) -> bool:
+        for key, value in self.required_params:
+            query = request.query.get(key)
+            if query is not None and len(query) == 1 and query[0] == value:
+                continue
+            if query != value:
+                return False
+        return True
+
+
+class HostFilter(RouteFilter):
+    """
+    Filters requests by host value. The comparison is always case insensitive.
+    By default the port number is ignored, if present in request headers, unless the
+    given host value itself includes the character ":".
+    """
+
+    def __init__(self, value: str, ignore_port: bool = True) -> None:
+        self._host = value.lower()
+        self._ignore_port = ignore_port if ":" not in value else False
+
+    @property
+    def host(self) -> str:
+        return self._host
+
+    def handle(self, request: Request) -> bool:
+        req_host = request.host.lower()
+        if self._ignore_port and ":" in req_host:
+            req_host = req_host[0 : req_host.index(":")]
+        return req_host == self._host
+
+
+def normalize_filters(
+    host: Optional[str] = None,
+    headers: Optional[HeadersType] = None,
+    params: Optional[ParamsType] = None,
+    filters: Optional[List[RouteFilter]] = None,
+) -> List[RouteFilter]:
+    if filters:
+        filters = filters.copy()
+    else:
+        filters = []
+
+    if headers:
+        filters.insert(0, HeadersFilter(headers))
+
+    if params:
+        filters.insert(0, ParamsFilter(params))
+
+    if host:
+        filters.insert(0, HostFilter(host))
+
+    return filters
 
 
 def _get_parameter_pattern_fragment(
@@ -116,7 +216,11 @@ class Route:
         + r"{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}",
     }
 
-    def __init__(self, pattern: Union[str, bytes], handler: Any):
+    def __init__(
+        self,
+        pattern: Union[str, bytes],
+        handler: Any,
+    ):
         raw_pattern = self.normalize_pattern(pattern)
         self.handler = handler
         self.pattern = raw_pattern
@@ -243,7 +347,7 @@ class Route:
         return raw_pattern
 
     def __repr__(self) -> str:
-        return f"<Route {self.pattern.decode('utf8')}>"
+        return f"<{self.__class__.__name__} \"{self.pattern.decode('utf8')}\">"
 
     @staticmethod
     def _normalize_rich_parameter(match: re.Match):
@@ -269,11 +373,18 @@ class Route:
     def full_pattern(self) -> bytes:
         return self._rx.pattern
 
-    def match(self, value: bytes) -> Optional[RouteMatch]:
-        if not self.has_params and value.lower() == self.pattern:
+    def match(self, request: Request) -> Optional[RouteMatch]:
+        return self.match_by_path(ensure_bytes(request._path))
+
+    def match_by_path(self, path: bytes) -> Optional[RouteMatch]:
+        """
+        Returns a match by path - this method can be used only when the route does not
+        define any filter.
+        """
+        if not self.has_params and path.lower() == self.pattern:
             return RouteMatch(self, None)
 
-        match = self._rx.match(value)
+        match = self._rx.match(path)
 
         if not match:
             return None
@@ -281,9 +392,62 @@ class Route:
         return RouteMatch(self, match.groupdict() if self.has_params else None)
 
 
-class RouterBase:
+class FilterRoute(Route):
+    """
+    Route class that supports filters for requests.
+    """
+
+    __slots__ = (
+        "handler",
+        "pattern",
+        "filters",
+        "param_names",
+        "_rx",
+    )
+
+    def __init__(
+        self,
+        pattern: Union[str, bytes],
+        handler: Any,
+        filters: List[RouteFilter],
+    ):
+        super().__init__(pattern, handler)
+        self.filters = filters
+
+    def match(self, request: Request) -> Optional[RouteMatch]:
+        match = super().match(request)
+
+        if not match:
+            return None
+
+        if all(action_filter.handle(request) for action_filter in self.filters):
+            return match
+
+        return None
+
+
+class RouterBase(ABC):
+    """
+    Base abstract class for types that can register types and can implement filters.
+    """
+
+    def __init__(
+        self,
+        *,
+        host: Optional[str] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
+        filters: Optional[List[RouteFilter]] = None,
+    ):
+        self._filters = normalize_filters(host, headers, params, filters)
+
     @abstractmethod
-    def add(self, method: str, pattern: str, handler: Callable) -> None:
+    def add(
+        self,
+        method: str,
+        pattern: str,
+        handler: Callable,
+    ) -> None:
         """Adds a request handler for the given HTTP method and route pattern."""
 
     def mark_handler(self, handler: Callable) -> None:
@@ -292,8 +456,10 @@ class RouterBase:
     def normalize_default_pattern_name(self, handler_name: str) -> str:
         return handler_name.replace("_", "-")
 
-    def get_decorator(
-        self, method: str, pattern: Optional[str] = "/"
+    def _get_decorator(
+        self,
+        method: str,
+        pattern: Optional[str] = "/",
     ) -> Callable[..., Any]:
         def decorator(fn):
             nonlocal pattern
@@ -345,43 +511,114 @@ class RouterBase:
         self.add(RouteMethod.GET_WS, pattern, handler)
 
     def head(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.HEAD, pattern)
+        return self._get_decorator(RouteMethod.HEAD, pattern)
 
     def get(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.GET, pattern)
+        return self._get_decorator(RouteMethod.GET, pattern)
 
     def post(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.POST, pattern)
+        return self._get_decorator(RouteMethod.POST, pattern)
 
     def put(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.PUT, pattern)
+        return self._get_decorator(RouteMethod.PUT, pattern)
 
     def delete(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.DELETE, pattern)
+        return self._get_decorator(RouteMethod.DELETE, pattern)
 
     def trace(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.TRACE, pattern)
+        return self._get_decorator(RouteMethod.TRACE, pattern)
 
     def options(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.OPTIONS, pattern)
+        return self._get_decorator(RouteMethod.OPTIONS, pattern)
 
     def connect(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.CONNECT, pattern)
+        return self._get_decorator(RouteMethod.CONNECT, pattern)
 
     def patch(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.PATCH, pattern)
+        return self._get_decorator(RouteMethod.PATCH, pattern)
 
     def ws(self, pattern) -> Callable[..., Any]:
-        return self.get_decorator(RouteMethod.GET_WS, pattern)
+        return self._get_decorator(RouteMethod.GET_WS, pattern)
+
+
+class MultiRouterMixin:
+    """
+    This mixin is activate automatically when a Router defines sub-routers.
+    """
+
+    _sub_routers: List["Router"]
+
+    def __iter__(self):
+        yield from super().__iter__()  # type: ignore
+
+        for router in self._sub_routers:
+            yield from router
+
+    def get_match(self, request: Request) -> Optional[RouteMatch]:
+        for router in self._sub_routers:
+            match = router.get_match(request)
+
+            if match:
+                return match
+
+        return super().get_match(request)  # type: ignore
+
+
+class RouterFiltersMixin:
+    """
+    This mixin is activated automatically when any of the routes defined for a web app
+    uses filters (RouteFilter). The rationale for using a mixin is that using filters
+    incurs a performance fee, and fees should only be paid when using features.
+    """
+
+    routes: Dict[bytes, List[Route]]
+    _fallback: Any
+
+    def get_match(self, request: Request) -> Optional[RouteMatch]:
+        for route in self.routes[ensure_bytes(request.method)]:
+            match = route.match(request)
+
+            if match:
+                return match
+
+        if self._fallback is None:
+            return None
+
+        return RouteMatch(self._fallback, None)
+
+
+RouteConfig = Union[Dict[str, Any], "Router"]
 
 
 class Router(RouterBase):
-    __slots__ = ("routes", "_map", "_fallback")
+    __slots__ = ("routes", "_map", "_fallback", "_sub_routers", "_filters")
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        host: Optional[str] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
+        filters: Optional[List[RouteFilter]] = None,
+        sub_routers: Optional[List["Router"]] = None,
+    ):
+        super().__init__(
+            host=host,
+            headers=headers,
+            params=params,
+            filters=filters,
+        )
+
         self._map = {}
         self._fallback = None
         self.routes: Dict[bytes, List[Route]] = defaultdict(list)
+        self._sub_routers = sub_routers
+
+        if self._filters:
+            extend(self, RouterFiltersMixin)
+
+        if self._sub_routers:
+            extend(self, MultiRouterMixin)
 
     @property
     def fallback(self):
@@ -404,10 +641,18 @@ class Router(RouterBase):
             yield self._fallback
 
     def _is_route_configured(self, method: bytes, route: Route):
+        if isinstance(route, FilterRoute):  # pragma: no cover
+            # The route defines action filters, we cannot determine if the user is
+            # registering twice the same pattern. However, the user opted-in for an
+            # advanced feature and should be aware about conflicting routes.
+            return False
+
         method_patterns = self._map.get(method)
         if not method_patterns:
             return False
-        if method_patterns.get(route.full_pattern):
+        existing_route: Route = method_patterns.get(route.full_pattern)
+
+        if existing_route and not isinstance(existing_route, FilterRoute):
             return True
         return False
 
@@ -420,15 +665,33 @@ class Router(RouterBase):
 
     def _check_duplicate(self, method: bytes, new_route: Route):
         if self._is_route_configured(method, new_route):
-            current_route = self._map.get(method).get(new_route.full_pattern)
+            current_route = self._map[method][new_route.full_pattern]
             raise RouteDuplicate(method, new_route.pattern, current_route.handler)
         self._set_configured_route(method, new_route)
 
-    def add(self, method: str, pattern: AnyStr, handler: Any):
+    def add(
+        self,
+        method: str,
+        pattern: AnyStr,
+        handler: Any,
+        filters: Optional[List[RouteFilter]] = None,
+    ):
+        if filters and not isinstance(self, RouterFiltersMixin):
+            extend(self, RouterFiltersMixin)
+
+        route_filters = filters or self._filters
+
         self.mark_handler(handler)
         method_name = ensure_bytes(method)
-        new_route = Route(ensure_bytes(pattern), handler)
-        self._check_duplicate(method_name, new_route)
+        new_route = (
+            FilterRoute(ensure_bytes(pattern), handler, route_filters)
+            if route_filters
+            else Route(ensure_bytes(pattern), handler)
+        )
+
+        if not route_filters:
+            self._check_duplicate(method_name, new_route)
+
         self.add_route(method_name, new_route)
 
     def add_route(self, method: AnyStr, route: Route):
@@ -446,15 +709,33 @@ class Router(RouterBase):
             current_routes[method].sort(key=lambda route: len(route.param_names))
             current_routes[method].sort(key=lambda route: b".*" in route.rx.pattern)
             current_routes[method].sort(
+                key=lambda route: (
+                    -len(route.filters) if isinstance(route, FilterRoute) else 0
+                )
+            )
+            current_routes[method].sort(
                 key=lambda route: b"*" == route.pattern or b"/*" == route.pattern
             )
 
         self.routes = current_routes
 
+        if self._sub_routers:
+            for sub_router in self._sub_routers:
+                sub_router.sort_routes()
+
+    def get_match(self, request: Request) -> Optional[RouteMatch]:
+        """
+        Gets a match for the given request, by method and request path.
+        """
+        return self.get_match_by_method_and_path(request.method, request._path)
+
     @lru_cache(maxsize=1200)
-    def get_match(self, method: AnyStr, value: AnyStr) -> Optional[RouteMatch]:
+    def get_match_by_method_and_path(
+        self, method: AnyStr, path: AnyStr
+    ) -> Optional[RouteMatch]:
+        bytes_value = ensure_bytes(path)
         for route in self.routes[ensure_bytes(method)]:
-            match = route.match(ensure_bytes(value))
+            match = route.match_by_path(bytes_value)
             if match:
                 return match
         if self._fallback is None:
@@ -463,12 +744,13 @@ class Router(RouterBase):
         return RouteMatch(self._fallback, None)
 
     def get_ws_match(self, value: AnyStr) -> Optional[RouteMatch]:
-        return self.get_match(RouteMethod.GET_WS, value)
+        # TODO: this does not suppor filters
+        return self.get_match_by_method_and_path(RouteMethod.GET_WS, value)
 
     @lru_cache(maxsize=1200)
     def get_matching_route(self, method: AnyStr, value: AnyStr) -> Optional[Route]:
         for route in self.routes[ensure_bytes(method)]:
-            match = route.match(ensure_bytes(value))
+            match = route.match_by_path(ensure_bytes(value))
             if match:
                 return route
         return None
@@ -477,7 +759,12 @@ class Router(RouterBase):
 class RegisteredRoute:
     __slots__ = ("method", "pattern", "handler")
 
-    def __init__(self, method: str, pattern: str, handler: Callable):
+    def __init__(
+        self,
+        method: str,
+        pattern: str,
+        handler: Callable,
+    ):
         self.method = method
         self.pattern = pattern
         self.handler = handler
@@ -492,13 +779,28 @@ class RoutesRegistry(RouterBase):
     This class is meant to enable scenarios like base pattern for controllers.
     """
 
-    def __init__(self):
+    __slots__ = ("routes", "_filters")
+
+    def __init__(
+        self,
+        *,
+        host: Optional[str] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
+        filters: Optional[List[RouteFilter]] = None,
+    ):
+        super().__init__(host=host, headers=headers, params=params, filters=filters)
         self.routes: List[RegisteredRoute] = []
 
     def __iter__(self):
         yield from self.routes
 
-    def add(self, method: str, pattern: str, handler: Callable):
+    def add(
+        self,
+        method: str,
+        pattern: str,
+        handler: Callable,
+    ):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
 

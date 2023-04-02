@@ -8,7 +8,6 @@ from functools import wraps
 from typing import Optional
 
 from blacksheep import Request, Response
-from blacksheep.normalization import copy_special_attributes
 from blacksheep.server.normalization import ensure_response
 
 
@@ -73,6 +72,12 @@ def write_cache_control_response_header(
             value.extend(b", ")
         value.extend(part)
 
+    if private:
+        extend(b"private")
+
+    if public:
+        extend(b"public")
+
     if max_age is not None:
         extend(f"max-age={max_age}".encode("ascii"))
 
@@ -90,12 +95,6 @@ def write_cache_control_response_header(
 
     if no_store:
         extend(b"no-store")
-
-    if private:
-        extend(b"private")
-
-    if public:
-        extend(b"public")
 
     if must_understand:
         extend(b"must-understand")
@@ -271,7 +270,6 @@ def cache_control(
                 response.add_header(b"cache-control", header_value)
                 return response
 
-            copy_special_attributes(next_handler, wrapped)
             return wrapped
 
     return decorator

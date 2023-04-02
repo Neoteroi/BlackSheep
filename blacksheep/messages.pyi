@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Generator, List, Optional, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Union
 
 from guardpost import Identity
 
@@ -74,6 +74,8 @@ class Request(Message):
     ) -> "Request": ...
     @property
     def query(self) -> Dict[str, List[str]]: ...
+    @query.setter
+    def query(self, value: Dict[str, Union[str, Sequence[str]]]): ...
     @property
     def url(self) -> URL: ...
     @url.setter

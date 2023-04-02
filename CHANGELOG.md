@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a5] - 2023-04-02 :fish:
+
+- Adds support for user defined filters for server routes (`RouteFilter` class).
+- Adds built-in support for routing based on request headers.
+- Adds built-in support for routing based on request query parameters.
+- Adds built-in support for routing based on host header value.
+- Adds a `query.setter` to the `Request` class, to set queries using
+  `dict[str, str | sequence[str]]` as input.
+- The functions registered to application events don't need anymore to define
+  the `app` argument (they can be functions without any argument).
+- Adds `Cache-Control: no-cache, no-store' to all responses generated for the
+  OpenID Connect flow.
+
 ## [2.0a4] - 2023-03-19 :flamingo:
 
 - Adds `@app.lifespan` to support registering objects that must be initialized

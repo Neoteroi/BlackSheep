@@ -20,6 +20,7 @@ cdef class URL:
     cpdef URL base_url(self)
     cpdef URL with_host(self, bytes host)
     cpdef URL with_scheme(self, bytes schema)
+    cpdef URL with_query(self, bytes query)
 
 
 cpdef URL build_absolute_url(

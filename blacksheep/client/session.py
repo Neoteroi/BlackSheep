@@ -1,22 +1,11 @@
 import asyncio
 import ssl
 from asyncio import AbstractEventLoop, TimeoutError
-from typing import (
-    Any,
-    AnyStr,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    cast,
-)
+from typing import Any, AnyStr, Callable, Dict, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response
+from blacksheep.common.types import HeadersType, ParamsType, URLType, normalize_headers
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.utils.aio import get_running_loop
 
@@ -31,31 +20,6 @@ from .exceptions import (
     UnsupportedRedirect,
 )
 from .pool import ClientConnection, ConnectionPools
-
-URLType = Union[str, bytes, URL]
-KeyValuePair = Tuple[AnyStr, AnyStr]
-Headers = Union[Dict[AnyStr, AnyStr], Iterable[KeyValuePair]]
-Params = Union[Dict[AnyStr, AnyStr], Iterable[KeyValuePair]]
-
-
-def _ensure_header_bytes(value: AnyStr) -> bytes:
-    return value if isinstance(value, bytes) else value.encode("ascii")
-
-
-def normalize_headers(
-    headers: Optional[Headers],
-) -> Optional[List[Tuple[bytes, bytes]]]:
-    if headers is None:
-        return None
-    if isinstance(headers, dict):
-        return [
-            (_ensure_header_bytes(key), _ensure_header_bytes(value))
-            for key, value in headers.items()
-        ]
-    return [
-        (_ensure_header_bytes(key), _ensure_header_bytes(value))
-        for key, value in headers
-    ]
 
 
 class RedirectsCache:
@@ -94,7 +58,7 @@ class ClientSession:
         base_url: Union[None, bytes, str, URL] = None,
         ssl: Union[None, bool, ssl.SSLContext] = None,
         pools: Optional[ConnectionPools] = None,
-        default_headers: Optional[Headers] = None,
+        default_headers: Optional[HeadersType] = None,
         follow_redirects: bool = True,
         connection_timeout: float = 10.0,
         request_timeout: float = 60.0,
@@ -152,7 +116,7 @@ class ClientSession:
         return self._default_headers
 
     @default_headers.setter
-    def default_headers(self, value: Optional[Headers]):
+    def default_headers(self, value: Optional[HeadersType]):
         self._default_headers = normalize_headers(value)
 
     @property
@@ -195,7 +159,7 @@ class ClientSession:
         """Uses specification compliant handling of 301 and 302 redirects"""
         self.non_standard_handling_of_301_302_redirect_method = False
 
-    def get_url(self, url, params: Optional[Params] = None) -> bytes:
+    def get_url(self, url, params: Optional[ParamsType] = None) -> bytes:
         value = self.get_url_value(url)
         if not params:
             return value
@@ -386,8 +350,8 @@ class ClientSession:
     async def get(
         self,
         url: URLType,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         return await self.send(
             Request("GET", self.get_url(url, params), normalize_headers(headers))
@@ -397,8 +361,8 @@ class ClientSession:
         self,
         url: URLType,
         content: Optional[Content] = None,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         request = Request("POST", self.get_url(url, params), normalize_headers(headers))
         return await self.send(
@@ -409,8 +373,8 @@ class ClientSession:
         self,
         url: URLType,
         content: Optional[Content] = None,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         request = Request("PUT", self.get_url(url, params), normalize_headers(headers))
         return await self.send(
@@ -421,8 +385,8 @@ class ClientSession:
         self,
         url: URLType,
         content: Optional[Content] = None,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         request = Request(
             "DELETE", self.get_url(url, params), normalize_headers(headers)
@@ -434,8 +398,8 @@ class ClientSession:
     async def trace(
         self,
         url: URLType,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         return await self.send(
             Request("TRACE", self.get_url(url, params), normalize_headers(headers))
@@ -444,8 +408,8 @@ class ClientSession:
     async def head(
         self,
         url: URLType,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         return await self.send(
             Request("HEAD", self.get_url(url, params), normalize_headers(headers))
@@ -455,8 +419,8 @@ class ClientSession:
         self,
         url: URLType,
         content: Optional[Content] = None,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         request = Request(
             "PATCH", self.get_url(url, params), normalize_headers(headers)
@@ -469,8 +433,8 @@ class ClientSession:
         self,
         url: URLType,
         content: Optional[Content] = None,
-        headers: Optional[Headers] = None,
-        params: Optional[Params] = None,
+        headers: Optional[HeadersType] = None,
+        params: Optional[ParamsType] = None,
     ) -> Response:
         request = Request(
             "OPTIONS", self.get_url(url, params), normalize_headers(headers)

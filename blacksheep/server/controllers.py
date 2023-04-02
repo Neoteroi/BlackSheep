@@ -1,8 +1,18 @@
 import sys
 from io import BytesIO
-from typing import Any, AsyncIterable, Callable, Optional, Union
+from typing import (
+    Any,
+    AsyncIterable,
+    Callable,
+    ClassVar,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+)
 
 from blacksheep import Request, Response
+from blacksheep.common.types import HeadersType, ParamsType
 from blacksheep.server.responses import (
     ContentDispositionType,
     MessageType,
@@ -28,7 +38,7 @@ from blacksheep.server.responses import (
     view,
     view_async,
 )
-from blacksheep.server.routing import RoutesRegistry
+from blacksheep.server.routing import RouteFilter, RoutesRegistry, normalize_filters
 from blacksheep.utils import AnyStr, join_fragments
 
 # singleton router used to store initial configuration,
@@ -48,6 +58,35 @@ trace = router.trace
 options = router.options
 connect = router.connect
 ws = router.ws
+
+
+def filters(
+    *filters: RouteFilter,
+    host: Optional[str] = None,
+    headers: Optional[HeadersType] = None,
+    params: Optional[ParamsType] = None,
+):
+    """
+    Configures a set of filters for a decorated controller type.
+    Filters are applied to all routes defined in the controller.
+
+    ---
+    Example: match a "/" route only if the request includes an header "X-Area: Special"
+
+    ```py
+    @filters(headers={"X-Area": "Special"})
+    class Special(Controller):
+        @get("/")
+        def special(self):
+            ...
+    ```
+    """
+
+    def class_deco(cls: Type["Controller"]):
+        cls._filters_ = normalize_filters(host, headers, params, list(*filters))
+        return cls
+
+    return class_deco
 
 
 class CannotDetermineDefaultViewNameError(RuntimeError):
@@ -71,6 +110,8 @@ class ControllerMeta(type):
 
 class Controller(metaclass=ControllerMeta):
     """Base class for all controllers."""
+
+    _filters_: ClassVar[Sequence[RouteFilter]] = []
 
     @classmethod
     def route(cls) -> Optional[str]:
@@ -244,7 +285,7 @@ class Controller(metaclass=ControllerMeta):
         ],
         content_type: str,
         *,
-        file_name: str = None,
+        file_name: Optional[str] = None,
         content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,
     ) -> Response:
         """
@@ -383,7 +424,3 @@ class APIController(Controller):
         if cls_version and cls_name.endswith(cls_version.lower()):
             cls_name = cls_name[: -len(cls_version)]
         return join_fragments("api", cls_version, cls_name)
-
-
-# For backward compatibility
-ApiController = APIController

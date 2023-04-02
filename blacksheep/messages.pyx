@@ -2,7 +2,7 @@ import http
 import re
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
-from urllib.parse import parse_qs, quote, unquote
+from urllib.parse import parse_qs, quote, unquote, urlencode
 
 try:
     import cchardet as chardet
@@ -375,8 +375,15 @@ cdef class Request(Message):
     @property
     def query(self):
         if self._raw_query:
-            return parse_qs(self._raw_query.decode('utf8'))
+            return parse_qs(self._raw_query.decode("utf8"))
         return {}
+
+    @query.setter
+    def query(self, value):
+        cdef bytes raw_query
+        raw_query = urlencode(value, True).encode("utf8")
+        self._raw_query = raw_query
+        self.url = self.url.with_query(raw_query)
 
     @property
     def url(self):

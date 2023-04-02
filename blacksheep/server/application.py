@@ -1,5 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
+from functools import wraps
+from inspect import signature, unwrap
 from pathlib import Path
 from typing import (
     Any,
@@ -26,6 +28,7 @@ from itsdangerous import Serializer
 from rodi import ContainerProtocol
 
 from blacksheep.baseapp import BaseApplication, handle_not_found
+from blacksheep.common import extend
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.exceptions import HTTPException
@@ -86,11 +89,17 @@ class ApplicationEvent:
         self.context = context
 
     def __iadd__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
-        self._handlers.append(handler)
+        self._handlers.append(self._wrap_discard(handler))
         return self
 
     def __isub__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
-        self._handlers.remove(handler)
+        to_remove = [
+            callback
+            for callback in self._handlers
+            if callback is handler or unwrap(callback) is handler
+        ]
+        for callback in to_remove:
+            self._handlers.remove(callback)
         return self
 
     def __len__(self) -> int:
@@ -110,6 +119,21 @@ class ApplicationEvent:
     async def fire(self, *args: Any, **kwargs: Any) -> None:
         for handler in self._handlers:
             await handler(self.context, *args, **kwargs)
+
+    def _wrap_discard(self, function):
+        """
+        If the given function does not accept any parameter, returns a wrapper with a
+        discard parameter; otherwise returns the same function.
+        """
+        if len(signature(function).parameters) == 0:
+
+            @wraps(function)
+            async def wrap_handler(_):
+                await function()
+
+            return wrap_handler
+        else:
+            return function
 
 
 class ApplicationSyncEvent(ApplicationEvent):
@@ -137,13 +161,6 @@ class ApplicationAlreadyStartedCORSError(TypeError):
             "The application is already running, configure CORS rules "
             "before starting the application"
         )
-
-
-def _extend(obj, cls):
-    """Applies a mixin to an instance of a class."""
-    base_cls = obj.__class__
-    base_cls_name = obj.__class__.__name__
-    obj.__class__ = type(base_cls_name, (cls, base_cls), {})
 
 
 class Application(BaseApplication):
@@ -584,6 +601,7 @@ class Application(BaseApplication):
                 route.method,
                 self.get_controller_handler_pattern(controller_type, route),
                 handler,
+                controller_type._filters_,
             )
         return controller_types
 
@@ -667,8 +685,11 @@ class Application(BaseApplication):
     def extend(self, mixin) -> None:
         """
         Extends the class with additional features, applying the given mixin class.
+
+        This method should be used for those scenarios where opting-in for a feature
+        incurs a performance fee, so that said fee is paid only when necessary.
         """
-        _extend(self, mixin)
+        extend(self, mixin)
 
     async def start(self):
         if self.started:
@@ -792,7 +813,7 @@ class MountMixin:
             return await super()._handle_lifespan(receive, send)  # type: ignore
 
         for route in self.mount_registry.mounted_apps:  # type: ignore
-            route_match = route.match(scope["raw_path"])
+            route_match = route.match_by_path(scope["raw_path"])
             if route_match:
                 raw_path = scope["raw_path"]
                 if raw_path == route.pattern.rstrip(b"/*") and scope["type"] == "http":

@@ -70,11 +70,20 @@ cdef class URL:
         return URL(base_url)
 
     cpdef URL with_host(self, bytes host):
+        cdef bytes query, fragment
         if not self.is_absolute:
             raise TypeError("Cannot generate a URL from a partial URL")
         query = b"?" + self.query if self.query else b""
         fragment = b"#" + self.fragment if self.fragment else b""
         return URL(self.schema + b"://" + host + self.path + query + fragment)
+
+    cpdef URL with_query(self, bytes query):
+        cdef bytes fragment
+        query = b"?" + query if query else b""
+        fragment = b"#" + self.fragment if self.fragment else b""
+        if self.is_absolute:
+            return URL(self.schema + b"://" + self.host + self.path + query + fragment)
+        return URL(self.path + query + fragment)
 
     cpdef URL with_scheme(self, bytes schema):
         valid_schema(schema)

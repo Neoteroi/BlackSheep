@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `dict[str, str | sequence[str]]` as input.
 - The functions registered to application events don't need anymore to define
   the `app` argument (they can be functions without any argument).
+- Adds `Cache-Control: no-cache, no-store' to all responses generated for the
+  OpenID Connect flow.
 
 ## [2.0a4] - 2023-03-19 :flamingo:
 

@@ -21,6 +21,10 @@ class GzipMiddleware:
         The minimum size of the response body to compress.
     comp_level: int
         The compression level to use.
+    handled_types: Optional[Iterable[bytes]]
+        The list of content types to compress.
+    executor: Executor
+        The executor to use for compression.
     """
 
     handled_types: List[bytes] = [
@@ -49,6 +53,9 @@ class GzipMiddleware:
             self.handled_types = self._normalize_types(handled_types)
 
     def _normalize_types(self, types: Iterable[bytes]) -> List[bytes]:
+        """
+        Normalizes the types to bytes.
+        """
         nomalized_types = []
         for _type in types:
             if isinstance(_type, str):

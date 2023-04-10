@@ -1,7 +1,7 @@
 import asyncio
 import gzip
 from concurrent.futures import Executor, ThreadPoolExecutor
-from typing import Awaitable, Callable, Iterable, List, Optional, Type
+from typing import Awaitable, Callable, Iterable, List, Optional
 
 from blacksheep import Content, Request, Response
 from blacksheep.server.application import Application

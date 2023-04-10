@@ -1,5 +1,6 @@
-import pytest
 import gzip
+
+import pytest
 
 from blacksheep.server.gzip import GzipMiddleware
 from blacksheep.testing.helpers import get_example_scope

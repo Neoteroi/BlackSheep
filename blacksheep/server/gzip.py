@@ -1,12 +1,11 @@
-import gzip
 import asyncio
+import gzip
 from concurrent.futures import Executor, ThreadPoolExecutor
+from typing import Awaitable, Callable, Iterable, List, Optional
 
-from blacksheep.server.normalization import ensure_response
-from blacksheep import Request, Response, Content
+from blacksheep import Content, Request, Response
 from blacksheep.server.application import Application
-
-from typing import Callable, Awaitable, Optional, Iterable, List
+from blacksheep.server.normalization import ensure_response
 
 
 class GzipMiddleware:

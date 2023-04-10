@@ -30,6 +30,7 @@ from blacksheep.server.bindings import (
     FromServices,
 )
 from blacksheep.server.controllers import APIController
+from blacksheep.server.gzip import use_gzip_commpression
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
@@ -44,7 +45,6 @@ from blacksheep.server.openapi.ui import ReDocUIProvider
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RoutesRegistry
-from blacksheep.server.gzip import use_gzip_commpression
 from itests.utils import CrashTest
 
 app_2 = Application()

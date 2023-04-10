@@ -30,7 +30,7 @@ from blacksheep.server.bindings import (
     FromServices,
 )
 from blacksheep.server.controllers import APIController
-from blacksheep.server.gzip import use_gzip_commpression
+from blacksheep.server.gzip import use_gzip_compression
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
@@ -49,7 +49,7 @@ from itests.utils import CrashTest
 
 app_2 = Application()
 
-use_gzip_commpression(app_2)
+use_gzip_compression(app_2)
 
 controllers_router = RoutesRegistry()
 app_2.controllers_router = controllers_router

@@ -12,7 +12,7 @@ class GzipMiddleware:
     """
     The gzip compression middleware for all requests with a body larger than
     the specified minimum size and with the "gzip" encoding in the "Accept-Encoding"
-    header.
+    header. The middleware runs compression in a separate executor.
 
     Parameters
     ----------
@@ -23,7 +23,10 @@ class GzipMiddleware:
     handled_types: Optional[Iterable[bytes]]
         The list of content types to compress.
     executor: Executor
-        The executor to use for compression.
+        The executor instance to use for compression. If not specified, a
+        ThreadPoolExecutor is used. If you specify an executor, you are responsible
+        for shutting it down. If you do not specify an executor, the middleware
+        will shut it down when it is disposed.
     """
 
     handled_types: List[bytes] = [
@@ -42,11 +45,17 @@ class GzipMiddleware:
         min_size: int = 500,
         comp_level: int = 5,
         handled_types: Optional[Iterable[bytes]] = None,
-        executor: Type[Executor] = ThreadPoolExecutor,
+        executor: Optional[Executor] = None,
     ):
         self.min_size = min_size
         self.comp_level = comp_level
-        self.executor = executor
+
+        self._shutdown_executor = False
+        if executor is not None:
+            self._executor = executor
+        else:
+            self._executor = ThreadPoolExecutor()
+            self._shutdown_executor = True
 
         if handled_types is not None:
             self.handled_types = self._normalize_types(handled_types)
@@ -55,13 +64,13 @@ class GzipMiddleware:
         """
         Normalizes the types to bytes.
         """
-        nomalized_types = []
+        normalized_types = []
         for _type in types:
             if isinstance(_type, str):
-                nomalized_types.append(_type.encode("ascii"))
+                normalized_types.append(_type.encode("ascii"))
             else:
-                nomalized_types.append(_type)
-        return nomalized_types
+                normalized_types.append(_type)
+        return normalized_types
 
     def should_handle(self, request: Request, response: Response) -> bool:
         """
@@ -116,17 +125,13 @@ class GzipMiddleware:
         if not self.should_handle(request, response):
             return response
 
-        def _compress(body: bytes, comp_level: int) -> bytes:
-            return gzip.compress(body, comp_level)
-
         loop = asyncio.get_running_loop()
-        with self.executor() as executor:
-            compressed_body = await loop.run_in_executor(
-                executor,
-                _compress,
-                response.content.body,
-                self.comp_level,
-            )
+        compressed_body = await loop.run_in_executor(
+            self._executor,
+            gzip.compress,
+            response.content.body,
+            self.comp_level,
+        )
 
         response.with_content(
             Content(
@@ -135,13 +140,14 @@ class GzipMiddleware:
             )
         )
         response.add_header(b"content-encoding", b"gzip")
-        response.add_header(
-            b"content-length", str(len(response.content.body)).encode("ascii")
-        )
         return response
 
+    def __del__(self):
+        if self._shutdown_executor:
+            self._executor.shutdown(wait=False, cancel_futures=True)
 
-def use_gzip_commpression(
+
+def use_gzip_compression(
     app: Application,
     handler: Optional[GzipMiddleware] = None,
 ) -> GzipMiddleware:

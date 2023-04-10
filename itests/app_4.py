@@ -9,7 +9,7 @@ import uvicorn
 from blacksheep import JSONContent, Response
 from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
-from blacksheep.server.gzip import use_gzip_commpression
+from blacksheep.server.gzip import use_gzip_compression
 from blacksheep.server.responses import json
 from blacksheep.server.websocket import WebSocket
 from blacksheep.settings.json import default_json_dumps, json_settings
@@ -70,7 +70,7 @@ def configure_json_settings():
 
 app_4 = Application(show_error_details=True)
 
-use_gzip_commpression(app_4)
+use_gzip_compression(app_4)
 
 
 @dataclasses.dataclass

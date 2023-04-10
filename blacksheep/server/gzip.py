@@ -1,7 +1,7 @@
 import asyncio
 import gzip
 from concurrent.futures import Executor, ThreadPoolExecutor
-from typing import Awaitable, Callable, Iterable, List, Optional
+from typing import Awaitable, Callable, Iterable, List, Optional, Type
 
 from blacksheep import Content, Request, Response
 from blacksheep.server.application import Application
@@ -42,7 +42,7 @@ class GzipMiddleware:
         min_size: int = 500,
         comp_level: int = 5,
         handled_types: Optional[Iterable[bytes]] = None,
-        executor: Executor = ThreadPoolExecutor,
+        executor: Type[Executor] = ThreadPoolExecutor,
     ):
         self.min_size = min_size
         self.comp_level = comp_level
@@ -109,6 +109,10 @@ class GzipMiddleware:
         self, request: Request, handler: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         response = ensure_response(await handler(request))
+
+        if response is None or response.content is None:
+            return response
+
         if not self.should_handle(request, response):
             return response
 
@@ -140,7 +144,7 @@ class GzipMiddleware:
 def use_gzip_commpression(
     app: Application,
     handler: Optional[GzipMiddleware] = None,
-):
+) -> GzipMiddleware:
     """
     Configures the application to use gzip compression for all responses with gzip
     in accept-encoding header.

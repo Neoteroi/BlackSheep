@@ -12,7 +12,7 @@ class GzipMiddleware:
     """
     The gzip compression middleware for all requests with a body larger than
     the specified minimum size and with the "gzip" encoding in the "Accept-Encoding"
-    header. The middleware runs compression in a separate executor.
+    header. The middleware runs compression asynchronously in a separate executor.
 
     Parameters
     ----------
@@ -24,9 +24,8 @@ class GzipMiddleware:
         The list of content types to compress.
     executor: Executor
         The executor instance to use for compression. If not specified, a
-        ThreadPoolExecutor is used. If you specify an executor, you are responsible
-        for shutting it down. If you do not specify an executor, the middleware
-        will shut it down when it is disposed.
+        default executor is used. If you specify an executor, you are responsible
+        for shutting it down.
     """
 
     handled_types: List[bytes] = [
@@ -49,13 +48,7 @@ class GzipMiddleware:
     ):
         self.min_size = min_size
         self.comp_level = comp_level
-
-        self._shutdown_executor = False
-        if executor is not None:
-            self._executor = executor
-        else:
-            self._executor = ThreadPoolExecutor()
-            self._shutdown_executor = True
+        self._executor = executor
 
         if handled_types is not None:
             self.handled_types = self._normalize_types(handled_types)
@@ -141,10 +134,6 @@ class GzipMiddleware:
         )
         response.add_header(b"content-encoding", b"gzip")
         return response
-
-    def __del__(self):
-        if self._shutdown_executor:
-            self._executor.shutdown(wait=False, cancel_futures=True)
 
 
 def use_gzip_compression(

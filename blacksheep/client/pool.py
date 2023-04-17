@@ -130,6 +130,12 @@ class ConnectionPools:
             self._pools[key] = new_pool
             return new_pool
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.dispose()
+
     def dispose(self):
         for pool in self._pools.values():
             pool.dispose()

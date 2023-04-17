@@ -24,6 +24,7 @@ from openapidocs.v3 import (
     PathItem,
     Reference,
     RequestBody,
+    Tag,
 )
 from openapidocs.v3 import Response as ResponseDoc
 from openapidocs.v3 import Schema, Server, ValueFormat, ValueType
@@ -278,6 +279,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         yaml_spec_path: str = "/openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
+        tags: Optional[List[Tag]] = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -287,6 +289,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             anonymous_access=anonymous_access,
         )
         self.info = info
+        self._tags = tags
         self.components = Components()
         self._objects_references: Dict[Any, Reference] = {}
         self.servers: List[Server] = []
@@ -309,7 +312,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def generate_documentation(self, app: Application) -> OpenAPI:
         self._optimize_binders_docs()
         return OpenAPI(
-            info=self.info, paths=self.get_paths(app), components=self.components
+            info=self.info,
+            paths=self.get_paths(app),
+            components=self.components,
+            tags=self._tags,
         )
 
     def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:

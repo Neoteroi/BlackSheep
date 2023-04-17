@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a6] - 2023-04-17 :fish:
+
+- Adds a `GzipMiddleware` that can be used to enable `gzip` compression, using
+  the built-in module. @tyzhnenko 's contribution. :sparkles:
+- Adds a strategy to control features depending on application environment:
+  `is_development`, `is_production` depending on `APP_ENV` environment
+  variable. For more information, see [_Defining application environment_](https://www.neoteroi.dev/blacksheep/settings/#defining-application-environment).
+- Makes the client `ConnectionPools` a context manager, its `__exit__` method
+  closes all its `TCP-IP` connections.
+
 ## [2.0a5] - 2023-04-02 :fish:
 
 - Adds support for user defined filters for server routes (`RouteFilter` class).

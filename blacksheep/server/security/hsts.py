@@ -1,7 +1,7 @@
 from blacksheep.messages import Request, Response
 
 
-def _get_hsts_value(max_age: int, include_subdomains: bool) -> bytes:
+def write_hsts_header_value(max_age: int, include_subdomains: bool) -> bytes:
     value = f"max-age={max_age};"
 
     if include_subdomains:
@@ -21,7 +21,7 @@ class HSTSMiddleware:
         max_age: int = 31536000,
         include_subdomains: bool = True,
     ) -> None:
-        self._value = _get_hsts_value(max_age, include_subdomains)
+        self._value = write_hsts_header_value(max_age, include_subdomains)
 
     async def __call__(self, request: Request, handler):
         response: Response = await handler(request)

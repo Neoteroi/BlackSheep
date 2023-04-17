@@ -17,10 +17,12 @@ from blacksheep import (
     json,
     text,
 )
+from blacksheep.server.gzip import use_gzip_compression
 from itests.utils import CrashTest, ensure_folder
 
 app = Application(show_error_details=True)
 
+use_gzip_compression(app)
 
 static_folder_path = pathlib.Path(__file__).parent.absolute() / "static"
 

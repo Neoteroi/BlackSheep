@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.13] - 2023-04-17 :crown:
 
+- Adds a `GzipMiddleware` that can be used to enable `gzip` compression, using
+  the built-in module. [tyzhnenko](https://github.com/tyzhnenko)'s contribution. :sparkles:
 - Adds a strategy to control features depending on application environment:
   `is_development`, `is_production` depending on `APP_ENV` environment
   variable. For more information, see [_Defining application environment_](https://www.neoteroi.dev/blacksheep/settings/#defining-application-environment).

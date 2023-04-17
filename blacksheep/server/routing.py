@@ -16,17 +16,6 @@ from blacksheep.common.types import (
 from blacksheep.messages import Request
 from blacksheep.utils import ensure_bytes, ensure_str
 
-__all__ = [
-    "HTTPMethod",
-    "Router",
-    "Route",
-    "RouteMatch",
-    "RouteDuplicate",
-    "RegisteredRoute",
-    "RoutesRegistry",
-    "RouteMethod",
-]
-
 
 class RouteMethod:
     GET = "GET"
@@ -742,10 +731,6 @@ class Router(RouterBase):
             return None
 
         return RouteMatch(self._fallback, None)
-
-    def get_ws_match(self, value: AnyStr) -> Optional[RouteMatch]:
-        # TODO: this does not suppor filters
-        return self.get_match_by_method_and_path(RouteMethod.GET_WS, value)
 
     @lru_cache(maxsize=1200)
     def get_matching_route(self, method: AnyStr, value: AnyStr) -> Optional[Route]:

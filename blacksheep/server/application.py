@@ -58,6 +58,7 @@ from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import (
     MountRegistry,
     RegisteredRoute,
+    RouteMethod,
     Router,
     RoutesRegistry,
 )
@@ -173,7 +174,6 @@ class Application(BaseApplication):
         *,
         router: Optional[Router] = None,
         services: Optional[ContainerProtocol] = None,
-        debug: bool = False,
         show_error_details: Optional[bool] = None,
         mount: Optional[MountRegistry] = None,
     ):
@@ -190,7 +190,6 @@ class Application(BaseApplication):
 
         assert services is not None
         self._services: ContainerProtocol = services
-        self.debug = debug
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []
         self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
         self._middlewares_configured = False
@@ -730,7 +729,10 @@ class Application(BaseApplication):
 
     async def _handle_websocket(self, scope, receive, send):
         ws = WebSocket(scope, receive, send)
-        route = self.router.get_ws_match(scope["path"])
+        # TODO: support filters
+        route = self.router.get_match_by_method_and_path(
+            RouteMethod.GET_WS, scope["path"]
+        )
 
         if route:
             ws.route_values = route.values

@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.13] - 2023-04-17 :crown:
+
+- Adds a strategy to control features depending on application environment:
+  `is_development`, `is_production` depending on `APP_ENV` environment
+  variable. For more information, see [_Defining application environment_](https://www.neoteroi.dev/blacksheep/settings/#defining-application-environment).
+- Makes the client `ConnectionPools` a context manager, its `__exit__` method
+  closes all its `TCP-IP` connections.
+
 ## [1.2.12] - 2023-03-22 :flamingo:
 
 - Adds `@app.lifespan` to support registering objects that must be initialized

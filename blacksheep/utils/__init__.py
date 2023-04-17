@@ -37,3 +37,9 @@ def get_class_hierarchy(cls: Type[T]) -> Tuple[Type[T], ...]:
 
 def get_class_instance_hierarchy(instance: T) -> Tuple[Type[T], ...]:
     return get_class_hierarchy(type(instance))
+
+
+def truthy(value: str, default: bool = False) -> bool:
+    if not value:
+        return default
+    return value.upper() in {"1", "TRUE"}

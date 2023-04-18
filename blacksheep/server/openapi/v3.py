@@ -24,10 +24,9 @@ from openapidocs.v3 import (
     PathItem,
     Reference,
     RequestBody,
-    Tag,
 )
 from openapidocs.v3 import Response as ResponseDoc
-from openapidocs.v3 import Schema, Server, ValueFormat, ValueType
+from openapidocs.v3 import Schema, Server, Tag, ValueFormat, ValueType
 
 from blacksheep.server.bindings import (
     Binder,

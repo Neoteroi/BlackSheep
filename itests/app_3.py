@@ -1,7 +1,7 @@
 import uvicorn
 
 from blacksheep.server import Application
-from blacksheep.server.gzip import use_gzip_compression
+from blacksheep.server.compression import use_gzip_compression
 from blacksheep.server.responses import json
 
 application = Application(show_error_details=True)

@@ -2,7 +2,7 @@ import gzip
 
 import pytest
 
-from blacksheep.server.gzip import GzipMiddleware
+from blacksheep.server.compression import GzipMiddleware
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 

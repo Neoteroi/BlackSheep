@@ -135,6 +135,6 @@ def use_gzip_compression(
     if handler is None:
         handler = GzipMiddleware()
 
-    app.middlewares.append(handler)
+    app.middlewares.append(handler)  # type: ignore
 
     return handler

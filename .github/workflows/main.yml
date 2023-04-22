@@ -41,6 +41,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # downgrade pip - this is temporary, until blacksheep adopts pyproject.toml (soon)
+          pip install pip==23.0.1
           pip install cython==0.29.32 --install-option="--no-cython-compile"
           pip install -r requirements.txt
           pip install flake8
@@ -103,6 +105,9 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # downgrade pip - this is temporary, until blacksheep adopts pyproject.toml (soon)
+          pip install pip==23.0.1
+
           PYVER=`python -V 2>&1`
 
           if [ "${PYVER:0:-2}" == "Python 3.10" ]; then
@@ -193,6 +198,8 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          # downgrade pip - this is temporary, until blacksheep adopts pyproject.toml (soon)
+          pip install pip==23.0.1
           pip install cython --install-option="--no-cython-compile"
           python -m pip install --upgrade setuptools pip wheel
 

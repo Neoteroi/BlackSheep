@@ -103,7 +103,6 @@ setup(
         "rodi~=2.0.2",
         "essentials>=1.1.4,<2.0",
         "essentials-openapi>=1.0.6,<1.1",
-        "typing_extensions; python_version < '3.8'",
         "python-dateutil~=2.8.2",
         "itsdangerous~=2.1.2",
     ],

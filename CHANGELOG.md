@@ -8,12 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0a6] - 2023-04-18 :crown:
 
 - Adds a `GzipMiddleware` that can be used to enable `gzip` compression, using
-  the built-in module. @tyzhnenko 's contribution. :sparkles:
+  the built-in module. Contributed by @tyzhnenko :sparkles:
+- Improves how tags are generated for OpenAPI Documentation: adds the
+  possibility to document tags explicitly and control their order, otherwise
+  sorts them alphabetically by default, when using controllers or specifying
+  tags for routes. Contributed by @tyzhnenko :sparkles:
 - Adds a strategy to control features depending on application environment:
   `is_development`, `is_production` depending on `APP_ENV` environment
   variable. For more information, see [_Defining application environment_](https://www.neoteroi.dev/blacksheep/settings/#defining-application-environment).
 - Makes the client `ConnectionPools` a context manager, its `__exit__` method
   closes all its `TCP-IP` connections.
+- Replaces `chardet` and `cchardet` with `charset-normalizer`. Contributed by @mementum.
+- Upgrades all dependencies.
 
 ## [2.0a5] - 2023-04-02 :fish:
 

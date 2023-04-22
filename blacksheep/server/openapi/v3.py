@@ -26,7 +26,7 @@ from openapidocs.v3 import (
     RequestBody,
 )
 from openapidocs.v3 import Response as ResponseDoc
-from openapidocs.v3 import Schema, Server, ValueFormat, ValueType
+from openapidocs.v3 import Schema, Server, Tag, ValueFormat, ValueType
 
 from blacksheep.server.bindings import (
     Binder,
@@ -278,6 +278,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         yaml_spec_path: str = "/openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
+        tags: Optional[List[Tag]] = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -287,6 +288,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             anonymous_access=anonymous_access,
         )
         self.info = info
+        self._tags = tags
         self.components = Components()
         self._objects_references: Dict[Any, Reference] = {}
         self.servers: List[Server] = []
@@ -306,10 +308,37 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_ui_page_title(self) -> str:
         return self.info.title
 
+    def _iter_tags(self, paths: Dict[str, PathItem]) -> Iterable[str]:
+        methods = (
+            "get",
+            "post",
+            "put",
+            "delete",
+            "options",
+            "head",
+            "patch",
+            "trace",
+        )
+
+        for path in paths.values():
+            for method in methods:
+                prop: Optional[Operation] = getattr(path, method)
+
+                if prop is not None and prop.tags is not None:
+                    yield from prop.tags
+
+    def _tags_from_paths(self, paths: Dict[str, PathItem]) -> List[Tag]:
+        unique_tags = set(self._iter_tags(paths))
+        return [Tag(name=name) for name in sorted(unique_tags)]
+
     def generate_documentation(self, app: Application) -> OpenAPI:
         self._optimize_binders_docs()
+        paths = self.get_paths(app)
         return OpenAPI(
-            info=self.info, paths=self.get_paths(app), components=self.components
+            info=self.info,
+            paths=paths,
+            components=self.components,
+            tags=self._tags or self._tags_from_paths(paths),
         )
 
     def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:

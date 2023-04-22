@@ -13,6 +13,7 @@ from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, con
 
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromForm
+from blacksheep.server.controllers import APIController, get, post
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
@@ -27,6 +28,7 @@ from blacksheep.server.openapi.v3 import (
     DataClassTypeHandler,
     OpenAPIHandler,
     PydanticModelTypeHandler,
+    Tag,
     check_union,
 )
 from blacksheep.server.routing import RoutesRegistry
@@ -437,6 +439,7 @@ components:
                     type: string
                     format: date-time
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -497,6 +500,7 @@ components:
                     type: integer
                     format: int64
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -587,6 +591,7 @@ components:
                     type: integer
                     format: int64
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -643,6 +648,7 @@ components:
                 error:
                     type: string
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -707,6 +713,7 @@ components:
             properties:
                 sub:
                     $ref: '#/components/schemas/ValidatedOfFoo'
+tags: []
 """.strip()
     )
 
@@ -788,6 +795,7 @@ components:
                     $ref: '#/components/schemas/Cat'
                 item_two:
                     $ref: '#/components/schemas/Foo'
+tags: []
 """.strip()
     )
 
@@ -798,10 +806,12 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
 ):
     app = get_app()
 
+    @docs(tags=["B tag"])
     @app.route("/one")
     def one() -> PaginatedSet[Cat]:
         ...
 
+    @docs(tags=["A tag"])
     @app.route("/two")
     def two() -> PaginatedSet[Cat]:
         ...
@@ -828,6 +838,8 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/PaginatedSetOfCat'
+            tags:
+            - B tag
             operationId: one
     /two:
         get:
@@ -838,6 +850,8 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/PaginatedSetOfCat'
+            tags:
+            - A tag
             operationId: two
 components:
     schemas:
@@ -869,6 +883,9 @@ components:
                     type: integer
                     format: int64
                     nullable: false
+tags:
+-   name: A tag
+-   name: B tag
 """.strip()
     )
 
@@ -948,6 +965,7 @@ components:
             properties:
                 value:
                     $ref: '#/components/schemas/PaginatedSetOfCat'
+tags: []
 """.strip()
     )
 
@@ -989,6 +1007,7 @@ paths:
                                 nullable: false
             operationId: plain_class
 components: {}
+tags: []
 """.strip()
     )
 
@@ -1056,6 +1075,7 @@ components:
                     type: integer
                     format: int64
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -1144,6 +1164,7 @@ components:
                     $ref: '#/components/schemas/PydPaginatedSetOfCat'
                 friend:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+tags: []
 """.strip()
     )
 
@@ -1211,6 +1232,7 @@ components:
                     type: integer
                     format: int64
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -1264,6 +1286,7 @@ components:
                 name:
                     type: string
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -1427,6 +1450,7 @@ components:
                         type: integer
                         format: int64
                         nullable: false
+tags: []
 """.strip()
     )
 
@@ -1590,6 +1614,7 @@ components:
                         type: integer
                         format: int64
                         nullable: false
+tags: []
 """.strip()
     )
 
@@ -1638,6 +1663,7 @@ components:
                     maxLength: 2083
                     minLength: 1
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -1711,6 +1737,7 @@ components:
                     $ref: '#/components/schemas/PydCat'
                 error:
                     $ref: '#/components/schemas/Error'
+tags: []
 """.strip()
     )
 
@@ -1795,6 +1822,7 @@ components:
                     format: float
                     maximum: 0
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -1894,6 +1922,7 @@ components:
                     maxLength: 10
                     minLength: 5
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -2032,6 +2061,7 @@ components:
                     type: integer
                     format: int64
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -2117,6 +2147,7 @@ components:
                     - 1
                     - 2
                     - 3
+tags: []
 """.strip()
     )
 
@@ -2208,6 +2239,7 @@ components:
                     - 1
                     - 2
                     - 3
+tags: []
 """.strip()
     )
 
@@ -2471,6 +2503,7 @@ components:
                 email:
                     type: string
                     nullable: false
+tags: []
 """.strip()
     )
 
@@ -2487,9 +2520,13 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
 
-    docs = OpenAPIHandler(info=Info(title="Parent API", version="0.0.1"))
+    docs = OpenAPIHandler(
+        info=Info(title="Parent API", version="0.0.1"),
+        tags=[Tag(name="A Home")],
+    )
     docs.bind_app(parent)
 
+    @docs(tags=["A Home"])
     @parent.router.get("/")
     def a_home():
         """Parent root."""
@@ -2499,14 +2536,17 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
     child_2 = Application()
     child_3 = Application()
 
+    @docs(tags=["Child z Home"])
     @child_1.router.get("/")
     def child_1_home():
         return "Child 1 home."
 
+    @docs(tags=["Child y Home"])
     @child_2.router.get("/")
     def child_2_home():
         return "Child 2 home."
 
+    @docs(tags=["Child x Home"])
     @child_3.router.get("/")
     def child_3_home():
         return "Child 3 home."
@@ -2535,21 +2575,210 @@ paths:
     /:
         get:
             responses: {}
+            tags:
+            - A Home
             operationId: a_home
             summary: Parent root.
             description: Parent root.
     /child-1:
         get:
             responses: {}
+            tags:
+            - Child z Home
             operationId: child_1_home
     /child-1/child-2:
         get:
             responses: {}
+            tags:
+            - Child y Home
             operationId: child_2_home
     /child-1/child-2/child-3:
         get:
             responses: {}
+            tags:
+            - Child x Home
             operationId: child_3_home
 components: {}
+tags:
+-   name: A Home
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_sorting_api_controllers_tags(serializer: Serializer):
+    app = Application()
+
+    docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
+    docs.bind_app(app)
+
+    @dataclass
+    class Cat:
+        pass
+
+    @dataclass
+    class Dog:
+        pass
+
+    @dataclass
+    class Parrot:
+        pass
+
+    class Parrots(APIController):
+        @get()
+        def get_parrots(self) -> list[Parrot]:
+            """Return the list of configured Parrots."""
+
+        @post()
+        def create_parrot(self, parrot: Parrot) -> None:
+            """Add a Parrot to the system."""
+
+    class Dogs(APIController):
+        @get()
+        def get_dogs(self) -> list[Dog]:
+            """Return the list of configured dogs."""
+
+        @post()
+        def create_dog(self, dog: Dog) -> None:
+            """Add a Dog to the system."""
+
+    class Cats(APIController):
+        @get()
+        def get_cats(self) -> list[Cat]:
+            """Return the list of configured cats."""
+
+        @post()
+        def create_cat(self, cat: Cat) -> None:
+            """Add a Cat to the system."""
+
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example API
+    version: 0.0.1
+paths:
+    /api/parrots:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                nullable: false
+                                items:
+                                    $ref: '#/components/schemas/Parrot'
+            tags:
+            - Parrots
+            operationId: get_parrots
+            summary: Return the list of configured Parrots.
+            description: Return the list of configured Parrots.
+            parameters: []
+        post:
+            responses:
+                '204':
+                    description: Success response
+            tags:
+            - Parrots
+            operationId: create_parrot
+            summary: Add a Parrot to the system.
+            description: Add a Parrot to the system.
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Parrot'
+                required: true
+    /api/dogs:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                nullable: false
+                                items:
+                                    $ref: '#/components/schemas/Dog'
+            tags:
+            - Dogs
+            operationId: get_dogs
+            summary: Return the list of configured dogs.
+            description: Return the list of configured dogs.
+            parameters: []
+        post:
+            responses:
+                '204':
+                    description: Success response
+            tags:
+            - Dogs
+            operationId: create_dog
+            summary: Add a Dog to the system.
+            description: Add a Dog to the system.
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Dog'
+                required: true
+    /api/cats:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                nullable: false
+                                items:
+                                    $ref: '#/components/schemas/Cat'
+            tags:
+            - Cats
+            operationId: get_cats
+            summary: Return the list of configured cats.
+            description: Return the list of configured cats.
+            parameters: []
+        post:
+            responses:
+                '204':
+                    description: Success response
+            tags:
+            - Cats
+            operationId: create_cat
+            summary: Add a Cat to the system.
+            description: Add a Cat to the system.
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Cat'
+                required: true
+components:
+    schemas:
+        Parrot:
+            type: object
+            properties: {}
+        Dog:
+            type: object
+            properties: {}
+        Cat:
+            type: object
+            properties: {}
+tags:
+-   name: Cats
+-   name: Dogs
+-   name: Parrots
 """.strip()
     )

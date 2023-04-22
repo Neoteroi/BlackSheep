@@ -66,6 +66,7 @@ from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import ensure_bytes, join_fragments
+from blacksheep.utils.meta import get_parent_file, import_child_modules
 
 
 def get_default_headers_middleware(
@@ -174,7 +175,6 @@ class Application(BaseApplication):
         *,
         router: Optional[Router] = None,
         services: Optional[ContainerProtocol] = None,
-        show_error_details: Optional[bool] = None,
         mount: Optional[MountRegistry] = None,
     ):
         env_settings = EnvironmentSettings()
@@ -182,11 +182,9 @@ class Application(BaseApplication):
             router = Router()
         if services is None:
             services = di_settings.get_default_container()
-        if show_error_details is None:
-            show_error_details = env_settings.show_error_details
         if mount is None:
             mount = MountRegistry(env_settings.mount_auto_events)
-        super().__init__(show_error_details, router)
+        super().__init__(env_settings.show_error_details, router)
 
         assert services is not None
         self._services: ContainerProtocol = services
@@ -207,6 +205,11 @@ class Application(BaseApplication):
         self._session_middleware: Optional[SessionMiddleware] = None
         self.base_path: str = ""
         self._mount_registry = mount
+        parent_file = get_parent_file()
+
+        if parent_file:
+            _auto_import_controllers(parent_file)
+            _auto_import_routes(parent_file)
 
     @property
     def services(self) -> ContainerProtocol:
@@ -824,3 +827,18 @@ class MountMixin:
                 return await route.handler(scope, receive, send)
 
         return await super().__call__(scope, receive, send)  # type: ignore
+
+
+def _auto_import(parent_file: str, folder_name):
+    parent_folder = Path(parent_file).parent
+    controllers_path = parent_folder / folder_name
+    if controllers_path.exists():
+        import_child_modules(controllers_path)
+
+
+def _auto_import_controllers(parent_file: str):
+    _auto_import(parent_file, "controllers")
+
+
+def _auto_import_routes(parent_file: str):
+    _auto_import(parent_file, "routes")

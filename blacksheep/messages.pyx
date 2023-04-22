@@ -1,9 +1,10 @@
 import http
 import re
-import charset_normalizer
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from urllib.parse import parse_qs, quote, unquote, urlencode
+
+import charset_normalizer
 
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session

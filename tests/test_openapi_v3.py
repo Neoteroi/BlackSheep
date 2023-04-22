@@ -2626,7 +2626,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
 
     class Parrots(APIController):
         @get()
-        def get_parrots(self) -> list[Parrot]:
+        def get_parrots(self) -> List[Parrot]:
             """Return the list of configured Parrots."""
 
         @post()
@@ -2635,7 +2635,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
 
     class Dogs(APIController):
         @get()
-        def get_dogs(self) -> list[Dog]:
+        def get_dogs(self) -> List[Dog]:
             """Return the list of configured dogs."""
 
         @post()
@@ -2644,7 +2644,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
 
     class Cats(APIController):
         @get()
-        def get_cats(self) -> list[Cat]:
+        def get_cats(self) -> List[Cat]:
             """Return the list of configured cats."""
 
         @post()

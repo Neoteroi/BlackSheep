@@ -4090,7 +4090,7 @@ async def test_pep_593(app):
         age: int | None
 
     @app.router.get("/pets")
-    def pets() -> list[Pet]:
+    def pets() -> List[Pet]:
         return [
             Pet(name="Ren", age=None),
             Pet(name="Stimpy", age=3),

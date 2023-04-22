@@ -1,13 +1,9 @@
 import http
 import re
+import charset_normalizer
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from urllib.parse import parse_qs, quote, unquote, urlencode
-
-try:
-    import cchardet as chardet
-except ImportError:
-    import chardet
 
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
@@ -153,8 +149,8 @@ cdef class Message:
                 try:
                     return body.decode('ISO-8859-1')
                 except UnicodeDecodeError:
-                    # fallback to chardet;
-                    return body.decode(chardet.detect(body)['encoding'])
+                    # fallback to trying to detect the encoding;
+                    return body.decode(charset_normalizer.detect(body)['encoding'])
 
     async def form(self):
         cdef str text

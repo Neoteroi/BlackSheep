@@ -97,8 +97,7 @@ setup(
     install_requires=[
         "httptools>=0.5",
         "certifi>=2022.9.24",
-        "cchardet~=2.1.7; python_version < '3.11'",
-        "chardet==5.0.0; python_version > '3.10'",
+        "charset-normalizer~=3.1.0",
         "guardpost~=1.0.0",
         "rodi~=2.0.2",
         "essentials>=1.1.4,<2.0",

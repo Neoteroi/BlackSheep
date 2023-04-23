@@ -41,7 +41,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install cython==0.29.32 --install-option="--no-cython-compile"
+          pip install cython==0.29.34
           pip install -r requirements.txt
           pip install flake8
 
@@ -73,7 +73,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: [3.7, 3.8, 3.9, "3.10", "3.11"]
+        python-version: [3.8, 3.9, "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -87,27 +87,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: actions/cache@v1
-        id: depcache
-        with:
-          path: deps
-          key: requirements-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
-
-      - name: Download dependencies
-        if: steps.depcache.outputs.cache-hit != 'true'
-        run: |
-          pip download --dest=deps -r requirements.txt
-
       - name: Install dependencies
         run: |
-          PYVER=`python -V 2>&1`
-
-          if [ "${PYVER:0:-2}" == "Python 3.10" ]; then
-            pip install -r requirements.txt
-          else
-            pip install -U --no-index --find-links=deps deps/*
-          fi
-
+          pip install -r requirements.txt
           pip install black isort flake8
 
       - name: Compile Cython extensions
@@ -175,7 +157,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10", "3.11"]
+        python-version: [3.8, 3.9, "3.10", "3.11"]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -190,7 +172,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          pip install cython --install-option="--no-cython-compile"
+          pip install cython
           python -m pip install --upgrade setuptools pip wheel
 
       - name: Compile Cython extensions

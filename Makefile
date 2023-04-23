@@ -37,20 +37,20 @@ annotate:
 	cython blacksheep/baseapp.pyx -a
 
 
-artifacts: test
-	python setup.py sdist
+build: test
+	python -m build
 
 
 prepforbuild:
-	pip install --upgrade twine setuptools wheel
+	pip install --upgrade build
 
 
 testrelease:
-	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+	twine upload -r testpypi dist/*
 
 
 release: clean compile artifacts
-	twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
+	twine upload -r pypi dist/*
 
 
 test:

@@ -202,7 +202,7 @@ jobs:
       - name: Build wheels (non-linux)
         if: "!startsWith(matrix.os, 'ubuntu')"
         run: |
-          python setup.py bdist_wheel
+          python -m build
 
       - uses: actions/upload-artifact@v1
         with:

@@ -175,6 +175,7 @@ class Application(BaseApplication):
         *,
         router: Optional[Router] = None,
         services: Optional[ContainerProtocol] = None,
+        show_error_details: bool = False,
         mount: Optional[MountRegistry] = None,
     ):
         env_settings = EnvironmentSettings()
@@ -184,7 +185,7 @@ class Application(BaseApplication):
             services = di_settings.get_default_container()
         if mount is None:
             mount = MountRegistry(env_settings.mount_auto_events)
-        super().__init__(env_settings.show_error_details, router)
+        super().__init__(show_error_details or env_settings.show_error_details, router)
 
         assert services is not None
         self._services: ContainerProtocol = services

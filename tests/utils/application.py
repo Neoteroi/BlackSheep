@@ -2,13 +2,14 @@ from typing import Optional
 
 from blacksheep.messages import Request, Response
 from blacksheep.server import Application
+from blacksheep.server.routing import Router
 
 
 class FakeApplication(Application):
     """Application class used for testing."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(show_error_details=True, *args, **kwargs)
+        super().__init__(router=Router(), show_error_details=True, *args, **kwargs)
         self.request: Optional[Request] = None
         self.response: Optional[Response] = None
 

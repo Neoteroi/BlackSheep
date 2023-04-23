@@ -31,7 +31,7 @@ from blacksheep.server.openapi.v3 import (
     Tag,
     check_union,
 )
-from blacksheep.server.routing import RoutesRegistry
+from blacksheep.server.routing import Router, RoutesRegistry
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -187,14 +187,13 @@ class PydConstrained(BaseModel):
 
 
 def get_app() -> Application:
-    app = Application()
+    app = Application(router=Router())
     app.controllers_router = RoutesRegistry()
     return app
 
 
 def get_cats_api() -> Application:
-    app = Application()
-    app.controllers_router = RoutesRegistry()
+    app = get_app()
     get = app.router.get
     post = app.router.post
     delete = app.router.delete
@@ -241,7 +240,7 @@ def serializer() -> Serializer:
 
 @pytest.mark.asyncio
 async def test_raises_for_started_app(docs):
-    app = Application()
+    app = get_app()
 
     await app.start()
 
@@ -2607,7 +2606,7 @@ tags:
 
 @pytest.mark.asyncio
 async def test_sorting_api_controllers_tags(serializer: Serializer):
-    app = Application()
+    app = get_app()
 
     docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
     docs.bind_app(app)

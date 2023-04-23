@@ -11,6 +11,7 @@ from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
 from blacksheep.server.compression import use_gzip_compression
 from blacksheep.server.responses import json
+from blacksheep.server.routing import Router
 from blacksheep.server.websocket import WebSocket
 from blacksheep.settings.json import default_json_dumps, json_settings
 
@@ -68,7 +69,7 @@ def configure_json_settings():
     )
 
 
-app_4 = Application(show_error_details=True)
+app_4 = Application(router=Router(), show_error_details=True)
 
 use_gzip_compression(app_4)
 

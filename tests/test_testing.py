@@ -8,6 +8,7 @@ from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromHeader
 from blacksheep.server.controllers import Controller, RoutesRegistry
 from blacksheep.server.responses import Response
+from blacksheep.server.routing import Router
 from blacksheep.testing import AbstractTestSimulator, TestClient
 from blacksheep.testing.helpers import (
     CookiesType,
@@ -37,7 +38,7 @@ async def _start_application(app):
 
 @pytest.fixture
 def test_app():
-    return Application(show_error_details=True)
+    return Application(router=Router(), show_error_details=True)
 
 
 @pytest.mark.asyncio

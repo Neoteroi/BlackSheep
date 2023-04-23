@@ -62,6 +62,7 @@ from blacksheep.server.routing import (
     Router,
     RoutesRegistry,
 )
+from blacksheep.server.routing import router as default_router
 from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
@@ -154,7 +155,7 @@ class ApplicationSyncEvent(ApplicationEvent):
 
 
 class ApplicationStartupError(RuntimeError):
-    ...
+    """Base class for errors occurring when an application starts."""
 
 
 class ApplicationAlreadyStartedCORSError(TypeError):
@@ -180,7 +181,7 @@ class Application(BaseApplication):
     ):
         env_settings = EnvironmentSettings()
         if router is None:
-            router = Router()
+            router = default_router
         if services is None:
             services = di_settings.get_default_container()
         if mount is None:

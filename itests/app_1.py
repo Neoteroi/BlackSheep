@@ -18,9 +18,10 @@ from blacksheep import (
     text,
 )
 from blacksheep.server.compression import use_gzip_compression
+from blacksheep.server.routing import Router
 from itests.utils import CrashTest, ensure_folder
 
-app = Application(show_error_details=True)
+app = Application(router=Router(), show_error_details=True)
 
 use_gzip_compression(app)
 

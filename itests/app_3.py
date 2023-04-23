@@ -3,9 +3,10 @@ import uvicorn
 from blacksheep.server import Application
 from blacksheep.server.compression import use_gzip_compression
 from blacksheep.server.responses import json
+from blacksheep.server.routing import Router
 
-application = Application(show_error_details=True)
-app_3 = Application(show_error_details=True)
+application = Application(router=Router(), show_error_details=True)
+app_3 = Application(router=Router(), show_error_details=True)
 
 use_gzip_compression(app_3)
 

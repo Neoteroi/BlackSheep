@@ -828,3 +828,21 @@ class MountRegistry:
 
 # For backward compatibility
 Mount = MountRegistry
+
+
+# singleton router used to store initial configuration,
+# before the application starts
+# this is used as *default* router, but it can be overridden
+router = Router()
+
+
+head = router.head
+get = router.get
+post = router.post
+put = router.put
+patch = router.patch
+delete = router.delete
+trace = router.trace
+options = router.options
+connect = router.connect
+ws = router.ws

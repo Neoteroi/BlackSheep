@@ -412,7 +412,7 @@ def test_dates_handling(docs: OpenAPIHandler, serializer: Serializer):
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -453,7 +453,7 @@ def test_register_schema_for_generic_with_list(
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -517,7 +517,7 @@ def test_register_schema_for_multiple_generic_with_list(
     schema = docs.components.schemas["PaginatedSetOfUfo"]
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -605,7 +605,7 @@ def test_register_schema_for_generic_with_property(
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -663,7 +663,7 @@ def test_register_schema_for_generic_sub_property(
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -804,6 +804,7 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
     docs: OpenAPIHandler, serializer: Serializer
 ):
     app = get_app()
+    docs.bind_app(app)
 
     @docs(tags=["B tag"])
     @app.route("/one")
@@ -815,7 +816,6 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
     def two() -> PaginatedSet[Cat]:
         ...
 
-    docs.bind_app(app)
     await app.start()
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
@@ -2251,7 +2251,7 @@ async def test_mount_oad_generation(serializer: Serializer):
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
     """
-    parent = Application(show_error_details=True)
+    parent = Application(router=Router(), show_error_details=True)
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
 
@@ -2285,7 +2285,7 @@ async def test_mount_oad_generation(serializer: Serializer):
         """Conflict! This will be overridden by the child app route!"""
         return "CONFLICT"
 
-    child_1 = Application()
+    child_1 = Application(router=Router())
 
     @child_1.router.get("/")
     def get_cats():
@@ -2302,7 +2302,7 @@ async def test_mount_oad_generation(serializer: Serializer):
         """Deletes a cat by id."""
         return "Deletes a cat by id."
 
-    child_2 = Application()
+    child_2 = Application(router=Router())
 
     @child_2.router.get("/")
     def get_dogs():
@@ -2319,7 +2319,7 @@ async def test_mount_oad_generation(serializer: Serializer):
         """Deletes a dog by id."""
         return "Deletes a dog by id."
 
-    child_3 = Application()
+    child_3 = Application(router=Router())
 
     @child_3.router.get("/")
     def get_parrots():
@@ -2515,7 +2515,7 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
     """
-    parent = Application(show_error_details=True)
+    parent = Application(router=Router(), show_error_details=True)
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
 
@@ -2531,9 +2531,9 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
         """Parent root."""
         return "Hello, from the parent app - for information, navigate to /docs"
 
-    child_1 = Application()
-    child_2 = Application()
-    child_3 = Application()
+    child_1 = Application(router=Router())
+    child_2 = Application(router=Router())
+    child_3 = Application(router=Router())
 
     @docs(tags=["Child z Home"])
     @child_1.router.get("/")
@@ -2607,6 +2607,8 @@ tags:
 @pytest.mark.asyncio
 async def test_sorting_api_controllers_tags(serializer: Serializer):
     app = get_app()
+    get = app.controllers_router.get
+    post = app.controllers_router.post
 
     docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
     docs.bind_app(app)

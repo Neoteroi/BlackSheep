@@ -13,7 +13,7 @@ from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, con
 
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromForm
-from blacksheep.server.controllers import APIController, get, post
+from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,

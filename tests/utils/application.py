@@ -2,7 +2,6 @@ from typing import Optional
 
 from blacksheep.messages import Request, Response
 from blacksheep.server import Application
-from blacksheep.server.routing import Router
 
 
 class FakeApplication(Application):

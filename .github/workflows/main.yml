@@ -68,9 +68,7 @@ jobs:
 
       - name: Test Hypercorn
         run: |
-          SET APP_DEFAULT_ROUTER=false
-          SET ASGI_SERVER=hypercorn
-          pytest itests/test_server.py
+          SET APP_DEFAULT_ROUTER="0" & SET ASGI_SERVER=hypercorn & pytest itests/test_server.py
 
   build:
     strategy:

@@ -7,6 +7,7 @@ from blacksheep.settings.html import html_settings
 from tests.utils.application import FakeApplication
 
 # configures default Jinja settings for tests
+os.environ["APP_DEFAULT_ROUTER"] = "0"
 os.environ["APP_JINJA_PACKAGE_NAME"] = "tests.testapp"
 os.environ["APP_JINJA_PACKAGE_PATH"] = "templates"
 

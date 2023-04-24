@@ -44,10 +44,10 @@ from blacksheep.server.openapi.common import (
 from blacksheep.server.openapi.ui import ReDocUIProvider
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import text
-from blacksheep.server.routing import Router, RoutesRegistry
+from blacksheep.server.routing import RoutesRegistry
 from itests.utils import CrashTest
 
-app_2 = Application(router=Router())
+app_2 = Application()
 
 use_gzip_compression(app_2)
 

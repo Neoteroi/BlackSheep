@@ -32,8 +32,10 @@ class EnvironmentSettings:
     env: str
     show_error_details: bool
     mount_auto_events: bool
+    use_default_router: bool
 
     def __init__(self) -> None:
         self.env = get_env()
         self.show_error_details = truthy(os.environ.get("APP_SHOW_ERROR_DETAILS", ""))
         self.mount_auto_events = truthy(os.environ.get("APP_MOUNT_AUTO_EVENTS", ""))
+        self.use_default_router = truthy(os.environ.get("APP_DEFAULT_ROUTER", "1"))

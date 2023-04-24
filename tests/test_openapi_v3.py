@@ -31,7 +31,7 @@ from blacksheep.server.openapi.v3 import (
     Tag,
     check_union,
 )
-from blacksheep.server.routing import Router, RoutesRegistry
+from blacksheep.server.routing import RoutesRegistry
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -187,7 +187,7 @@ class PydConstrained(BaseModel):
 
 
 def get_app() -> Application:
-    app = Application(router=Router())
+    app = Application()
     app.controllers_router = RoutesRegistry()
     return app
 
@@ -2251,7 +2251,7 @@ async def test_mount_oad_generation(serializer: Serializer):
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
     """
-    parent = Application(router=Router(), show_error_details=True)
+    parent = Application(show_error_details=True)
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
 
@@ -2285,7 +2285,7 @@ async def test_mount_oad_generation(serializer: Serializer):
         """Conflict! This will be overridden by the child app route!"""
         return "CONFLICT"
 
-    child_1 = Application(router=Router())
+    child_1 = Application()
 
     @child_1.router.get("/")
     def get_cats():
@@ -2302,7 +2302,7 @@ async def test_mount_oad_generation(serializer: Serializer):
         """Deletes a cat by id."""
         return "Deletes a cat by id."
 
-    child_2 = Application(router=Router())
+    child_2 = Application()
 
     @child_2.router.get("/")
     def get_dogs():
@@ -2319,7 +2319,7 @@ async def test_mount_oad_generation(serializer: Serializer):
         """Deletes a dog by id."""
         return "Deletes a dog by id."
 
-    child_3 = Application(router=Router())
+    child_3 = Application()
 
     @child_3.router.get("/")
     def get_parrots():
@@ -2515,7 +2515,7 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
     """
-    parent = Application(router=Router(), show_error_details=True)
+    parent = Application(show_error_details=True)
     parent.mount_registry.auto_events = True
     parent.mount_registry.handle_docs = True
 
@@ -2531,9 +2531,9 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
         """Parent root."""
         return "Hello, from the parent app - for information, navigate to /docs"
 
-    child_1 = Application(router=Router())
-    child_2 = Application(router=Router())
-    child_3 = Application(router=Router())
+    child_1 = Application()
+    child_2 = Application()
+    child_3 = Application()
 
     @docs(tags=["Child z Home"])
     @child_1.router.get("/")

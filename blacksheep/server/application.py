@@ -181,7 +181,7 @@ class Application(BaseApplication):
     ):
         env_settings = EnvironmentSettings()
         if router is None:
-            router = default_router
+            router = default_router if env_settings.use_default_router else Router()
         if services is None:
             services = di_settings.get_default_container()
         if mount is None:

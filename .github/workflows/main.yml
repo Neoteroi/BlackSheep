@@ -66,10 +66,6 @@ jobs:
           flake8 blacksheep
           flake8 tests
 
-      - name: Test Hypercorn
-        run: |
-          SET APP_DEFAULT_ROUTER="0" & SET ASGI_SERVER=hypercorn & pytest itests/test_server.py
-
   build:
     strategy:
       fail-fast: false

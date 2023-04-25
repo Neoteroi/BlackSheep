@@ -75,9 +75,7 @@ class GzipMiddleware:
             return any(_type in content_type for _type in self.handled_types)
 
         def is_handled_encoding() -> bool:
-            return request.headers is not None and b"gzip" in (
-                request.headers.get_single(b"accept-encoding") or ""
-            )
+            return b"gzip" in (request.get_first_header(b"accept-encoding") or "")
 
         def is_handled_response_content() -> bool:
             if response is None or response.content is None:
@@ -93,23 +91,13 @@ class GzipMiddleware:
                 and _is_handled_type(response.content.type)
             )
 
-            return all(
-                (
-                    body_pass,
-                    content_type_pass,
-                )
-            )
+            return body_pass and content_type_pass
 
-        return all(
-            (
-                is_handled_encoding(),
-                is_handled_response_content(),
-            )
-        )
+        return is_handled_encoding() and is_handled_response_content()
 
     async def __call__(
         self, request: Request, handler: Callable[[Request], Awaitable[Response]]
-    ) -> Response:
+    ) -> Optional[Response]:
         response = ensure_response(await handler(request))
 
         if response is None or response.content is None:
@@ -147,6 +135,6 @@ def use_gzip_compression(
     if handler is None:
         handler = GzipMiddleware()
 
-    app.middlewares.append(handler)
+    app.middlewares.append(handler)  # type: ignore
 
     return handler

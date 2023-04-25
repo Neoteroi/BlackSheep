@@ -13,7 +13,7 @@ from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, con
 
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromForm
-from blacksheep.server.controllers import APIController, get, post
+from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,
@@ -193,8 +193,7 @@ def get_app() -> Application:
 
 
 def get_cats_api() -> Application:
-    app = Application()
-    app.controllers_router = RoutesRegistry()
+    app = get_app()
     get = app.router.get
     post = app.router.post
     delete = app.router.delete
@@ -241,7 +240,7 @@ def serializer() -> Serializer:
 
 @pytest.mark.asyncio
 async def test_raises_for_started_app(docs):
-    app = Application()
+    app = get_app()
 
     await app.start()
 
@@ -413,7 +412,7 @@ def test_dates_handling(docs: OpenAPIHandler, serializer: Serializer):
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -454,7 +453,7 @@ def test_register_schema_for_generic_with_list(
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -518,7 +517,7 @@ def test_register_schema_for_multiple_generic_with_list(
     schema = docs.components.schemas["PaginatedSetOfUfo"]
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -606,7 +605,7 @@ def test_register_schema_for_generic_with_property(
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -664,7 +663,7 @@ def test_register_schema_for_generic_sub_property(
 
     assert isinstance(schema, Schema)
 
-    yaml = serializer.to_yaml(docs.generate_documentation(Application()))
+    yaml = serializer.to_yaml(docs.generate_documentation(get_app()))
 
     assert (
         yaml.strip()
@@ -805,6 +804,7 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
     docs: OpenAPIHandler, serializer: Serializer
 ):
     app = get_app()
+    docs.bind_app(app)
 
     @docs(tags=["B tag"])
     @app.route("/one")
@@ -816,7 +816,6 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
     def two() -> PaginatedSet[Cat]:
         ...
 
-    docs.bind_app(app)
     await app.start()
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
@@ -2607,7 +2606,9 @@ tags:
 
 @pytest.mark.asyncio
 async def test_sorting_api_controllers_tags(serializer: Serializer):
-    app = Application()
+    app = get_app()
+    get = app.controllers_router.get
+    post = app.controllers_router.post
 
     docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
     docs.bind_app(app)

@@ -29,8 +29,8 @@ from blacksheep.server.bindings import (
     FromQuery,
     FromServices,
 )
+from blacksheep.server.compression import use_gzip_compression
 from blacksheep.server.controllers import APIController
-from blacksheep.server.gzip import use_gzip_compression
 from blacksheep.server.openapi.common import (
     ContentInfo,
     EndpointDocs,

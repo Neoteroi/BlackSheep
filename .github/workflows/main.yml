@@ -66,11 +66,6 @@ jobs:
           flake8 blacksheep
           flake8 tests
 
-      - name: Test Hypercorn
-        run: |
-          SET ASGI_SERVER=hypercorn
-          pytest itests/test_server.py
-
   build:
     strategy:
       fail-fast: false
@@ -124,7 +119,7 @@ jobs:
           if [ "${PYVER:0:-2}" == "Python 3.10" ]; then
             echo "Skipping Hypercorn tests, since it fails with Python 3.10.0 on Ubuntu (2021/10/24)"
           else
-            ASGI_SERVER=hypercorn pytest itests/test_server.py
+            APP_DEFAULT_ROUTER=false ASGI_SERVER=hypercorn pytest itests/test_server.py
           fi
 
       - name: Upload pytest test results
@@ -202,7 +197,7 @@ jobs:
       - name: Build wheels (non-linux)
         if: "!startsWith(matrix.os, 'ubuntu')"
         run: |
-          python setup.py bdist_wheel
+          python -m build
 
       - uses: actions/upload-artifact@v1
         with:

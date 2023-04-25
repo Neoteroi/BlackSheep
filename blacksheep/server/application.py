@@ -58,13 +58,16 @@ from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import (
     MountRegistry,
     RegisteredRoute,
+    RouteMethod,
     Router,
     RoutesRegistry,
 )
+from blacksheep.server.routing import router as default_router
 from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import ensure_bytes, join_fragments
+from blacksheep.utils.meta import get_parent_file, import_child_modules
 
 
 def get_default_headers_middleware(
@@ -152,7 +155,7 @@ class ApplicationSyncEvent(ApplicationEvent):
 
 
 class ApplicationStartupError(RuntimeError):
-    ...
+    """Base class for errors occurring when an application starts."""
 
 
 class ApplicationAlreadyStartedCORSError(TypeError):
@@ -173,24 +176,20 @@ class Application(BaseApplication):
         *,
         router: Optional[Router] = None,
         services: Optional[ContainerProtocol] = None,
-        debug: bool = False,
-        show_error_details: Optional[bool] = None,
+        show_error_details: bool = False,
         mount: Optional[MountRegistry] = None,
     ):
         env_settings = EnvironmentSettings()
         if router is None:
-            router = Router()
+            router = default_router if env_settings.use_default_router else Router()
         if services is None:
             services = di_settings.get_default_container()
-        if show_error_details is None:
-            show_error_details = env_settings.show_error_details
         if mount is None:
             mount = MountRegistry(env_settings.mount_auto_events)
-        super().__init__(show_error_details, router)
+        super().__init__(show_error_details or env_settings.show_error_details, router)
 
         assert services is not None
         self._services: ContainerProtocol = services
-        self.debug = debug
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []
         self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
         self._middlewares_configured = False
@@ -208,6 +207,11 @@ class Application(BaseApplication):
         self._session_middleware: Optional[SessionMiddleware] = None
         self.base_path: str = ""
         self._mount_registry = mount
+        parent_file = get_parent_file()
+
+        if parent_file:
+            _auto_import_controllers(parent_file)
+            _auto_import_routes(parent_file)
 
     @property
     def services(self) -> ContainerProtocol:
@@ -730,7 +734,10 @@ class Application(BaseApplication):
 
     async def _handle_websocket(self, scope, receive, send):
         ws = WebSocket(scope, receive, send)
-        route = self.router.get_ws_match(scope["path"])
+        # TODO: support filters
+        route = self.router.get_match_by_method_and_path(
+            RouteMethod.GET_WS, scope["path"]
+        )
 
         if route:
             ws.route_values = route.values
@@ -822,3 +829,18 @@ class MountMixin:
                 return await route.handler(scope, receive, send)
 
         return await super().__call__(scope, receive, send)  # type: ignore
+
+
+def _auto_import(parent_file: str, folder_name):
+    parent_folder = Path(parent_file).parent
+    controllers_path = parent_folder / folder_name
+    if controllers_path.exists():
+        import_child_modules(controllers_path)
+
+
+def _auto_import_controllers(parent_file: str):
+    _auto_import(parent_file, "controllers")
+
+
+def _auto_import_routes(parent_file: str):
+    _auto_import(parent_file, "routes")

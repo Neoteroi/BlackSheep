@@ -24,7 +24,7 @@ __all__ = (
 def auth(
     policy: Optional[str] = "authenticated",
     *,
-    authentication_schemes: Optional[Sequence[str]] = None
+    authentication_schemes: Optional[Sequence[str]] = None,
 ) -> Callable[..., Any]:
     """
     Configures authorization for a decorated request handler, optionally with a policy.

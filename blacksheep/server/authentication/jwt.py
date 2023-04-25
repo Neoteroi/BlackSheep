@@ -32,7 +32,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         keys_provider: Optional[KeysProvider] = None,
         keys_url: Optional[str] = None,
         cache_time: float = 10800,
-        auth_mode: str = "JWT Bearer"
+        auth_mode: str = "JWT Bearer",
     ):
         """
         Creates a new instance of JWTBearerAuthentication, which tries to

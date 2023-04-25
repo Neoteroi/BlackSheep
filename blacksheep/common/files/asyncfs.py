@@ -28,7 +28,7 @@ class FileContext(PoolClient):
         file_path: str,
         *,
         loop: Optional[AbstractEventLoop] = None,
-        mode: str = "rb"
+        mode: str = "rb",
     ):
         super().__init__(loop)
         self._file_path = file_path

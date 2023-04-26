@@ -15,14 +15,8 @@ from openapidocs.v3 import Info
 from pydantic import BaseModel, ValidationError
 from rodi import Container, inject
 
-from blacksheep import (
-    HTTPException,
-    JSONContent,
-    Request,
-    Response,
-    TextContent,
-    json as blacksheep_json,
-)
+from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
+from blacksheep import json as blacksheep_json
 from blacksheep.contents import FormPart
 from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.bindings import (

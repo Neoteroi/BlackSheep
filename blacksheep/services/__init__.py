@@ -1,7 +1,8 @@
-from rodi import Container
-from blacksheep.settings.di import di_settings
-
 from typing import Any
+
+from rodi import Container
+
+from blacksheep.settings.di import di_settings
 
 # Singleton instance of the container for the application services.
 # The container will be used as default service container in Application.

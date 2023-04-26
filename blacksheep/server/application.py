@@ -64,8 +64,8 @@ from blacksheep.server.routing import (
 )
 from blacksheep.server.routing import router as default_router
 from blacksheep.server.websocket import WebSocket
+from blacksheep.services import services as default_services
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
-from blacksheep.settings.di import di_settings
 from blacksheep.utils import ensure_bytes, join_fragments
 from blacksheep.utils.meta import get_parent_file, import_child_modules
 
@@ -183,7 +183,7 @@ class Application(BaseApplication):
         if router is None:
             router = default_router if env_settings.use_default_router else Router()
         if services is None:
-            services = di_settings.get_default_container()
+            services = default_services
         if mount is None:
             mount = MountRegistry(env_settings.mount_auto_events)
         super().__init__(show_error_details or env_settings.show_error_details, router)

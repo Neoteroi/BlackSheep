@@ -15,7 +15,14 @@ from openapidocs.v3 import Info
 from pydantic import BaseModel, ValidationError
 from rodi import Container, inject
 
-from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
+from blacksheep import (
+    HTTPException,
+    JSONContent,
+    Request,
+    Response,
+    TextContent,
+    json as blacksheep_json,
+)
 from blacksheep.contents import FormPart
 from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.bindings import (
@@ -38,6 +45,9 @@ from blacksheep.server.normalization import ensure_response
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import status_code, text
 from blacksheep.server.security.hsts import HSTSMiddleware
+from blacksheep.services import scoped
+from blacksheep.services import services as singleton_services
+from blacksheep.services import singleton, transient
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
@@ -3221,6 +3231,83 @@ async def test_service_bindings():
         content = await app.response.text()
         assert content == "OK"
         assert app.response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_service_decorators():
+    @transient
+    class A:
+        def __init__(self) -> None:
+            pass
+
+    @scoped
+    class B:
+        def __init__(self) -> None:
+            pass
+
+    @singleton
+    class C:
+        def __init__(self) -> None:
+            pass
+
+    @scoped
+    class Foo:
+        def __init__(self, a1: A, a2: A, b1: B, b2: B, c1: C, c2: C) -> None:
+            self.a1 = a1
+            self.a2 = a2
+            self.b1 = b1
+            self.b2 = b2
+            self.c1 = c1
+            self.c2 = c2
+
+    app = FakeApplication(services=singleton_services)
+
+    @app.router.get("/")
+    def test(foo: Foo):
+        return blacksheep_json(
+            {
+                "A1": id(foo.a1),
+                "A2": id(foo.a2),
+                "B1": id(foo.b1),
+                "B2": id(foo.b2),
+                "C1": id(foo.c1),
+                "C2": id(foo.c2),
+            }
+        )
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 200
+    content1 = await app.response.json()
+    assert content1["A1"] != content1["A2"]
+    assert content1["B1"] == content1["B2"]
+    assert content1["C1"] == content1["C2"]
+
+    await app(
+        get_example_scope("GET", "/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 200
+    content2 = await app.response.json()
+    assert content2["A1"] != content2["A2"]
+    assert content1["A1"] != content2["A1"]
+    assert content1["A2"] != content2["A2"]
+    assert content2["B1"] == content2["B2"]
+    assert content1["B1"] != content2["B1"]
+    assert content1["B2"] != content2["B2"]
+    assert content2["C1"] == content2["C2"]
+    assert content1["C1"] == content2["C1"]
+    assert content1["C2"] == content2["C2"]
 
 
 @pytest.mark.asyncio

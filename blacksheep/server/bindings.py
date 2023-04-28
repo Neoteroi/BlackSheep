@@ -465,7 +465,14 @@ class BodyBinder(Binder):
             raise UnsupportedForwardRefInSignatureError(expected_type)
 
         item_converter = self._get_default_converter_single(item_type)
-        return lambda values: generic_type(item_converter(value) for value in values)
+
+        def list_converter(values):
+            if not isinstance(values, list):
+                raise BadRequest("Invalid input: expected a list of objects.")
+
+            return generic_type(item_converter(value) for value in values)
+
+        return list_converter
 
     def get_default_binder_for_body(self, expected_type: Type):
         if self.is_generic_iterable_annotation(expected_type) or expected_type in {

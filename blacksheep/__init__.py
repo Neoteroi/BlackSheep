@@ -65,6 +65,16 @@ from .server.routing import Route as Route
 from .server.routing import RouteException as RouteException
 from .server.routing import Router as Router
 from .server.routing import RoutesRegistry as RoutesRegistry
+from .server.routing import connect as connect
+from .server.routing import delete as delete
+from .server.routing import get as get
+from .server.routing import head as head
+from .server.routing import options as options
+from .server.routing import patch as patch
+from .server.routing import post as post
+from .server.routing import put as put
+from .server.routing import trace as trace
+from .server.routing import ws as ws
 from .server.websocket import WebSocket as WebSocket
 from .server.websocket import WebSocketDisconnectError as WebSocketDisconnectError
 from .server.websocket import WebSocketError as WebSocketError

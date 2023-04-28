@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0a6] - 2023-04-24 :crown:
+## [2.0a6] - 2023-04-28 :crown:
 
 - Adds support for automatic import of modules defined under `controllers` and
   `routes` packages, relatively to where the `Application` class is
@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   environment_](https://www.neoteroi.dev/blacksheep/settings/#defining-application-environment).
 - Makes the client `ConnectionPools` a context manager, its `__exit__` method
   closes all its `TCP-IP` connections.
+- Improves exception handling so it is possible to specify how specific types
+  of `HTTPException` must be handled (#342).
+- Improves the error message when a list of objects if expected for an incoming
+  request body, and a non-list value is received (#341).
 - Replaces `chardet` and `cchardet` with `charset-normalizer`. Contributed by
   @mementum.
 - Upgrades all dependencies.

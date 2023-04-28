@@ -104,7 +104,10 @@ cdef class BaseApplication:
         return await self.handle_exception(request, exc)
 
     cdef object get_http_exception_handler(self, HTTPException http_exception):
-        return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
+        try:
+            return self.exceptions_handlers[type(http_exception)]
+        except KeyError:
+            return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
 
     cdef object get_exception_handler(self, Exception exception):
         for current_class_in_hierarchy in get_class_instance_hierarchy(exception):

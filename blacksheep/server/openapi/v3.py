@@ -12,12 +12,16 @@ from uuid import UUID
 
 from openapidocs.common import Format
 from openapidocs.v3 import (
+    APIKeySecurity,
     Components,
     Example,
     Header,
+    HTTPSecurity,
     Info,
     MediaType,
+    OAuth2Security,
     OpenAPI,
+    OpenIdConnectSecurity,
     Operation,
     Parameter,
     ParameterLocation,
@@ -26,7 +30,14 @@ from openapidocs.v3 import (
     RequestBody,
 )
 from openapidocs.v3 import Response as ResponseDoc
-from openapidocs.v3 import Schema, Server, Tag, ValueFormat, ValueType
+from openapidocs.v3 import (
+    Schema,
+    SecurityRequirement,
+    Server,
+    Tag,
+    ValueFormat,
+    ValueType,
+)
 
 from blacksheep.server.bindings import (
     Binder,
@@ -262,6 +273,14 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
         ]
 
 
+SecuritySchemes = Union[
+    OAuth2Security,
+    OpenIdConnectSecurity,
+    HTTPSecurity,
+    APIKeySecurity,
+]
+
+
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     """
     Handles the automatic generation of OpenAPI Documentation, specification v3
@@ -279,6 +298,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
         tags: Optional[List[Tag]] = None,
+        security_schemes: Optional[
+            Dict[
+                str,
+                SecuritySchemes,
+            ]
+        ] = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -300,6 +325,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self._binder_docs: Dict[
             Type[Binder], Iterable[Union[Parameter, Reference]]
         ] = {}
+        self.security_schemes = security_schemes or {}
 
     @property
     def object_types_handlers(self) -> List[ObjectTypeHandler]:
@@ -333,6 +359,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def generate_documentation(self, app: Application) -> OpenAPI:
         self._optimize_binders_docs()
+        self._generate_security_schemes()
         paths = self.get_paths(app)
         return OpenAPI(
             info=self.info,
@@ -392,6 +419,16 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         raise ValueError(
             f"Cannot obtain a name for object_type parameter: {object_type!r}"
         )
+
+    def _generate_security_schemes(self):
+        for name, scheme in self.security_schemes.items():
+            self.register_security_scheme(name, scheme)
+
+    def register_security_scheme(self, name: str, scheme: SecuritySchemes):
+        if self.components.security_schemes is None:
+            self.components.security_schemes = {}
+
+        self.components.security_schemes[name] = scheme
 
     def register_schema_for_type(self, object_type: Type) -> Reference:
         stored_ref = self._get_stored_reference(object_type, None)
@@ -781,6 +818,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         return list(parameters.values())
 
+    def get_handler_security(self, handler: Any) -> Optional[List[SecurityRequirement]]:
+        docs = self.get_handler_docs(handler)
+        if docs and docs.security:
+            return [SecurityRequirement(s.name, s.value) for s in docs.security]
+
+        return None
+
     def _get_media_type_from_content_doc(self, content_doc: ContentInfo) -> MediaType:
         media_type = MediaType()
 
@@ -994,6 +1038,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                     request_body=self.get_request_body(handler),
                     deprecated=self.is_deprecated(handler),
                     tags=self.get_handler_tags(handler),
+                    security=self.get_handler_security(handler),
                 )
                 if docs and docs.on_created:
                     docs.on_created(self, operation)

@@ -101,6 +101,12 @@ class ResponseInfo:
     content: Optional[List[ContentInfo]] = None
 
 
+@dataclass
+class SecurityInfo:
+    name: str
+    value: List[str]
+
+
 ResponseStatusType = Union[int, str, HTTPStatus]
 
 
@@ -123,6 +129,7 @@ class EndpointDocs:
     ignored: Optional[bool] = None
     deprecated: Optional[bool] = None
     on_created: Optional[Callable[[Any, Any], None]] = None
+    security: Optional[List[SecurityInfo]] = None
 
 
 OpenAPIRootType = TypeVar("OpenAPIRootType", bound=OpenAPIRoot)
@@ -188,6 +195,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         ignored: Optional[bool] = None,
         deprecated: Optional[bool] = None,
         on_created: Optional[Callable[[Any, Any], None]] = None,
+        security: Optional[List[SecurityInfo]] = None,
     ) -> Any:
         def decorator(fn):
             if doc:
@@ -204,6 +212,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 ignored=ignored,
                 deprecated=deprecated,
                 on_created=on_created,
+                security=security,
             )
             return fn
 

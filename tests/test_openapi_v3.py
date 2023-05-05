@@ -6,7 +6,20 @@ from uuid import UUID
 
 import pytest
 from openapidocs.common import Format, Serializer
-from openapidocs.v3 import Info, Reference, Schema, ValueFormat, ValueType
+from openapidocs.v3 import (
+    APIKeySecurity,
+    HTTPSecurity,
+    Info,
+    OAuth2Security,
+    OAuthFlow,
+    OAuthFlows,
+    OpenIdConnectSecurity,
+    ParameterLocation,
+    Reference,
+    Schema,
+    ValueFormat,
+    ValueType,
+)
 from pydantic import BaseModel, HttpUrl, validator
 from pydantic.generics import GenericModel
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
@@ -19,6 +32,7 @@ from blacksheep.server.openapi.common import (
     EndpointDocs,
     OpenAPIEndpointException,
     ResponseInfo,
+    SecurityInfo,
 )
 from blacksheep.server.openapi.exceptions import (
     DuplicatedContentTypeDocsException,
@@ -1881,6 +1895,16 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
     def home() -> A:
         ...
 
+    @docs(
+        security=[
+            SecurityInfo("basicAuth", []),
+            SecurityInfo("bearerAuth", ["read:home", "write:home"]),
+        ]
+    )
+    @app.route("/", methods=["POST"])
+    def auth_home() -> A:
+        ...
+
     docs.bind_app(app)
     await app.start()
 
@@ -1904,6 +1928,20 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/A'
             operationId: home
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/A'
+            operationId: auth_home
+            security:
+            -   basicAuth: []
+            -   bearerAuth:
+                - read:home
+                - write:home
 components:
     schemas:
         A:
@@ -2610,7 +2648,45 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
     get = app.controllers_router.get
     post = app.controllers_router.post
 
-    docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
+    docs = OpenAPIHandler(
+        info=Info(
+            title="Example API",
+            version="0.0.1",
+        ),
+        security_schemes={
+            "basicAuth": HTTPSecurity(
+                scheme="basic",
+                description="Basic Auth",
+            ),
+            "bearerAuth": HTTPSecurity(
+                scheme="bearer",
+                description="Bearer Auth",
+            ),
+            "apiKeyAuth": APIKeySecurity(
+                in_=ParameterLocation.HEADER,
+                name="X-API-Key",
+                description="API Key Auth",
+            ),
+            "openID": OpenIdConnectSecurity(
+                open_id_connect_url="https://example.com",
+                description="OIDC Auth",
+            ),
+            "oauth2": OAuth2Security(
+                flows=OAuthFlows(
+                    implicit=OAuthFlow(
+                        authorization_url="https://example.com/oauth2/authorize",
+                        token_url="https://example.com/oauth2/token",
+                        refresh_url="https://example.com/oauth2/refresh",
+                        scopes={
+                            "read:cats": "Read your cats",
+                            "write:cats": "Write your cats",
+                        },
+                    )
+                ),
+                description="OAuth2 Auth",
+            ),
+        },
+    )
     docs.bind_app(app)
 
     @dataclass
@@ -2777,6 +2853,35 @@ components:
         Cat:
             type: object
             properties: {}
+    securitySchemes:
+        basicAuth:
+            scheme: basic
+            type: http
+            description: Basic Auth
+        bearerAuth:
+            scheme: bearer
+            type: http
+            description: Bearer Auth
+        apiKeyAuth:
+            name: X-API-Key
+            in: header
+            type: apiKey
+            description: API Key Auth
+        openID:
+            openIdConnectUrl: https://example.com
+            type: openIdConnect
+            description: OIDC Auth
+        oauth2:
+            flows:
+                implicit:
+                    scopes:
+                        read:cats: Read your cats
+                        write:cats: Write your cats
+                    authorizationUrl: https://example.com/oauth2/authorize
+                    tokenUrl: https://example.com/oauth2/token
+                    refreshUrl: https://example.com/oauth2/refresh
+            type: oauth2
+            description: OAuth2 Auth
 tags:
 -   name: Cats
 -   name: Dogs

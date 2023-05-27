@@ -267,7 +267,6 @@ def get_cors_middleware(
             return not_found()
 
         policy = strategy.get_policy_by_route_or_default(route)
-        allowed_origins = _get_encoded_value_for_set(policy.allow_origins)
         allowed_methods = _get_encoded_value_for_set(policy.allow_methods)
         expose_headers = _get_encoded_value_for_set(policy.expose_headers)
         max_age = _get_encoded_value_for_max_age(policy.max_age)
@@ -298,7 +297,7 @@ def get_cors_middleware(
 
             response = ok()
             response.set_header(b"Access-Control-Allow-Methods", allowed_methods)
-            response.set_header(b"Access-Control-Allow-Origin", allowed_origins)
+            response.set_header(b"Access-Control-Allow-Origin", origin)
 
             if next_request_headers:
                 response.set_header(
@@ -329,7 +328,7 @@ def get_cors_middleware(
         except Exception as exc:
             response = await app.handle_request_handler_exception(request, exc)
 
-        response.set_header(b"Access-Control-Allow-Origin", allowed_origins)
+        response.set_header(b"Access-Control-Allow-Origin", origin)
         response.set_header(b"Access-Control-Expose-Headers", expose_headers)
 
         return response

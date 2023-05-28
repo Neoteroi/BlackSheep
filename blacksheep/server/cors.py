@@ -277,6 +277,9 @@ def get_cors_middleware(
         ):
             return _get_invalid_origin_response()
 
+        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
+        origin_response = b"*" if "*" in policy.allow_origins else origin
+
         if next_request_method:
             # This is a preflight request;
             if (
@@ -297,7 +300,10 @@ def get_cors_middleware(
 
             response = ok()
             response.set_header(b"Access-Control-Allow-Methods", allowed_methods)
-            response.set_header(b"Access-Control-Allow-Origin", origin)
+            response.set_header(b"Access-Control-Allow-Origin", origin_response)
+
+            if origin_response == b"*":
+                response.set_header(b"Vary", b"Origin")
 
             if next_request_headers:
                 response.set_header(
@@ -328,8 +334,11 @@ def get_cors_middleware(
         except Exception as exc:
             response = await app.handle_request_handler_exception(request, exc)
 
-        response.set_header(b"Access-Control-Allow-Origin", origin)
+        response.set_header(b"Access-Control-Allow-Origin", origin_response)
         response.set_header(b"Access-Control-Expose-Headers", expose_headers)
+
+        if origin_response == b"*":
+            response.add_header(b"Vary", b"Origin")
 
         return response
 

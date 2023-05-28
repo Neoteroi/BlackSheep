@@ -513,10 +513,7 @@ async def test_cors_preflight_request_allow_any(app):
     response = app.response
     assert response.status == 200
     assert response.headers.get_single(b"Access-Control-Allow-Methods") == b"*"
-    assert (
-        response.headers.get_single(b"Access-Control-Allow-Origin")
-        == b"https://www.neoteroi.dev"
-    )
+    assert response.headers.get_single(b"Access-Control-Allow-Origin") == b"*"
 
     await app(
         get_example_scope(

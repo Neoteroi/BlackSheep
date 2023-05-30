@@ -766,3 +766,57 @@ async def test_cors_preflight_request_handles_404_for_missing_routes(app):
 
     response = app.response
     assert response.status == 404
+
+
+@pytest.mark.asyncio
+async def test_response_to_cors_request_contains_single_allow_origin(app):
+    app.use_cors(
+        allow_methods="GET POST",
+        allow_origins="https://www.neoteroi.dev https://www.neoteroi.xyz",
+    )
+
+    @app.router.post("/")
+    async def home():
+        return text("Hello, World")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+    assert response.headers.get_single(b"Access-Control-Expose-Headers") is not None
+
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.xyz"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.xyz"
+    )
+    assert response.headers.get_single(b"Access-Control-Expose-Headers") is not None

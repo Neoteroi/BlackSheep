@@ -239,6 +239,17 @@ def _get_encoded_value_for_max_age(max_age: int) -> bytes:
     return str(max_age).encode()
 
 
+def _set_cors_origin(response: Response, origin_response: bytes):
+    """
+    Sets a Access-Control-Allow-Origin to the given value, and a `Vary: Origin` header
+    if that value is not "*".
+    """
+    response.set_header(b"Access-Control-Allow-Origin", origin_response)
+
+    if origin_response != b"*":
+        response.add_header(b"Vary", b"Origin")
+
+
 def get_cors_middleware(
     app: BaseApplication,
     strategy: CORSStrategy,
@@ -299,11 +310,8 @@ def get_cors_middleware(
                         return _get_invalid_header_response(str_value)
 
             response = ok()
+            _set_cors_origin(response, origin_response)
             response.set_header(b"Access-Control-Allow-Methods", allowed_methods)
-            response.set_header(b"Access-Control-Allow-Origin", origin_response)
-
-            if origin_response == b"*":
-                response.set_header(b"Vary", b"Origin")
 
             if next_request_headers:
                 response.set_header(
@@ -334,11 +342,8 @@ def get_cors_middleware(
         except Exception as exc:
             response = await app.handle_request_handler_exception(request, exc)
 
-        response.set_header(b"Access-Control-Allow-Origin", origin_response)
+        _set_cors_origin(response, origin_response)
         response.set_header(b"Access-Control-Expose-Headers", expose_headers)
-
-        if origin_response == b"*":
-            response.add_header(b"Vary", b"Origin")
 
         return response
 

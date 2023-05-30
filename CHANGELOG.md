@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0a7] - 2023-05-27
 - Fixes bug in CORS handling when [multiple origins are
   allowed](https://github.com/Neoteroi/BlackSheep/issues/364).
+- Adds a `Vary: Origin` response header for CORS requests when the value of
+  `Access-Control-Allow-Origin` header is a specific URL.
 
 ## [2.0a6] - 2023-04-28 :crown:
 

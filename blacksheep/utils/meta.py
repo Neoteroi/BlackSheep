@@ -25,6 +25,6 @@ def import_child_modules(root_path: Path):
         for f in glob.glob(path + "/*.py")
         if not os.path.basename(f).startswith("_")
     ]
-    stripped_path = os.path.relpath(path).replace("/", ".")
+    stripped_path = os.path.relpath(path).replace("/", ".").replace("\\", ".")
     for module in modules:
         __import__(stripped_path + "." + module)

@@ -41,7 +41,7 @@ packages = ["blacksheep"]
 [project.optional-dependencies]
 jinja = ["Jinja2~=3.1.2"]
 full = [
-    "cryptography~=38.0.1",
+    "cryptography>=38.0.1,<41.1.0",
     "PyJWT~=2.6.0",
     "websockets~=10.3",
 ]

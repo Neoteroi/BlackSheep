@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blacksheep"
-version = "2.0a8"
+dynamic = ["version"]
 authors = [
     { name = "Roberto Prevato", email = "roberto.prevato@gmail.com" },
 ]
@@ -37,6 +37,9 @@ dependencies = [
 
 [tool.setuptools]
 packages = ["blacksheep"]
+
+[tool.setuptools.dynamic]
+version = {attr = "blacksheep.__version__"}
 
 [project.optional-dependencies]
 jinja = ["Jinja2~=3.1.2"]

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix [#373](https://github.com/Neoteroi/BlackSheep/issues/373), about missing
   closing ASGI message when an async generator does not yield a closing empty
   bytes sequence (`b""`).
+- Make version dynamic in `pyproject.toml`, simplifying how the version can be
+  queried at runtime (see [#362](https://github.com/Neoteroi/BlackSheep/issues/362)).
 
 ## [2.0a7] - 2023-05-31 :corn:
 

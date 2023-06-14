@@ -15,10 +15,11 @@ class StreamedContent(Content):
         self,
         content_type: bytes,
         data_provider: Callable[[], AsyncIterable[bytes]],
+        data_length: int = -1,
     ) -> None:
         self.type = content_type
         self.body = None
-        self.length = -1
+        self.length = data_length
         self.generator = data_provider
     async def get_parts(self) -> AsyncIterable[bytes]: ...
 

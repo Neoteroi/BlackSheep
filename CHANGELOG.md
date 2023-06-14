@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bytes sequence (`b""`).
 - Make version dynamic in `pyproject.toml`, simplifying how the version can be
   queried at runtime (see [#362](https://github.com/Neoteroi/BlackSheep/issues/362)).
+- Fix [#372](https://github.com/Neoteroi/BlackSheep/issues/372). Use the ASGI
+  scope `root_path` when possible, as `base_path`.
 
 ## [2.0a7] - 2023-05-31 :corn:
 

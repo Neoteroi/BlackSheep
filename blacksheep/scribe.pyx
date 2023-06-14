@@ -1,6 +1,6 @@
 import http
 
-from .contents cimport Content
+from .contents cimport Content, StreamedContent
 from .cookies cimport Cookie, write_cookie_for_response
 from .messages cimport Request, Response
 from .url cimport URL
@@ -109,6 +109,10 @@ cpdef bytes write_response_cookie(Cookie cookie):
 
 
 async def write_chunks(Content http_content):
+    """
+    Writes chunks for transfer encoding. This method only works when using
+    `transfer-encoding: chunked`!
+    """
     async for chunk in http_content.get_parts():
         yield (hex(len(chunk))).encode()[2:] + b'\r\n' + chunk + b'\r\n'
     yield b'0\r\n\r\n'
@@ -198,6 +202,9 @@ async def write_request_body_only(Request request):
         if should_use_chunked_encoding(content):
             async for chunk in write_chunks(content):
                 yield chunk
+        elif isinstance(content, StreamedContent):
+            async for chunk in content.get_parts():
+                yield chunk
         else:
             data = content.body
 
@@ -228,6 +235,9 @@ async def write_request(Request request):
         if should_use_chunked_encoding(content):
             async for chunk in write_chunks(content):
                 yield chunk
+        elif isinstance(content, StreamedContent):
+            async for chunk in content.get_parts():
+                yield chunk
         else:
             data = content.body
 
@@ -245,6 +255,31 @@ def get_chunks(bytes data):
     yield b''
 
 
+async def write_response_content(Response response):
+    cdef Content content
+    cdef bytes data, chunk
+    content = response.content
+
+    if content:
+        if should_use_chunked_encoding(content):
+            async for chunk in write_chunks(content):
+                yield chunk
+        elif isinstance(content, StreamedContent):
+            # In this case, the Content-Length is specified, but the user of
+            # the library is using anyway a stream content with an async generator
+            # This is particularly useful for HTTP proxies.
+            async for chunk in content.get_parts():
+                yield chunk
+        else:
+            data = content.body
+
+            if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                for chunk in get_chunks(data):
+                    yield chunk
+            else:
+                yield data
+
+
 async def write_response(Response response):
     cdef bytes data
     cdef bytes chunk
@@ -255,39 +290,8 @@ async def write_response(Response response):
     yield STATUS_LINES[response.status] + \
         write_headers(response.__headers) + b'\r\n'
 
-    content = response.content
-
-    if content:
-        if should_use_chunked_encoding(content):
-            async for chunk in write_chunks(content):
-                yield chunk
-        else:
-            data = content.body
-
-            if content.length > MAX_RESPONSE_CHUNK_SIZE:
-                for chunk in get_chunks(data):
-                    yield chunk
-            else:
-                yield data
-
-
-async def write_response_content(Response response):
-    cdef Content content
-    cdef bytes data, chunk
-    content = response.content
-
-    if content:
-        if should_use_chunked_encoding(content):
-            async for chunk in write_chunks(content):
-                yield chunk
-        else:
-            data = content.body
-
-            if content.length > MAX_RESPONSE_CHUNK_SIZE:
-                for chunk in get_chunks(data):
-                    yield chunk
-            else:
-                yield data
+    async for chunk in write_response_content(response):
+        yield chunk
 
 
 async def send_asgi_response(Response response, object send):
@@ -303,16 +307,32 @@ async def send_asgi_response(Response response, object send):
     })
 
     if content:
-        if content.length < 0:
-            # NB: ASGI HTTP Servers automatically handle chunked encoding
+        if content.length < 0 or isinstance(content, StreamedContent):
+            # NB: ASGI HTTP Servers automatically handle chunked encoding,
+            # there is no need to write the length of each chunk
+            # (see write_chunks function)
+            closing_chunk = False
             async for chunk in content.get_parts():
+                if not chunk:
+                    closing_chunk = True
                 await send({
                     'type': 'http.response.body',
                     'body': chunk,
                     'more_body': bool(chunk)
                 })
+
+            if not closing_chunk:
+                # This is needed, otherwise uvicorn complains with:
+                # ERROR:    ASGI callable returned without completing response.
+                await send({
+                    'type': 'http.response.body',
+                    'body': b"",
+                    'more_body': False
+                })
         else:
             if content.length > MAX_RESPONSE_CHUNK_SIZE:
+                # Note: get_chunks yields the closing bytes fragment therefore
+                # we do not need to check for the closing message!
                 for chunk in get_chunks(content.body):
                     await send({
                         'type': 'http.response.body',

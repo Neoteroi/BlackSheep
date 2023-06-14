@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a8] - 2023-06-??
+
+- Add support for `StreamedContent` with specific content length; fixing
+  [#374](https://github.com/Neoteroi/BlackSheep/issues/374) both on the client
+  and the server side.
+- Fix [#373](https://github.com/Neoteroi/BlackSheep/issues/373), about missing
+  closing ASGI message when an async generator does not yield a closing empty
+  bytes sequence (`b""`).
+
 ## [2.0a7] - 2023-05-31 :corn:
 
 - Fixes bug in CORS handling when [multiple origins are

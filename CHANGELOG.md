@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   queried at runtime (see [#362](https://github.com/Neoteroi/BlackSheep/issues/362)).
 - Fix [#372](https://github.com/Neoteroi/BlackSheep/issues/372). Use the ASGI
   scope `root_path` when possible, as `base_path`.
+- Fix [#371](https://github.com/Neoteroi/BlackSheep/issues/371). Returns status
+  403 Forbidden when the user is authenticated but not authorized to perform an
+  action.
 
 ## [2.0a7] - 2023-05-31 :corn:
 

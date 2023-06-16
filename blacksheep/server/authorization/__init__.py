@@ -112,3 +112,13 @@ async def handle_unauthorized(
         [www_authenticate] if www_authenticate else None,
         content=TextContent("Unauthorized"),
     )
+
+
+async def handle_forbidden(
+    app: Any, request: Request, http_exception: UnauthorizedError
+):
+    return Response(
+        403,
+        None,
+        content=TextContent("Forbidden"),
+    )

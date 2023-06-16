@@ -328,7 +328,7 @@ def test_requires_authenticated_user(session_2, claims, expected_status):
     "claims,expected_status",
     [
         (None, 401),
-        ({"id": "001", "name": "Charlie Brown", "role": "user"}, 401),
+        ({"id": "001", "name": "Charlie Brown", "role": "user"}, 403),
         (
             {
                 "id": "002",

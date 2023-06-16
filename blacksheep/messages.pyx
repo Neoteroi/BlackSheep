@@ -324,7 +324,16 @@ cdef class Request(Message):
 
     @property
     def base_path(self) -> str:
-        return self.__dict__.get("base_path", "")
+        # 1. if a base path was explicitly set, use it
+        # 2. if a root_path is set in the ASGI scope, use it
+        # 3. default to empty string otherwise
+        try:
+            return self.__dict__["base_path"]
+        except KeyError:
+            try:
+                return self.scope.get("root_path", "")
+            except AttributeError:
+                return ""
 
     @base_path.setter
     def base_path(self, value: str):

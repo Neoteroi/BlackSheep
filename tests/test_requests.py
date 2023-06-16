@@ -548,3 +548,19 @@ content-length: 0
         value.extend(chunk)
 
     assert bytes(value) == expected_bytes
+
+
+def test_scope_root_path():
+    request = Request("GET", b"/", [])
+    assert request.base_path == ""
+
+    request.base_path = "/app"
+    assert request.base_path == "/app"
+
+    request = Request("GET", b"/", [])
+    request.scope = {"root_path": "/app"}  # type: ignore
+
+    assert request.base_path == "/app"
+
+    request.base_path = "/app2"
+    assert request.base_path == "/app2"

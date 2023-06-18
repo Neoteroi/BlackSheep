@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix [#371](https://github.com/Neoteroi/BlackSheep/issues/371). Returns status
   403 Forbidden when the user is authenticated but not authorized to perform an
   action.
+- Fixes `TypeError` when writing a request without host header.
 
 ## [2.0a7] - 2023-05-31 :corn:
 

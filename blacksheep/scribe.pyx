@@ -18,7 +18,6 @@ cdef bytes write_headers(list headers):
 
     value = bytearray()
     for header in headers:
-        print(header)
         value.extend(write_header(header))
     return bytes(value)
 

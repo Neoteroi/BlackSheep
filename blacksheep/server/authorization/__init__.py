@@ -59,6 +59,14 @@ def allow_anonymous(value: bool = True) -> Callable[..., Any]:
     return decorator
 
 
+class ForbiddenError(UnauthorizedError):
+    """
+    Specific kind of authorization error, used to indicate that the application
+    understands a request but refuses to authorize it. In other words, the user context
+    is valid but the user is not authorized to perform a certain operation.
+    """
+
+
 def get_authorization_middleware(
     strategy: AuthorizationStrategy,
 ) -> Callable[[Request, Callable[..., Any]], Awaitable[Response]]:
@@ -68,14 +76,25 @@ def get_authorization_middleware(
         if getattr(handler, "allow_anonymous", False) is True:
             return await handler(request)
 
-        if hasattr(handler, "auth"):
-            # function decorated by auth;
-            await strategy.authorize(handler.auth_policy, identity)
-        else:
-            # function not decorated by auth; use the default policy.
-            # this is necessary to support configuring authorization rules globally
-            # without configuring every single request handler
-            await strategy.authorize(None, identity)
+        try:
+            if hasattr(handler, "auth"):
+                # function decorated by auth;
+                await strategy.authorize(handler.auth_policy, identity)
+            else:
+                # function not decorated by auth; use the default policy.
+                # this is necessary to support configuring authorization rules globally
+                # without configuring every single request handler
+                await strategy.authorize(None, identity)
+        except UnauthorizedError as unauthorized_error:
+            if identity and identity.is_authenticated():
+                raise ForbiddenError(
+                    unauthorized_error.failed,
+                    unauthorized_error.failed_requirements,
+                    unauthorized_error.scheme,
+                    unauthorized_error.error,
+                    unauthorized_error.error_description,
+                )
+            raise
 
         return await handler(request)
 
@@ -109,4 +128,14 @@ async def handle_unauthorized(
         401,
         [www_authenticate] if www_authenticate else None,
         content=TextContent("Unauthorized"),
+    )
+
+
+async def handle_forbidden(
+    app: Any, request: Request, http_exception: UnauthorizedError
+):
+    return Response(
+        403,
+        None,
+        content=TextContent("Forbidden"),
     )

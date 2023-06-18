@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from blacksheep import Content, Cookie, Response, scribe
+from blacksheep.contents import StreamedContent
 from blacksheep.server.controllers import (
     CannotDetermineDefaultViewNameError,
     Controller,
@@ -1129,3 +1130,51 @@ async def test_pretty_json_response_in_controller(
             assert f'    "{name}": "{value}"' in raw
         else:
             assert f'    "{name}": ' in raw
+
+
+@pytest.mark.asyncio
+async def test_response_streaming(app):
+    @app.router.get("/")
+    async def home():
+        return Response(200, [], StreamedContent(b"text/css", get_example_css))
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert response.headers.get_single(b"content-type") == b"text/css"
+
+    text = await response.text()
+    assert text == await read_from_asynciterable(get_example_css)
+
+
+@pytest.mark.asyncio
+async def test_response_streaming_known_length(app):
+    expected_result = await read_from_asynciterable(get_example_css)
+
+    @app.router.get("/")
+    async def home():
+        return Response(
+            200, [], StreamedContent(b"text/css", get_example_css, len(expected_result))
+        )
+
+    app.normalize_handlers()
+
+    await app(
+        get_example_scope("GET", "/", []),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert response.headers.get_single(b"content-type") == b"text/css"
+
+    text = await response.text()
+    assert text == await read_from_asynciterable(get_example_css)

@@ -144,7 +144,7 @@ async def test_authentication_sets_identity_in_request(app):
 
 
 @pytest.mark.asyncio
-async def test_authorization_unauthorized_error(app):
+async def test_authorization_forbidden_error_1(app):
     app.use_authentication().add(MockAuthHandler())
 
     app.use_authorization().add(AdminsPolicy())
@@ -157,7 +157,26 @@ async def test_authorization_unauthorized_error(app):
     app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
-    assert app.response.status == 401
+    assert app.response.status == 403
+
+
+@pytest.mark.asyncio
+async def test_authorization_forbidden_error_2(app):
+    admin = Identity({"id": "001", "name": "Charlie Brown", "role": "user"}, "JWT")
+
+    app.use_authentication().add(MockAuthHandler(admin))
+
+    app.use_authorization().add(AdminsPolicy())
+
+    @auth("admin")
+    @app.router.get("/")
+    async def home():
+        return None
+
+    app.prepare()
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response.status == 403
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 import pytest
 
 from blacksheep import Content, Request, scribe
-from blacksheep.contents import FormPart, MultiPartFormData
+from blacksheep.contents import FormPart, MultiPartFormData, StreamedContent
 from blacksheep.exceptions import BadRequestFormat
 from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
 from blacksheep.scribe import write_request, write_small_request
@@ -548,3 +548,57 @@ content-length: 0
         value.extend(chunk)
 
     assert bytes(value) == expected_bytes
+
+
+@pytest.mark.asyncio
+async def test_write_small_request_streamed():
+    async def content_gen():
+        yield b"Hello"
+        yield b"World"
+
+    request = Request("POST", b"/", []).with_content(
+        StreamedContent(b"text/plain", content_gen)
+    )
+
+    data = bytearray()
+    async for chunk in write_request(request):
+        data.extend(chunk)
+    assert (
+        bytes(data)
+        == b"""POST / HTTP/1.1\r\ncontent-type: text/plain\r\ntransfer-encoding: chunked\r\n\r\n5\r\nHello\r\n5\r\nWorld\r\n0\r\n\r\n"""
+    )
+
+
+@pytest.mark.asyncio
+async def test_write_small_request_streamed_fixed_length():
+    async def content_gen():
+        yield b"Hello"
+        yield b"World"
+
+    request = Request("POST", b"/", []).with_content(
+        StreamedContent(b"text/plain", content_gen, len("HelloWorld"))
+    )
+
+    data = bytearray()
+    async for chunk in write_request(request):
+        data.extend(chunk)
+    assert (
+        bytes(data)
+        == b"POST / HTTP/1.1\r\ncontent-type: text/plain\r\ncontent-length: 10\r\n\r\nHelloWorld"
+    )
+
+
+def test_scope_root_path():
+    request = Request("GET", b"/", [])
+    assert request.base_path == ""
+
+    request.base_path = "/app"
+    assert request.base_path == "/app"
+
+    request = Request("GET", b"/", [])
+    request.scope = {"root_path": "/app"}  # type: ignore
+
+    assert request.base_path == "/app"
+
+    request.base_path = "/app2"
+    assert request.base_path == "/app2"

@@ -5,12 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.17] - 2023-06-18 :ambulance:
+
+- Fixes `TypeError` when writing a request without host header.
+- Fixes `TypeError` when writing a small request with streamed content of known
+  length.
+- Fixes [#372](https://github.com/Neoteroi/BlackSheep/issues/372). Use the ASGI
+  scope `root_path` when possible, as `base_path`.
+- Fixes [#371](https://github.com/Neoteroi/BlackSheep/issues/371). Returns status
+  403 Forbidden when the user is authenticated but not authorized to perform an
+  action.
+
 ## [1.2.16] - 2023-06-14 :cow:
 
-- Add support for `StreamedContent` with specific content length; fixing
+- Adds support for `StreamedContent` with specific content length; fixing
   [#374](https://github.com/Neoteroi/BlackSheep/issues/374) both on the client
   and the server side.
-- Fix [#373](https://github.com/Neoteroi/BlackSheep/issues/373), about missing
+- Fixes [#373](https://github.com/Neoteroi/BlackSheep/issues/373), about missing
   closing ASGI message when an async generator does not yield a closing empty
   bytes sequence (`b""`).
 

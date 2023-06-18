@@ -67,7 +67,8 @@ cdef bytes write_request_uri(Request request):
 
 cdef void ensure_host_header(Request request):
     # TODO: if the request port is not default; add b':' + port to the Host value (?)
-    request._add_header_if_missing(b'host', request.url.host)
+    if request.url.host:
+        request._add_header_if_missing(b'host', request.url.host)
 
 
 cdef bint should_use_chunked_encoding(Content content):
@@ -122,7 +123,11 @@ cdef bint is_small_response(Response response):
     cdef Content content = response.content
     if not content:
         return True
-    if content.length > 0 and content.length < MAX_RESPONSE_CHUNK_SIZE:
+    if (
+        content.length > 0
+        and content.length < MAX_RESPONSE_CHUNK_SIZE
+        and content.body is not None
+    ):
         return True
     return False
 
@@ -131,7 +136,11 @@ cpdef bint is_small_request(Request request):
     cdef Content content = request.content
     if not content:
         return True
-    if content.length > 0 and content.length < MAX_RESPONSE_CHUNK_SIZE:
+    if (
+        content.length > 0
+        and content.length < MAX_RESPONSE_CHUNK_SIZE
+        and content.body is not None
+    ):
         return True
     return False
 

@@ -36,7 +36,9 @@ from blacksheep.server.authentication import (
 )
 from blacksheep.server.authorization import (
     AuthorizationWithoutAuthenticationError,
+    ForbiddenError,
     get_authorization_middleware,
+    handle_forbidden,
     handle_unauthorized,
 )
 from blacksheep.server.bindings import ControllerParameter
@@ -425,6 +427,7 @@ class Application(BaseApplication):
             {  # type: ignore
                 AuthenticateChallenge: handle_authentication_challenge,
                 UnauthorizedError: handle_unauthorized,
+                ForbiddenError: handle_forbidden,
             }
         )
         return strategy

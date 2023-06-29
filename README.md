@@ -35,7 +35,24 @@ async def home():
 
 ```
 
-## Getting started
+## Getting started using the CLI ✨
+
+BlackSheep offers a CLI to bootstrap new projects rapidly.
+To try it, first install the `blacksheep-cli` package:
+
+```bash
+pip install blacksheep-cli
+```
+
+Then use the `blacksheep create` command to bootstrap a project
+using one of the supported templates.
+
+![blacksheep create command](https://gist.githubusercontent.com/RobertoPrevato/38a0598b515a2f7257c614938843b99b/raw/67d15ba337de94c2f50d980a7b8924a747259254/blacksheep-create-demo.gif)
+
+The CLI includes a help, and supports custom templates, using the
+same sources supported by `Cookiecutter`.
+
+## Getting started with the documentation
 
 The documentation offers getting started tutorials:
 * [Getting started:

@@ -46,7 +46,6 @@ from blacksheep.server.openapi.v3 import (
 )
 from blacksheep.server.routing import RoutesRegistry
 
-
 try:
     from pydantic.generics import GenericModel
 except ImportError:

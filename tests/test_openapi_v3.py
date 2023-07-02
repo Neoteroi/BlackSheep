@@ -20,8 +20,7 @@ from openapidocs.v3 import (
     ValueFormat,
     ValueType,
 )
-from pydantic import BaseModel, HttpUrl, validator
-from pydantic.generics import GenericModel
+from pydantic import BaseModel, HttpUrl
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 from blacksheep.server.application import Application
@@ -46,6 +45,24 @@ from blacksheep.server.openapi.v3 import (
     check_union,
 )
 from blacksheep.server.routing import RoutesRegistry
+
+
+try:
+    from pydantic.generics import GenericModel
+except ImportError:
+    # Pydantic v2
+    # https://docs.pydantic.dev/latest/blog/pydantic-v2/#other-improvements
+    GenericModel = BaseModel
+    PYDANTIC_VERSION = 2
+else:
+    PYDANTIC_VERSION = 1
+
+try:
+    from pydantic import field_validator
+except ImportError:
+    # Pydantic v1
+    from pydantic import validator as field_validator
+
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -179,7 +196,7 @@ class PydResponse(GenericModel, Generic[T]):
     data: Optional[T]
     error: Optional[Error]
 
-    @validator("error", always=True)
+    @field_validator("error")
     def check_consistency(cls, v, values):
         if v is not None and values["data"] is not None:
             raise ValueError("must not provide both data and error")
@@ -1694,9 +1711,8 @@ async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
+    if PYDANTIC_VERSION == 1:
+        expected_result = """
 openapi: 3.0.3
 info:
     title: Example
@@ -1752,7 +1768,70 @@ components:
                     $ref: '#/components/schemas/Error'
 tags: []
 """.strip()
-    )
+    elif PYDANTIC_VERSION == 2:
+        expected_result = """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydResponse[PydCat]'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        Error:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+                code:
+                    type: integer
+                    format: int64
+                    nullable: false
+                message:
+                    type: string
+                    nullable: false
+        PydResponse[PydCat]:
+            type: object
+            required:
+            - data
+            - error
+            properties:
+                data:
+                    anyOf:
+                    -   $ref: '#/components/schemas/PydCat'
+                    -   type: 'null'
+                error:
+                    anyOf:
+                    -   $ref: '#/components/schemas/Error'
+                    -   type: 'null'
+tags: []
+""".strip()
+    else:
+        raise RuntimeError("Missing expected_result")
+    assert yaml.strip() == expected_result
 
 
 @pytest.mark.asyncio
@@ -1768,9 +1847,78 @@ async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Seri
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
+    expected_result = (
+        """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydConstrained'
+            operationId: home
+components:
+    schemas:
+        PydConstrained:
+            type: object
+            required:
+            - a
+            - b
+            - big_int
+            - big_float
+            - unit_interval
+            - decimal_positive
+            - decimal_negative
+            properties:
+                a:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    nullable: false
+                b:
+                    type: number
+                    format: float
+                    maximum: 0
+                    nullable: false
+                big_int:
+                    type: integer
+                    format: int64
+                    maximum: 1024
+                    minimum: 1000
+                    nullable: false
+                big_float:
+                    type: number
+                    format: float
+                    maximum: 1024
+                    minimum: 1000
+                    nullable: false
+                unit_interval:
+                    type: number
+                    format: float
+                    nullable: false
+                decimal_positive:
+                    title: Decimal Positive
+                    anyOf:
+                    -   exclusiveMinimum: 0.0
+                        type: number
+                    -   type: string
+                decimal_negative:
+                    title: Decimal Negative
+                    anyOf:
+                    -   exclusiveMaximum: 0.0
+                        type: number
+                    -   type: string
+tags: []
+""".strip()
+        if PYDANTIC_VERSION == 2
+        else """
 openapi: 3.0.3
 info:
     title: Example
@@ -1839,6 +1987,8 @@ tags: []
 """.strip()
     )
 
+    assert yaml.strip() == expected_result
+
 
 def test_pydantic_model_handler_does_not_raise_for_array_without_field_info():
     handler = PydanticModelTypeHandler()
@@ -1867,7 +2017,7 @@ def test_pydantic_model_handler_handles_type_without__fields__():
         def schema():
             return {"properties": {"foo": {"type": "boolean"}}}
 
-    handler.get_type_fields(Foo)
+    handler.get_type_fields(Foo, None)
 
 
 @pytest.mark.asyncio

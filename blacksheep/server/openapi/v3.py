@@ -488,6 +488,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return self.get_type_name_for_generic(object_type, context_type_args)
         if hasattr(object_type, "__name__"):
             return object_type.__name__
+        if object_type is Union:
+            # Python 3.9 and 3.8 would fall here, Union type has a "_name" property but
+            # no "__name__"
+            return "Union"
         raise ValueError(
             f"Cannot obtain a name for object_type parameter: {object_type!r}"
         )

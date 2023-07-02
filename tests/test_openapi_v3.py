@@ -20,8 +20,7 @@ from openapidocs.v3 import (
     ValueFormat,
     ValueType,
 )
-from pydantic import BaseModel, HttpUrl, validator
-from pydantic.generics import GenericModel
+from pydantic import BaseModel, HttpUrl
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 from blacksheep.server.application import Application
@@ -34,10 +33,7 @@ from blacksheep.server.openapi.common import (
     ResponseInfo,
     SecurityInfo,
 )
-from blacksheep.server.openapi.exceptions import (
-    DuplicatedContentTypeDocsException,
-    UnsupportedUnionTypeException,
-)
+from blacksheep.server.openapi.exceptions import DuplicatedContentTypeDocsException
 from blacksheep.server.openapi.v3 import (
     DataClassTypeHandler,
     OpenAPIHandler,
@@ -46,6 +42,23 @@ from blacksheep.server.openapi.v3 import (
     check_union,
 )
 from blacksheep.server.routing import RoutesRegistry
+
+try:
+    from pydantic.generics import GenericModel
+except ImportError:
+    # Pydantic v2
+    # https://docs.pydantic.dev/latest/blog/pydantic-v2/#other-improvements
+    GenericModel = BaseModel
+    PYDANTIC_VERSION = 2
+else:
+    PYDANTIC_VERSION = 1
+
+try:
+    from pydantic import field_validator
+except ImportError:
+    # Pydantic v1
+    from pydantic import validator as field_validator
+
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -179,7 +192,7 @@ class PydResponse(GenericModel, Generic[T]):
     data: Optional[T]
     error: Optional[Error]
 
-    @validator("error", always=True)
+    @field_validator("error")
     def check_consistency(cls, v, values):
         if v is not None and values["data"] is not None:
             raise ValueError("must not provide both data and error")
@@ -278,11 +291,6 @@ async def test_raises_for_duplicated_content_example(docs):
     with pytest.raises(DuplicatedContentTypeDocsException):
         docs.bind_app(app)
         await app.start()
-
-
-def test_raises_for_union_type(docs):
-    with pytest.raises(UnsupportedUnionTypeException):
-        docs.get_schema_by_type(Union[Foo, Ufo])
 
 
 @pytest.mark.parametrize(
@@ -1694,9 +1702,8 @@ async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
+    if PYDANTIC_VERSION == 1:
+        expected_result = """
 openapi: 3.0.3
 info:
     title: Example
@@ -1752,7 +1759,70 @@ components:
                     $ref: '#/components/schemas/Error'
 tags: []
 """.strip()
-    )
+    elif PYDANTIC_VERSION == 2:
+        expected_result = """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydResponse[PydCat]'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        Error:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+                code:
+                    type: integer
+                    format: int64
+                    nullable: false
+                message:
+                    type: string
+                    nullable: false
+        PydResponse[PydCat]:
+            type: object
+            required:
+            - data
+            - error
+            properties:
+                data:
+                    anyOf:
+                    -   $ref: '#/components/schemas/PydCat'
+                    -   type: 'null'
+                error:
+                    anyOf:
+                    -   $ref: '#/components/schemas/Error'
+                    -   type: 'null'
+tags: []
+""".strip()
+    else:
+        raise RuntimeError("Missing expected_result")
+    assert yaml.strip() == expected_result
 
 
 @pytest.mark.asyncio
@@ -1768,9 +1838,78 @@ async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Seri
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
+    expected_result = (
+        """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydConstrained'
+            operationId: home
+components:
+    schemas:
+        PydConstrained:
+            type: object
+            required:
+            - a
+            - b
+            - big_int
+            - big_float
+            - unit_interval
+            - decimal_positive
+            - decimal_negative
+            properties:
+                a:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    nullable: false
+                b:
+                    type: number
+                    format: float
+                    maximum: 0
+                    nullable: false
+                big_int:
+                    type: integer
+                    format: int64
+                    maximum: 1024
+                    minimum: 1000
+                    nullable: false
+                big_float:
+                    type: number
+                    format: float
+                    maximum: 1024
+                    minimum: 1000
+                    nullable: false
+                unit_interval:
+                    type: number
+                    format: float
+                    nullable: false
+                decimal_positive:
+                    title: Decimal Positive
+                    anyOf:
+                    -   exclusiveMinimum: 0.0
+                        type: number
+                    -   type: string
+                decimal_negative:
+                    title: Decimal Negative
+                    anyOf:
+                    -   exclusiveMaximum: 0.0
+                        type: number
+                    -   type: string
+tags: []
+""".strip()
+        if PYDANTIC_VERSION == 2
+        else """
 openapi: 3.0.3
 info:
     title: Example
@@ -1839,6 +1978,8 @@ tags: []
 """.strip()
     )
 
+    assert yaml.strip() == expected_result
+
 
 def test_pydantic_model_handler_does_not_raise_for_array_without_field_info():
     handler = PydanticModelTypeHandler()
@@ -1867,7 +2008,7 @@ def test_pydantic_model_handler_handles_type_without__fields__():
         def schema():
             return {"properties": {"foo": {"type": "boolean"}}}
 
-    handler.get_type_fields(Foo)
+    handler.get_type_fields(Foo, None)
 
 
 @pytest.mark.asyncio
@@ -2888,3 +3029,226 @@ tags:
 -   name: Parrots
 """.strip()
     )
+
+
+@dataclass
+class A:
+    a_prop: int
+
+
+@dataclass
+class B:
+    b_prop: str
+
+
+@dataclass
+class C:
+    c_prop: str
+
+
+@dataclass
+class D:
+    d_prop: float
+
+
+@dataclass
+class E:
+    e_prop: int
+
+
+@dataclass
+class F:
+    f_prop: str
+    f_prop2: A
+
+
+@dataclass
+class AnyOfTestClass:
+    sub_prop: Union[A, B, C]
+
+
+@dataclass
+class AnyOfResponseTestClass:
+    data: Union[D, E, F]
+
+
+class APyd(BaseModel):
+    a_prop: int
+
+
+class BPyd(BaseModel):
+    b_prop: str
+
+
+class CPyd(BaseModel):
+    c_prop: str
+
+
+class DPyd(BaseModel):
+    d_prop: float
+
+
+class EPyd(BaseModel):
+    e_prop: int
+
+
+class FPyd(BaseModel):
+    f_prop: str
+    f_prop2: APyd
+
+
+class AnyOfTestClassPyd(BaseModel):
+    sub_prop: Union[APyd, BPyd, CPyd]
+
+
+class AnyOfResponseTestClassPyd(BaseModel):
+    data: Union[DPyd, EPyd, FPyd]
+
+
+@pytest.mark.asyncio
+async def test_any_of_dataclasses(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+    docs.bind_app(app)
+
+    @app.router.post("/one")
+    def one(data: AnyOfTestClass) -> AnyOfResponseTestClass:
+        ...
+
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    expected_fragments = [
+        """
+    /one:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnyOfResponseTestClass'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnyOfTestClass'
+                required: true
+        """,
+        """
+        D:
+            type: object
+            required:
+            - d_prop
+            properties:
+                d_prop:
+                    type: number
+                    format: float
+                    nullable: false
+        """,
+        """
+        UnionOfDAndEAndF:
+            type: object
+            anyOf:
+            -   $ref: '#/components/schemas/D'
+            -   $ref: '#/components/schemas/E'
+            -   $ref: '#/components/schemas/F'
+        """,
+        """
+        AnyOfResponseTestClass:
+            type: object
+            properties:
+                data:
+                    $ref: '#/components/schemas/UnionOfDAndEAndF'
+        """,
+        """
+        UnionOfAAndBAndC:
+            type: object
+            anyOf:
+            -   $ref: '#/components/schemas/A'
+            -   $ref: '#/components/schemas/B'
+            -   $ref: '#/components/schemas/C'
+        """,
+    ]
+
+    for fragment in expected_fragments:
+        assert fragment.strip() in yaml
+
+
+@pytest.mark.asyncio
+async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+    docs.bind_app(app)
+
+    @app.router.post("/one")
+    def one(data: AnyOfTestClassPyd) -> AnyOfResponseTestClassPyd:
+        ...
+
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    expected_fragments = [
+        """
+    /one:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnyOfResponseTestClassPyd'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnyOfTestClassPyd'
+                required: true
+        """,
+        """
+        DPyd:
+            type: object
+            required:
+            - d_prop
+            properties:
+                d_prop:
+                    type: number
+                    format: float
+                    nullable: false
+        """,
+        """
+        AnyOfResponseTestClassPyd:
+            type: object
+            required:
+            - data
+            properties:
+                data:
+                    title: Data
+                    anyOf:
+                    -   $ref: '#/components/schemas/DPyd'
+                    -   $ref: '#/components/schemas/EPyd'
+                    -   $ref: '#/components/schemas/FPyd'
+        """,
+        """
+        AnyOfTestClassPyd:
+            type: object
+            required:
+            - sub_prop
+            properties:
+                sub_prop:
+                    title: Sub Prop
+                    anyOf:
+                    -   $ref: '#/components/schemas/APyd'
+                    -   $ref: '#/components/schemas/BPyd'
+                    -   $ref: '#/components/schemas/CPyd'
+        """,
+    ]
+
+    for fragment in expected_fragments:
+        assert fragment.strip() in yaml

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0a8] - 2023-06-??
+## [2.0a8] - 2023-07-02
 
 - Add support for `StreamedContent` with specific content length; fixing
   [#374](https://github.com/Neoteroi/BlackSheep/issues/374) both on the client
@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   403 Forbidden when the user is authenticated but not authorized to perform an
   action.
 - Fixes `TypeError` when writing a request without host header.
+- Add support for `Pydantic` `v2`: meaning feature parity with support for
+  Pydantic v1 (generating OpenAPI Documentation).
+- Add support for `Union` types in sub-properties of request handlers input and
+  output types, for generating OpenAPI Documentation, both using simple classes
+  and Pydantic [#389](https://github.com/Neoteroi/BlackSheep/issues/389)
 
 ## [2.0a7] - 2023-05-31 :corn:
 

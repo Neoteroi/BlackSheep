@@ -10,13 +10,3 @@ class DuplicatedContentTypeDocsException(DocumentationException):
             "have unique type."
         )
         self.content_type = content_type
-
-
-class UnsupportedUnionTypeException(DocumentationException):
-    def __init__(self, unsupported_type) -> None:
-        super().__init__(
-            f"Union types are not supported for automatic generation of "
-            "OpenAPI Documentation. The annotation that caused exception is: "
-            f"{unsupported_type}."
-        )
-        self.unsupported_type = unsupported_type

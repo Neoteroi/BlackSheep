@@ -33,10 +33,7 @@ from blacksheep.server.openapi.common import (
     ResponseInfo,
     SecurityInfo,
 )
-from blacksheep.server.openapi.exceptions import (
-    DuplicatedContentTypeDocsException,
-    UnsupportedUnionTypeException,
-)
+from blacksheep.server.openapi.exceptions import DuplicatedContentTypeDocsException
 from blacksheep.server.openapi.v3 import (
     DataClassTypeHandler,
     OpenAPIHandler,
@@ -294,11 +291,6 @@ async def test_raises_for_duplicated_content_example(docs):
     with pytest.raises(DuplicatedContentTypeDocsException):
         docs.bind_app(app)
         await app.start()
-
-
-def test_raises_for_union_type(docs):
-    with pytest.raises(UnsupportedUnionTypeException):
-        docs.get_schema_by_type(Union[Foo, Ufo])
 
 
 @pytest.mark.parametrize(
@@ -3037,3 +3029,226 @@ tags:
 -   name: Parrots
 """.strip()
     )
+
+
+@dataclass
+class A:
+    a_prop: int
+
+
+@dataclass
+class B:
+    b_prop: str
+
+
+@dataclass
+class C:
+    c_prop: str
+
+
+@dataclass
+class D:
+    d_prop: float
+
+
+@dataclass
+class E:
+    e_prop: int
+
+
+@dataclass
+class F:
+    f_prop: str
+    f_prop2: A
+
+
+@dataclass
+class AnyOfTestClass:
+    sub_prop: Union[A, B, C]
+
+
+@dataclass
+class AnyOfResponseTestClass:
+    data: Union[D, E, F]
+
+
+class APyd(BaseModel):
+    a_prop: int
+
+
+class BPyd(BaseModel):
+    b_prop: str
+
+
+class CPyd(BaseModel):
+    c_prop: str
+
+
+class DPyd(BaseModel):
+    d_prop: float
+
+
+class EPyd(BaseModel):
+    e_prop: int
+
+
+class FPyd(BaseModel):
+    f_prop: str
+    f_prop2: APyd
+
+
+class AnyOfTestClassPyd(BaseModel):
+    sub_prop: Union[APyd, BPyd, CPyd]
+
+
+class AnyOfResponseTestClassPyd(BaseModel):
+    data: Union[DPyd, EPyd, FPyd]
+
+
+@pytest.mark.asyncio
+async def test_any_of_dataclasses(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+    docs.bind_app(app)
+
+    @app.router.post("/one")
+    def one(data: AnyOfTestClass) -> AnyOfResponseTestClass:
+        ...
+
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    expected_fragments = [
+        """
+    /one:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnyOfResponseTestClass'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnyOfTestClass'
+                required: true
+        """,
+        """
+        D:
+            type: object
+            required:
+            - d_prop
+            properties:
+                d_prop:
+                    type: number
+                    format: float
+                    nullable: false
+        """,
+        """
+        UnionOfDAndEAndF:
+            type: object
+            anyOf:
+            -   $ref: '#/components/schemas/D'
+            -   $ref: '#/components/schemas/E'
+            -   $ref: '#/components/schemas/F'
+        """,
+        """
+        AnyOfResponseTestClass:
+            type: object
+            properties:
+                data:
+                    $ref: '#/components/schemas/UnionOfDAndEAndF'
+        """,
+        """
+        UnionOfAAndBAndC:
+            type: object
+            anyOf:
+            -   $ref: '#/components/schemas/A'
+            -   $ref: '#/components/schemas/B'
+            -   $ref: '#/components/schemas/C'
+        """,
+    ]
+
+    for fragment in expected_fragments:
+        assert fragment.strip() in yaml
+
+
+@pytest.mark.asyncio
+async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+    docs.bind_app(app)
+
+    @app.router.post("/one")
+    def one(data: AnyOfTestClassPyd) -> AnyOfResponseTestClassPyd:
+        ...
+
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    expected_fragments = [
+        """
+    /one:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnyOfResponseTestClassPyd'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnyOfTestClassPyd'
+                required: true
+        """,
+        """
+        DPyd:
+            type: object
+            required:
+            - d_prop
+            properties:
+                d_prop:
+                    type: number
+                    format: float
+                    nullable: false
+        """,
+        """
+        AnyOfResponseTestClassPyd:
+            type: object
+            required:
+            - data
+            properties:
+                data:
+                    title: Data
+                    anyOf:
+                    -   $ref: '#/components/schemas/DPyd'
+                    -   $ref: '#/components/schemas/EPyd'
+                    -   $ref: '#/components/schemas/FPyd'
+        """,
+        """
+        AnyOfTestClassPyd:
+            type: object
+            required:
+            - sub_prop
+            properties:
+                sub_prop:
+                    title: Sub Prop
+                    anyOf:
+                    -   $ref: '#/components/schemas/APyd'
+                    -   $ref: '#/components/schemas/BPyd'
+                    -   $ref: '#/components/schemas/CPyd'
+        """,
+    ]
+
+    for fragment in expected_fragments:
+        assert fragment.strip() in yaml

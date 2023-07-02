@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixes `TypeError` when writing a request without host header.
 - Add support for `Pydantic` `v2`: meaning feature parity with support for
   Pydantic v1 (generating OpenAPI Documentation).
+- Add support for `Union` types in sub-properties of request handlers input and
+  output types, for generating OpenAPI Documentation, both using simple classes
+  and Pydantic [#389](https://github.com/Neoteroi/BlackSheep/issues/389)
 
 ## [2.0a7] - 2023-05-31 :corn:
 

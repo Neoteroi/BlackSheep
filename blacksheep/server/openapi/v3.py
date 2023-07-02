@@ -52,10 +52,7 @@ from blacksheep.server.openapi.docstrings import (
     DocstringInfo,
     get_handler_docstring_info,
 )
-from blacksheep.server.openapi.exceptions import (
-    DuplicatedContentTypeDocsException,
-    UnsupportedUnionTypeException,
-)
+from blacksheep.server.openapi.exceptions import DuplicatedContentTypeDocsException
 from blacksheep.server.routing import Router
 
 from ..application import Application
@@ -115,14 +112,13 @@ def check_union(object_type: Any) -> Tuple[bool, Any]:
         if hasattr(object_type, "is_required"):
             # Pydantic v2
             return object_type.is_required(), object_type
-        # support only Union[None, Type] - that is equivalent of Optional[Type]
-        if type(None) not in object_type.__args__ or len(object_type.__args__) > 2:
-            raise UnsupportedUnionTypeException(object_type)
 
-        for possible_type in object_type.__args__:
-            if type(None) is possible_type:
-                continue
-            return True, possible_type
+        if type(None) in object_type.__args__ and len(object_type.__args__) == 2:
+            for possible_type in object_type.__args__:
+                if type(None) is possible_type:
+                    continue
+                return True, possible_type
+        return type(None) not in object_type.__args__, object_type
     return False, object_type
 
 
@@ -177,10 +173,6 @@ class DataClassTypeHandler(ObjectTypeHandler):
         return [FieldInfo(field.name, field.type) for field in fields(object_type)]
 
 
-def _is_optional_any_of(any_of) -> bool:
-    return len(any_of) == 2 and any(item.get("type") == "null" for item in any_of)
-
-
 def _try_is_subclass(object_type, check_type):
     try:
         return issubclass(object_type, check_type)
@@ -214,9 +206,6 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
             return not field_info.is_required()
 
     def _handle_any_of(self, any_of, types_args, register_type):
-        # Currently only optional
-        assert _is_optional_any_of(any_of)
-
         for item in any_of:
             if "$ref" in item:
                 obj_type_name = item["$ref"].split("/")[-1]
@@ -591,15 +580,21 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         required: List[str],
         context_type_args: Optional[Dict[Any, Type]] = None,
     ) -> Reference:
-        type_name = self.get_type_name(object_type, context_type_args)
-        reference = self._register_schema(
+        return self._handle_object_type_schema(
+            object_type,
+            context_type_args,
             Schema(
                 type=ValueType.OBJECT,
                 required=required or None,
                 properties=properties,
             ),
-            type_name,
         )
+
+    def _handle_object_type_schema(
+        self, object_type, context_type_args, schema: Schema
+    ):
+        type_name = self.get_type_name(object_type, context_type_args)
+        reference = self._register_schema(schema, type_name)
         self._objects_references[object_type] = reference
         self._objects_references[type_name] = reference
         return reference
@@ -737,6 +732,18 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
     ) -> Optional[Reference]:
         origin = get_origin(object_type)
+
+        if origin is Union:
+            schema = Schema(
+                ValueType.OBJECT,
+                any_of=[
+                    self.get_schema_by_type(child_type, context_type_args)
+                    for child_type in object_type.__args__
+                ],
+            )
+            return self._handle_object_type_schema(
+                object_type, context_type_args, schema
+            )
 
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}

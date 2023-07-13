@@ -16,7 +16,7 @@ class StreamedContent(Content):
         self,
         content_type: bytes,
         data_provider: Callable[[], AsyncIterable[bytes]],
-        data_length: cython.long = -1,
+        data_length: cython.longlong = -1,
     ) -> None:
         self.type = content_type
         self.body = None

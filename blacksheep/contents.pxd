@@ -9,7 +9,7 @@ import cython
 cdef class Content:
     cdef readonly bytes type
     cdef readonly bytes body
-    cdef readonly cython.long length
+    cdef readonly cython.longlong length
 
 
 cdef class StreamedContent(Content):

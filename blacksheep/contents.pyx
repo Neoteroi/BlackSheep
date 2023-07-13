@@ -30,7 +30,7 @@ cdef class StreamedContent(Content):
         self,
         bytes content_type,
         object data_provider,
-        cython.long data_length = -1
+        cython.longlong data_length = -1
     ):
         self.type = content_type
         self.body = None

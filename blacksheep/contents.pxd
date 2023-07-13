@@ -3,12 +3,13 @@
 #
 # This module is part of BlackSheep and is released under
 # the MIT License https://opensource.org/licenses/MIT
+import cython
 
 
 cdef class Content:
     cdef readonly bytes type
     cdef readonly bytes body
-    cdef readonly int length
+    cdef readonly cython.long length
 
 
 cdef class StreamedContent(Content):

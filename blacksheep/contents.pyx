@@ -1,3 +1,4 @@
+import cython
 import json
 import uuid
 from collections.abc import MutableSequence
@@ -29,7 +30,7 @@ cdef class StreamedContent(Content):
         self,
         bytes content_type,
         object data_provider,
-        int data_length = -1
+        cython.long data_length = -1
     ):
         self.type = content_type
         self.body = None

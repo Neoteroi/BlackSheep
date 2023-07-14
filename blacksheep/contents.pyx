@@ -29,7 +29,7 @@ cdef class StreamedContent(Content):
         self,
         bytes content_type,
         object data_provider,
-        int data_length = -1
+        long long data_length = -1
     ):
         self.type = content_type
         self.body = None

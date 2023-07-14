@@ -2,7 +2,7 @@ from typing import List
 
 import pytest
 
-from blacksheep import JSONContent, Request, StreamedContent
+from blacksheep import JSONContent, Request
 from blacksheep.contents import (
     FormPart,
     HTMLContent,

@@ -2,11 +2,12 @@ from typing import List
 
 import pytest
 
-from blacksheep import JSONContent, Request, StreamedContent
+from blacksheep import JSONContent, Request
 from blacksheep.contents import (
     FormPart,
     HTMLContent,
     MultiPartFormData,
+    StreamedContent,
     TextContent,
     parse_www_form,
     write_www_form_urlencoded,
@@ -323,3 +324,11 @@ async def test_write_request_body_only(req: Request, expected_chunks: List[bytes
         received_chunks.append(chunk)
 
     assert received_chunks == expected_chunks
+
+
+@pytest.mark.parametrize("size", [0, 2000, 2147483647, 9e18])
+def test_content_size(size):
+    async def gen():
+        yield b""
+
+    StreamedContent(b"text/plain", gen, size)

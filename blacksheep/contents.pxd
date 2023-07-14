@@ -8,7 +8,7 @@
 cdef class Content:
     cdef readonly bytes type
     cdef readonly bytes body
-    cdef readonly int length
+    cdef readonly long long length
 
 
 cdef class StreamedContent(Content):

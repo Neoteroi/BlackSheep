@@ -14,7 +14,7 @@ from .abc import Renderer
 
 @lru_cache(1200)
 def get_template_name(name: str) -> str:
-    if not name.endswith(".html"):
+    if not name.endswith(".html") and not name.endswith(".jinja"):
         return name + ".html"
     return name
 
@@ -93,7 +93,7 @@ class JinjaRenderer(Renderer):
                 os.environ.get("APP_JINJA_PACKAGE_NAME", "app"),
                 os.environ.get("APP_JINJA_PACKAGE_PATH", "views"),
             ),
-            autoescape=select_autoescape(["html", "xml"]),
+            autoescape=select_autoescape(["html", "xml", "jinja"]),
             auto_reload=bool(os.environ.get("APP_JINJA_DEBUG", "")) or debug,
             enable_async=bool(os.environ.get("APP_JINJA_ENABLE_ASYNC", ""))
             or enable_async,

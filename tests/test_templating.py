@@ -324,6 +324,8 @@ async def test_controller_conventional_view_name_extraneous_function(home_model)
     [
         ("index", "index.html"),
         ("index.html", "index.html"),
+        ("index.html.jinja", "index.html.jinja"),
+        ("index.jinja", "index.jinja"),
         ("default", "default.html"),
     ],
 )

@@ -11,7 +11,6 @@ from blacksheep.server.csrf import AntiForgeryHandler, MissingRequestContextErro
 
 from .abc import Renderer
 
-
 _DEFAULT_TEMPLATES_EXTENSION = os.environ.get("APP_JINJA_EXTENSION", ".jinja")
 
 

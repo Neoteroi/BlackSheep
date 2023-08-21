@@ -11,11 +11,13 @@ from blacksheep.server.csrf import AntiForgeryHandler, MissingRequestContextErro
 
 from .abc import Renderer
 
+_DEFAULT_TEMPLATES_EXTENSION = os.environ.get("APP_JINJA_EXTENSION", ".jinja")
+
 
 @lru_cache(1200)
 def get_template_name(name: str) -> str:
-    if not name.endswith(".html") and not name.endswith(".jinja"):
-        return name + ".html"
+    if not name.endswith(_DEFAULT_TEMPLATES_EXTENSION):
+        return name + _DEFAULT_TEMPLATES_EXTENSION
     return name
 
 

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a11] - 2023-09-19 :warning:
+
+- Resolves bug in `2.0a10` caused by incompatibility issue with `Cython 3`.
+- Pins `Cython` to `3.0.2` in the build job.
+
 ## [2.0a10] - 2023-08-21 :broccoli:
 
 - Add support for `.jinja` extension by @thearchitector.

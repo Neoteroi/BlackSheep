@@ -5,14 +5,19 @@ import uuid
 from datetime import datetime
 
 import uvicorn
+from openapidocs.v3 import Info
 
 from blacksheep import JSONContent, Response
 from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
 from blacksheep.server.compression import use_gzip_compression
+from blacksheep.server.openapi.ui import CdnOptions, ReDocUIProvider
+from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import json
 from blacksheep.server.websocket import WebSocket
 from blacksheep.settings.json import default_json_dumps, json_settings
+
+from .utils import foo_cdn
 
 SINGLE_PID = None
 
@@ -149,6 +154,21 @@ async def echo_json(websocket: WebSocket):
         msg = await websocket.receive_json()
         await websocket.send_json(msg)
 
+
+docs = OpenAPIHandler(
+    info=Info(title="Cats API", version="0.0.1"),
+    swagger_ui_cdn=CdnOptions(
+        js_cdn_url=foo_cdn("swag-js"), css_cdn_url=foo_cdn("swag-css")
+    ),
+)
+docs.ui_providers.append(
+    ReDocUIProvider(
+        cdn=CdnOptions(
+            js_cdn_url=foo_cdn("redoc-js"), fontset_cdn_url=foo_cdn("redoc-fonts")
+        )
+    )
+)
+docs.bind_app(app_4)
 
 if __name__ == "__main__":
     configure_json_settings()

@@ -1,11 +1,30 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Optional
 
 from blacksheep.messages import Request, Response
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.utils.time import utcnow
+
+SWAGGER_UI_CDN = (
+    "https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui-bundle.js"
+)
+SWAGGER_UI_CSS = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui.css"
+SWAGGER_UI_FONT = None
+
+REDOC_UI_CDN = "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
+REDOC_UI_CSS = None
+REDOC_UI_FONT = (
+    "https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700"
+)
+
+
+@dataclass
+class CdnOptions:
+    js_cdn_url: str
+    css_cdn_url: Optional[str] = None
+    fontset_cdn_url: Optional[str] = None
 
 
 @dataclass
@@ -15,9 +34,19 @@ class UIOptions:
 
 
 class UIProvider(ABC):
-    def __init__(self, ui_path: str) -> None:
+    cdn: CdnOptions
+    ui_path: str
+
+    _default_cdn: CdnOptions
+
+    def __init__(
+        self,
+        ui_path: str,
+        cdn: Optional[CdnOptions] = None,
+    ) -> None:
         super().__init__()
         self.ui_path = ui_path
+        self.cdn = cdn if cdn else self._default_cdn
 
     @abstractmethod
     def build_ui(self, options: UIOptions) -> None:
@@ -33,8 +62,14 @@ class UIProvider(ABC):
 
 
 class SwaggerUIProvider(UIProvider):
-    def __init__(self, ui_path: str = "/docs") -> None:
-        super().__init__(ui_path)
+    _default_cdn = CdnOptions(SWAGGER_UI_CDN, SWAGGER_UI_CSS, SWAGGER_UI_FONT)
+
+    def __init__(
+        self,
+        ui_path: str = "/docs",
+        cdn: Optional[CdnOptions] = None,
+    ) -> None:
+        super().__init__(ui_path, cdn)
 
         self._ui_html: bytes = b""
 
@@ -46,6 +81,8 @@ class SwaggerUIProvider(UIProvider):
             get_resource_file_content("swagger-ui.html")
             .replace("##SPEC_URL##", options.spec_url)
             .replace("##PAGE_TITLE##", options.page_title)
+            .replace("##JS_CDN##", self.cdn.js_cdn_url)
+            .replace("##CSS_CDN##", self.cdn.css_cdn_url)
         )
 
     def build_ui(self, options: UIOptions) -> None:
@@ -63,8 +100,12 @@ class SwaggerUIProvider(UIProvider):
 
 
 class ReDocUIProvider(UIProvider):
-    def __init__(self, ui_path: str = "/redocs") -> None:
-        super().__init__(ui_path)
+    _default_cdn = CdnOptions(REDOC_UI_CDN, REDOC_UI_CSS, REDOC_UI_FONT)
+
+    def __init__(
+        self, ui_path: str = "/redocs", cdn: Optional[CdnOptions] = None
+    ) -> None:
+        super().__init__(ui_path, cdn)
 
         self._ui_html: bytes = b""
 
@@ -76,6 +117,8 @@ class ReDocUIProvider(UIProvider):
             get_resource_file_content("redoc-ui.html")
             .replace("##SPEC_URL##", options.spec_url)
             .replace("##PAGE_TITLE##", options.page_title)
+            .replace("##JS_CDN##", self.cdn.js_cdn_url)
+            .replace("##FONT_CDN##", self.cdn.fontset_cdn_url)
         )
 
     def build_ui(self, options: UIOptions) -> None:

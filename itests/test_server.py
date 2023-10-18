@@ -12,7 +12,7 @@ from websockets.exceptions import InvalidStatusCode
 
 from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
-from .utils import assert_files_equals, ensure_success
+from .utils import assert_files_equals, ensure_success, foo_cdn
 
 
 def test_hello_world(session_1):
@@ -415,6 +415,77 @@ def test_open_api_redoc_ui(session_2):
   <body>
     <redoc spec-url="/openapi.json"></redoc>
     <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+  </body>
+</html>
+""".strip()
+    )
+
+
+def test_open_api_ui_custom_cdn(session_4):
+    response = session_4.get("/docs")
+
+    assert response.status_code == 200
+    text = response.text
+    assert (
+        text.strip()
+        == f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cats API</title>
+    <link rel="icon" href="/favicon.png"/>
+    <link type="text/css" rel="stylesheet" href="{foo_cdn("swag-css")}">
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="{foo_cdn("swag-js")}"></script>
+    <script>
+    const ui = SwaggerUIBundle({{
+        url: '/openapi.json',
+        oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
+        dom_id: '#swagger-ui',
+        presets: [
+            SwaggerUIBundle.presets.apis,
+            SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout",
+        deepLinking: true,
+        showExtensions: true,
+        showCommonExtensions: true
+    }})
+    </script>
+</body>
+</html>
+""".strip()
+    )
+
+
+def test_open_api_redoc_ui_custom_cdn(session_4):
+    response = session_4.get("/redocs")
+
+    assert response.status_code == 200
+    text = response.text
+    assert (
+        text.strip()
+        == f"""
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Cats API</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="/favicon.png"/>
+    <link href="{foo_cdn("redoc-font")}" rel="stylesheet">
+    <style>
+      body {{
+        margin: 0;
+        padding: 0;
+      }}
+    </style>
+  </head>
+  <body>
+    <redoc spec-url="/openapi.json"></redoc>
+    <script src="{foo_cdn("redoc-js")}"> </script>
   </body>
 </html>
 """.strip()

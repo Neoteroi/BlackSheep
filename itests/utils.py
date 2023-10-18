@@ -71,3 +71,7 @@ def get_sleep_time():
     if os.name == "nt":
         return 1.5
     return 0.5
+
+
+def foo_cdn(rsc: str):
+    return f"my-cdn-foo:{rsc}"

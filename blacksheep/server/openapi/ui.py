@@ -37,8 +37,6 @@ class UIProvider(ABC):
     cdn: CdnOptions
     ui_path: str
 
-    _default_cdn: CdnOptions
-
     def __init__(
         self,
         ui_path: str,
@@ -46,7 +44,7 @@ class UIProvider(ABC):
     ) -> None:
         super().__init__()
         self.ui_path = ui_path
-        self.cdn = cdn if cdn else self._default_cdn
+        self.cdn = cdn if cdn else self.default_cdn
 
     @abstractmethod
     def build_ui(self, options: UIOptions) -> None:
@@ -60,10 +58,12 @@ class UIProvider(ABC):
         Returns a request handler for the route that serves a UI.
         """
 
+    @property
+    def default_cdn(self) -> CdnOptions:
+        ...
+
 
 class SwaggerUIProvider(UIProvider):
-    _default_cdn = CdnOptions(SWAGGER_UI_CDN, SWAGGER_UI_CSS, SWAGGER_UI_FONT)
-
     def __init__(
         self,
         ui_path: str = "/docs",
@@ -98,10 +98,12 @@ class SwaggerUIProvider(UIProvider):
 
         return get_open_api_ui
 
+    @property
+    def default_cdn(self) -> CdnOptions:
+        return CdnOptions(SWAGGER_UI_CDN, SWAGGER_UI_CSS, SWAGGER_UI_FONT)
+
 
 class ReDocUIProvider(UIProvider):
-    _default_cdn = CdnOptions(REDOC_UI_CDN, REDOC_UI_CSS, REDOC_UI_FONT)
-
     def __init__(
         self, ui_path: str = "/redocs", cdn: Optional[CdnOptions] = None
     ) -> None:
@@ -133,3 +135,7 @@ class ReDocUIProvider(UIProvider):
             )
 
         return get_open_api_ui
+
+    @property
+    def default_cdn(self) -> CdnOptions:
+        return CdnOptions(REDOC_UI_CDN, REDOC_UI_CSS, REDOC_UI_FONT)

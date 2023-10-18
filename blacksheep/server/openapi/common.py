@@ -34,7 +34,7 @@ from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.routing import Route, Router
 from blacksheep.utils.time import utcnow
 
-from .ui import SwaggerUIProvider, UIOptions, UIProvider
+from .ui import CdnOptions, SwaggerUIProvider, UIOptions, UIProvider
 
 T = TypeVar("T")
 
@@ -167,6 +167,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         yaml_spec_path: str = "/openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
+        swagger_ui_cdn: Optional[CdnOptions] = None,
     ) -> None:
         self._handlers_docs: Dict[Any, EndpointDocs] = {}
         self.use_docstrings: bool = True
@@ -177,7 +178,9 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._yaml_docs: bytes = b""
         self.preferred_format = preferred_format
         self.anonymous_access = anonymous_access
-        self.ui_providers: List[UIProvider] = [SwaggerUIProvider(ui_path)]
+        self.ui_providers: List[UIProvider] = [
+            SwaggerUIProvider(ui_path, swagger_ui_cdn)
+        ]
         self._types_schemas = {}
         self.events = OpenAPIEvents(self)
         self.handle_optional_response_with_404 = True

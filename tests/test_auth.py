@@ -2,7 +2,9 @@ import json
 from typing import Any, Dict, Optional
 
 import jwt
-import pkg_resources
+
+# import pkg_resources
+from importlib.resources import files as pkg_resources_files
 import pytest
 from guardpost import AuthorizationContext, Identity, Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
@@ -32,7 +34,7 @@ from tests.utils.application import FakeApplication
 
 
 def get_file_path(file_name, folder_name: str = "res") -> str:
-    return pkg_resources.resource_filename(__name__, f"./{folder_name}/{file_name}")
+    return pkg_resources_files(__name__) / f"./{folder_name}/{file_name}"
 
 
 # region JWTBearer

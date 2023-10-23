@@ -8,7 +8,8 @@ from functools import wraps
 from typing import Any, Dict, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
-import pkg_resources
+# import pkg_resources
+from importlib.resources import files as pkg_resources_files
 import pytest
 from guardpost import AuthenticationHandler, Identity, User
 from openapidocs.v3 import Info
@@ -65,9 +66,7 @@ class Foo:
 
 def read_multipart_mix_dat():
     with open(
-        pkg_resources.resource_filename(
-            __name__, os.path.join("res", "multipart-mix.dat")
-        ),
+        pkg_resources_files(__name__) / os.path.join("res", "multipart-mix.dat"),
         mode="rb",
     ) as dat_file:
         return dat_file.read()
@@ -568,9 +567,7 @@ async def test_application_post_multipart_formdata_files_handler(app):
         # NB: in this example; we save files to output folder and verify
         # that their binaries are identical
         for part in files:
-            full_path = pkg_resources.resource_filename(
-                __name__, "out/" + part.file_name.decode()
-            )
+            full_path = pkg_resources_files(__name__) / f"out/{part.file_name.decode()}"
             with open(full_path, mode="wb") as saved_file:
                 saved_file.write(part.data)
 
@@ -588,7 +585,7 @@ async def test_application_post_multipart_formdata_files_handler(app):
     rel_path = "files/"
 
     for file_name in file_names:
-        full_path = pkg_resources.resource_filename(__name__, rel_path + file_name)
+        full_path = pkg_resources_files(__name__) / f"{rel_path}{file_name}"
         with open(full_path, mode="rb") as source_file:
             binary = source_file.read()
             lines += [
@@ -624,8 +621,8 @@ async def test_application_post_multipart_formdata_files_handler(app):
 
     # now files are in both folders: compare to ensure they are identical
     for file_name in file_names:
-        full_path = pkg_resources.resource_filename(__name__, rel_path + file_name)
-        copy_full_path = pkg_resources.resource_filename(__name__, "./out/" + file_name)
+        full_path = pkg_resources_files(__name__) / f"{rel_path}{file_name}"
+        copy_full_path = pkg_resources_files(__name__) / f"out/{file_name}"
 
         with open(full_path, mode="rb") as source_file:
             binary = source_file.read()

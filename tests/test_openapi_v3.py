@@ -20,7 +20,7 @@ from openapidocs.v3 import (
     ValueFormat,
     ValueType,
 )
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, VERSION
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 from blacksheep.server.application import Application
@@ -43,15 +43,21 @@ from blacksheep.server.openapi.v3 import (
 )
 from blacksheep.server.routing import RoutesRegistry
 
-try:
+GenericModel = BaseModel
+PYDANTIC_VERSION = 2
+if int(VERSION[0]) < 2:
     from pydantic.generics import GenericModel
-except ImportError:
-    # Pydantic v2
-    # https://docs.pydantic.dev/latest/blog/pydantic-v2/#other-improvements
-    GenericModel = BaseModel
-    PYDANTIC_VERSION = 2
-else:
+
     PYDANTIC_VERSION = 1
+# try:
+#     from pydantic.generics import GenericModel
+# except ImportError:
+#     # Pydantic v2
+#     # https://docs.pydantic.dev/latest/blog/pydantic-v2/#other-improvements
+#     GenericModel = BaseModel
+#     PYDANTIC_VERSION = 2
+# else:
+#     PYDANTIC_VERSION = 1
 
 try:
     from pydantic import field_validator
@@ -1837,9 +1843,9 @@ async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Seri
     await app.start()
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
-
-    expected_result = (
-        """
+    expected_result: str
+    if PYDANTIC_VERSION == 1:
+        expected_result = """
 openapi: 3.0.3
 info:
     title: Example
@@ -1889,6 +1895,74 @@ components:
                     format: float
                     maximum: 1024
                     minimum: 1000
+                    nullable: false
+                unit_interval:
+                    type: number
+                    format: float
+                    nullable: false
+                decimal_positive:
+                    type: number
+                    format: float
+                    minimum: 0
+                    nullable: false
+                decimal_negative:
+                    type: number
+                    format: float
+                    maximum: 0
+                    nullable: false
+tags: []
+""".strip()
+    elif PYDANTIC_VERSION == 2:
+        expected_result = """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydConstrained'
+            operationId: home
+components:
+    schemas:
+        PydConstrained:
+            type: object
+            required:
+            - a
+            - b
+            - big_int
+            - big_float
+            - unit_interval
+            - decimal_positive
+            - decimal_negative
+            properties:
+                a:
+                    type: integer
+                    format: int64
+                    minimum: 0
+                    nullable: false
+                b:
+                    type: number
+                    format: float
+                    maximum: 0.0
+                    nullable: false
+                big_int:
+                    type: integer
+                    format: int64
+                    maximum: 1024
+                    minimum: 1000
+                    nullable: false
+                big_float:
+                    type: number
+                    format: float
+                    maximum: 1024.0
+                    minimum: 1000.0
                     nullable: false
                 unit_interval:
                     type: number
@@ -1907,77 +1981,8 @@ components:
                         type: number
                     -   type: string
 tags: []
-""".strip()
-        if PYDANTIC_VERSION == 2
-        else """
-openapi: 3.0.3
-info:
-    title: Example
-    version: 0.0.1
-paths:
-    /:
-        get:
-            responses:
-                '200':
-                    description: Success response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PydConstrained'
-            operationId: home
-components:
-    schemas:
-        PydConstrained:
-            type: object
-            required:
-            - a
-            - b
-            - big_int
-            - big_float
-            - unit_interval
-            - decimal_positive
-            - decimal_negative
-            properties:
-                a:
-                    type: integer
-                    format: int64
-                    minimum: 0
-                    nullable: false
-                b:
-                    type: number
-                    format: float
-                    maximum: 0
-                    nullable: false
-                big_int:
-                    type: integer
-                    format: int64
-                    maximum: 1024
-                    minimum: 1000
-                    nullable: false
-                big_float:
-                    type: number
-                    format: float
-                    maximum: 1024
-                    minimum: 1000
-                    nullable: false
-                unit_interval:
-                    type: number
-                    format: float
-                    nullable: false
-                decimal_positive:
-                    type: number
-                    format: float
-                    minimum: 0
-                    nullable: false
-                decimal_negative:
-                    type: number
-                    format: float
-                    maximum: 0
-                    nullable: false
-tags: []
-""".strip()
-    )
-
+    """.strip()
+    print("yaml::::::", yaml.strip())
     assert yaml.strip() == expected_result
 
 

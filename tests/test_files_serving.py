@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 from unittest.mock import create_autospec
 
-import pkg_resources
+from importlib.resources import files as pkg_resources_files
 import pytest
 from essentials.folders import get_file_extension
 
@@ -31,11 +31,11 @@ from blacksheep.utils.aio import get_running_loop
 
 
 def get_folder_path(folder_name: str) -> str:
-    return pkg_resources.resource_filename(__name__, f"./{folder_name}")
+    return str(pkg_resources_files(__name__) / folder_name)
 
 
 def get_file_path(file_name, folder_name: str = "files") -> str:
-    return pkg_resources.resource_filename(__name__, f"./{folder_name}/{file_name}")
+    return str(pkg_resources_files(__name__) / f"{folder_name}/{file_name}")
 
 
 files2_index_path = get_file_path("index.html", "files2")

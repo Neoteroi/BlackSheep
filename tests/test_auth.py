@@ -34,7 +34,7 @@ from tests.utils.application import FakeApplication
 
 
 def get_file_path(file_name, folder_name: str = "res") -> str:
-    return pkg_resources_files(__name__) / f"./{folder_name}/{file_name}"
+    return str(pkg_resources_files(__name__) / f"{folder_name}/{file_name}")
 
 
 # region JWTBearer

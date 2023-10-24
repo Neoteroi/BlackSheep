@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+from blacksheep.utils.time import utcnow
+
 import pytest
 
 from blacksheep import URL, Cookie, Response, TextContent
@@ -53,7 +55,7 @@ def test_cookiejar_invalid_domain(request_url, cookie_domain):
     [
         [Cookie("name", "value"), False],
         [
-            Cookie("name", "value", expires=datetime.utcnow() + timedelta(days=-20)),
+            Cookie("name", "value", expires=utcnow() + timedelta(days=-20)),
             True,
         ],
     ],
@@ -294,7 +296,7 @@ async def test_cookies_jar(
 @pytest.mark.asyncio
 async def test_remove_cookie_with_expiration():
     expire_cookie = Cookie("X-Foo", "Foo")
-    expire_cookie.expires = datetime.utcnow() + timedelta(days=-2)
+    expire_cookie.expires = utcnow() + timedelta(days=-2)
     fake_pools = FakePools(
         [
             Response(
@@ -383,7 +385,7 @@ async def test_remove_cookie_with_max_age():
 def test_stored_cookie_max_age_precedence():
     cookie = Cookie("X-Foo", "Foo")
     cookie.max_age = 0
-    cookie.expires = datetime.utcnow() + timedelta(days=2)
+    cookie.expires = utcnow() + timedelta(days=2)
 
     stored_cookie = StoredCookie(cookie)
     assert stored_cookie.is_expired()
@@ -505,7 +507,7 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
         Cookie(
             "hello",
             "world",
-            expires=datetime.utcnow() + timedelta(days=2),
+            expires=utcnow() + timedelta(days=2),
             http_only=True,
         ),
     )
@@ -515,7 +517,7 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
         Cookie(
             "hello",
             "world2",
-            expires=datetime.utcnow() + timedelta(days=2),
+            expires=utcnow() + timedelta(days=2),
             http_only=True,
         ),
     )
@@ -529,7 +531,7 @@ def test_cookie_jar_does_not_override_http_only_cookie_with_non_http_only_cookie
         Cookie(
             "hello",
             "world modified",
-            expires=datetime.utcnow() + timedelta(days=2),
+            expires=utcnow() + timedelta(days=2),
             http_only=False,
         ),
     )

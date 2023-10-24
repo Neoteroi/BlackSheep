@@ -9,6 +9,7 @@ import charset_normalizer
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
 from blacksheep.settings.json import json_settings
+from blacksheep.utils.time import utcnow
 
 from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
@@ -553,7 +554,7 @@ cdef class Response(Message):
             Cookie(
                 name,
                 '',
-                datetime.utcnow() - timedelta(days=365)
+                utcnow() - timedelta(days=365)
             )
         )
 

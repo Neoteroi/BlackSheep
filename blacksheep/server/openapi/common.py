@@ -33,6 +33,7 @@ from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.routing import Route, Router
+from blacksheep.utils.time import utcnow
 
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
 
@@ -357,7 +358,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         )
 
     def register_docs_handler(self, app: Application) -> None:
-        current_time = datetime.utcnow().timestamp()
+        current_time = utcnow().timestamp()
 
         @self.ignore()
         @allow_anonymous(self.anonymous_access)

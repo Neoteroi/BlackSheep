@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any
 
 import pytest
@@ -7,6 +6,7 @@ from guardpost import Identity
 from blacksheep.messages import Request, Response
 from blacksheep.server.authentication.cookie import CookieAuthentication
 from blacksheep.server.dataprotection import generate_secret
+from blacksheep.utils.time import utcnow
 
 
 def get_auth_cookie(handler: CookieAuthentication, data: Any) -> str:
@@ -80,4 +80,4 @@ def test_cookie_authentication_unset_cookie():
     cookie_header = response.cookies[handler.cookie_name]
     assert cookie_header is not None
     assert cookie_header.expires is not None
-    assert cookie_header.expires < datetime.utcnow()
+    assert cookie_header.expires < utcnow()

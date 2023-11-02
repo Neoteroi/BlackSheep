@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from ipaddress import ip_address
 from typing import Dict, Iterable, Optional, TypeVar
 

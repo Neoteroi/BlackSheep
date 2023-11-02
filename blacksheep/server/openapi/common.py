@@ -9,7 +9,6 @@ potentially in the future v4, if it will be so different from v3.
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
 from enum import Enum
 from http import HTTPStatus
 from typing import (

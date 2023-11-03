@@ -1,4 +1,5 @@
 import sys
+
 import pytest
 
 from blacksheep.common.files.pathsutils import (

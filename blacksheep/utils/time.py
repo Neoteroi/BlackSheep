@@ -1,5 +1,5 @@
 import sys
-from datetime import datetime, MINYEAR, timezone
+from datetime import MINYEAR, datetime, timezone
 
 UTC = timezone.utc
 

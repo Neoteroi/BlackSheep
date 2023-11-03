@@ -1,7 +1,5 @@
 from datetime import timedelta
 
-from blacksheep.utils.time import utcnow
-
 import pytest
 
 from blacksheep import URL, Cookie, Response, TextContent
@@ -14,6 +12,7 @@ from blacksheep.client.cookies import (
 )
 from blacksheep.cookies import datetime_from_cookie_format
 from blacksheep.scribe import write_response_cookie
+from blacksheep.utils.time import utcnow
 
 from . import FakePools
 

@@ -1,4 +1,11 @@
 from datetime import datetime
+
+try:
+    from datetime import UTC
+except ImportError:
+    from datetime import timezone
+
+    UTC = timezone.utc
 from typing import Any, Optional, Sequence
 
 from guardpost import AuthenticationHandler, Identity
@@ -80,7 +87,9 @@ class CookieAuthentication(AuthenticationHandler):
                 path="/",
                 http_only=True,
                 secure=secure,
-                expires=datetime.fromtimestamp(data["exp"]) if "exp" in data else None,
+                expires=(
+                    datetime.fromtimestamp(data["exp"], UTC) if "exp" in data else None
+                ),
             )
         )
 

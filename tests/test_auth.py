@@ -2,7 +2,6 @@ import json
 from typing import Any, Dict, Optional
 
 import jwt
-import pkg_resources
 import pytest
 from guardpost import AuthorizationContext, Identity, Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
@@ -25,6 +24,7 @@ from blacksheep.server.authorization import (
     get_www_authenticated_header_from_generic_unauthorized_error,
 )
 from blacksheep.server.di import di_scope_middleware, register_http_context
+from blacksheep.server.resources import get_resource_file_path
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.test_files_serving import get_folder_path
@@ -32,7 +32,7 @@ from tests.utils.application import FakeApplication
 
 
 def get_file_path(file_name, folder_name: str = "res") -> str:
-    return pkg_resources.resource_filename(__name__, f"./{folder_name}/{file_name}")
+    return get_resource_file_path("tests", f"{folder_name}/{file_name}")
 
 
 # region JWTBearer

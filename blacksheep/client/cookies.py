@@ -1,9 +1,10 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from ipaddress import ip_address
 from typing import Dict, Iterable, Optional, TypeVar
 
 from blacksheep import URL, Cookie
+from blacksheep.utils.time import MIN_DATETIME, utcnow
 
 client_logger = logging.getLogger("blacksheep.client")
 
@@ -41,7 +42,7 @@ class StoredCookie:
     def __init__(self, cookie: Cookie):
         # https://tools.ietf.org/html/rfc6265#section-5.3
         self.cookie = cookie
-        self.creation_time = datetime.utcnow()
+        self.creation_time = utcnow()
 
         expiry = None
         if cookie.max_age > -1:
@@ -50,7 +51,7 @@ class StoredCookie:
             # in the Cookie class
             max_age = int(cookie.max_age)
             if max_age <= 0:
-                expiry = datetime.min
+                expiry = MIN_DATETIME
             else:
                 expiry = self.creation_time + timedelta(seconds=max_age)
         elif cookie.expires:
@@ -65,7 +66,7 @@ class StoredCookie:
 
     def is_expired(self) -> bool:
         expiration = self.expiry_time
-        if expiration and expiration < datetime.utcnow():
+        if expiration and expiration < utcnow():
             return True
 
         # NB: it's a 'session cookie'; in other words

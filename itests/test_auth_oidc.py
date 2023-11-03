@@ -42,6 +42,7 @@ from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.url import URL
 from blacksheep.utils.aio import FailedRequestError
+from blacksheep.utils.time import utcnow
 from tests.test_auth import get_token
 from tests.test_auth_cookie import get_auth_cookie
 from tests.utils.application import FakeApplication
@@ -1324,7 +1325,7 @@ async def test_oidc_handler_logout_endpoint(
     assert cookie_value is not None
     cookie = parse_cookie(cookie_value)
     assert cookie.expires is not None
-    assert cookie.expires < datetime.utcnow()
+    assert cookie.expires < utcnow()
 
 
 def test_openid_configuration_class():

@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Callable
 
 from blacksheep.messages import Request, Response
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
+from blacksheep.utils.time import utcnow
 
 
 @dataclass
@@ -52,7 +52,7 @@ class SwaggerUIProvider(UIProvider):
         self._ui_html = self.get_openapi_ui_html(options).encode("utf8")
 
     def get_ui_handler(self) -> Callable[[Request], Response]:
-        current_time = datetime.utcnow().timestamp()
+        current_time = utcnow().timestamp()
 
         def get_open_api_ui(request: Request) -> Response:
             return get_response_for_static_content(
@@ -82,7 +82,7 @@ class ReDocUIProvider(UIProvider):
         self._ui_html = self.get_openapi_ui_html(options).encode("utf8")
 
     def get_ui_handler(self) -> Callable[[Request], Response]:
-        current_time = datetime.utcnow().timestamp()
+        current_time = utcnow().timestamp()
 
         def get_open_api_ui(request: Request) -> Response:
             return get_response_for_static_content(

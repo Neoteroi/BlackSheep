@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List
 from unittest.mock import create_autospec
 
-import pkg_resources
 import pytest
 from essentials.folders import get_file_extension
 
@@ -24,6 +23,7 @@ from blacksheep.server.files import (
 from blacksheep.server.files.dynamic import get_response_for_file
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.headers.cache import CacheControlHeaderValue
+from blacksheep.server.resources import get_resource_file_path
 from blacksheep.server.responses import text
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
@@ -31,11 +31,11 @@ from blacksheep.utils.aio import get_running_loop
 
 
 def get_folder_path(folder_name: str) -> str:
-    return pkg_resources.resource_filename(__name__, f"./{folder_name}")
+    return get_resource_file_path("tests", folder_name)
 
 
 def get_file_path(file_name, folder_name: str = "files") -> str:
-    return pkg_resources.resource_filename(__name__, f"./{folder_name}/{file_name}")
+    return get_resource_file_path("tests", f"{folder_name}/{file_name}")
 
 
 files2_index_path = get_file_path("index.html", "files2")

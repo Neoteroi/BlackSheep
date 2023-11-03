@@ -101,7 +101,7 @@ jobs:
       - name: Run tests with Pydantic v2
         run: |
           echo "[*] The previous tests used Pydantic v1, now running with v2"
-          pip install -U pydantic==2.0
+          pip install -U pydantic==2.4.2
           pytest
 
       - name: Run linters

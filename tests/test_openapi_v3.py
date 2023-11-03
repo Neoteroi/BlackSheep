@@ -20,7 +20,8 @@ from openapidocs.v3 import (
     ValueFormat,
     ValueType,
 )
-from pydantic import VERSION as PYDANTIC_LIB_VERSION, BaseModel, HttpUrl
+from pydantic import VERSION as PYDANTIC_LIB_VERSION
+from pydantic import BaseModel, HttpUrl
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 from blacksheep.server.application import Application

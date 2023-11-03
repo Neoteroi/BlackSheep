@@ -9,6 +9,7 @@ try:
 
     def get_resource_file_path(anchor, file_name: str) -> str:
         return str(files(anchor) / file_name)
+
 except ImportError:
     # Python 3.8
     import pkg_resources

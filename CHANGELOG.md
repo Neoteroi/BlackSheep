@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0a12] - 2023-11-?? :fallen_leaf:
+
+- Adds support for Python 3.12, by @bymoye
+- Replaces `pkg_resources` with `importlib.resources` for all supported Python
+  versions except for `3.8`.
+- Runs tests against Pydantic `2.4.2` instead of Pydantic `2.0` to check
+  support for Pydantic v2.
+
 ## [2.0a11] - 2023-09-19 :warning:
 
 - Resolves bug in `2.0a10` caused by incompatibility issue with `Cython 3`.

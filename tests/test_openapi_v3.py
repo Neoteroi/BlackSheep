@@ -20,7 +20,7 @@ from openapidocs.v3 import (
     ValueFormat,
     ValueType,
 )
-from pydantic import VERSION, BaseModel, HttpUrl
+from pydantic import VERSION as PYDANTIC_LIB_VERSION, BaseModel, HttpUrl
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
 from blacksheep.server.application import Application
@@ -44,20 +44,13 @@ from blacksheep.server.openapi.v3 import (
 from blacksheep.server.routing import RoutesRegistry
 
 GenericModel = BaseModel
+
 PYDANTIC_VERSION = 2
-if int(VERSION[0]) < 2:
+
+if int(PYDANTIC_LIB_VERSION[0]) < 2:
     from pydantic.generics import GenericModel
 
     PYDANTIC_VERSION = 1
-# try:
-#     from pydantic.generics import GenericModel
-# except ImportError:
-#     # Pydantic v2
-#     # https://docs.pydantic.dev/latest/blog/pydantic-v2/#other-improvements
-#     GenericModel = BaseModel
-#     PYDANTIC_VERSION = 2
-# else:
-#     PYDANTIC_VERSION = 1
 
 try:
     from pydantic import field_validator
@@ -212,7 +205,7 @@ class PydConstrained(BaseModel):
     b: NegativeFloat
     big_int: conint(gt=1000, lt=1024)
 
-    big_float: confloat(gt=1000, lt=1024)
+    big_float: confloat(gt=1000.0, lt=1024.0)
     unit_interval: confloat(ge=0, le=1)
 
     decimal_positive: condecimal(gt=0)

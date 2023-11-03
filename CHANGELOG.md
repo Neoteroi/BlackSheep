@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runs tests against Pydantic `2.4.2` instead of Pydantic `2.0` to check
   support for Pydantic v2.
 - Upgrades dependencies.
+- Adds `.webp` and `.webm` to the list of extensions of files that are served
+  by default.
 
 ## [2.0a11] - 2023-09-19 :warning:
 

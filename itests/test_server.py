@@ -475,7 +475,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="/favicon.png"/>
-    <link href="{foo_cdn("redoc-font")}" rel="stylesheet">
+    <link href="{foo_cdn("redoc-fonts")}" rel="stylesheet">
     <style>
       body {{
         margin: 0;

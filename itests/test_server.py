@@ -12,7 +12,7 @@ from websockets.exceptions import InvalidStatusCode
 
 from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
-from .utils import assert_files_equals, ensure_success, foo_cdn
+from .utils import assert_files_equals, ensure_success, get_test_files_url
 
 
 def test_hello_world(session_1):
@@ -434,11 +434,11 @@ def test_open_api_ui_custom_cdn(session_4):
 <head>
     <title>Cats API</title>
     <link rel="icon" href="/favicon.png"/>
-    <link type="text/css" rel="stylesheet" href="{foo_cdn("swag-css")}">
+    <link type="text/css" rel="stylesheet" href="{get_test_files_url("swag-css")}">
 </head>
 <body>
     <div id="swagger-ui"></div>
-    <script src="{foo_cdn("swag-js")}"></script>
+    <script src="{get_test_files_url("swag-js")}"></script>
     <script>
     const ui = SwaggerUIBundle({{
         url: '/openapi.json',
@@ -475,7 +475,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="/favicon.png"/>
-    <link href="{foo_cdn("redoc-fonts")}" rel="stylesheet">
+    <link href="{get_test_files_url("redoc-fonts")}" rel="stylesheet">
     <style>
       body {{
         margin: 0;
@@ -485,7 +485,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
   </head>
   <body>
     <redoc spec-url="/openapi.json"></redoc>
-    <script src="{foo_cdn("redoc-js")}"> </script>
+    <script src="{get_test_files_url("redoc-js")}"> </script>
   </body>
 </html>
 """.strip()

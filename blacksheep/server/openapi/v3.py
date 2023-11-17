@@ -69,7 +69,6 @@ from .common import (
     ResponseStatusType,
     response_status_to_str,
 )
-from .ui import CdnOptions
 
 try:
     from pydantic import BaseModel  # type: ignore
@@ -377,7 +376,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 SecuritySchemes,
             ]
         ] = None,
-        swagger_ui_cdn: Optional[CdnOptions] = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -385,7 +383,6 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             yaml_spec_path=yaml_spec_path,
             preferred_format=preferred_format,
             anonymous_access=anonymous_access,
-            swagger_ui_cdn=swagger_ui_cdn,
         )
         self.info = info
         self._tags = tags

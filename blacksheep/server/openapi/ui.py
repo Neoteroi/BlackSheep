@@ -7,24 +7,26 @@ from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.utils.time import utcnow
 
-SWAGGER_UI_CDN = (
+SWAGGER_UI_JS_URL = (
     "https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui-bundle.js"
 )
-SWAGGER_UI_CSS = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui.css"
+SWAGGER_UI_CSS_URL = (
+    "https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui.css"
+)
 SWAGGER_UI_FONT = None
 
-REDOC_UI_CDN = "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
-REDOC_UI_CSS = None
-REDOC_UI_FONT = (
+REDOC_UI_JS_URL = "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
+REDOC_UI_CSS_URL = None
+REDOC_UI_FONT_URL = (
     "https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700"
 )
 
 
 @dataclass
-class CdnOptions:
-    js_cdn_url: str
-    css_cdn_url: Optional[str] = None
-    fontset_cdn_url: Optional[str] = None
+class UIFilesOptions:
+    js_url: str
+    css_url: Optional[str] = None
+    fonts_url: Optional[str] = None
 
 
 @dataclass
@@ -34,17 +36,17 @@ class UIOptions:
 
 
 class UIProvider(ABC):
-    cdn: CdnOptions
+    ui_files: UIFilesOptions
     ui_path: str
 
     def __init__(
         self,
         ui_path: str,
-        cdn: Optional[CdnOptions] = None,
+        ui_files: Optional[UIFilesOptions] = None,
     ) -> None:
         super().__init__()
         self.ui_path = ui_path
-        self.cdn = cdn if cdn else self.default_cdn
+        self.ui_files = ui_files if ui_files else self.default_ui_files
 
     @abstractmethod
     def build_ui(self, options: UIOptions) -> None:
@@ -59,7 +61,7 @@ class UIProvider(ABC):
         """
 
     @property
-    def default_cdn(self) -> CdnOptions:
+    def default_ui_files(self) -> UIFilesOptions:
         ...
 
 
@@ -67,9 +69,9 @@ class SwaggerUIProvider(UIProvider):
     def __init__(
         self,
         ui_path: str = "/docs",
-        cdn: Optional[CdnOptions] = None,
+        ui_files_options: Optional[UIFilesOptions] = None,
     ) -> None:
-        super().__init__(ui_path, cdn)
+        super().__init__(ui_path, ui_files_options)
 
         self._ui_html: bytes = b""
 
@@ -81,8 +83,8 @@ class SwaggerUIProvider(UIProvider):
             get_resource_file_content("swagger-ui.html")
             .replace("##SPEC_URL##", options.spec_url)
             .replace("##PAGE_TITLE##", options.page_title)
-            .replace("##JS_CDN##", self.cdn.js_cdn_url)
-            .replace("##CSS_CDN##", self.cdn.css_cdn_url)
+            .replace("##JS_URL##", self.ui_files.js_url)
+            .replace("##CSS_URL##", self.ui_files.css_url or "")
         )
 
     def build_ui(self, options: UIOptions) -> None:
@@ -99,15 +101,15 @@ class SwaggerUIProvider(UIProvider):
         return get_open_api_ui
 
     @property
-    def default_cdn(self) -> CdnOptions:
-        return CdnOptions(SWAGGER_UI_CDN, SWAGGER_UI_CSS, SWAGGER_UI_FONT)
+    def default_ui_files(self) -> UIFilesOptions:
+        return UIFilesOptions(SWAGGER_UI_JS_URL, SWAGGER_UI_CSS_URL, SWAGGER_UI_FONT)
 
 
 class ReDocUIProvider(UIProvider):
     def __init__(
-        self, ui_path: str = "/redocs", cdn: Optional[CdnOptions] = None
+        self, ui_path: str = "/redocs", ui_files: Optional[UIFilesOptions] = None
     ) -> None:
-        super().__init__(ui_path, cdn)
+        super().__init__(ui_path, ui_files)
 
         self._ui_html: bytes = b""
 
@@ -119,8 +121,8 @@ class ReDocUIProvider(UIProvider):
             get_resource_file_content("redoc-ui.html")
             .replace("##SPEC_URL##", options.spec_url)
             .replace("##PAGE_TITLE##", options.page_title)
-            .replace("##JS_CDN##", self.cdn.js_cdn_url)
-            .replace("##FONT_CDN##", self.cdn.fontset_cdn_url)
+            .replace("##JS_URL##", self.ui_files.js_url)
+            .replace("##FONT_URL##", self.ui_files.fonts_url or "")
         )
 
     def build_ui(self, options: UIOptions) -> None:
@@ -137,5 +139,5 @@ class ReDocUIProvider(UIProvider):
         return get_open_api_ui
 
     @property
-    def default_cdn(self) -> CdnOptions:
-        return CdnOptions(REDOC_UI_CDN, REDOC_UI_CSS, REDOC_UI_FONT)
+    def default_ui_files(self) -> UIFilesOptions:
+        return UIFilesOptions(REDOC_UI_JS_URL, REDOC_UI_CSS_URL, REDOC_UI_FONT_URL)

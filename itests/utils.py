@@ -73,5 +73,5 @@ def get_sleep_time():
     return 0.5
 
 
-def foo_cdn(rsc: str):
-    return f"my-cdn-foo:{rsc}"
+def get_test_files_url(url: str):
+    return f"my-cdn-foo:{url}"

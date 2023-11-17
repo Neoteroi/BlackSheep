@@ -11,13 +11,13 @@ from blacksheep import JSONContent, Response
 from blacksheep.server import Application
 from blacksheep.server.bindings import FromJSON
 from blacksheep.server.compression import use_gzip_compression
-from blacksheep.server.openapi.ui import CdnOptions, ReDocUIProvider
+from blacksheep.server.openapi.ui import ReDocUIProvider, UIFilesOptions
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import json
 from blacksheep.server.websocket import WebSocket
 from blacksheep.settings.json import default_json_dumps, json_settings
 
-from .utils import foo_cdn
+from .utils import get_test_files_url
 
 SINGLE_PID = None
 
@@ -155,16 +155,16 @@ async def echo_json(websocket: WebSocket):
         await websocket.send_json(msg)
 
 
-docs = OpenAPIHandler(
-    info=Info(title="Cats API", version="0.0.1"),
-    swagger_ui_cdn=CdnOptions(
-        js_cdn_url=foo_cdn("swag-js"), css_cdn_url=foo_cdn("swag-css")
-    ),
+docs = OpenAPIHandler(info=Info(title="Cats API", version="0.0.1"))
+docs.ui_providers[0].ui_files = UIFilesOptions(
+    js_url=get_test_files_url("swag-js"),
+    css_url=get_test_files_url("swag-css"),
 )
 docs.ui_providers.append(
     ReDocUIProvider(
-        cdn=CdnOptions(
-            js_cdn_url=foo_cdn("redoc-js"), fontset_cdn_url=foo_cdn("redoc-fonts")
+        ui_files=UIFilesOptions(
+            js_url=get_test_files_url("redoc-js"),
+            fonts_url=get_test_files_url("redoc-fonts"),
         )
     )
 )

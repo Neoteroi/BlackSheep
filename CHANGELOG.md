@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0a12] - 2023-11-?? :fallen_leaf:
+## [2.0a12] - 2023-11-17 :fallen_leaf:
 
 - Adds support for Python 3.12, by @bymoye
 - Replaces `pkg_resources` with `importlib.resources` for all supported Python

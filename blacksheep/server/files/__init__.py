@@ -190,6 +190,8 @@ def get_default_extensions() -> Set[str]:
         ".svg",
         ".mp4",
         ".mp3",
+        ".webp",
+        ".webm",
     }
 
 

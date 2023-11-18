@@ -139,6 +139,8 @@ async def test_user_binder_with_controller(app):
 
         @get("/2")
         async def home2(self):
+            nonlocal called
+            called = True
             assert isinstance(self, Another)
             assert isinstance(self.user, User)
             assert self.user.name == "Dummy"

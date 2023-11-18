@@ -140,8 +140,3 @@ class ConnectionPools:
         for pool in self._pools.values():
             pool.dispose()
         self._pools.clear()
-
-
-# For backward compatibility. Aliases will be removed in the future.
-ClientConnectionPool = ConnectionPool
-ClientConnectionPools = ConnectionPools

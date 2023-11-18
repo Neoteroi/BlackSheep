@@ -252,7 +252,7 @@ class Application(BaseApplication):
         If the child application is a BlackSheep application, it requires handling of
         its lifecycle events. This can be automatic, if the environment variable
 
-            APP_MOUNT_AUTO_EVENTS is set to "1" or "true" (case insensitive)
+            APP_MOUNT_AUTO_EVENTS is missing or set to "1" or "true" (case insensitive)
 
         or explicitly enabled, if the parent app's is configured this way:
 

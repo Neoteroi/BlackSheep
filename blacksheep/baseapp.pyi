@@ -4,7 +4,7 @@ from typing import Awaitable, Callable, Dict, Optional, Type, TypeVar, Union
 from blacksheep.exceptions import HTTPException
 from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
-from blacksheep.server.routing import RouteMatch, RouterProtocol
+from blacksheep.server.routing import RouteMatch, Router
 
 ExcT = TypeVar("ExcT", bound=Exception)
 
@@ -14,7 +14,7 @@ ExceptionHandlersType = Dict[
 ]
 
 class BaseApplication:
-    def __init__(self, show_error_details: bool, router: RouterProtocol):
+    def __init__(self, show_error_details: bool, router: Router):
         self.router = router
         self.exceptions_handlers = self.init_exceptions_handlers()
         self.show_error_details = show_error_details

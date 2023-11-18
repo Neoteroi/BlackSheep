@@ -379,7 +379,7 @@ async def test_cors_preflight_request_allow_headers(app):
         allow_headers="Authorization credentials",
     )
 
-    @app.route("/", methods=["GET", "POST"])
+    @app.router.route("/", methods=["GET", "POST"])
     async def home():
         return text("Hello, World")
 
@@ -662,12 +662,12 @@ async def test_cors_by_handler(app):
         allow_origins="https://www.neoteroi.xyz",
     )
 
-    @app.route("/", methods=["GET", "POST"])
+    @app.router.route("/", methods=["GET", "POST"])
     async def home():
         return text("Hello, World")
 
     @app.cors("specific")
-    @app.route("/specific-rules", methods=["GET", "POST"])
+    @app.router.route("/specific-rules", methods=["GET", "POST"])
     async def different_rules():
         return text("Specific")
 

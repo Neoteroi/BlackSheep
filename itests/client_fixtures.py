@@ -43,7 +43,7 @@ def server_url(server_host, server_port):
 
 @pytest.fixture(scope="module")
 def session(server_url, event_loop):
-    # It is important to pass the instance of ClientConnectionPools,
+    # It is important to pass the instance of ConnectionPools,
     # to ensure that the connections are reused and closed
     session = ClientSession(
         loop=event_loop,

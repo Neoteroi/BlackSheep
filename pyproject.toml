@@ -5,19 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "blacksheep"
 dynamic = ["version"]
-authors = [
-    { name = "Roberto Prevato", email = "roberto.prevato@gmail.com" },
-]
+authors = [{ name = "Roberto Prevato", email = "roberto.prevato@gmail.com" }]
 description = "Fast web framework for Python asyncio"
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Environment :: Web Environment",
     "Operating System :: OS Independent",
     "Framework :: AsyncIO",
@@ -39,15 +38,11 @@ dependencies = [
 packages = ["blacksheep"]
 
 [tool.setuptools.dynamic]
-version = {attr = "blacksheep.__version__"}
+version = { attr = "blacksheep.__version__" }
 
 [project.optional-dependencies]
 jinja = ["Jinja2~=3.1.2"]
-full = [
-    "cryptography>=38.0.1,<41.1.0",
-    "PyJWT~=2.6.0",
-    "websockets~=10.3",
-]
+full = ["cryptography>=38.0.1,<41.1.0", "PyJWT~=2.6.0", "websockets~=10.3"]
 
 [project.urls]
 "Homepage" = "https://github.com/Neoteroi/BlackSheep"

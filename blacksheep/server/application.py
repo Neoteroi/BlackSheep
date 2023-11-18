@@ -252,7 +252,7 @@ class Application(BaseApplication):
         If the child application is a BlackSheep application, it requires handling of
         its lifecycle events. This can be automatic, if the environment variable
 
-            APP_MOUNT_AUTO_EVENTS is set to "1" or "true" (case insensitive)
+            APP_MOUNT_AUTO_EVENTS is missing or set to "1" or "true" (case insensitive)
 
         or explicitly enabled, if the parent app's is configured this way:
 
@@ -442,19 +442,6 @@ class Application(BaseApplication):
             }
         )
         return strategy
-
-    def route(
-        self, pattern: str, methods: Optional[Sequence[str]] = None
-    ) -> Callable[..., Any]:
-        if methods is None:
-            methods = ["GET"]
-
-        def decorator(f):
-            for method in methods:
-                self.router.add(method, pattern, f)
-            return f
-
-        return decorator
 
     def exception_handler(
         self, exception: Union[int, Type[Exception]]

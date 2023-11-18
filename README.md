@@ -24,12 +24,12 @@ pip install blacksheep
 ```python
 from datetime import datetime
 
-from blacksheep import Application
+from blacksheep import Application, get
 
 
 app = Application()
 
-@app.route("/")
+@get("/")
 async def home():
     return f"Hello, World! {datetime.utcnow().isoformat()}"
 
@@ -105,7 +105,7 @@ here](https://www.neoteroi.dev/blacksheep/requests/).
 ```python
 from dataclasses import dataclass
 
-from blacksheep import Application, FromJSON, FromQuery
+from blacksheep import Application, FromJSON, FromQuery, get, post
 
 
 app = Application()
@@ -116,21 +116,21 @@ class CreateCatInput:
     name: str
 
 
-@app.router.post("/api/cats")
+@post("/api/cats")
 async def example(data: FromJSON[CreateCatInput]):
     # in this example, data is bound automatically reading the JSON
     # payload and creating an instance of `CreateCatInput`
     ...
 
 
-@app.router.get("/:culture_code/:area")
+@get("/:culture_code/:area")
 async def home(culture_code, area):
     # in this example, both parameters are obtained from routes with
     # matching names
     return f"Request for: {culture_code} {area}"
 
 
-@app.router.get("/api/products")
+@get("/api/products")
 def get_products(
     page: int = 1,
     size: int = 30,
@@ -143,7 +143,7 @@ def get_products(
     ...
 
 
-@app.router.get("/api/products2")
+@get("/api/products2")
 def get_products2(
     page: FromQuery[int] = FromQuery(1),
     size: FromQuery[int] = FromQuery(30),
@@ -181,13 +181,13 @@ app.use_authorization()\
 
 
 @auth("admin")
-@app.router.get("/")
+@get("/")
 async def only_for_admins():
     ...
 
 
 @auth()
-@app.router.get("/")
+@get("/")
 async def only_for_authenticated_users():
     ...
 ```

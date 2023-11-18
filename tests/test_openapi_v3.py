@@ -745,7 +745,7 @@ async def test_register_schema_for_multi_generic(
 ):
     app = get_app()
 
-    @app.route("/combo")
+    @app.router.route("/combo")
     def combo_example() -> Combo[Cat, Foo]:
         ...
 
@@ -829,12 +829,12 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
     docs.bind_app(app)
 
     @docs(tags=["B tag"])
-    @app.route("/one")
+    @app.router.route("/one")
     def one() -> PaginatedSet[Cat]:
         ...
 
     @docs(tags=["A tag"])
-    @app.route("/two")
+    @app.router.route("/two")
     def two() -> PaginatedSet[Cat]:
         ...
 
@@ -922,7 +922,7 @@ async def test_handling_of_forward_references(
 ):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def forward_ref_example() -> ForwardRefExample:
         ...
 
@@ -1000,7 +1000,7 @@ async def test_handling_of_normal_class(docs: OpenAPIHandler, serializer: Serial
     """
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def plain_class() -> PlainClass:
         ...
 
@@ -1039,7 +1039,7 @@ async def test_handling_of_pydantic_class_with_generic(
 ):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> PydPaginatedSetOfCat:
         ...
 
@@ -1107,7 +1107,7 @@ async def test_handling_of_pydantic_class_with_child_models(
 ):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> PydTypeWithChildModels:
         ...
 
@@ -1196,7 +1196,7 @@ async def test_handling_of_pydantic_class_in_generic(
 ):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> PaginatedSet[PydCat]:
         ...
 
@@ -1262,7 +1262,7 @@ tags: []
 async def test_handling_of_sequence(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> Sequence[Cat]:
         ...
 
@@ -1644,7 +1644,7 @@ tags: []
 async def test_handling_of_pydantic_types(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> PydExampleWithSpecificTypes:
         ...
 
@@ -1693,7 +1693,7 @@ tags: []
 async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> PydResponse[PydCat]:
         ...
 
@@ -1829,7 +1829,7 @@ tags: []
 async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> PydConstrained:
         ...
 
@@ -2031,7 +2031,7 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
 
     app = get_app()
 
-    @app.route("/")
+    @app.router.route("/")
     def home() -> A:
         ...
 
@@ -2041,7 +2041,7 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
             SecurityInfo("bearerAuth", ["read:home", "write:home"]),
         ]
     )
-    @app.route("/", methods=["POST"])
+    @app.router.route("/", methods=["POST"])
     def auth_home() -> A:
         ...
 
@@ -2110,19 +2110,19 @@ async def test_handles_ref_for_optional_type(
 ):
     app = get_app()
 
-    @app.route("/cats")
+    @app.router.route("/cats")
     def one() -> PaginatedSet[Cat]:
         ...
 
-    @app.route("/cats/{cat_id}")
+    @app.router.route("/cats/{cat_id}")
     def two(cat_id: int) -> Optional[Cat]:
         ...
 
-    @app.route("/cats_alt/{cat_id}")
+    @app.router.route("/cats_alt/{cat_id}")
     def three(cat_id: int) -> Cat:
         ...
 
-    @app.route("/cats_value_pattern/{uuid:cat_id}")
+    @app.router.route("/cats_value_pattern/{uuid:cat_id}")
     def four(cat_id: UUID) -> Cat:
         ...
 

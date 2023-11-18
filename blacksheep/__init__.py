@@ -3,7 +3,7 @@ Root module of the framework. This module re-exports the most commonly
 used types to reduce the verbosity of the imports statements.
 """
 __author__ = "Roberto Prevato <roberto.prevato@gmail.com>"
-__version__ = "2.0a12"
+__version__ = "2.0.0"
 
 from .contents import Content as Content
 from .contents import FormContent as FormContent
@@ -74,6 +74,7 @@ from .server.routing import options as options
 from .server.routing import patch as patch
 from .server.routing import post as post
 from .server.routing import put as put
+from .server.routing import route as route
 from .server.routing import trace as trace
 from .server.routing import ws as ws
 from .server.websocket import WebSocket as WebSocket

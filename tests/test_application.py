@@ -404,7 +404,7 @@ async def test_application_middlewares_as_classes(app):
             self.calls.append(self.get_seed())
             return response
 
-    @app.route("/")
+    @app.router.route("/")
     async def example(request):
         nonlocal calls
         calls.append(5)
@@ -3494,7 +3494,7 @@ async def test_default_headers(app):
 
     assert app.default_headers == (("Example", "Foo"),)
 
-    @app.route("/")
+    @app.router.route("/")
     async def home():
         return text("Hello World")
 

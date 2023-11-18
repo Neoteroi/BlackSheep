@@ -161,12 +161,12 @@ async def only_for_authenticated_users():
     return None
 
 
-@app_2.route("/crash")
+@app_2.router.route("/crash")
 async def crash():
     raise CrashTest()
 
 
-@app_2.route("/handled-crash")
+@app_2.router.route("/handled-crash")
 async def handled_crash():
     raise HandledException()
 

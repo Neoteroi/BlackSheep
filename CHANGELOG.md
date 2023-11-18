@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2023-11-18 :mage_man:
+
+- Releases v2 as stable.
+- Removes the `route` method from the `Application` class, and move it to the
+  `Router` class to be consistent with other methods to register request
+  handlers.
+- Removes `ClientConnectionPool` and `ClientConnectionPools` aliases.
+
 ## [2.0a12] - 2023-11-17 :fallen_leaf:
 
 - Adds support for Python 3.12, by @bymoye

@@ -57,6 +57,7 @@ delete = router.delete
 trace = router.trace
 options = router.options
 connect = router.connect
+route = router.route
 ws = router.ws
 
 

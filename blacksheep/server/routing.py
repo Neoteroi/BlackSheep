@@ -3,7 +3,7 @@ import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, AnyStr, Callable, Dict, List, Optional, Set, Union
+from typing import Any, AnyStr, Callable, Dict, List, Optional, Sequence, Set, Union
 from urllib.parse import unquote
 
 from blacksheep.common import extend
@@ -529,6 +529,19 @@ class RouterBase(ABC):
     def ws(self, pattern) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.GET_WS, pattern)
 
+    def route(
+        self, pattern: str, methods: Optional[Sequence[str]] = None
+    ) -> Callable[..., Any]:
+        if methods is None:
+            methods = ["GET"]
+
+        def decorator(f):
+            for method in methods:
+                self.add(method, pattern, f)
+            return f
+
+        return decorator
+
 
 class MultiRouterMixin:
     """
@@ -830,9 +843,13 @@ class MountRegistry:
 Mount = MountRegistry
 
 
-# singleton router used to store initial configuration,
+# Singleton router used to store initial configuration,
 # before the application starts
-# this is used as *default* router, but it can be overridden
+# this is used as *default* router, but it can be overridden;
+# This is done for two reasons: to reduce code verbosity when defining routes,
+# and because we can expect that in most use cases web applications use a single
+# Application and Router (the same approach can be easily used for more complex use
+# cases where more than one router is used).
 router = Router()
 
 
@@ -846,3 +863,4 @@ trace = router.trace
 options = router.options
 connect = router.connect
 ws = router.ws
+route = router.route

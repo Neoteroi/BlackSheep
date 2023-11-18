@@ -157,7 +157,7 @@ class CORSStrategy:
         using the instance of `CORSStrategy` as a function decorator:
 
         @app.cors("example")
-        @app.route("/")
+        @app.router.route("/")
         async def foo():
             ....
         """

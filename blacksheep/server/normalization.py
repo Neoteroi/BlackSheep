@@ -112,7 +112,7 @@ def _get_method_annotations_base(method):
 # endregion
 
 
-def ensure_response(result) -> Optional[Response]:
+def ensure_response(result) -> Response:
     """
     When a request handler returns a result that is not an instance of Response,
     this method normalizes the output of the method to be either `None`. or an instance
@@ -121,8 +121,8 @@ def ensure_response(result) -> Optional[Response]:
     Use this method in custom decorators for request handlers.
     """
     if result is None:
-        # later the application defaults to 204 No Content
-        return result
+        # 204 No Content
+        return Response(204)
 
     if not isinstance(result, Response):
         # default to a plain text or JSON response

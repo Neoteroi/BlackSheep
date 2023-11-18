@@ -3,7 +3,7 @@ from functools import wraps
 from typing import Optional
 
 import pytest
-from guardpost import User
+from guardpost import AuthenticationHandler, User
 from rodi import inject
 
 from blacksheep import Request, Response
@@ -14,6 +14,7 @@ from blacksheep.server.controllers import (
     RoutesRegistry,
     filters,
 )
+from blacksheep.server.di import register_http_context
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RouteDuplicate
 from blacksheep.server.websocket import WebSocket
@@ -94,6 +95,69 @@ async def test_ws_handler_through_controller(app):
         MockSend(),
     )
 
+    assert called is True
+
+
+@pytest.mark.asyncio
+async def test_user_binder_with_controller(app):
+    """
+    The following test covers the scenario where the User object is first
+    bound to a request handler using the dedicated Binder (this allows to keep separated
+    runtime values like HTTP context and user from DI composition data like classes that
+    do not depend on a runtime scope), and using dependency injection (this requires
+    mixing runtime values and composition data).
+
+    In the Home controller below, the User is passed to the request handler using a
+    Binder; in the Another controller the User is instead injected using DI.
+    The second scenario requires registering the HTTP Context and User factory to obtain
+    the scoped services. The second scenario has the benefit that the User context can
+    be injected at any point of the activation chain (e.g. in the business logic layer),
+    but it has the negative side to mix runtime values with composition data.
+    """
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class MockAuthHandler(AuthenticationHandler):
+        async def authenticate(self, context):
+            context.user = User({"name": "Dummy"}, "TEST")
+            return context.user
+
+    app.use_authentication().add(MockAuthHandler())
+    called = False
+
+    class Home(Controller):
+        @get("/1")
+        async def home(self, user: User):
+            nonlocal called
+            called = True
+            assert isinstance(self, Home)
+            assert isinstance(user, User)
+            assert user.name == "Dummy"
+
+    class Another(Controller):
+        user: User
+
+        @get("/2")
+        async def home2(self):
+            assert isinstance(self, Another)
+            assert isinstance(self.user, User)
+            assert self.user.name == "Dummy"
+
+    register_http_context(app)
+
+    def user_factory(context) -> User:
+        # The following scoped service is set in a middleware, since in fact we are
+        # mixing runtime data with composition data.
+        request = context.scoped_services[Request]
+        return request.user or User()
+
+    app.services.add_scoped_by_factory(user_factory)
+
+    await app.start()
+    await app(get_example_scope("GET", "/1"), MockReceive(), MockSend())
+    assert called is True
+    called = False
+    await app(get_example_scope("GET", "/2"), MockReceive(), MockSend())
     assert called is True
 
 
@@ -640,7 +704,7 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
         async def index(self, request: Request):
             ...
 
-    @app.route(second_pattern)
+    @app.router.route(second_pattern)
     async def home():
         ...
 

@@ -443,19 +443,6 @@ class Application(BaseApplication):
         )
         return strategy
 
-    def route(
-        self, pattern: str, methods: Optional[Sequence[str]] = None
-    ) -> Callable[..., Any]:
-        if methods is None:
-            methods = ["GET"]
-
-        def decorator(f):
-            for method in methods:
-                self.router.add(method, pattern, f)
-            return f
-
-        return decorator
-
     def exception_handler(
         self, exception: Union[int, Type[Exception]]
     ) -> Callable[..., Any]:

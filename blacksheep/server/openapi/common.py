@@ -361,7 +361,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
         @self.ignore()
         @allow_anonymous(self.anonymous_access)
-        @app.route(self.json_spec_path, methods=["GET", "HEAD"])
+        @app.router.route(self.json_spec_path, methods=["GET", "HEAD"])
         def get_open_api_json(request: Request):
             return get_response_for_static_content(
                 request,
@@ -373,7 +373,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
         @self.ignore()
         @allow_anonymous(self.anonymous_access)
-        @app.route(self.yaml_spec_path, methods=["GET", "HEAD"])
+        @app.router.route(self.yaml_spec_path, methods=["GET", "HEAD"])
         def get_open_api_yaml(request: Request):
             return get_response_for_static_content(
                 request, b"text/yaml", self._yaml_docs, current_time, cache_time=1

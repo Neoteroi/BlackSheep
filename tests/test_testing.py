@@ -42,7 +42,7 @@ def test_app():
 
 @pytest.mark.asyncio
 async def test_client_response(test_app):
-    @test_app.route("/")
+    @test_app.router.route("/")
     async def home(request):
         return {"foo": "bar"}
 
@@ -63,7 +63,7 @@ async def test_client_headers(test_app):
     class FromTestHeader(FromHeader[str]):
         name = "test_header"
 
-    @test_app.route("/")
+    @test_app.router.route("/")
     async def home(request, test_header: FromTestHeader):
         return test_header.value
 
@@ -80,7 +80,7 @@ async def test_client_headers(test_app):
 
 @pytest.mark.asyncio
 async def test_client_content(test_app):
-    @test_app.route("/", methods=["POST"])
+    @test_app.router.route("/", methods=["POST"])
     async def home(request):
         json_data = await request.json()
         return json_data
@@ -107,7 +107,7 @@ async def test_client_content(test_app):
 )
 @pytest.mark.asyncio
 async def test_client_queries(test_app, input_query):
-    @test_app.route("/")
+    @test_app.router.route("/")
     async def home(request):
         return request.query
 
@@ -131,7 +131,7 @@ async def test_client_queries(test_app, input_query):
 )
 @pytest.mark.asyncio
 async def test_client_cookies(test_app, input_cookies):
-    @test_app.route("/")
+    @test_app.router.route("/")
     async def home(request):
         return request.cookies
 
@@ -187,7 +187,7 @@ async def test_custom_test_simulator(test_app):
 )
 @pytest.mark.asyncio
 async def test_client_methods(test_app, method, expected_method):
-    @test_app.route("/", methods=[method])
+    @test_app.router.route("/", methods=[method])
     async def home(request):
         return request.method
 

@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.0] - 2023-11-18 :mage_man:
 
 - Releases v2 as stable.
-- Remove the `route` method from the `Application` class, and move it to the
+- Removes the `route` method from the `Application` class, and move it to the
   `Router` class to be consistent with other methods to register request
   handlers.
-- Remove `ClientConnectionPool` and `ClientConnectionPools` aliases.
+- Removes `ClientConnectionPool` and `ClientConnectionPools` aliases.
 
 ## [2.0a12] - 2023-11-17 :fallen_leaf:
 

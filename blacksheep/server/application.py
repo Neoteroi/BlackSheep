@@ -49,7 +49,6 @@ from blacksheep.server.authorization import (
     handle_unauthorized,
 )
 from blacksheep.server.bindings import ControllerParameter
-from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
@@ -65,6 +64,7 @@ from blacksheep.server.routing import (
     RoutesRegistry,
 )
 from blacksheep.server.routing import router as default_router
+from blacksheep.server.routing import validate_router
 from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
@@ -188,6 +188,7 @@ class Application(BaseApplication):
             services = di_settings.get_default_container()
         if mount is None:
             mount = MountRegistry(env_settings.mount_auto_events)
+
         super().__init__(show_error_details or env_settings.show_error_details, router)
 
         assert services is not None
@@ -203,17 +204,26 @@ class Application(BaseApplication):
         self.on_stop = ApplicationEvent(self)
         self.on_middlewares_configuration = ApplicationSyncEvent(self)
         self.started = False
-        self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
         self.base_path: str = ""
         self._mount_registry = mount
+
+        validate_router(self)
         parent_file = get_parent_file()
 
         if parent_file:
             _auto_import_controllers(parent_file)
             _auto_import_routes(parent_file)
+
+    @property
+    def controllers_router(self) -> RoutesRegistry:
+        return self.router.controllers_routes
+
+    @controllers_router.setter
+    def controllers_router(self, value) -> None:
+        self.router.controllers_routes = value
 
     @property
     def services(self) -> ContainerProtocol:
@@ -733,10 +743,26 @@ class Application(BaseApplication):
             ws.route_values = route.values
             try:
                 return await route.handler(ws)
-            except UnauthorizedError:
-                await ws.close(401, "Unauthorized")
+            except UnauthorizedError as unauthorized_error:
+                # If the WebSocket connection was not accepted yet, we close the
+                # connection with an HTTP Status Code, otherwise we close the connection
+                # with a WebSocket status code
+                if ws.accepted:
+                    # Use a WebSocket error code, not an HTTP error code
+                    await ws.close(1005, "Unauthorized")
+                else:
+                    # Still in handshake phase, we close with an HTTP Status Code
+                    # https://asgi.readthedocs.io/en/latest/specs/www.html#close-send-event
+                    await ws.close(403, str(unauthorized_error))
             except HTTPException as http_exception:
-                await ws.close(http_exception.status, str(http_exception))
+                # Same like above
+                if ws.accepted:
+                    # Use a WebSocket error code, not an HTTP error code
+                    await ws.close(1005, str(http_exception))
+                else:
+                    # Still in handshake phase, we close with an HTTP Status Code
+                    # https://asgi.readthedocs.io/en/latest/specs/www.html#close-send-event
+                    await ws.close(http_exception.status, str(http_exception))
         await ws.close()
 
     async def _handle_http(self, scope, receive, send):

@@ -38,14 +38,16 @@ from blacksheep.server.responses import (
     view,
     view_async,
 )
-from blacksheep.server.routing import RouteFilter, RoutesRegistry, normalize_filters
+from blacksheep.server.routing import RouteFilter
+from blacksheep.server.routing import RoutesRegistry as RoutesRegistry  # noqa
+from blacksheep.server.routing import controllers_routes, normalize_filters
 from blacksheep.utils import AnyStr, join_fragments
 
 # singleton router used to store initial configuration,
 # before the application starts
 # this is used as *default* router for controllers, but it can be overridden
 # - see for example tests in test_controllers
-router = RoutesRegistry()
+router = controllers_routes
 
 
 head = router.head

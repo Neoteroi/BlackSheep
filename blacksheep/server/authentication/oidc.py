@@ -1062,6 +1062,7 @@ def use_openid_connect(
                 cookie_name=scheme_name.lower(), auth_scheme=scheme_name
             ),
         )
+
     app.use_authentication().add(auth_handler)
 
     handler = OpenIDConnectHandler(
@@ -1087,6 +1088,7 @@ def use_openid_connect(
     async def redirect_to_logout(request: Request):
         return await handler.handle_logout_redirect(request)
 
+    @allow_anonymous()
     @app.router.post(settings.refresh_token_path)
     @cache_control(no_cache=True, no_store=True)
     async def refresh_token(request: Request):

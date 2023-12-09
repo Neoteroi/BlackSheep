@@ -1,3 +1,4 @@
+import inspect
 import logging
 import re
 from abc import ABC, abstractmethod
@@ -43,7 +44,7 @@ _escaped_chars = {b".", b"[", b"]", b"(", b")"}
 
 
 class RouteException(Exception):
-    ...
+    """Base class for routing exceptions."""
 
 
 class RouteDuplicate(RouteException):
@@ -59,6 +60,26 @@ class RouteDuplicate(RouteException):
         self.method = method
         self.pattern = pattern
         self.current_handler = current_handler
+
+
+class InvalidRouterConfigurationError(RouteException):
+    """Base class for router configuration errors"""
+
+
+class SharedRouterError(InvalidRouterConfigurationError):
+    """
+    Error raised when the more than one application is using the same router.
+    Each application object should use a different router.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Invalid routers configuration: the same router is used in more "
+            "than one Application object. When working with multiple applications, "
+            "ensure that each application is configured to use different routers. "
+            "For more information, refer to: "
+            "https://www.neoteroi.dev/blacksheep/routing/"
+        )
 
 
 class InvalidValuePatternName(RouteException):
@@ -593,7 +614,14 @@ RouteConfig = Union[Dict[str, Any], "Router"]
 
 
 class Router(RouterBase):
-    __slots__ = ("routes", "_map", "_fallback", "_sub_routers", "_filters")
+    __slots__ = (
+        "routes",
+        "controllers_routes",
+        "_map",
+        "_fallback",
+        "_sub_routers",
+        "_filters",
+    )
 
     def __init__(
         self,
@@ -614,6 +642,7 @@ class Router(RouterBase):
         self._map = {}
         self._fallback = None
         self.routes: Dict[bytes, List[Route]] = defaultdict(list)
+        self.controllers_routes = RoutesRegistry()
         self._sub_routers = sub_routers
 
         if self._filters:
@@ -621,6 +650,16 @@ class Router(RouterBase):
 
         if self._sub_routers:
             extend(self, MultiRouterMixin)
+
+    def reset(self):
+        """Resets this router to its initial state."""
+        self._map = {}
+        self._fallback = None
+        self.routes = defaultdict(list)
+        self.controllers_routes.reset()
+        if self._sub_routers:
+            for sub_router in self._sub_routers:
+                sub_router.reset()
 
     @property
     def fallback(self):
@@ -790,6 +829,10 @@ class RoutesRegistry(RouterBase):
         super().__init__(host=host, headers=headers, params=params, filters=filters)
         self.routes: List[RegisteredRoute] = []
 
+    def reset(self):
+        """Resets this routes registry to its initial state."""
+        self.routes = []
+
     def __iter__(self):
         yield from self.routes
 
@@ -843,6 +886,47 @@ class MountRegistry:
 Mount = MountRegistry
 
 
+_apps_by_router_id = {}
+
+
+def validate_router(app):
+    """
+    Ensures that the same router is not bound to more than one application object.
+    If the same application is being reloaded dynamically, like when using uvicorn
+    programmatically, the router is reset.
+    """
+    app_router: Router = app.router
+    router_id = id(app_router)
+
+    # Get information about where the application was instantiated (which filename,
+    # which line_number)
+    _, filename, line_number, *_ = inspect.stack()[2]
+
+    try:
+        existing_app = _apps_by_router_id[router_id]
+    except KeyError:
+        # Good
+        _apps_by_router_id[router_id] = {
+            "app": app,
+            "filename": filename,
+            "line_number": line_number,
+        }
+    else:
+        if (
+            existing_app["filename"] == filename
+            and existing_app["line_number"] == line_number
+        ):
+            # This is the same application! This can happen when imported dynamically
+            # by uvicorn reload feature, when uvicorn is started programmatically.
+            # See https://github.com/Neoteroi/BlackSheep/issues/438
+            logging.getLogger("blacksheep.server").warning(
+                "[BlackSheep] The application was reloaded, resetting its router."
+            )
+            app_router.reset()
+            return
+        raise SharedRouterError()
+
+
 # Singleton router used to store initial configuration,
 # before the application starts
 # this is used as *default* router, but it can be overridden;
@@ -851,7 +935,7 @@ Mount = MountRegistry
 # Application and Router (the same approach can be easily used for more complex use
 # cases where more than one router is used).
 router = Router()
-
+controllers_routes = router.controllers_routes
 
 head = router.head
 get = router.get

@@ -15,6 +15,7 @@ on:
       - "*"
     paths-ignore:
       - README.md
+      - CHANGELOG.md
 
 env:
   PROJECT_NAME: blacksheep

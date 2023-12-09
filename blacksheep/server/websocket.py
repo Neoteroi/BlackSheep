@@ -62,10 +62,19 @@ class WebSocket(Request):
         self.scope = scope  # type: ignore
         self._receive = self._wrap_receive(receive)
         self._send = send
+        self._accepted = False
         self.route_values = {}
 
         self.client_state = WebSocketState.CONNECTING
         self.application_state = WebSocketState.CONNECTING
+
+    @property
+    def accepted(self) -> bool:
+        """
+        Returns a value indicating whether this WebSocket request was already accepted,
+        or if it is still in the HTTP handshake phase.
+        """
+        return self._accepted
 
     def __repr__(self):
         return f"<WebSocket {self.url.value.decode()}>"
@@ -83,11 +92,12 @@ class WebSocket(Request):
         self.client_state = WebSocketState.CONNECTED
 
     async def accept(
-        self, headers: Optional[List] = None, subprotocol: str = None
+        self, headers: Optional[List] = None, subprotocol: Optional[str] = None
     ) -> None:
         headers = headers or []
 
         await self._connect()
+        self._accepted = True
         self.application_state = WebSocketState.CONNECTED
 
         message = {

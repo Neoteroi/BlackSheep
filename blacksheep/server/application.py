@@ -49,7 +49,6 @@ from blacksheep.server.authorization import (
     handle_unauthorized,
 )
 from blacksheep.server.bindings import ControllerParameter
-from blacksheep.server.controllers import router as controllers_router
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
@@ -205,7 +204,6 @@ class Application(BaseApplication):
         self.on_stop = ApplicationEvent(self)
         self.on_middlewares_configuration = ApplicationSyncEvent(self)
         self.started = False
-        self.controllers_router: RoutesRegistry = controllers_router
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
@@ -218,6 +216,14 @@ class Application(BaseApplication):
         if parent_file:
             _auto_import_controllers(parent_file)
             _auto_import_routes(parent_file)
+
+    @property
+    def controllers_router(self) -> RoutesRegistry:
+        return self.router.controllers_routes
+
+    @controllers_router.setter
+    def controllers_router(self, value) -> None:
+        self.router.controllers_routes = value
 
     @property
     def services(self) -> ContainerProtocol:

@@ -614,7 +614,14 @@ RouteConfig = Union[Dict[str, Any], "Router"]
 
 
 class Router(RouterBase):
-    __slots__ = ("routes", "_map", "_fallback", "_sub_routers", "_filters")
+    __slots__ = (
+        "routes",
+        "controllers_routes",
+        "_map",
+        "_fallback",
+        "_sub_routers",
+        "_filters",
+    )
 
     def __init__(
         self,
@@ -635,6 +642,7 @@ class Router(RouterBase):
         self._map = {}
         self._fallback = None
         self.routes: Dict[bytes, List[Route]] = defaultdict(list)
+        self.controllers_routes = RoutesRegistry()
         self._sub_routers = sub_routers
 
         if self._filters:
@@ -648,6 +656,7 @@ class Router(RouterBase):
         self._map = {}
         self._fallback = None
         self.routes = defaultdict(list)
+        self.controllers_routes.reset()
         if self._sub_routers:
             for sub_router in self._sub_routers:
                 sub_router.reset()
@@ -878,7 +887,6 @@ Mount = MountRegistry
 
 
 _apps_by_router_id = {}
-_apps_by_controllers_router_id = {}
 
 
 def validate_router(app):
@@ -888,16 +896,17 @@ def validate_router(app):
     programmatically, the router is reset.
     """
     app_router: Router = app.router
-    controllers_router: RoutesRegistry = app.controllers_router
-    app_router_id = id(app_router)
+    router_id = id(app_router)
+
     # Get information about where the application was instantiated (which filename,
     # which line_number)
     _, filename, line_number, *_ = inspect.stack()[2]
 
     try:
-        existing_app = _apps_by_router_id[app_router_id]
+        existing_app = _apps_by_router_id[router_id]
     except KeyError:
-        _apps_by_router_id[app_router_id] = {
+        # Good
+        _apps_by_router_id[router_id] = {
             "app": app,
             "filename": filename,
             "line_number": line_number,
@@ -914,7 +923,6 @@ def validate_router(app):
                 "[BlackSheep] The application was reloaded, resetting its router."
             )
             app_router.reset()
-            controllers_router.reset()
             return
         raise SharedRouterError()
 
@@ -927,7 +935,7 @@ def validate_router(app):
 # Application and Router (the same approach can be easily used for more complex use
 # cases where more than one router is used).
 router = Router()
-
+controllers_routes = router.controllers_routes
 
 head = router.head
 get = router.get

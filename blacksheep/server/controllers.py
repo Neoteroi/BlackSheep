@@ -38,12 +38,9 @@ from blacksheep.server.responses import (
     view,
     view_async,
 )
-from blacksheep.server.routing import (
-    RouteFilter,
-    RoutesRegistry as RoutesRegistry,
-    normalize_filters,
-    controllers_routes,
-)
+from blacksheep.server.routing import RouteFilter
+from blacksheep.server.routing import RoutesRegistry as RoutesRegistry  # noqa
+from blacksheep.server.routing import controllers_routes, normalize_filters
 from blacksheep.utils import AnyStr, join_fragments
 
 # singleton router used to store initial configuration,

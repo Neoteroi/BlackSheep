@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixes #441 causing the refresh_token endpoint for OpenID Connect integrations
   to not work when an authenticated user is required by default.
-
+- Fixes #427 handling WebSocket errors according to ASGI specification.
 
 ## [2.0.0] - 2023-11-18 :mage_man:
 

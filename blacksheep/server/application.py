@@ -733,10 +733,26 @@ class Application(BaseApplication):
             ws.route_values = route.values
             try:
                 return await route.handler(ws)
-            except UnauthorizedError:
-                await ws.close(401, "Unauthorized")
+            except UnauthorizedError as unauthorized_error:
+                # If the WebSocket connection was not accepted yet, we close the
+                # connection with an HTTP Status Code, otherwise we close the connection
+                # with a WebSocket status code
+                if ws.accepted:
+                    # Use a WebSocket error code, not an HTTP error code
+                    await ws.close(1005, "Unauthorized")
+                else:
+                    # Still in handshake phase, we close with an HTTP Status Code
+                    # https://asgi.readthedocs.io/en/latest/specs/www.html#close-send-event
+                    await ws.close(403, str(unauthorized_error))
             except HTTPException as http_exception:
-                await ws.close(http_exception.status, str(http_exception))
+                # Same like above
+                if ws.accepted:
+                    # Use a WebSocket error code, not an HTTP error code
+                    await ws.close(1005, str(http_exception))
+                else:
+                    # Still in handshake phase, we close with an HTTP Status Code
+                    # https://asgi.readthedocs.io/en/latest/specs/www.html#close-send-event
+                    await ws.close(http_exception.status, str(http_exception))
         await ws.close()
 
     async def _handle_http(self, scope, receive, send):

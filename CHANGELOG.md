@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.1] - 2023-12-09 :mount_fuji:
 
 - Fixes #441 causing the `refresh_token` endpoint for OpenID Connect
-  integrations to not work when an authenticated user is required by default.
+  integrations to not work when authentication is required by default.
 - Fixes #427, handling WebSocket errors according to ASGI specification.
 - Fixes #443, raising a detailed exception when more than one application is
   sharing the same instance of `Router`

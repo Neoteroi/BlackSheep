@@ -65,6 +65,7 @@ from blacksheep.server.routing import (
     RoutesRegistry,
 )
 from blacksheep.server.routing import router as default_router
+from blacksheep.server.routing import validate_router
 from blacksheep.server.websocket import WebSocket
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
@@ -188,8 +189,9 @@ class Application(BaseApplication):
             services = di_settings.get_default_container()
         if mount is None:
             mount = MountRegistry(env_settings.mount_auto_events)
-        super().__init__(show_error_details or env_settings.show_error_details, router)
 
+        super().__init__(show_error_details or env_settings.show_error_details, router)
+        validate_router(self)
         assert services is not None
         self._services: ContainerProtocol = services
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []

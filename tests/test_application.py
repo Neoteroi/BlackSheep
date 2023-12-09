@@ -37,6 +37,7 @@ from blacksheep.server.normalization import ensure_response
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.resources import get_resource_file_path
 from blacksheep.server.responses import status_code, text
+from blacksheep.server.routing import Router, SharedRouterError
 from blacksheep.server.security.hsts import HSTSMiddleware
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
@@ -4131,3 +4132,14 @@ async def test_lifespan_event(app: Application):
 
     assert initialized is True
     assert disposed is True
+
+
+def test_mounting_apps_using_the_same_router_raises_error():
+    # Recreates the scenario happening when the default singleton router is used for
+    # both parent app and child app
+    # https://github.com/Neoteroi/BlackSheep/issues/443
+    single_router = Router()
+    Application(router=single_router)
+
+    with pytest.raises(SharedRouterError):
+        Application(router=single_router)

@@ -5,6 +5,7 @@ from collections import defaultdict
 from functools import lru_cache
 from typing import Any, AnyStr, Callable, Dict, List, Optional, Sequence, Set, Union
 from urllib.parse import unquote
+from weakref import WeakValueDictionary
 
 from blacksheep.common import extend
 from blacksheep.common.types import (
@@ -43,7 +44,7 @@ _escaped_chars = {b".", b"[", b"]", b"(", b")"}
 
 
 class RouteException(Exception):
-    ...
+    """Base class for routing exceptions."""
 
 
 class RouteDuplicate(RouteException):
@@ -59,6 +60,26 @@ class RouteDuplicate(RouteException):
         self.method = method
         self.pattern = pattern
         self.current_handler = current_handler
+
+
+class InvalidRouterConfigurationError(RouteException):
+    """Base class for router configuration errors"""
+
+
+class SharedRouterError(InvalidRouterConfigurationError):
+    """
+    Error raised when the more than one application is using the same router.
+    Each application object should use a different router.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Invalid routers configuration: the same router is used in more "
+            "than one Application object. When working with multiple applications, "
+            "ensure that each application is configured to use different routers."
+            "For more information, refer to: "
+            "https://www.neoteroi.dev/blacksheep/routing/"
+        )
 
 
 class InvalidValuePatternName(RouteException):
@@ -841,6 +862,24 @@ class MountRegistry:
 
 # For backward compatibility
 Mount = MountRegistry
+
+
+_routers_by_apps = WeakValueDictionary()
+
+
+def validate_router(app):
+    """
+    Ensures that the same router is not bound to more than one application object.
+    """
+    app_router = app.router
+    app_router_id = id(app_router)
+
+    try:
+        _routers_by_apps[app_router_id]
+    except KeyError:
+        _routers_by_apps[app_router_id] = app
+    else:
+        raise SharedRouterError()
 
 
 # Singleton router used to store initial configuration,

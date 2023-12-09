@@ -191,7 +191,7 @@ class Application(BaseApplication):
             mount = MountRegistry(env_settings.mount_auto_events)
 
         super().__init__(show_error_details or env_settings.show_error_details, router)
-        validate_router(self)
+
         assert services is not None
         self._services: ContainerProtocol = services
         self.middlewares: List[Callable[..., Awaitable[Response]]] = []
@@ -211,6 +211,8 @@ class Application(BaseApplication):
         self._session_middleware: Optional[SessionMiddleware] = None
         self.base_path: str = ""
         self._mount_registry = mount
+
+        validate_router(self)
         parent_file = get_parent_file()
 
         if parent_file:

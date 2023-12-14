@@ -64,7 +64,7 @@ from blacksheep.server.routing import (
 )
 from blacksheep.server.routing import router as default_router
 from blacksheep.server.routing import validate_router
-from blacksheep.server.websocket import WebSocket
+from blacksheep.server.websocket import WebSocket, format_reason
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import ensure_bytes, join_fragments
@@ -749,7 +749,7 @@ class Application(BaseApplication):
             # If WebSocket connection accepted, close
             # the connection using WebSocket Internal error code.
             if ws.accepted:
-                return await ws.close(1011, reason=str(exc))
+                return await ws.close(1011, reason=format_reason(str(exc)))
 
             # Otherwise, just close the connection, the ASGI server
             # will anyway respond 403 to the client.

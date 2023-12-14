@@ -32,7 +32,6 @@ from blacksheep.baseapp import BaseApplication, handle_not_found
 from blacksheep.common import extend
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
-from blacksheep.exceptions import HTTPException
 from blacksheep.messages import Request, Response
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.scribe import send_asgi_response
@@ -739,31 +738,22 @@ class Application(BaseApplication):
             RouteMethod.GET_WS, scope["path"]
         )
 
-        if route:
-            ws.route_values = route.values
-            try:
-                return await route.handler(ws)
-            except UnauthorizedError as unauthorized_error:
-                # If the WebSocket connection was not accepted yet, we close the
-                # connection with an HTTP Status Code, otherwise we close the connection
-                # with a WebSocket status code
-                if ws.accepted:
-                    # Use a WebSocket error code, not an HTTP error code
-                    await ws.close(1005, "Unauthorized")
-                else:
-                    # Still in handshake phase, we close with an HTTP Status Code
-                    # https://asgi.readthedocs.io/en/latest/specs/www.html#close-send-event
-                    await ws.close(403, str(unauthorized_error))
-            except HTTPException as http_exception:
-                # Same like above
-                if ws.accepted:
-                    # Use a WebSocket error code, not an HTTP error code
-                    await ws.close(1005, str(http_exception))
-                else:
-                    # Still in handshake phase, we close with an HTTP Status Code
-                    # https://asgi.readthedocs.io/en/latest/specs/www.html#close-send-event
-                    await ws.close(http_exception.status, str(http_exception))
-        await ws.close()
+        if route is None:
+            return await ws.close()
+
+        ws.route_values = route.values
+
+        try:
+            return await route.handler(ws)
+        except Exception as exc:
+            # If WebSocket connection accepted, close
+            # the connection using WebSocket Internal error code.
+            if ws.accepted:
+                return await ws.close(1011, reason=str(exc))
+
+            # Otherwise, just close the connection, the ASGI server
+            # will anyway respond 403 to the client.
+            return await ws.close()
 
     async def _handle_http(self, scope, receive, send):
         assert scope["type"] == "http"

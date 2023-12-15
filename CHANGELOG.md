@@ -5,11 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2023-12-15 :christmas_tree:
+
+- Upgrades default SwaggerUI files to version 5, by @sinisaos
+- Fixes #427, handling WebSocket errors according to ASGI specification, by @Klavionik
+- Adds support for custom files URLs for ReDoc and Swagger UI, by @joshua-auchincloss
+
 ## [2.0.1] - 2023-12-09 :mount_fuji:
 
 - Fixes #441 causing the `refresh_token` endpoint for OpenID Connect
   integrations to not work when authentication is required by default.
-- Fixes #427, handling WebSocket errors according to ASGI specification.
 - Fixes #443, raising a detailed exception when more than one application is
   sharing the same instance of `Router`
 - Fixes #438 and #436, restoring support for `uvicorn` used programmatically

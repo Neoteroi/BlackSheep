@@ -71,3 +71,7 @@ def get_sleep_time():
     if os.name == "nt":
         return 1.5
     return 0.5
+
+
+def get_test_files_url(url: str):
+    return f"my-cdn-foo:{url}"

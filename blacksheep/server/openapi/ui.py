@@ -8,11 +8,9 @@ from blacksheep.server.resources import get_resource_file_content
 from blacksheep.utils.time import utcnow
 
 SWAGGER_UI_JS_URL = (
-    "https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui-bundle.js"
+    "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"
 )
-SWAGGER_UI_CSS_URL = (
-    "https://cdn.jsdelivr.net/npm/swagger-ui-dist@3.30.0/swagger-ui.css"
-)
+SWAGGER_UI_CSS_URL = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css"
 SWAGGER_UI_FONT = None
 
 REDOC_UI_JS_URL = "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"

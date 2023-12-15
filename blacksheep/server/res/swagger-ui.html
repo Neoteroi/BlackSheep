@@ -2,6 +2,8 @@
 <html>
   <head>
     <title>##PAGE_TITLE##</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.png" />
     <link type="text/css" rel="stylesheet" href="##CSS_URL##" />
   </head>
@@ -15,12 +17,12 @@
         dom_id: "#swagger-ui",
         presets: [
           SwaggerUIBundle.presets.apis,
-          SwaggerUIBundle.SwaggerUIStandalonePreset,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
         ],
         layout: "BaseLayout",
         deepLinking: true,
         showExtensions: true,
-        showCommonExtensions: true,
+        showCommonExtensions: true
       });
     </script>
   </body>

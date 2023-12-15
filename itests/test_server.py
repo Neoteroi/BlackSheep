@@ -360,30 +360,32 @@ def test_open_api_ui(session_2):
         == """
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Cats API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.png" />
-    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
-</head>
-<body>
+    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
+  </head>
+  <body>
     <div id="swagger-ui"></div>
     <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
     <script>
-        const ui = SwaggerUIBundle({
-            url: '/openapi.json',
-            oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
-            dom_id: '#swagger-ui',
-            presets: [
-                SwaggerUIBundle.presets.apis,
-                SwaggerUIBundle.SwaggerUIStandalonePreset
-            ],
-            layout: "BaseLayout",
-            deepLinking: true,
-            showExtensions: true,
-            showCommonExtensions: true
-        })
+      const ui = SwaggerUIBundle({
+        url: "/openapi.json",
+        oauth2RedirectUrl: window.location.origin + "/docs/oauth2-redirect",
+        dom_id: "#swagger-ui",
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout",
+        deepLinking: true,
+        showExtensions: true,
+        showCommonExtensions: true
+      });
     </script>
-</body>
+  </body>
 </html>
 """.strip()
     )
@@ -401,10 +403,10 @@ def test_open_api_redoc_ui(session_2):
 <html>
   <head>
     <title>Cats API</title>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="/favicon.png"/>
-    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.png" />
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet" />
     <style>
       body {
         margin: 0;
@@ -414,7 +416,7 @@ def test_open_api_redoc_ui(session_2):
   </head>
   <body>
     <redoc spec-url="/openapi.json"></redoc>
-    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"> </script>
+    <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
   </body>
 </html>
 """.strip()
@@ -431,30 +433,32 @@ def test_open_api_ui_custom_cdn(session_4):
         == f"""
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Cats API</title>
-    <link rel="icon" href="/favicon.png"/>
-    <link type="text/css" rel="stylesheet" href="{get_test_files_url("swag-css")}">
-</head>
-<body>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.png" />
+    <link type="text/css" rel="stylesheet" href="{get_test_files_url("swag-css")}" />
+  </head>
+  <body>
     <div id="swagger-ui"></div>
     <script src="{get_test_files_url("swag-js")}"></script>
     <script>
-    const ui = SwaggerUIBundle({{
-        url: '/openapi.json',
-        oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
-        dom_id: '#swagger-ui',
+      const ui = SwaggerUIBundle({{
+        url: "/openapi.json",
+        oauth2RedirectUrl: window.location.origin + "/docs/oauth2-redirect",
+        dom_id: "#swagger-ui",
         presets: [
-            SwaggerUIBundle.presets.apis,
-            SwaggerUIBundle.SwaggerUIStandalonePreset
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
         ],
         layout: "BaseLayout",
         deepLinking: true,
         showExtensions: true,
         showCommonExtensions: true
-    }})
+      }});
     </script>
-</body>
+  </body>
 </html>
 """.strip()
     )
@@ -472,10 +476,10 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
 <html>
   <head>
     <title>Cats API</title>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="/favicon.png"/>
-    <link href="{get_test_files_url("redoc-fonts")}" rel="stylesheet">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.png" />
+    <link href="{get_test_files_url("redoc-fonts")}" rel="stylesheet" />
     <style>
       body {{
         margin: 0;
@@ -485,7 +489,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
   </head>
   <body>
     <redoc spec-url="/openapi.json"></redoc>
-    <script src="{get_test_files_url("redoc-js")}"> </script>
+    <script src="{get_test_files_url("redoc-js")}"></script>
   </body>
 </html>
 """.strip()

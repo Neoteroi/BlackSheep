@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Upgrades default SwaggerUI files to version 5, by @sinisaos
 - Fixes #427, handling WebSocket errors according to ASGI specification, by @Klavionik
-- Adds support for specifying the URL files for Swagger and ReDoc UI, by @joshua-auchincloss
+- Adds support for custom files URLs for ReDoc and Swagger UI, by @joshua-auchincloss
 
 ## [2.0.1] - 2023-12-09 :mount_fuji:
 
@@ -31,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0a12] - 2023-11-17 :fallen_leaf:
 
 - Adds support for Python 3.12, by @bymoye
-- Adds support for custom files URLs for ReDoc and Swagger UI, by @joshua-auchincloss
 - Replaces `pkg_resources` with `importlib.resources` for all supported Python
   versions except for `3.8`.
 - Runs tests against Pydantic `2.4.2` instead of Pydantic `2.0` to check

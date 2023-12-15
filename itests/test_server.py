@@ -362,26 +362,26 @@ def test_open_api_ui(session_2):
 <html>
 <head>
     <title>Cats API</title>
-    <link rel="icon" href="/favicon.png"/>
+    <link rel="icon" href="/favicon.png" />
     <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
 </head>
 <body>
     <div id="swagger-ui"></div>
     <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
     <script>
-    const ui = SwaggerUIBundle({
-        url: '/openapi.json',
-        oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
-        dom_id: '#swagger-ui',
-        presets: [
-            SwaggerUIBundle.presets.apis,
-            SwaggerUIBundle.SwaggerUIStandalonePreset
-        ],
-        layout: "BaseLayout",
-        deepLinking: true,
-        showExtensions: true,
-        showCommonExtensions: true
-    })
+        const ui = SwaggerUIBundle({
+            url: '/openapi.json',
+            oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
+            dom_id: '#swagger-ui',
+            presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIBundle.SwaggerUIStandalonePreset
+            ],
+            layout: "BaseLayout",
+            deepLinking: true,
+            showExtensions: true,
+            showCommonExtensions: true
+        })
     </script>
 </body>
 </html>

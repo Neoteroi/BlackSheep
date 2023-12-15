@@ -6,6 +6,8 @@ from blacksheep.messages import Request
 from blacksheep.server.asgi import get_full_path
 from blacksheep.settings.json import json_settings
 
+MAX_REASON_SIZE = 123
+
 
 class WebSocketState(Enum):
     CONNECTING = 0
@@ -180,3 +182,18 @@ class WebSocket(Request):
 
     async def close(self, code: int = 1000, reason: Optional[str] = None) -> None:
         await self._send({"type": "websocket.close", "code": code, "reason": reason})
+
+
+def format_reason(reason: str) -> str:
+    """
+    Ensures that the close reason is no longer than the max reason size.
+    (https://developer.mozilla.org/en-US/docs/Web/API/WebSocket/close#reason)
+    """
+    reason_bytes = reason.encode()
+
+    if len(reason_bytes) <= MAX_REASON_SIZE:
+        return reason
+
+    ellipsis_ = b"..."
+    truncated_reason = reason_bytes[: MAX_REASON_SIZE - len(ellipsis_)] + ellipsis_
+    return truncated_reason.decode()

@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 import websockets
 import yaml
-from websockets.exceptions import InvalidStatusCode
+from websockets.exceptions import ConnectionClosedError, InvalidStatusCode
 
 from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
@@ -793,7 +793,7 @@ async def test_websocket(server_host, server_port_4, route, data):
     "route",
     [
         "websocket-echo-text-auth",
-        "websocket-echo-text-http-exp",
+        "websocket-error-before-accept",
     ],
 )
 async def test_websocket_auth(server_host, server_port_2, route):
@@ -805,3 +805,16 @@ async def test_websocket_auth(server_host, server_port_2, route):
 
     assert error.value.status_code == 403
     assert "server rejected" in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_websocket_server_error(server_host, server_port_2):
+    uri = f"ws://{server_host}:{server_port_2}/websocket-server-error"
+
+    with pytest.raises(ConnectionClosedError) as error:
+        async with websockets.connect(uri) as ws:
+            async for _message in ws:
+                pass
+
+    assert error.value.code == 1011
+    assert error.value.reason == "Server error"

@@ -7,6 +7,7 @@ from blacksheep.server.websocket import (
     WebSocket,
     WebSocketDisconnectError,
     WebSocketState,
+    format_reason,
 )
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
@@ -442,3 +443,21 @@ async def test_application_websocket_binding_by_type_annotation():
         mock_receive,
         mock_send,
     )
+
+
+LONG_REASON = "WRY" * 41
+QIN = "秦"  # Qyn dynasty in Chinese, 3 bytes.
+TOO_LONG_REASON = QIN * 42
+TOO_LONG_REASON_TRUNC = TOO_LONG_REASON[:40] + "..."
+
+
+@pytest.mark.parametrize(
+    "inp,out",
+    [
+        ("Short reason", "Short reason"),
+        (LONG_REASON, LONG_REASON),
+        (TOO_LONG_REASON, TOO_LONG_REASON_TRUNC),
+    ],
+)
+def test_format_reason(inp, out):
+    assert format_reason(inp) == out

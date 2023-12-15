@@ -17,7 +17,6 @@ from openapidocs.v3 import Schema
 from pydantic import BaseModel
 
 from blacksheep import Response, TextContent, WebSocket
-from blacksheep.exceptions import BadRequest
 from blacksheep.server import Application
 from blacksheep.server.authentication import AuthenticationHandler
 from blacksheep.server.authorization import Policy, Requirement, auth
@@ -150,9 +149,15 @@ async def echo_text_admin_users(websocket: WebSocket):
         await websocket.send_text(msg)
 
 
-@app_2.router.ws("/websocket-echo-text-http-exp")
+@app_2.router.ws("/websocket-error-before-accept")
 async def echo_text_http_exp(websocket: WebSocket):
-    raise BadRequest("Example")
+    raise RuntimeError("Error before accept")
+
+
+@app_2.router.ws("/websocket-server-error")
+async def websocket_server_error(websocket: WebSocket):
+    await websocket.accept()
+    raise RuntimeError("Server error")
 
 
 @auth("authenticated")

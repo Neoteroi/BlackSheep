@@ -746,6 +746,7 @@ class Application(BaseApplication):
         try:
             return await route.handler(ws)
         except Exception as exc:
+            logging.exception("Exception while handling WebSocket")
             # If WebSocket connection accepted, close
             # the connection using WebSocket Internal error code.
             if ws.accepted:

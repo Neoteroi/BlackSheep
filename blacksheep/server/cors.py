@@ -344,6 +344,8 @@ def get_cors_middleware(
 
         _set_cors_origin(response, origin_response)
         response.set_header(b"Access-Control-Expose-Headers", expose_headers)
+        if policy.allow_credentials:
+            response.set_header(b"Access-Control-Allow-Credentials", b"true")
 
         return response
 

@@ -119,6 +119,14 @@ class Request(Message):
     def original_client_ip(self, value: str) -> None: ...
     @property
     def path(self) -> str: ...
+    async def is_disconnected(self) -> bool:
+        """
+        Returns a value indicating whether the web request is still bound to an active
+        connection. In case of long-polling, this method returns True if the client
+        closed the original connection. For requests originated from a web browser, this
+        method returns True also if the user refreshed a page that originated a web
+        request, or the connection got lost and a page initiated a new request.
+        """
 
 class Response(Message):
     def __init__(

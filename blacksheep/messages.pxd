@@ -34,6 +34,7 @@ cdef class Message:
 
     cdef void remove_headers(self, list headers)
     cdef list get_headers_tuples(self, bytes key)
+    cdef void init_prop(self, str name, object value)
 
     cpdef Message with_content(self, Content content)
     cpdef bint has_body(self)

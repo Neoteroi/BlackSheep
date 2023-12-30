@@ -533,7 +533,7 @@ cdef class Request(Message):
         if not isinstance(self.content, ASGIContent):
             raise TypeError(
                 "This method is only supported when a request is bound to "
-                "an instance of ASGIContent and bound to an ASGI "
+                "an instance of ASGIContent and to an ASGI "
                 "request/response cycle."
             )
 

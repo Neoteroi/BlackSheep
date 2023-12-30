@@ -245,7 +245,7 @@ async def send_file_with_bytes_io():
 @app.router.get("/check-disconnected")
 async def check_disconnected(request: Request, expect_disconnected: bool):
     check_file = pathlib.Path(".is-disconnected.txt")
-
+    assert await request.is_disconnected() is False
     # Simulate a delay
     await asyncio.sleep(0.3)
 

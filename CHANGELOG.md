@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Fixes [#452](https://github.com/Neoteroi/BlackSheep/issues/452).
   Feature requested by @netanel-haber.
 - Removes `consts.pxi` because it used a deprecated Cython feature.
+- Upgrades the versions of Hypercorn and uvicorn for integration tests.
 
 ## [2.0.3] - 2023-12-18 :gift:
 

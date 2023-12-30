@@ -327,8 +327,12 @@ def test_get_is_disconnected_cancelling(session_1):
             # wait 310 ms and check a file written by the server after asserting the request
             # was disconnected
             time.sleep(0.31)
+
+        try:
             text = check_file.read_text()
             assert text == "The connection was disconnected"
+        except FileNotFoundError:
+            pytest.fail("The server did not write the file .is-disconnected.txt")
 
 
 def test_xml_files_are_not_served(session_1):

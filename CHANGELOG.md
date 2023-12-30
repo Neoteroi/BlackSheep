@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.4] - 2023-12-30 :snowflake:
 
-- Adds a `is_disconnected()` method similar to the one offered in `Starlette`,
-  which answers if the ASGI server published an `http.disconnected` message for
-  a request. Fixes [#452](https://github.com/Neoteroi/BlackSheep/issues/452).
+- Adds a `is_disconnected()` method to the `Request` class, similar to the one
+  available in `Starlette`, which answers if the ASGI server published an
+  `http.disconnected` message for a request.
+  Fixes [#452](https://github.com/Neoteroi/BlackSheep/issues/452).
   Feature requested by @netanel-haber.
 - Removes `consts.pxi` because it used a deprecated Cython feature.
 

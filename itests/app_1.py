@@ -242,5 +242,26 @@ async def send_file_with_bytes_io():
     )
 
 
+@app.router.get("/check-disconnected")
+async def check_disconnected(request: Request, expect_disconnected: bool):
+    check_file = pathlib.Path(".is-disconnected.txt")
+
+    # Simulate a delay
+    await asyncio.sleep(0.3)
+
+    if expect_disconnected:
+        # Testing the scenario when the client disconnected
+        assert (
+            await request.is_disconnected()
+        ), "The client disconnected and this should be visible"
+        check_file.write_text("The connection was disconnected")
+    else:
+        assert (
+            await request.is_disconnected() is False
+        ), "The client did not disconnect and this should be visible"
+
+    return "OK"
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=44567, log_level="debug")

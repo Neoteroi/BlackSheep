@@ -5,7 +5,8 @@ from .cookies cimport Cookie, write_cookie_for_response
 from .messages cimport Request, Response
 from .url cimport URL
 
-include "includes/consts.pxi"
+
+cdef int MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 
 
 cdef bytes write_header(tuple header):

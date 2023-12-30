@@ -12,7 +12,12 @@ from blacksheep.sessions import Session
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
 
-from .contents cimport Content, ASGIContent, multiparts_to_dictionary, parse_www_form_urlencoded
+from .contents cimport (
+    ASGIContent,
+    Content,
+    multiparts_to_dictionary,
+    parse_www_form_urlencoded,
+)
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
 from .exceptions cimport BadRequest, BadRequestFormat, MessageAborted
 from .headers cimport Headers

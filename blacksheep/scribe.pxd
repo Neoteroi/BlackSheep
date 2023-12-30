@@ -8,6 +8,7 @@ from .contents cimport Content
 from .cookies cimport Cookie
 from .messages cimport Message, Request, Response
 
+
 cdef int MAX_RESPONSE_CHUNK_SIZE
 
 cpdef bytes get_status_line(int status)

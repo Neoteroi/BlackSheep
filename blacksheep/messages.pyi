@@ -126,6 +126,12 @@ class Request(Message):
         closed the original connection. For requests originated from a web browser, this
         method returns True also if the user refreshed a page that originated a web
         request, or the connection got lost and a page initiated a new request.
+
+        Because this method relies on reading incoming ASGI messages, it can only be
+        used for incoming web requests handled through an ASGI server, and it must not
+        be used when reading the request stream, as it cannot be read more than once.
+        When reading the request stream, catch instead MessageAborted exceptions to
+        detect if the client closed the original connection.
         """
 
 class Response(Message):

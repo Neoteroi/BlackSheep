@@ -38,7 +38,7 @@ async def _read_stream(request):
         pass
 
 
-async def _no_wait(coro):
+async def _call_soon(coro):
     """
     Returns the output of a coroutine if its result is immediately available,
     otherwise None.
@@ -542,7 +542,7 @@ cdef class Request(Message):
             return True
 
         try:
-            await _no_wait(_read_stream(self))
+            await _call_soon(_read_stream(self))
         except MessageAborted:
             self._is_disconnected = True
 

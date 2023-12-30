@@ -5,13 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.4] - 2023-12-30 :snowflake:
+## [2.0.4] - 2023-12-31 :fireworks:
 
 - Adds a `is_disconnected()` method to the `Request` class, similar to the one
   available in `Starlette`, which answers if the ASGI server published an
   `http.disconnected` message for a request.
-  Fixes [#452](https://github.com/Neoteroi/BlackSheep/issues/452).
-  Feature requested by @netanel-haber.
+  Feature requested by @netanel-haber in [#452](https://github.com/Neoteroi/BlackSheep/issues/452).
 - Removes `consts.pxi` because it used a deprecated Cython feature.
 - Upgrades the versions of Hypercorn and uvicorn for integration tests.
 

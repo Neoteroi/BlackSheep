@@ -18,6 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removes `consts.pxi` because it used a deprecated Cython feature.
 - Upgrades the versions of Hypercorn and uvicorn for integration tests.
 - Removes the unused "active" property defined in the `Response` class.
+- Fixes #455, reported by @Klavionik. This error caused the WebSocket handler
+  to erroneously return an instance of BlackSheep response to the underlying
+  ASGI server, causing an error to be logged in the console.
+- Update type annotations in the `Application` class code to be more explicit
+  about the fact that certain methods must return None (return in __call__ is
+  used to interrupt code execution and not to return objects).
+- Improve the normalization logic to not normalize the output for WebSocket
+  requests (as ASGI servers do not allow controlling the response for WebSocket
+  handshake requests).
+- Improve the normalization logic to not normalize request handlers that are
+  valid as they are, as asynchronous functions with a single parameter
+  annotated as Request or WebSocket.
 
 ## [2.0.3] - 2023-12-18 :gift:
 

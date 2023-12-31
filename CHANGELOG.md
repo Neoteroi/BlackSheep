@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for Cython code.
 - Removes `consts.pxi` because it used a deprecated Cython feature.
 - Upgrades the versions of Hypercorn and uvicorn for integration tests.
+- Removes the unused "active" property defined in the `Response` class.
 
 ## [2.0.3] - 2023-12-18 :gift:
 

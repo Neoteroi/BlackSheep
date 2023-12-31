@@ -58,7 +58,6 @@ cdef class Request(Message):
 
 cdef class Response(Message):
     cdef public int status
-    cdef public bint active
     cdef dict __dict__
 
     cpdef bint is_redirect(self)

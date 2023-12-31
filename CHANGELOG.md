@@ -21,15 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixes #455, reported by @Klavionik. This error caused the WebSocket handler
   to erroneously return an instance of BlackSheep response to the underlying
   ASGI server, causing an error to be logged in the console.
-- Update type annotations in the `Application` class code to be more explicit
+- Updates type annotations in the `Application` class code to be more explicit
   about the fact that certain methods must return None (return in __call__ is
   used to interrupt code execution and not to return objects).
-- Improve the normalization logic to not normalize the output for WebSocket
+- Improves the normalization logic to not normalize the output for WebSocket
   requests (as ASGI servers do not allow controlling the response for WebSocket
   handshake requests).
-- Improve the normalization logic to not normalize request handlers that are
+- Improves the normalization logic to not normalize request handlers that are
   valid as they are, as asynchronous functions with a single parameter
   annotated as Request or WebSocket.
+- Fixes #421 reported by @mohd-akram, causing handled exceptions to be logged
+  like unhandled, when defining exception handlers using subclasses.
+- Removes wrong type annotations in two functions in `blacksheep.utils`.
 
 ## [2.0.3] - 2023-12-18 :gift:
 

@@ -130,7 +130,7 @@ jobs:
           fi
 
       - name: Upload pytest test results
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
           name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
           path: junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
@@ -149,7 +149,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.10
 
       - name: Upload distribution package
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist
@@ -206,7 +206,7 @@ jobs:
         run: |
           python -m build
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist
@@ -224,7 +224,7 @@ jobs:
     if: github.event_name == 'release'
     steps:
       - name: Download a distribution artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist

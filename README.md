@@ -203,7 +203,8 @@ Meaning that it is easy to integrate with services such as:
 * [Azure Active Directory B2C](https://docs.microsoft.com/en-us/azure/active-directory-b2c/overview)
 * [Okta](https://www.okta.com)
 
-Refer to the documentation for more details and examples.
+Refer to the documentation and to [BlackSheep-Examples](https://github.com/Neoteroi/BlackSheep-Examples)
+for more details and examples.
 
 ## Web framework features
 
@@ -260,8 +261,6 @@ from blacksheep.client import ClientSession
 async def client_example():
     async with ClientSession() as client:
         response = await client.get("https://docs.python.org/3/")
-
-        assert response is not None
         text = await response.text()
         print(text)
 

@@ -627,11 +627,11 @@ class Application(BaseApplication):
 
         self.router.sort_routes()
 
-        for route in self.router:
+        for method, route in self.router.iter_with_methods():
             if route.handler in configured_handlers:
                 continue
 
-            route.handler = normalize_handler(route, self.services)
+            route.handler = normalize_handler(route, self.services, method)
             configured_handlers.add(route.handler)
 
         self._normalize_fallback_route()

@@ -9,6 +9,8 @@ from .cookies cimport Cookie
 from .messages cimport Message, Request, Response
 
 
+cdef int MAX_RESPONSE_CHUNK_SIZE
+
 cpdef bytes get_status_line(int status)
 
 cpdef bint is_small_request(Request request)
@@ -26,4 +28,3 @@ cdef bytes write_small_response(Response response)
 cdef void set_headers_for_content(Message message)
 
 cdef void set_headers_for_response_content(Response message)
-

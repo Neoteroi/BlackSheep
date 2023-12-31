@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import time
 from base64 import urlsafe_b64encode
 from urllib.parse import unquote
 from uuid import uuid4
@@ -8,11 +9,12 @@ from uuid import uuid4
 import pytest
 import websockets
 import yaml
+from requests.exceptions import ReadTimeout
 from websockets.exceptions import ConnectionClosedError, InvalidStatusCode
 
 from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
-from .utils import assert_files_equals, ensure_success, get_test_files_url
+from .utils import assert_files_equals, ensure_success, get_test_files_url, temp_file
 
 
 def test_hello_world(session_1):
@@ -300,7 +302,45 @@ def test_get_file_with_bytesio(session_1):
     ensure_success(response)
 
     text = response.text
-    assert text == """some initial binary data: """
+    assert text == "some initial binary data: "
+
+
+def test_get_is_disconnected_waiting(session_1):
+    response = session_1.get(
+        "/check-disconnected", params={"expect_disconnected": "false"}
+    )
+    ensure_success(response)
+
+    text = response.text
+    assert text == "OK"
+
+
+def test_get_is_disconnected_cancelling(session_1):
+    with temp_file(".is-disconnected.txt") as check_file:
+        try:
+            session_1.get(
+                "/check-disconnected",
+                params={"expect_disconnected": "true"},
+                timeout=0.005,
+            )
+        except ReadTimeout:
+            # wait 310 ms and check a file written by the server after asserting the request
+            # was disconnected
+            time.sleep(0.31)
+
+        try:
+            text = check_file.read_text()
+            assert text == "The connection was disconnected"
+        except FileNotFoundError:
+            pytest.fail("The server did not write the file .is-disconnected.txt")
+
+
+def test_receive_is_accessible_from_python(session_1):
+    response = session_1.get("/read-asgi-receive")
+    ensure_success(response)
+
+    text = response.text
+    assert text == "OK"
 
 
 def test_xml_files_are_not_served(session_1):

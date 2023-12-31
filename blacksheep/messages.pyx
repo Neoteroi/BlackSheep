@@ -1,3 +1,4 @@
+import asyncio
 import http
 import re
 from datetime import datetime, timedelta
@@ -11,9 +12,14 @@ from blacksheep.sessions import Session
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
 
-from .contents cimport Content, multiparts_to_dictionary, parse_www_form_urlencoded
+from .contents cimport (
+    ASGIContent,
+    Content,
+    multiparts_to_dictionary,
+    parse_www_form_urlencoded,
+)
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
-from .exceptions cimport BadRequest, BadRequestFormat
+from .exceptions cimport BadRequest, BadRequestFormat, MessageAborted
 from .headers cimport Headers
 from .url cimport URL, build_absolute_url
 
@@ -25,6 +31,24 @@ cpdef str parse_charset(bytes value):
     if m:
         return m.group(1).decode('utf8')
     return None
+
+
+async def _read_stream(request):
+    async for _ in request.content.stream():  # type: ignore
+        pass
+
+
+async def _call_soon(coro):
+    """
+    Returns the output of a coroutine if its result is immediately available,
+    otherwise None.
+    """
+    task = asyncio.create_task(coro)
+    asyncio.get_event_loop().call_soon(task.cancel)
+    try:
+        return await task
+    except asyncio.CancelledError:
+        return None
 
 
 cdef class Message:
@@ -59,6 +83,20 @@ cdef class Message:
             if header[0].lower() == key:
                 results.append(header[1])
         return results
+
+    cdef void init_prop(self, str name, object value):
+        """
+        This method is for internal use and only accessible in Cython.
+        It initializes a new property on the request object, for rare scenarios
+        where an additional property can be useful. It would also be possible
+        to use a weakref.WeakKeyDictionary to store additional information
+        about request objects when useful, but for simplicity this method uses
+        the object __dict__.
+        """
+        try:
+            getattr(self, name)
+        except AttributeError:
+            setattr(self, name, value)
 
     cdef list get_headers_tuples(self, bytes key):
         cdef list results = []
@@ -490,6 +528,25 @@ cdef class Request(Message):
         if value and value.lower() == b'100-continue':
             return True
         return False
+
+    async def is_disconnected(self):
+        if not isinstance(self.content, ASGIContent):
+            raise TypeError(
+                "This method is only supported when a request is bound to "
+                "an instance of ASGIContent and to an ASGI "
+                "request/response cycle."
+            )
+
+        self.init_prop("_is_disconnected", False)
+        if self._is_disconnected is True:
+            return True
+
+        try:
+            await _call_soon(_read_stream(self))
+        except MessageAborted:
+            self._is_disconnected = True
+
+        return self._is_disconnected
 
 
 cdef class Response(Message):

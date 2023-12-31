@@ -1,5 +1,5 @@
 Flask
 requests
-uvicorn==0.13.4
-Hypercorn==0.11.2
+uvicorn==0.25.0
+Hypercorn==0.15.0
 websockets==10.1

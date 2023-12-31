@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2023-12-31 :fireworks:
+
+- Adds a `is_disconnected()` method to the `Request` class, similar to the one
+  available in `Starlette`, which answers if the ASGI server published an
+  `http.disconnected` message for a request.
+  Feature requested by @netanel-haber in [#452](https://github.com/Neoteroi/BlackSheep/issues/452).
+- Makes the `receive` callable of the `ASGI` request accessible to Python code,
+  through the existing `ASGIContent` class. The `receive` property was already
+  included in `contents.pyi` file and it was wrong to keep `receive` private
+  for Cython code.
+- Removes `consts.pxi` because it used a deprecated Cython feature.
+- Upgrades the versions of Hypercorn and uvicorn for integration tests.
+
 ## [2.0.3] - 2023-12-18 :gift:
 
 - Fixes #450, about missing `Access-Control-Allow-Credentials` response header

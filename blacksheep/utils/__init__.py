@@ -1,5 +1,5 @@
 import re
-from typing import AnyStr, Tuple, Type, TypeVar
+from typing import AnyStr, Type, TypeVar
 
 T = TypeVar("T")
 

@@ -22,10 +22,11 @@ from uuid import UUID
 from guardpost import Identity, User
 from rodi import ContainerProtocol
 
-from blacksheep import Request, Response
+from blacksheep.messages import Request, Response
 from blacksheep.normalization import copy_special_attributes
 from blacksheep.server import responses
 from blacksheep.server.routing import Route
+from blacksheep.server.websocket import WebSocket
 
 from .bindings import (
     Binder,
@@ -522,15 +523,20 @@ def get_async_wrapper(
     if params_len == 0:
         # the user defined a request handler with no input
         @wraps(method)
-        async def handler(_):
+        async def handler(_):  # type: ignore
             return await method()
 
         return handler
 
     if params_len == 1:
         param_name = list(params)[0]
-        if param_name in ("request", "websocket"):
-            # no need to wrap the request handler
+        # There is no need to wrap the request handler if it was
+        # defined as asynchronous function accepting a single request or
+        # websocket parameter
+        if param_name in ("request", "websocket") or params[param_name].annotation in {
+            Request,
+            WebSocket,
+        }:
             return method
 
     binders = get_binders(route, services)
@@ -559,7 +565,7 @@ def _get_async_wrapper_for_output(
 
 
 def normalize_handler(
-    route: Route, services: ContainerProtocol
+    route: Route, services: ContainerProtocol, http_method: str = ""
 ) -> Callable[[Request], Awaitable[Response]]:
     method = route.handler
 
@@ -581,8 +587,11 @@ def normalize_handler(
     else:
         normalized = get_sync_wrapper(services, route, method, params, params_len)
 
-    # normalize output
-    if return_type is _empty or return_type is not Response:
+    # Normalize output. WebSocket handlers must be excluded here because their
+    # response is not handled writing a BlackSheep Response object.
+    if (
+        return_type is _empty or return_type is not Response
+    ) and http_method != "GET_WS":
         if return_type is not _empty:
             # this scenario enables a more accurate automatic generation of
             # OpenAPI Documentation, for responses

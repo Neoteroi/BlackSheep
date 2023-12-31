@@ -445,6 +445,27 @@ async def test_application_websocket_binding_by_type_annotation():
     )
 
 
+@pytest.mark.asyncio
+async def test_websocket_handler_must_not_return():
+    """
+    This test verifies that normalized request handlers handling WebSockets are not
+    normalized to return an instance of Response.
+    """
+    app = FakeApplication()
+
+    @app.router.ws("/ws")
+    async def websocket_handler(my_ws: WebSocket):
+        pass
+
+    await app.start()
+
+    # Because the defined handler is asynchronous and accepts a WebSocket,
+    # it should not be normalized and kept as-is
+    for route in app.router:
+        assert route.handler is websocket_handler
+        assert await route.handler(...) is None
+
+
 LONG_REASON = "WRY" * 41
 QIN = "秦"  # Qyn dynasty in Chinese, 3 bytes.
 TOO_LONG_REASON = QIN * 42

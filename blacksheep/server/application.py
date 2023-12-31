@@ -627,11 +627,11 @@ class Application(BaseApplication):
 
         self.router.sort_routes()
 
-        for route in self.router:
+        for method, route in self.router.iter_with_methods():
             if route.handler in configured_handlers:
                 continue
 
-            route.handler = normalize_handler(route, self.services)
+            route.handler = normalize_handler(route, self.services, method)
             configured_handlers.add(route.handler)
 
         self._normalize_fallback_route()
@@ -713,7 +713,7 @@ class Application(BaseApplication):
         await self.on_stop.fire()
         self.started = False
 
-    async def _handle_lifespan(self, receive, send):
+    async def _handle_lifespan(self, receive, send) -> None:
         message = await receive()
         assert message["type"] == "lifespan.startup"
 
@@ -731,7 +731,7 @@ class Application(BaseApplication):
         await self.stop()
         await send({"type": "lifespan.shutdown.complete"})
 
-    async def _handle_websocket(self, scope, receive, send):
+    async def _handle_websocket(self, scope, receive, send) -> None:
         ws = WebSocket(scope, receive, send)
         # TODO: support filters
         route = self.router.get_match_by_method_and_path(
@@ -739,24 +739,27 @@ class Application(BaseApplication):
         )
 
         if route is None:
-            return await ws.close()
+            await ws.close()
+            return
 
         ws.route_values = route.values
 
         try:
-            return await route.handler(ws)
+            # The ASGI protocol does not allow to return any response, not even for the
+            # handshake HTTP request
+            await route.handler(ws)
         except Exception as exc:
             logging.exception("Exception while handling WebSocket")
             # If WebSocket connection accepted, close
             # the connection using WebSocket Internal error code.
             if ws.accepted:
-                return await ws.close(1011, reason=format_reason(str(exc)))
+                await ws.close(1011, reason=format_reason(str(exc)))
+            else:
+                # Otherwise, just close the connection, the ASGI server
+                # will anyway respond 403 to the client.
+                await ws.close()
 
-            # Otherwise, just close the connection, the ASGI server
-            # will anyway respond 403 to the client.
-            return await ws.close()
-
-    async def _handle_http(self, scope, receive, send):
+    async def _handle_http(self, scope, receive, send) -> None:
         assert scope["type"] == "http"
 
         request = Request.incoming(

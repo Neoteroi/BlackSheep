@@ -681,6 +681,17 @@ class Router(RouterBase):
         if self._fallback:
             yield self._fallback
 
+    def iter_with_methods(self):
+        """
+        Iters through the routes defined in this Router, yielding each route
+        and its HTTP method.
+        """
+        for method, routes in self.routes.items():
+            for route in routes:
+                yield method.decode(), route
+        if self._fallback:
+            yield "*", self._fallback
+
     def _is_route_configured(self, method: bytes, route: Route):
         if isinstance(route, FilterRoute):  # pragma: no cover
             # The route defines action filters, we cannot determine if the user is

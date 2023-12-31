@@ -16,7 +16,7 @@ cdef class StreamedContent(Content):
 
 
 cdef class ASGIContent(Content):
-    cdef object receive
+    cdef readonly object receive
     cpdef void dispose(self)
 
 

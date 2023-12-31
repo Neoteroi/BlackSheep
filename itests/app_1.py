@@ -17,6 +17,7 @@ from blacksheep import (
     json,
     text,
 )
+from blacksheep.contents import ASGIContent
 from blacksheep.server.compression import use_gzip_compression
 from itests.utils import CrashTest, ensure_folder
 
@@ -259,6 +260,17 @@ async def check_disconnected(request: Request, expect_disconnected: bool):
         assert (
             await request.is_disconnected() is False
         ), "The client did not disconnect and this should be visible"
+
+    return "OK"
+
+
+@app.router.get("/read-asgi-receive")
+def check_asgi_receive_readable(request: Request):
+    content = request.content
+    assert isinstance(content, ASGIContent)
+
+    receive = content.receive
+    assert callable(receive)
 
     return "OK"
 

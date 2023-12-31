@@ -335,6 +335,14 @@ def test_get_is_disconnected_cancelling(session_1):
             pytest.fail("The server did not write the file .is-disconnected.txt")
 
 
+def test_receive_is_accessible_from_python(session_1):
+    response = session_1.get("/read-asgi-receive")
+    ensure_success(response)
+
+    text = response.text
+    assert text == "OK"
+
+
 def test_xml_files_are_not_served(session_1):
     response = session_1.get("/example.xml", stream=True)
 

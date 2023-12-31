@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   available in `Starlette`, which answers if the ASGI server published an
   `http.disconnected` message for a request.
   Feature requested by @netanel-haber in [#452](https://github.com/Neoteroi/BlackSheep/issues/452).
+- Makes the `receive` callable of the `ASGI` request accessible to Python code,
+  through the existing `ASGIContent` class. The `receive` property was already
+  included in `contents.pyi` file and it was wrong to keep `receive` private
+  for Cython code.
 - Removes `consts.pxi` because it used a deprecated Cython feature.
 - Upgrades the versions of Hypercorn and uvicorn for integration tests.
 

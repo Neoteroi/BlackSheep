@@ -128,7 +128,6 @@ class Response(Message):
         headers: Optional[List[HeaderType]] = None,
         content: Optional[Content] = None,
     ) -> None:
-        self.__headers = headers or []
         self.status = status
         self.content = content
     def __repr__(self) -> str: ...

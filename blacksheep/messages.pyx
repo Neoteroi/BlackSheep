@@ -29,14 +29,14 @@ cpdef str parse_charset(bytes value):
 cdef class Message:
 
     def __init__(self, list headers):
-        self.__headers = headers or []
+        self._raw_headers = headers or []
 
     @property
     def headers(self):
         cdef str key = '_headers'
         if key in self.__dict__:
             return self.__dict__[key]
-        self.__dict__[key] = Headers(self.__headers)
+        self.__dict__[key] = Headers(self._raw_headers)
         return self.__dict__[key]
 
     cpdef Message with_content(self, Content content):
@@ -46,7 +46,7 @@ cdef class Message:
     cpdef bytes get_first_header(self, bytes key):
         cdef tuple header
         key = key.lower()
-        for header in self.__headers:
+        for header in self._raw_headers:
             if header[0].lower() == key:
                 return header[1]
 
@@ -54,7 +54,7 @@ cdef class Message:
         cdef list results = []
         cdef tuple header
         key = key.lower()
-        for header in self.__headers:
+        for header in self._raw_headers:
             if header[0].lower() == key:
                 results.append(header[1])
         return results
@@ -63,7 +63,7 @@ cdef class Message:
         cdef list results = []
         cdef tuple header
         key = key.lower()
-        for header in self.__headers:
+        for header in self._raw_headers:
             if header[0].lower() == key:
                 results.append(header)
         return results
@@ -80,22 +80,22 @@ cdef class Message:
         cdef tuple header
         cdef list to_remove = []
         key = key.lower()
-        for header in self.__headers:
+        for header in self._raw_headers:
             if header[0].lower() == key:
                 to_remove.append(header)
 
         for header in to_remove:
-            self.__headers.remove(header)
+            self._raw_headers.remove(header)
 
     cdef void remove_headers(self, list headers):
         cdef tuple header
         for header in headers:
-            self.__headers.remove(header)
+            self._raw_headers.remove(header)
 
     cdef bint _has_header(self, bytes key):
         cdef bytes existing_key, existing_value
         key = key.lower()
-        for existing_key, existing_value in self.__headers:
+        for existing_key, existing_value in self._raw_headers:
             if existing_key.lower() == key:
                 return True
         return False
@@ -104,18 +104,18 @@ cdef class Message:
         return self._has_header(key)
 
     cdef void _add_header(self, bytes key, bytes value):
-        self.__headers.append((key, value))
+        self._raw_headers.append((key, value))
 
     cdef void _add_header_if_missing(self, bytes key, bytes value):
         if not self._has_header(key):
-            self.__headers.append((key, value))
+            self._raw_headers.append((key, value))
 
     cpdef void add_header(self, bytes key, bytes value):
-        self.__headers.append((key, value))
+        self._raw_headers.append((key, value))
 
     cpdef void set_header(self, bytes key, bytes value):
         self.remove_header(key)
-        self.__headers.append((key, value))
+        self._raw_headers.append((key, value))
 
     cpdef bytes content_type(self):
         if self.content and self.content.type:
@@ -267,7 +267,7 @@ cdef class Request(Message):
         list headers
     ):
         cdef URL _url = URL(url) if url else None
-        self.__headers = headers or []
+        self._raw_headers = headers or []
         self.method = method
         self._url = _url
         self._session = None
@@ -458,7 +458,7 @@ cdef class Request(Message):
         if existing_cookie:
             self.set_header(b"cookie", existing_cookie + b";" + new_value)
         else:
-            self.__headers.append((b"cookie", new_value))
+            self._raw_headers.append((b"cookie", new_value))
 
     @property
     def etag(self):
@@ -484,7 +484,7 @@ cdef class Response(Message):
         list headers = None,
         Content content = None
     ):
-        self.__headers = headers or []
+        self._raw_headers = headers or []
         self.status = status
         self.content = content
 
@@ -526,7 +526,7 @@ cdef class Response(Message):
         return None
 
     def set_cookie(self, Cookie cookie):
-        self.__headers.append((b'set-cookie', write_cookie_for_response(cookie)))
+        self._raw_headers.append((b'set-cookie', write_cookie_for_response(cookie)))
 
     def set_cookies(self, list cookies):
         cdef Cookie cookie

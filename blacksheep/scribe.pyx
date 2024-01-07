@@ -160,7 +160,7 @@ cpdef bytes write_request_without_body(Request request):
 
     ensure_host_header(request)
 
-    extend_data_with_headers(request.__headers, data)
+    extend_data_with_headers(request._raw_headers, data)
     data.extend(b'\r\n')
     return bytes(data)
 
@@ -172,7 +172,7 @@ cpdef bytes write_small_request(Request request):
     ensure_host_header(request)
     set_headers_for_content(request)
 
-    extend_data_with_headers(request.__headers, data)
+    extend_data_with_headers(request._raw_headers, data)
     data.extend(b'\r\n')
     if request.content:
         data.extend(request.content.body)
@@ -183,7 +183,7 @@ cdef bytes write_small_response(Response response):
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
     set_headers_for_content(response)
-    extend_data_with_headers(response.__headers, data)
+    extend_data_with_headers(response._raw_headers, data)
     data.extend(b'\r\n')
     if response.content:
         data.extend(response.content.body)
@@ -236,7 +236,7 @@ async def write_request(Request request):
     set_headers_for_content(request)
 
     yield HTTP_METHODS[request.method] + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
-        write_headers(request.__headers) + b'\r\n'
+        write_headers(request._raw_headers) + b'\r\n'
 
     content = request.content
 
@@ -297,7 +297,7 @@ async def write_response(Response response):
     set_headers_for_content(response)
 
     yield STATUS_LINES[response.status] + \
-        write_headers(response.__headers) + b'\r\n'
+        write_headers(response._raw_headers) + b'\r\n'
 
     async for chunk in write_response_content(response):
         yield chunk
@@ -312,7 +312,7 @@ async def send_asgi_response(Response response, object send):
     await send({
         'type': 'http.response.start',
         'status': response.status,
-        'headers': response.__headers
+        'headers': response._raw_headers
     })
 
     if content:

@@ -16,7 +16,7 @@ from .url cimport URL
 
 
 cdef class Message:
-    cdef list __headers
+    cdef list _raw_headers
     cdef public Content content
     cdef object __weakref__
 

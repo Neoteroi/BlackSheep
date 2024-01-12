@@ -546,9 +546,7 @@ def get_async_wrapper(
 
     @wraps(method)
     async def handler(request):
-        values = []
-        for binder in binders:
-            values.append(await binder.get_parameter(request))
+        values = [await binder.get_parameter(request) for binder in binders]
         return await method(*values)
 
     return handler

@@ -577,6 +577,16 @@ class MultiRouterMixin:
         for router in self._sub_routers:
             yield from router
 
+    def iter_with_methods(self):
+        """
+        Iters through the routes defined in this Router, yielding each route
+        and its HTTP method.
+        """
+        yield from super().__iter__()  # type: ignore
+
+        for router in self._sub_routers:
+            yield from router.iter_with_methods()
+
     def get_match(self, request: Request) -> Optional[RouteMatch]:
         for router in self._sub_routers:
             match = router.get_match(request)

@@ -130,7 +130,7 @@ jobs:
           fi
 
       - name: Upload pytest test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
           path: junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
@@ -142,18 +142,18 @@ jobs:
 
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.10
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.11
 
       - name: Create distribution package
         run: python setup.py sdist
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.10
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.11
 
       - name: Upload distribution package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-ubuntu-no-wheels
           path: dist
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.10
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.11
 
   build-wheels:
     needs: build
@@ -206,9 +206,9 @@ jobs:
         run: |
           python -m build
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-${{ matrix.os }}-${{ matrix.python-version }}
           path: dist
 
       - name: Test wheels
@@ -224,9 +224,10 @@ jobs:
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Download a distribution artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: dist-*
+          merge-multiple: true
           path: dist
 
       - name: Use Python 3.11

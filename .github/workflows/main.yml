@@ -226,7 +226,7 @@ jobs:
       - name: Download a distribution artifact
         uses: actions/download-artifact@v4
         with:
-          name: dist-*
+          pattern: dist-*
           merge-multiple: true
           path: dist
 

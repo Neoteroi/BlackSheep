@@ -4153,7 +4153,7 @@ async def test_application_sub_router_normalization():
     # https://github.com/Neoteroi/BlackSheep/issues/466
     @dataclass
     class Person:
-        id: int | None = None
+        id: Optional[int] = None
         name: str = ""
 
     @router.post("/")

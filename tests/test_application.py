@@ -4143,3 +4143,39 @@ def test_mounting_apps_using_the_same_router_raises_error():
 
     with pytest.raises(SharedRouterError):
         Application(router=single_router)
+
+
+@pytest.mark.asyncio
+async def test_application_sub_router_normalization():
+    router = Router()
+    app = FakeApplication(router=Router(sub_routers=[router]))
+
+    # https://github.com/Neoteroi/BlackSheep/issues/466
+    @dataclass
+    class Person:
+        id: int | None = None
+        name: str = ""
+
+    @router.post("/")
+    async def hello(request: Request, p: Person):
+        return f"{request.client_ip}:Hello, {p.name}!"
+
+    content = b'{"id": 1, "name": "Charlie Brown"}'
+
+    await app.start()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"application/json"),
+            ],
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response is not None
+    assert response.status == 200

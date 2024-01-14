@@ -44,10 +44,17 @@ cdef class FormPart:
     cdef readonly bytes charset
 
 
+cdef class ServerSentEvent:
+    cdef readonly object data
+    cdef readonly str event
+    cdef readonly str id
+    cdef readonly int retry
+    cdef readonly str comment
+
+
 cdef class MultiPartFormData(Content):
     cdef readonly list parts
     cdef readonly bytes boundary
-
 
 
 cdef dict parse_www_form_urlencoded(str content)

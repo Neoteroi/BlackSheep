@@ -270,3 +270,39 @@ cpdef bytes write_multipart_form_data(MultiPartFormData data):
     contents.extend(data.boundary)
     contents.extend(b'--\r\n')
     return bytes(contents)
+
+
+cdef class ServerSentEvent:
+    """
+    Represents a single event of a Server-sent event communication, to be used
+    in a asynchronous generator.
+
+    Attributes:
+        data: An object that will be transmitted to the client, in JSON.
+        event: Optional event name.
+        id: Optional event ID to set the EventSource's last event ID value.
+        retry: The reconnection time. If the connection to the server is lost,
+               the browser will wait for the specified time before attempting
+               to reconnect.
+        comment: Optional comment.
+    """
+
+    def __init__(
+        self,
+        object data,
+        str event = None,
+        str id = None,
+        int retry = -1,
+        str comment = None,
+    ):
+        """
+        Creates an instance of ServerSentEvent
+        """
+        self.data = data
+        self.event = event
+        self.id = id
+        self.retry = retry
+        self.comment = comment
+
+    def __repr__(self):
+        return f"ServerSentEvent({self.data})"

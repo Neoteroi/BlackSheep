@@ -110,9 +110,9 @@ class ServerSentEvent:
         data: An object that will be transmitted to the client, in JSON.
         event: Optional event name.
         id: Optional event ID to set the EventSource's last event ID value.
-        retry: The reconnection time. If the connection to the server is lost,
-               the browser will wait for the specified time before attempting
-               to reconnect.
+        retry: Optional reconnection time, in milliseconds.
+               If the connection to the server is lost, the browser will wait
+               for the specified time before attempting to reconnect.
         comment: Optional comment.
     """
 
@@ -121,7 +121,7 @@ class ServerSentEvent:
         data: Any,
         event: Optional[str] = None,
         id: Optional[str] = None,
-        retry: Optional[int] = None,
+        retry: int = -1,
         comment: Optional[str] = None,
     ):
         self.data = data

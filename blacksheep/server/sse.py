@@ -2,7 +2,7 @@
 This module offer built-in functions for Server Sent Events.
 """
 from collections.abc import AsyncIterable
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from blacksheep.contents import ServerSentEvent, StreamedContent
 from blacksheep.messages import Response
@@ -48,6 +48,6 @@ class ServerEventsResponse(Response):
         self,
         events_provider: EventsProvider,
         status: int = 200,
-        headers: List[Tuple[bytes, bytes]] | None = None,
+        headers: Optional[List[Tuple[bytes, bytes]]] = None,
     ) -> None:
         super().__init__(status, headers, ServerSentEventsContent(events_provider))

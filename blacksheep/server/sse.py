@@ -49,4 +49,6 @@ class ServerEventsResponse(Response):
         status: int = 200,
         headers: Optional[List[Tuple[bytes, bytes]]] = None,
     ) -> None:
+        if headers is None:
+            headers = [(b"Cache-Control", b"no-cache"), (b"Connection", b"Keep-Alive")]
         super().__init__(status, headers, ServerSentEventsContent(events_provider))

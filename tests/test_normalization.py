@@ -1,8 +1,7 @@
 import sys
-from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from inspect import Parameter, _ParameterKind
-from typing import List, Optional, Sequence, Union
+from typing import AsyncIterable, List, Optional, Sequence, Union
 
 import pytest
 from guardpost import Identity, User

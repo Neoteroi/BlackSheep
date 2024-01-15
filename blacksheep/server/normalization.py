@@ -1,5 +1,5 @@
 import inspect
-from functools import wraps
+from functools import partial, wraps
 from inspect import Signature, _empty, _ParameterKind  # type: ignore
 from typing import (
     Any,
@@ -26,6 +26,7 @@ from blacksheep.messages import Request, Response
 from blacksheep.normalization import copy_special_attributes
 from blacksheep.server import responses
 from blacksheep.server.routing import Route
+from blacksheep.server.sse import ServerEventsResponse, ServerSentEvent
 from blacksheep.server.websocket import WebSocket
 
 from .bindings import (
@@ -94,8 +95,9 @@ def _get_method_annotations_or_throw(method):
         raise  # pragma: no cover
 
 
-def _get_method_annotations_base(method):
-    signature = Signature.from_callable(method)
+def _get_method_annotations_base(method, signature: Optional[Signature] = None):
+    if signature is None:
+        signature = Signature.from_callable(method)
     params = {
         key: ParamInfo(
             value.name, value.annotation, value.kind, value.default, str(value)
@@ -141,17 +143,48 @@ class NormalizationError(Exception):
 class UnsupportedSignatureError(NormalizationError):
     def __init__(self, method):
         super().__init__(
-            f"Cannot normalize method `{method.__qualname__}` because its "
+            f"Cannot normalize the method `{method.__qualname__}` because its "
             f"signature contains *args, or *kwargs, or keyword only parameters. "
             f"If you use a decorator, please use `functools.@wraps` "
             f"with your wrapper, to fix this error."
         )
 
 
+class AsyncGeneratorMissingAnnotationError(NormalizationError):
+    """
+    Exception raised when a request handler is defined as async generator but is not
+    annotated with return type information.
+    """
+
+    def __init__(self, method) -> None:
+        super().__init__(
+            f"Cannot normalize the method `{method.__qualname__}` because it "
+            "is defined as asynchronous generator but its return type is not "
+            "specified. To resolve, add a return type annotation like AsyncIterable[T] "
+            "and ensure the type is configured using the register_streamed_type "
+            "function."
+        )
+
+
+class AsyncGeneratorMissingResponseTypeError(NormalizationError):
+    """
+    Exception raised when a request handler is defined as async generator but there is
+    no Response type configured to handle the type it yields.
+    """
+
+    def __init__(self, method, yielded_type) -> None:
+        super().__init__(
+            f"Cannot normalize the method `{method.__qualname__}` because there "
+            f"is no Response type configured to handle its yield type {yielded_type}. "
+            "To resolve, configure the response type using the register_streamed_type "
+            "function."
+        )
+
+
 class UnsupportedForwardRefInSignatureError(NormalizationError):
     def __init__(self, unsupported_type):
         super().__init__(  # pragma: no cover
-            f"Cannot normalize method `{unsupported_type}` because its "
+            f"Cannot normalize the method `{unsupported_type}` because its "
             f"signature contains a forward reference (type annotation as string). "
             f"Use type annotations to exact types to fix this error. "
         )
@@ -160,9 +193,9 @@ class UnsupportedForwardRefInSignatureError(NormalizationError):
 class AmbiguousMethodSignatureError(NormalizationError):
     def __init__(self, method):
         super().__init__(
-            f"Cannot normalize method `{method.__qualname__}` due to its "
-            f"ambiguous signature. "
-            f"Please specify exact binders for its arguments."
+            f"Cannot normalize the method `{method.__qualname__}` because it has an "
+            "ambiguous signature. "
+            "Please specify exact binders for its arguments."
         )
 
 
@@ -479,6 +512,27 @@ def _get_async_wrapper_for_controller(
     return handler
 
 
+def _get_async_wrapper_for_controller_asyncgen(
+    response_type, binders: Sequence[Binder], method: Callable[..., Any]
+) -> Callable[[Request], Awaitable[Response]]:
+    @wraps(method)
+    async def handler(request):
+        values = []
+        controller = await binders[0].get_value(request)
+        await controller.on_request(request)
+
+        values.append(controller)
+
+        for binder in binders[1:]:
+            values.append(await binder.get_parameter(request))
+
+        response = response_type(partial(method, *values))
+        await controller.on_response(response)
+        return response
+
+    return handler
+
+
 def get_sync_wrapper(
     services: ContainerProtocol,
     route: Route,
@@ -520,6 +574,9 @@ def get_async_wrapper(
     params: Mapping[str, ParamInfo],
     params_len: int,
 ) -> Callable[[Request], Awaitable[Response]]:
+    """
+    Returns an asynchronous wrapper for awaitable request handlers that return objects.
+    """
     if params_len == 0:
         # the user defined a request handler with no input
         @wraps(method)
@@ -552,6 +609,55 @@ def get_async_wrapper(
     return handler
 
 
+def get_async_wrapper_for_asyncgen(
+    response_type: Any,
+    services: ContainerProtocol,
+    route: Route,
+    method: Callable[..., Any],
+    params: Mapping[str, ParamInfo],
+    params_len: int,
+) -> Callable[[Request], Awaitable[Response]]:
+    """
+    Returns an asynchronous wrapper for a request handler defined as asynchronous
+    generator yielding objects. This function must be called with the right
+    response_type argument, able to handle objects yielded by the method.
+    """
+    if params_len == 0:
+        # the user defined a request handler with no input
+        # this should almost never happen as the user should handle
+        # request.is_disconnected() for a streaming response
+        @wraps(method)
+        async def handler(_) -> Response:  # type: ignore
+            return response_type(method)
+
+        return handler
+
+    if params_len == 1:
+        param_name = list(params)[0]
+        # In this case, we
+        if param_name == "request" or params[param_name].annotation is Request:
+
+            @wraps(method)
+            async def normal_sse_handler(request) -> Response:
+                return response_type(partial(method, request))
+
+            return normal_sse_handler
+
+    binders = get_binders(route, services)
+
+    if isinstance(binders[0], ControllerBinder):
+        return _get_async_wrapper_for_controller_asyncgen(
+            response_type, binders, method
+        )
+
+    @wraps(method)
+    async def handler(request):
+        values = [await binder.get_parameter(request) for binder in binders]
+        return response_type(partial(method, *values))
+
+    return handler
+
+
 def _get_async_wrapper_for_output(
     method: Callable[[Request], Any],
 ) -> Callable[[Request], Awaitable[Response]]:
@@ -562,13 +668,45 @@ def _get_async_wrapper_for_output(
     return handler
 
 
+_STREAMING_TYPES = {ServerSentEvent: ServerEventsResponse}
+
+
+def register_streamed_type(object_type, response_class):
+    """
+    Registers a response class used to handle a kind of object yielded by an
+    asynchronous generator, to describe how that type should be handled.
+    """
+    _STREAMING_TYPES[object_type] = response_class
+
+
+def get_streaming_response_class(object_type):
+    """
+    Returns the kind of Response class used to handle objects of the given type, or None
+    if None is configured.
+    """
+    try:
+        return _STREAMING_TYPES[object_type]
+    except KeyError:
+        return None
+
+
 def normalize_handler(
     route: Route, services: ContainerProtocol, http_method: str = ""
 ) -> Callable[[Request], Awaitable[Response]]:
+    """
+    Root function used to normalize a request handler. The objective of this function is
+    to improve the developer experience, so developers using BlackSheep have more
+    options when defining request handlers.
+
+    When a request handler already has the right signature, it is kept as-is (this
+    avoids performance fees when handling request handlers). If a request handler
+    instead has an arbitrary signature, it is wrapped inside a normal request handler
+    (`async def handler(request) -> Response: ...`).
+    """
     method = route.handler
 
     sig = Signature.from_callable(method)
-    params = _get_method_annotations_base(method)
+    params = _get_method_annotations_base(method, sig)
     params_len = len(params)
 
     if any(
@@ -582,6 +720,22 @@ def normalize_handler(
     # normalize input
     if inspect.iscoroutinefunction(method):
         normalized = get_async_wrapper(services, route, method, params, params_len)
+    elif inspect.isasyncgenfunction(method):
+        # normalize a request handler defined as asynchronous generator yielding objects
+        # for best user experience
+        yielded_type = get_asyncgen_yield_type(method)
+
+        if yielded_type is None:
+            raise AsyncGeneratorMissingAnnotationError(method)
+
+        response_type = get_streaming_response_class(yielded_type)
+
+        if response_type is None:
+            raise AsyncGeneratorMissingResponseTypeError(method, yielded_type)
+
+        normalized = get_async_wrapper_for_asyncgen(
+            response_type, services, route, method, params, params_len
+        )
     else:
         normalized = get_sync_wrapper(services, route, method, params, params_len)
 
@@ -656,3 +810,33 @@ def normalize_middleware(
         return middleware
 
     return _get_middleware_async_binder(middleware, services)
+
+
+def get_asyncgen_yield_type(fn) -> Any:
+    """
+    Returns the yield type T for an asynchronous generator with a return type annotation
+    of AsyncIterable[T].
+
+    async def example(data: str) -> AsyncIterable[int]:
+        ...
+
+    get_asyncgen_yield_type(example)
+    int
+    """
+    if not inspect.isasyncgenfunction(fn):
+        raise ValueError("The given function is not an async generator.")
+
+    signature = Signature.from_callable(fn)
+    return_annotation = signature.return_annotation
+
+    origin = getattr(return_annotation, "__origin__", None)
+
+    if origin is None:
+        return None
+
+    args = getattr(return_annotation, "__args__", None)
+
+    if args is not None and len(args) >= 1:
+        return args[0]
+
+    return None

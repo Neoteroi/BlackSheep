@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds a function to detect when the server process is terminating because it
   received a `SIGINT` or a `SIGTERM` command
   (`from blacksheep.server.application import is_stopping`).
+- Adds support for request handler normalization for methods defined as
+  asynchronous generators. This feature is enabled by default only for
+  ServerSentEvents, but can be configured for user defined types.
 
 Refer to the [BlackSheep documentation](https://www.neoteroi.dev/blacksheep/server-sent-events/)
-for more information.
+and to the [examples repository](https://github.com/Neoteroi/BlackSheep-Examples/tree/main/server-sent-events) for more information on server-sent events support.
 
 ## [2.0.5] - 2024-01-12 :pie:
 

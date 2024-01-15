@@ -41,7 +41,7 @@ class ServerSentEventsContent(StreamedContent):
 
 class ServerEventsResponse(Response):
     """
-    An HTTP Response that can be used to stream Server-Sent Events to a client.
+    An Response type that can be used to stream Server-Sent Events to a client.
     """
 
     def __init__(

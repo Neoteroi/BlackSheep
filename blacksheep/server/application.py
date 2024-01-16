@@ -54,7 +54,6 @@ from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import DefaultFileOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
-from blacksheep.server.process import is_stopping as is_stopping  # noqa
 from blacksheep.server.process import use_shutdown_handler
 from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import (

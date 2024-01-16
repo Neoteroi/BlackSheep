@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds built-in support for [Server-Sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
 - Adds a function to detect when the server process is terminating because it
   received a `SIGINT` or a `SIGTERM` command
-  (`from blacksheep.server.application import is_stopping`).
+  (`from blacksheep.server.process import is_stopping`).
 - Adds support for request handler normalization for methods defined as
   asynchronous generators. This feature is enabled by default only for
   ServerSentEvents, but can be configured for user defined types.

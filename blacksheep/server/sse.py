@@ -10,7 +10,7 @@ from blacksheep.scribe import write_sse
 __all__ = [
     "ServerSentEvent",
     "ServerSentEventsContent",
-    "ServerEventsResponse",
+    "ServerSentEventsResponse",
     "EventsProvider",
 ]
 
@@ -38,7 +38,7 @@ class ServerSentEventsContent(StreamedContent):
         return write_events
 
 
-class ServerEventsResponse(Response):
+class ServerSentEventsResponse(Response):
     """
     An Response type that can be used to stream Server-Sent Events to a client.
     """

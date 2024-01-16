@@ -26,7 +26,7 @@ from blacksheep.messages import Request, Response
 from blacksheep.normalization import copy_special_attributes
 from blacksheep.server import responses
 from blacksheep.server.routing import Route
-from blacksheep.server.sse import ServerEventsResponse, ServerSentEvent
+from blacksheep.server.sse import ServerSentEvent, ServerSentEventsResponse
 from blacksheep.server.websocket import WebSocket
 
 from .bindings import (
@@ -668,7 +668,7 @@ def _get_async_wrapper_for_output(
     return handler
 
 
-_STREAMING_TYPES = {ServerSentEvent: ServerEventsResponse}
+_STREAMING_TYPES = {ServerSentEvent: ServerSentEventsResponse}
 
 
 def register_streamed_type(object_type, response_class):

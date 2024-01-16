@@ -215,6 +215,7 @@ for more details and examples.
   methods](https://www.neoteroi.dev/blacksheep/controllers/)
 * [Middlewares](https://www.neoteroi.dev/blacksheep/middlewares/)
 * [WebSocket](https://www.neoteroi.dev/blacksheep/websocket/)
+* [Server-Sent Events (SSE)](https://www.neoteroi.dev/blacksheep/server-sent-events/)
 * [Built-in support for dependency
   injection](https://www.neoteroi.dev/blacksheep/dependency-injection/)
 * [Support for automatic binding of route and query parameters to request
@@ -281,6 +282,5 @@ Please refer to the [documentation website](https://www.neoteroi.dev/blacksheep/
 [BlackSheep community in Gitter](https://gitter.im/Neoteroi/BlackSheep).
 
 ## Branches
-The _main_ branch contains the currently developed version, which is version 2
-alpha. The _v1_ branch contains version 1 of the web framework, for bugs fixes
+The _main_ branch contains the currently developed version, which is version 2. The _v1_ branch contains version 1 of the web framework, for bugs fixes
 and maintenance.

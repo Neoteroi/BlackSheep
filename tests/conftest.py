@@ -10,6 +10,7 @@ from tests.utils.application import FakeApplication
 os.environ["APP_DEFAULT_ROUTER"] = "0"
 os.environ["APP_JINJA_PACKAGE_NAME"] = "tests.testapp"
 os.environ["APP_JINJA_PACKAGE_PATH"] = "templates"
+os.environ["APP_SIGNAL_HANDLER"] = "0"
 
 
 @pytest.fixture

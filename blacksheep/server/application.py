@@ -54,6 +54,7 @@ from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import DefaultFileOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
+from blacksheep.server.process import use_shutdown_handler
 from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import (
     MountRegistry,
@@ -215,6 +216,9 @@ class Application(BaseApplication):
         if parent_file:
             _auto_import_controllers(parent_file)
             _auto_import_routes(parent_file)
+
+        if env_settings.add_signal_handler:
+            use_shutdown_handler(self)
 
     @property
     def controllers_router(self) -> RoutesRegistry:

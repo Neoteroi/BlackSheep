@@ -100,3 +100,32 @@ def parse_www_form(content: str) -> Dict[str, Union[str, List[str]]]:
 def write_www_form_urlencoded(
     data: Union[Dict[str, str], List[Tuple[str, str]]]
 ) -> bytes: ...
+
+class ServerSentEvent:
+    """
+    Represents a single event of a Server-sent event communication, to be used
+    in a asynchronous generator.
+
+    Attributes:
+        data: An object that will be transmitted to the client, in JSON.
+        event: Optional event name.
+        id: Optional event ID to set the EventSource's last event ID value.
+        retry: Optional reconnection time, in milliseconds.
+               If the connection to the server is lost, the browser will wait
+               for the specified time before attempting to reconnect.
+        comment: Optional comment.
+    """
+
+    def __init__(
+        self,
+        data: Any,
+        event: Optional[str] = None,
+        id: Optional[str] = None,
+        retry: int = -1,
+        comment: Optional[str] = None,
+    ):
+        self.data = data
+        self.event = event
+        self.id = id
+        self.retry = retry
+        self.comment = comment

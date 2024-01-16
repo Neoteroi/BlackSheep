@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2024-01-16 :kr: :heart:
+
+- Adds built-in support for [Server-Sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
+- Adds a function to detect when the server process is terminating because it
+  received a `SIGINT` or a `SIGTERM` command
+  (`from blacksheep.server.process import is_stopping`).
+- Adds support for request handler normalization for methods defined as
+  asynchronous generators. This feature is enabled by default only for
+  ServerSentEvents, but can be configured for user defined types.
+
+Refer to the [BlackSheep documentation](https://www.neoteroi.dev/blacksheep/server-sent-events/)
+and to the [examples repository](https://github.com/Neoteroi/BlackSheep-Examples/tree/main/server-sent-events) for more information on server-sent events support.
+
 ## [2.0.5] - 2024-01-12 :pie:
 
 - Fixes [#466](https://github.com/Neoteroi/BlackSheep/issues/466), regression

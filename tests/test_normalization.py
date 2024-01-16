@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass
 from inspect import Parameter, _ParameterKind
-from typing import List, Optional, Sequence, Union
+from typing import AsyncIterable, List, Optional, Sequence, Union
 
 import pytest
 from guardpost import Identity, User
@@ -33,6 +33,7 @@ from blacksheep.server.normalization import (
     UnsupportedSignatureError,
     _check_union,
     _get_raw_bound_value_type,
+    get_asyncgen_yield_type,
     get_binders,
     normalize_handler,
     normalize_middleware,
@@ -705,3 +706,16 @@ async def test_binder_through_di():
     assert response is not None
     text = await response.text()
     assert text == "Foo!"
+
+
+def test_get_asyncgen_yield_type():
+    async def example_1(data: str) -> AsyncIterable[int]:
+        for i in range(10):
+            yield i
+
+    async def example_2() -> AsyncIterable[str]:
+        for i in range(10):
+            yield str(i)
+
+    assert get_asyncgen_yield_type(example_1) is int
+    assert get_asyncgen_yield_type(example_2) is str

@@ -66,6 +66,21 @@ class InvalidRouterConfigurationError(RouteException):
     """Base class for router configuration errors"""
 
 
+class OrphanDefaultRouterError(InvalidRouterConfigurationError):
+    """
+    Error raised when the default router was configured with routes, but it is not
+    associated to any application.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Invalid router configuration: the default router was used to register "
+            "routes, but it is not associated to any application object. To resolve, "
+            "ensure that the router bound to your application is used to register "
+            "routes. Do not use routing methods imported from the library."
+        )
+
+
 class SharedRouterError(InvalidRouterConfigurationError):
     """
     Error raised when the more than one application is using the same router.
@@ -941,11 +956,27 @@ def validate_router(app):
             # by uvicorn reload feature, when uvicorn is started programmatically.
             # See https://github.com/Neoteroi/BlackSheep/issues/438
             logging.getLogger("blacksheep.server").warning(
-                "[BlackSheep] The application was reloaded, resetting its router."
+                "The application was reloaded, resetting its router."
             )
             app_router.reset()
             return
         raise SharedRouterError()
+
+
+def validate_default_router():
+    """
+    This method ensures that the default router is associated to an application, if it
+    defines any route.
+    """
+    if set(router):
+        # The default router has routes defined, ensure that it is bound to an
+        # application
+        # verify that
+        try:
+            _apps_by_router_id[id(router)]
+        except KeyError:
+            # Not good
+            raise OrphanDefaultRouterError() from None
 
 
 # Singleton router used to store initial configuration,

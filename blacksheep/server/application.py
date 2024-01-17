@@ -64,7 +64,7 @@ from blacksheep.server.routing import (
     RoutesRegistry,
 )
 from blacksheep.server.routing import router as default_router
-from blacksheep.server.routing import validate_router
+from blacksheep.server.routing import validate_default_router, validate_router
 from blacksheep.server.websocket import WebSocket, format_reason
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
@@ -706,6 +706,7 @@ class Application(BaseApplication):
         if self.on_start:
             await self.on_start.fire()
 
+        validate_default_router()
         self.use_controllers()
         self.normalize_handlers()
         self.configure_middlewares()

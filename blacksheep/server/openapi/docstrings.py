@@ -409,7 +409,7 @@ class NumpydocDialect(IndentDocstringDialect):
 
 class GoogleDocDialect(IndentDocstringDialect):
     def is_match(self, docstring: str) -> bool:
-        return re.search(r"^([\s\t]*Args:?)", docstring) is not None
+        return re.search(r"^([\s\t]*Args:?)", docstring, re.M) is not None
 
     _sections = {"Args", "Returns", "Raises"}
 

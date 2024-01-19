@@ -33,7 +33,7 @@ from blacksheep.server.openapi.docstrings import (
                     "c": ParameterInfo("list of str", value_type=List[str]),
                 },
             ),
-            True
+            True,
         ),
         (
             """
@@ -55,7 +55,7 @@ from blacksheep.server.openapi.docstrings import (
                     "c": ParameterInfo("list of str", value_type=List[str]),
                 },
             ),
-            True
+            True,
         ),
         (
             """
@@ -90,7 +90,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=float,
                 return_description="the x intercept of the line M{y=m*x+b}.",
             ),
-            True
+            True,
         ),
         (
             """
@@ -127,7 +127,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=float,
                 return_description="the x intercept of the line M{y=m*x+b}.",
             ),
-            True
+            True,
         ),
         (
             """
@@ -145,7 +145,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=None,
                 return_description=None,
             ),
-            True
+            True,
         ),
         (
             """
@@ -165,7 +165,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=None,
                 return_description=None,
             ),
-            True
+            True,
         ),
         (
             """
@@ -185,7 +185,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=None,
                 return_description=None,
             ),
-            True
+            True,
         ),
         (
             """
@@ -205,7 +205,7 @@ from blacksheep.server.openapi.docstrings import (
                 },
                 return_description="this is a description of what is returned",
             ),
-            True
+            True,
         ),
         (
             """
@@ -236,7 +236,7 @@ from blacksheep.server.openapi.docstrings import (
                 ),
                 parameters={},
             ),
-            False
+            False,
         ),
     ],
 )
@@ -435,7 +435,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=str,
                 return_description="a value in a string",
             ),
-            True
+            True,
         ),
         (
             """
@@ -459,7 +459,7 @@ def test_rest_dialect(docstring, expected_info):
                     "c": ParameterInfo("list of str", value_type=List[str]),
                 },
             ),
-            True
+            True,
         ),
         (
             """
@@ -505,7 +505,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=None,
                 return_description=None,
             ),
-            True
+            True,
         ),
         (
             """
@@ -552,7 +552,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=str,
                 return_description="a value in a string",
             ),
-            True
+            True,
         ),
         (
             """
@@ -593,7 +593,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=str,
                 return_description="a value in a string",
             ),
-            True
+            True,
         ),
         (
             """
@@ -608,7 +608,7 @@ def test_rest_dialect(docstring, expected_info):
                 description="Lorem ipsum dolor sit amet.",
                 parameters={},
             ),
-            False
+            False,
         ),
     ],
 )

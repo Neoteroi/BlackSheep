@@ -14,7 +14,7 @@ from blacksheep.server.openapi.docstrings import (
 
 
 @pytest.mark.parametrize(
-    "docstring,expected_info",
+    "docstring,expected_info,match",
     [
         (
             """
@@ -33,6 +33,7 @@ from blacksheep.server.openapi.docstrings import (
                     "c": ParameterInfo("list of str", value_type=List[str]),
                 },
             ),
+            True,
         ),
         (
             """
@@ -54,6 +55,7 @@ from blacksheep.server.openapi.docstrings import (
                     "c": ParameterInfo("list of str", value_type=List[str]),
                 },
             ),
+            True,
         ),
         (
             """
@@ -88,6 +90,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=float,
                 return_description="the x intercept of the line M{y=m*x+b}.",
             ),
+            True,
         ),
         (
             """
@@ -124,6 +127,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=float,
                 return_description="the x intercept of the line M{y=m*x+b}.",
             ),
+            True,
         ),
         (
             """
@@ -141,6 +145,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=None,
                 return_description=None,
             ),
+            True,
         ),
         (
             """
@@ -160,6 +165,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=None,
                 return_description=None,
             ),
+            True,
         ),
         (
             """
@@ -179,6 +185,7 @@ from blacksheep.server.openapi.docstrings import (
                 return_type=None,
                 return_description=None,
             ),
+            True,
         ),
         (
             """
@@ -198,6 +205,7 @@ from blacksheep.server.openapi.docstrings import (
                 },
                 return_description="this is a description of what is returned",
             ),
+            True,
         ),
         (
             """
@@ -228,11 +236,13 @@ from blacksheep.server.openapi.docstrings import (
                 ),
                 parameters={},
             ),
+            False,
         ),
     ],
 )
-def test_epytext_dialect(docstring, expected_info):
+def test_epytext_dialect(docstring, expected_info, match):
     dialect = EpytextDialect()
+    assert dialect.is_match(docstring) is match
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info
@@ -371,13 +381,14 @@ def test_epytext_dialect(docstring, expected_info):
 )
 def test_rest_dialect(docstring, expected_info):
     dialect = ReStructuredTextDialect()
+    assert dialect.is_match(docstring)
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info
 
 
 @pytest.mark.parametrize(
-    "docstring,expected_info",
+    "docstring,expected_info,match",
     [
         (
             """
@@ -424,6 +435,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=str,
                 return_description="a value in a string",
             ),
+            True,
         ),
         (
             """
@@ -447,6 +459,7 @@ def test_rest_dialect(docstring, expected_info):
                     "c": ParameterInfo("list of str", value_type=List[str]),
                 },
             ),
+            True,
         ),
         (
             """
@@ -492,6 +505,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=None,
                 return_description=None,
             ),
+            True,
         ),
         (
             """
@@ -538,6 +552,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=str,
                 return_description="a value in a string",
             ),
+            True,
         ),
         (
             """
@@ -578,6 +593,7 @@ def test_rest_dialect(docstring, expected_info):
                 return_type=str,
                 return_description="a value in a string",
             ),
+            True,
         ),
         (
             """
@@ -592,11 +608,13 @@ def test_rest_dialect(docstring, expected_info):
                 description="Lorem ipsum dolor sit amet.",
                 parameters={},
             ),
+            False,
         ),
     ],
 )
-def test_numpydoc_dialect(docstring, expected_info):
+def test_numpydoc_dialect(docstring, expected_info, match):
     dialect = NumpydocDialect()
+    assert dialect.is_match(docstring) is match
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info
@@ -777,6 +795,7 @@ def test_googledoc_dialect_warns_about_invalid_parameter():
 )
 def test_googledoc_dialect(docstring, expected_info):
     dialect = GoogleDocDialect()
+    assert dialect.is_match(docstring)
 
     info = dialect.parse_docstring(docstring)
     assert expected_info == info

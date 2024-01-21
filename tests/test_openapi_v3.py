@@ -1,8 +1,12 @@
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
 from typing import Generic, List, Optional, Sequence, TypeVar, Union
 from uuid import UUID
+
+if sys.version_info >= (3, 9):
+    from typing import Annotated
 
 import pytest
 from openapidocs.common import Format, Serializer
@@ -24,6 +28,7 @@ from pydantic import VERSION as PYDANTIC_LIB_VERSION
 from pydantic import BaseModel, HttpUrl
 from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
 
+from blacksheep.messages import Response
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromForm
 from blacksheep.server.controllers import APIController
@@ -239,6 +244,35 @@ def get_cats_api() -> Application:
 
     @delete("/api/cats/{cat_id}")
     def delete_cat(cat_id: int) -> None:
+        ...
+
+    return app
+
+
+def get_cats_annotated_api() -> Application:
+    app = get_app()
+    get = app.router.get
+    post = app.router.post
+    delete = app.router.delete
+
+    @get("/api/cats")
+    def get_cats_annotated() -> Annotated[Response, PaginatedSet[Cat]]:
+        ...
+
+    @get("/api/cats_2")
+    def get_cats_annotated_2() -> Annotated[Response, PaginatedSet[Cat], List[Cat]]:
+        ...
+
+    @get("/api/cats/{cat_id}")
+    def get_cat_details_annotated(cat_id: int) -> Annotated[Response, CatDetails]:
+        ...
+
+    @post("/api/cats")
+    def create_cat_annotated(input: CreateCatInput) -> Annotated[Response, Cat]:
+        ...
+
+    @delete("/api/cats/{cat_id}")
+    def delete_cat_annotated(cat_id: int) -> Annotated[Response, None]:
         ...
 
     return app
@@ -1594,6 +1628,374 @@ components:
                 name:
                     type: string
                     nullable: false
+        CatOwner:
+            type: object
+            required:
+            - id
+            - first_name
+            - last_name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                first_name:
+                    type: string
+                    nullable: false
+                last_name:
+                    type: string
+                    nullable: false
+        CatDetails:
+            type: object
+            required:
+            - id
+            - name
+            - owner
+            - friends
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                owner:
+                    $ref: '#/components/schemas/CatOwner'
+                friends:
+                    type: array
+                    nullable: false
+                    items:
+                        type: integer
+                        format: int64
+                        nullable: false
+tags: []
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_cats_annotated_api(docs: OpenAPIHandler, serializer: Serializer):
+    if sys.version_info < (3, 9):
+        pytest.skip(
+            "Python 3.9+ required. Annotated types are not supported before 3.9"
+        )
+    app = get_cats_annotated_api()
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /api/cats:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfCat'
+            operationId: get_cats_annotated
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Cat'
+            operationId: create_cat_annotated
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatInput'
+                required: true
+    /api/cats_2:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseOfPaginatedSetOfCatAndlistOfCat'
+            operationId: get_cats_annotated_2
+    /api/cats/{cat_id}:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CatDetails'
+            operationId: get_cat_details_annotated
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+        delete:
+            responses:
+                '204':
+                    description: Success response
+            operationId: delete_cat_annotated
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        CreateCatInput:
+            type: object
+            required:
+            - name
+            properties:
+                name:
+                    type: string
+                    nullable: false
+        ResponseOfPaginatedSetOfCatAndlistOfCat:
+            type: object
+            anyOf:
+            -   $ref: '#/components/schemas/PaginatedSetOfCat'
+            -   type: array
+                nullable: false
+                items:
+                    $ref: '#/components/schemas/Cat'
+        CatOwner:
+            type: object
+            required:
+            - id
+            - first_name
+            - last_name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                first_name:
+                    type: string
+                    nullable: false
+                last_name:
+                    type: string
+                    nullable: false
+        CatDetails:
+            type: object
+            required:
+            - id
+            - name
+            - owner
+            - friends
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                owner:
+                    $ref: '#/components/schemas/CatOwner'
+                friends:
+                    type: array
+                    nullable: false
+                    items:
+                        type: integer
+                        format: int64
+                        nullable: false
+tags: []
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_cats_annotated_api_capital_operations_ids(
+    capitalize_operation_id_docs: CapitalizeOperationDocs,
+    serializer: Serializer,
+):
+    if sys.version_info < (3, 9):
+        pytest.skip(
+            "Python 3.9+ required. Annotated types are not supported before 3.9"
+        )
+
+    app = get_cats_annotated_api()
+    docs = capitalize_operation_id_docs
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /api/cats:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfCat'
+            operationId: Get cats annotated
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Cat'
+            operationId: Create cat annotated
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatInput'
+                required: true
+    /api/cats_2:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResponseOfPaginatedSetOfCatAndlistOfCat'
+            operationId: Get cats annotated 2
+    /api/cats/{cat_id}:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CatDetails'
+            operationId: Get cat details annotated
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+        delete:
+            responses:
+                '204':
+                    description: Success response
+            operationId: Delete cat annotated
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+        PaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/Cat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        CreateCatInput:
+            type: object
+            required:
+            - name
+            properties:
+                name:
+                    type: string
+                    nullable: false
+        ResponseOfPaginatedSetOfCatAndlistOfCat:
+            type: object
+            anyOf:
+            -   $ref: '#/components/schemas/PaginatedSetOfCat'
+            -   type: array
+                nullable: false
+                items:
+                    $ref: '#/components/schemas/Cat'
         CatOwner:
             type: object
             required:

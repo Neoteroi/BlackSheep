@@ -1,5 +1,6 @@
 import collections.abc as collections_abc
 import inspect
+import sys
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass
@@ -9,6 +10,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
+
+if sys.version_info >= (3, 9):  # pragma: no cover
+    from typing import _AnnotatedAlias as AnnotatedAlias
 
 from openapidocs.common import Format
 from openapidocs.v3 import (
@@ -458,6 +462,30 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         return own_paths
 
+    def get_type_name_for_annotated(
+        self,
+        object_type: AnnotatedAlias,
+        context_type_args: Optional[Dict[Any, Type]] = None,
+    ) -> str:
+        """
+        This method returns a type name for an annotated type.
+        """
+        assert isinstance(
+            object_type, AnnotatedAlias
+        ), "This method requires an annotated type"
+        # Note: by default returns a string respectful of this requirement:
+        # $ref values must be RFC3986-compliant percent-encoded URIs
+        # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
+        # and C# or TypeScript Example<Foo, Bar>
+        # Becomes here represented as: ExampleOfFooAndBar
+        origin = get_origin(object_type)
+        annotations = object_type.__metadata__
+        annotations_repr = "And".join(
+            self.get_type_name(annotation, context_type_args)
+            for annotation in annotations
+        )
+        return f"{self.get_type_name(origin)}Of{annotations_repr}"
+
     def get_type_name_for_generic(
         self,
         object_type: GenericAlias,
@@ -484,6 +512,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> str:
         if context_type_args and object_type in context_type_args:
             object_type = context_type_args.get(object_type)
+        if sys.version_info >= (3, 9):  # pragma: no cover
+            if isinstance(object_type, AnnotatedAlias):
+                return self.get_type_name_for_annotated(object_type, context_type_args)
         if isinstance(object_type, GenericAlias):
             return self.get_type_name_for_generic(object_type, context_type_args)
         if hasattr(object_type, "__name__"):
@@ -661,6 +692,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if schema:
             return schema
 
+        if sys.version_info >= (3, 9):  # pragma: no cover
+            if isinstance(object_type, AnnotatedAlias):
+                schema = self._try_get_schema_for_annotated(object_type, type_args)
+                if schema:
+                    return schema
+
         if isinstance(object_type, GenericAlias):
             schema = self._try_get_schema_for_generic(object_type, type_args)
             if schema:
@@ -731,6 +768,24 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 )
 
         return []
+
+    def _try_get_schema_for_annotated(
+        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
+    ) -> Optional[Schema | Reference]:
+        annotations = [child for child in getattr(object_type, "__metadata__", [])]
+        if len(annotations) == 1:
+            return self.get_schema_by_type(annotations[0], context_type_args)
+        assert (
+            None not in annotations
+        ), "None is not a valid type for an annotated type with multiple annotations"
+        schema = Schema(
+            ValueType.OBJECT,
+            any_of=[
+                self.get_schema_by_type(annotation, context_type_args)
+                for annotation in annotations
+            ],
+        )
+        return self._handle_object_type_schema(object_type, context_type_args, schema)
 
     def _try_get_schema_for_generic(
         self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
@@ -1005,6 +1060,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 # responses[response_status_to_str(200)] = return_type
                 if data is None:
                     data = {}
+
+                if sys.version_info >= (3, 9):  # pragma: no cover
+                    if (
+                        isinstance(return_type, AnnotatedAlias)
+                        and return_type.__metadata__[0] is None
+                    ):
+                        return_type = None
 
                 if return_type is None:
                     # the user explicitly marked the request handler as returning None,

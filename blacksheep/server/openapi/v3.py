@@ -464,7 +464,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def get_type_name_for_annotated(
         self,
-        object_type: AnnotatedAlias,
+        object_type: "AnnotatedAlias",
         context_type_args: Optional[Dict[Any, Type]] = None,
     ) -> str:
         """
@@ -771,7 +771,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def _try_get_schema_for_annotated(
         self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
-    ) -> Optional[Schema | Reference]:
+    ) -> Optional[Union[Schema, Reference]]:
         annotations = [child for child in getattr(object_type, "__metadata__", [])]
         if len(annotations) == 1:
             return self.get_schema_by_type(annotations[0], context_type_args)

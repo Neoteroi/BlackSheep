@@ -6,6 +6,7 @@ from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import _AnnotatedAlias as AnnotatedAlias
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
@@ -648,6 +649,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         stored_ref = self._get_stored_reference(object_type, type_args)
         if stored_ref:  # pragma: no cover
             return stored_ref
+
+        if isinstance(object_type, AnnotatedAlias):
+            # Replace Annotated object type with the original type
+            object_type = getattr(object_type, "__origin__")
 
         if self._can_handle_class_type(object_type):
             return self._get_schema_for_class(object_type)

@@ -22,7 +22,14 @@ from openapidocs.v3 import (
 )
 from pydantic import VERSION as PYDANTIC_LIB_VERSION
 from pydantic import BaseModel, HttpUrl
-from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
+from pydantic.types import (
+    UUID4,
+    NegativeFloat,
+    PositiveInt,
+    condecimal,
+    confloat,
+    conint,
+)
 
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromForm
@@ -77,6 +84,7 @@ class PydExampleWithSpecificTypes(BaseModel):
 class PydCat(BaseModel):
     id: int
     name: str
+    childs: list[UUID4]
 
 
 class PydPaginatedSetOfCat(BaseModel):
@@ -1073,6 +1081,7 @@ components:
             required:
             - id
             - name
+            - childs
             properties:
                 id:
                     type: integer
@@ -1081,6 +1090,13 @@ components:
                 name:
                     type: string
                     nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
         PydPaginatedSetOfCat:
             type: object
             required:
@@ -1141,6 +1157,7 @@ components:
             required:
             - id
             - name
+            - childs
             properties:
                 id:
                     type: integer
@@ -1149,6 +1166,13 @@ components:
                 name:
                     type: string
                     nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
         PydPaginatedSetOfCat:
             type: object
             required:
@@ -1230,6 +1254,7 @@ components:
             required:
             - id
             - name
+            - childs
             properties:
                 id:
                     type: integer
@@ -1238,6 +1263,13 @@ components:
                 name:
                     type: string
                     nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
         PaginatedSetOfPydCat:
             type: object
             required:
@@ -1726,6 +1758,7 @@ components:
             required:
             - id
             - name
+            - childs
             properties:
                 id:
                     type: integer
@@ -1734,6 +1767,13 @@ components:
                 name:
                     type: string
                     nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
         Error:
             type: object
             required:
@@ -1783,6 +1823,7 @@ components:
             required:
             - id
             - name
+            - childs
             properties:
                 id:
                     type: integer
@@ -1791,6 +1832,13 @@ components:
                 name:
                     type: string
                     nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
         Error:
             type: object
             required:

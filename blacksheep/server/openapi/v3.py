@@ -2,8 +2,10 @@ import collections.abc as collections_abc
 import inspect
 import warnings
 from abc import ABC, abstractmethod
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 from typing import _GenericAlias as GenericAlias
@@ -656,6 +658,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if schema:
             return schema
 
+        # Dict, OrderedDict, defaultdict are handled first than GenericAlias
+        schema = self._try_get_schema_for_mapping(object_type, type_args)
+        if schema:
+            return schema
+
         # List, Set, Tuple are handled first than GenericAlias
         schema = self._try_get_schema_for_iterable(object_type, type_args)
         if schema:
@@ -721,6 +728,60 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return Schema(
             type=ValueType.ARRAY,
             items=self.get_schema_by_type(item_type, context_type_args),
+        )
+
+    def _try_get_schema_for_mapping(
+        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
+    ) -> Optional[Schema]:
+        properties_regexp = {
+            str: r"^[a-z0-9!\"#$%&'()*+,.\/:;<=>?@\[\] ^_`{|}~-]+$",
+            int: r"^[0-9]+$",
+            float: r"^[0-9]+(?:\.[0-9]+)?$",
+            Decimal: r"^[0-9]+(?:\.[0-9]+)?$",
+            UUID: r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            bool: r"^(?:true|false)$",
+        }
+
+        if object_type in {dict, defaultdict, OrderedDict}:
+            # the user didn't specify the key and value types
+            return Schema(
+                type=ValueType.OBJECT,
+                properties={
+                    properties_regexp[str]: Schema(
+                        type=ValueType.STRING,
+                    ),
+                },
+            )
+
+        origin = get_origin(object_type)
+
+        if not origin or origin not in {
+            dict,
+            Dict,
+            collections_abc.Mapping,
+        }:
+            return None
+
+        # can be Dict, Dict[str, str] or dict[str, str] (Python 3.9),
+        # note: it could also be union if it wasn't handled above for dataclasses
+        try:
+            key_type, value_type = object_type.__args__  # type: ignore
+        except AttributeError:  # pragma: no cover
+            key_type, value_type = str, str
+
+        if context_type_args and key_type in context_type_args:
+            key_type = context_type_args.get(key_type, key_type)
+
+        if context_type_args and value_type in context_type_args:
+            value_type = context_type_args.get(value_type, value_type)
+
+        return Schema(
+            type=ValueType.OBJECT,
+            properties={
+                properties_regexp.get(
+                    key_type, "^[a-zA-Z0-9_]+$"
+                ): self.get_schema_by_type(value_type, context_type_args)
+            },
         )
 
     def get_fields(self, object_type: Any) -> List[FieldInfo]:

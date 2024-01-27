@@ -779,7 +779,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             type=ValueType.OBJECT,
             properties={
                 properties_regexp.get(
-                    key_type, "^[a-zA-Z0-9_]+$"
+                    key_type, properties_regexp[str]
                 ): self.get_schema_by_type(value_type, context_type_args)
             },
         )

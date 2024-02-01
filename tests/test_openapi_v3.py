@@ -1317,7 +1317,7 @@ async def test_handling_of_mapping(docs: OpenAPIHandler, serializer: Serializer)
     app = get_app()
 
     @app.router.route("/")
-    def home() -> Mapping[str, Mapping[int, Cat]]:
+    def home() -> Mapping[str, Mapping[int, List[Cat]]]:
         ...
 
     docs.bind_app(app)
@@ -1342,13 +1342,14 @@ paths:
                         application/json:
                             schema:
                                 type: object
-                                properties:
-                                    ^[a-z0-9!\"#$%&'()*+,.\/:;<=>?@\[\] ^_`{|}~-]+$:
-                                        type: object
-                                        properties:
-                                            ^[0-9]+$:
-                                                $ref: '#/components/schemas/Cat'
+                                additionalProperties:
+                                    type: object
+                                    additionalProperties:
+                                        type: array
                                         nullable: false
+                                        items:
+                                            $ref: '#/components/schemas/Cat'
+                                    nullable: false
                                 nullable: false
             operationId: home
 components:

@@ -93,7 +93,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install black isort flake8
+          pip install black==23.3.0 isort==5.12.0 flake8==6.0.0
 
       - name: Compile Cython extensions
         run: |

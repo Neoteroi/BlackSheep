@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixes bug #38, to support properly `list[T]` and `tuple[T]` when defining
   query string parameters. Reported by @ranggakd.
-
+- Passes annotated origin type to build OpenAPI docs (#475), by @tyzhnenko.
 
 ## [2.0.6] - 2024-01-17 :kr: :heart:
 

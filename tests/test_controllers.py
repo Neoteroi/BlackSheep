@@ -488,13 +488,11 @@ async def test_controllers_with_duplicate_routes_throw(
 
     class A(Controller):
         @get(first_pattern)
-        async def index(self, request: Request):
-            ...
+        async def index(self, request: Request): ...
 
     class B(Controller):
         @get(second_pattern)
-        async def index(self, request: Request):
-            ...
+        async def index(self, request: Request): ...
 
     with pytest.raises(RouteDuplicate) as context:
         app.use_controllers()
@@ -674,13 +672,11 @@ async def test_controllers_with_duplicate_routes_with_base_route_throw(
         route = "home"
 
         @get(first_pattern)
-        async def index(self, request: Request):
-            ...
+        async def index(self, request: Request): ...
 
     class B(Controller):
         @get(second_pattern)
-        async def index(self, request: Request):
-            ...
+        async def index(self, request: Request): ...
 
     with pytest.raises(RouteDuplicate):
         app.use_controllers()
@@ -703,12 +699,10 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
         route = "home"
 
         @get(first_pattern)
-        async def index(self, request: Request):
-            ...
+        async def index(self, request: Request): ...
 
     @app.router.route(second_pattern)
-    async def home():
-        ...
+    async def home(): ...
 
     with pytest.raises(RouteDuplicate):
         app.use_controllers()

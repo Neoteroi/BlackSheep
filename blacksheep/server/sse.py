@@ -1,6 +1,7 @@
 """
 This module offer built-in functions for Server Sent Events.
 """
+
 from typing import AsyncIterable, Callable, List, Optional, Tuple
 
 from blacksheep.contents import ServerSentEvent, StreamedContent

@@ -17,6 +17,7 @@ See
 * tests/test_openapi_docstrings.py
 
 """
+
 import re
 import warnings
 from abc import ABC, abstractmethod
@@ -212,9 +213,9 @@ class PatternsDocstringDialect(DocstringDialect):
             description=collapse(description),
             parameters=self.get_parameters_info(docstring),
             return_type=return_type,
-            return_description=collapse(return_description)
-            if return_description
-            else None,
+            return_description=(
+                collapse(return_description) if return_description else None
+            ),
         )
 
 
@@ -401,9 +402,9 @@ class NumpydocDialect(IndentDocstringDialect):
             description=collapse(info.description),
             parameters=self.get_parameters_info(docstring),
             return_type=return_info.return_type if return_info else None,
-            return_description=collapse(return_info.return_description)
-            if return_info
-            else None,
+            return_description=(
+                collapse(return_info.return_description) if return_info else None
+            ),
         )
 
 
@@ -482,9 +483,9 @@ class GoogleDocDialect(IndentDocstringDialect):
             description=collapse(info.description),
             parameters=self.get_parameters_info(docstring),
             return_type=return_info.return_type if return_info else None,
-            return_description=collapse(return_info.return_description)
-            if return_info
-            else None,
+            return_description=(
+                collapse(return_info.return_description) if return_info else None
+            ),
         )
 
 

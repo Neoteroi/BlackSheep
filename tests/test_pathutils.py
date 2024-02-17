@@ -30,9 +30,11 @@ def test_get_file_extension_from_name(full_path, expected_result):
         ("example.png", "image/png"),
         (
             "example.js",
-            "text/javascript"
-            if sys.version_info >= (3, 12)
-            else "application/javascript",
+            (
+                "text/javascript"
+                if sys.version_info >= (3, 12)
+                else "application/javascript"
+            ),
         ),
         ("example.json", "application/json"),
         ("example.woff2", "font/woff2"),

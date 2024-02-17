@@ -1948,8 +1948,7 @@ async def test_handler_from_files_handles_empty_body(app):
 @pytest.mark.asyncio
 async def test_handler_from_json_parameter_missing_property(app):
     @app.router.post("/")
-    async def home(item: FromJSON[Item]):
-        ...
+    async def home(item: FromJSON[Item]): ...
 
     # Note: the following example missing one of the properties
     # required by the constructor
@@ -2044,8 +2043,7 @@ async def test_handler_text_response_implicit(app):
 async def test_handler_from_json_parameter_missing_property_complex_type(app):
     @inject()
     @app.router.post("/")
-    async def home(item: FromJSON[Foo]):
-        ...
+    async def home(item: FromJSON[Foo]): ...
 
     # Note: the following example missing one of the properties
     # required by the constructor
@@ -2070,8 +2068,7 @@ async def test_handler_from_json_parameter_missing_property_complex_type(app):
 @pytest.mark.asyncio
 async def test_handler_from_json_parameter_missing_property_array(app):
     @app.router.post("/")
-    async def home(item: FromJSON[List[Item]]):
-        ...
+    async def home(item: FromJSON[List[Item]]): ...
 
     # Note: the following example missing one of the properties
     # required by the constructor
@@ -2806,8 +2803,7 @@ async def test_valid_query_parameter_list_of_int(app):
 @pytest.mark.asyncio
 async def test_invalid_query_parameter_int(app):
     @app.router.get("/")
-    async def home(request, foo: FromQuery[int]):
-        ...
+    async def home(request, foo: FromQuery[int]): ...
 
     app.normalize_handlers()
 
@@ -2855,8 +2851,7 @@ async def test_invalid_query_parameter_int(app):
 @pytest.mark.asyncio
 async def test_invalid_query_parameter_float(app):
     @app.router.get("/")
-    async def home(request, foo: FromQuery[float]):
-        ...
+    async def home(request, foo: FromQuery[float]): ...
 
     app.normalize_handlers()
 
@@ -2904,8 +2899,7 @@ async def test_invalid_query_parameter_float(app):
 @pytest.mark.asyncio
 async def test_invalid_query_parameter_bool(app):
     @app.router.get("/")
-    async def home(request, foo: FromQuery[bool]):
-        ...
+    async def home(request, foo: FromQuery[bool]): ...
 
     app.normalize_handlers()
 
@@ -3736,12 +3730,10 @@ async def test_on_middlewares_configured_event(app: Application):
 @pytest.mark.asyncio
 async def test_app_events_decorator_args_support(app: Application):
     @app.on_start
-    async def before_start_1(application: FakeApplication) -> None:
-        ...
+    async def before_start_1(application: FakeApplication) -> None: ...
 
     @app.on_start()
-    async def before_start_2(application: FakeApplication) -> None:
-        ...
+    async def before_start_2(application: FakeApplication) -> None: ...
 
 
 @pytest.mark.asyncio
@@ -4009,8 +4001,7 @@ async def test_application_pydantic_json_error(app):
         type: str
 
     @app.router.post("/api/cat")
-    async def create_cat(data: CreateCatInput):
-        ...
+    async def create_cat(data: CreateCatInput): ...
 
     # invalid JSON:
     content = b'{"foo":"not valid"}'

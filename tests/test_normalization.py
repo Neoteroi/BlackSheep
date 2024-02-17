@@ -46,12 +46,10 @@ class Pet:
         self.name = name
 
 
-class Cat(Pet):
-    ...
+class Cat(Pet): ...
 
 
-class Dog(Pet):
-    ...
+class Dog(Pet): ...
 
 
 @dataclass
@@ -60,8 +58,7 @@ class SomeService:
 
 
 def test_parameters_get_binders_default_query():
-    def handler(a, b, c):
-        ...
+    def handler(a, b, c): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -75,8 +72,7 @@ def test_parameters_get_binders_default_query():
     "annotation_type", [Identity, User, Optional[User], Optional[Identity]]
 )
 def test_identity_binder_by_param_type(annotation_type):
-    async def handler(param):
-        ...
+    async def handler(param): ...
 
     handler.__annotations__["param"] = annotation_type
 
@@ -86,8 +82,7 @@ def test_identity_binder_by_param_type(annotation_type):
 
 
 def test_parameters_get_binders_from_route():
-    def handler(a, b, c):
-        ...
+    def handler(a, b, c): ...
 
     binders = get_binders(Route(b"/:a/:b/:c", handler), Container())
 
@@ -98,8 +93,7 @@ def test_parameters_get_binders_from_route():
 
 
 def test_parameters_get_binders_from_services_by_name():
-    def handler(a, b, c):
-        ...
+    def handler(a, b, c): ...
 
     binders = get_binders(
         Route(b"/", handler), {"a": object(), "b": object(), "c": object()}
@@ -112,8 +106,7 @@ def test_parameters_get_binders_from_services_by_name():
 
 
 def test_parameters_get_binders_from_services_by_type():
-    def handler(a: str, b: int, c: Cat):
-        ...
+    def handler(a: str, b: int, c: Cat): ...
 
     binders = get_binders(
         Route(b"/", handler), {str: object(), int: object(), Cat: object()}
@@ -126,8 +119,7 @@ def test_parameters_get_binders_from_services_by_type():
 
 
 def test_parameters_get_binders_from_body():
-    def handler(a: Cat):
-        ...
+    def handler(a: Cat): ...
 
     binders = get_binders(Route("/", handler), Container())
     assert len(binders) == 1
@@ -139,8 +131,7 @@ def test_parameters_get_binders_from_body():
 
 
 def test_parameters_get_binders_from_body_optional():
-    def handler(a: Optional[Cat]):
-        ...
+    def handler(a: Optional[Cat]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     assert len(binders) == 1
@@ -152,8 +143,7 @@ def test_parameters_get_binders_from_body_optional():
 
 
 def test_parameters_get_binders_simple_types_default_from_query():
-    def handler(a: str, b: int, c: bool):
-        ...
+    def handler(a: str, b: int, c: bool): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -167,8 +157,7 @@ def test_parameters_get_binders_simple_types_default_from_query():
 
 
 def test_parameters_get_binders_list_types_default_from_query():
-    def handler(a: List[str], b: List[int], c: List[bool]):
-        ...
+    def handler(a: List[str], b: List[int], c: List[bool]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -182,8 +171,7 @@ def test_parameters_get_binders_list_types_default_from_query():
 
 
 def test_parameters_get_binders_list_types_default_from_query_optional():
-    def handler(a: Optional[List[str]]):
-        ...
+    def handler(a: Optional[List[str]]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -194,8 +182,7 @@ def test_parameters_get_binders_list_types_default_from_query_optional():
 
 
 def test_parameters_get_binders_list_types_default_from_query_required():
-    def handler(a: List[str]):
-        ...
+    def handler(a: List[str]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -204,8 +191,7 @@ def test_parameters_get_binders_list_types_default_from_query_required():
 
 
 def test_parameters_get_binders_sequence_types_default_from_query():
-    def handler(a: Sequence[str], b: Sequence[int], c: Sequence[bool]):
-        ...
+    def handler(a: Sequence[str], b: Sequence[int], c: Sequence[bool]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -219,31 +205,26 @@ def test_parameters_get_binders_sequence_types_default_from_query():
 
 
 def test_throw_for_ambiguous_binder_multiple_from_body():
-    def handler(a: Cat, b: Dog):
-        ...
+    def handler(a: Cat, b: Dog): ...
 
     with pytest.raises(AmbiguousMethodSignatureError):
         get_binders(Route(b"/", handler), Container())
 
 
 def test_does_not_throw_for_forward_ref():
-    def handler(a: "Cat"):
-        ...
+    def handler(a: "Cat"): ...
 
     get_binders(Route(b"/", handler), Container())
 
-    def handler(a: List["str"]):
-        ...
+    def handler(a: List["str"]): ...
 
     get_binders(Route(b"/", handler), Container())
 
-    def handler(a: Optional[List["Cat"]]):
-        ...
+    def handler(a: Optional[List["Cat"]]): ...
 
     get_binders(Route(b"/", handler), Container())
 
-    def handler(a: FromQuery["str"]):
-        ...
+    def handler(a: FromQuery["str"]): ...
 
     get_binders(Route(b"/", handler), Container())
 
@@ -255,8 +236,7 @@ def test_combination_of_sources():
         c: FromJSON[Cat],
         d: FromRoute[str],
         e: FromHeader[str],
-    ):
-        ...
+    ): ...
 
     container = Container()
     container.register(Dog, instance=Dog("Snoopy"))
@@ -275,8 +255,7 @@ def test_combination_of_sources():
 
 
 def test_implicit_from_services_only_when_annotation_is_none():
-    def handler(dog):
-        ...
+    def handler(dog): ...
 
     container = Container()
     container.register("dog", instance=Dog("Snoopy"))
@@ -285,8 +264,7 @@ def test_implicit_from_services_only_when_annotation_is_none():
 
     assert isinstance(binders[0], ServiceBinder)
 
-    def handler(dog: str):
-        ...
+    def handler(dog: str): ...
 
     binders = get_binders(Route(b"/", handler), container)
 
@@ -298,8 +276,7 @@ def test_from_query_specific_name():
         name = "example"
 
     @inject()
-    def handler(a: FromExampleQuery):
-        ...
+    def handler(a: FromExampleQuery): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
@@ -311,8 +288,7 @@ def test_from_query_specific_name():
 
 
 def test_from_query_unspecified_type():
-    def handler(a: FromQuery):
-        ...
+    def handler(a: FromQuery): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
@@ -324,8 +300,7 @@ def test_from_query_unspecified_type():
 
 
 def test_from_query_optional_type():
-    def handler(a: FromQuery[Optional[str]]):
-        ...
+    def handler(a: FromQuery[Optional[str]]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
@@ -337,8 +312,7 @@ def test_from_query_optional_type():
 
 
 def test_from_query_optional_type_with_union():
-    def handler(a: FromQuery[Union[None, str]]):
-        ...
+    def handler(a: FromQuery[Union[None, str]]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
@@ -371,8 +345,7 @@ def test_check_union_or_none():
 
 
 def test_from_query_optional_list_type():
-    def handler(a: FromQuery[Optional[List[str]]]):
-        ...
+    def handler(a: FromQuery[Optional[List[str]]]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
@@ -388,8 +361,7 @@ def test_from_header_specific_name():
         name = "example"
 
     @inject()
-    def handler(a: FromExampleHeader):
-        ...
+    def handler(a: FromExampleHeader): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -403,8 +375,7 @@ def test_from_header_accept_language_example():
         name = "accept-language"
 
     @inject()
-    def handler(a: AcceptLanguageHeader):
-        ...
+    def handler(a: AcceptLanguageHeader): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -414,32 +385,28 @@ def test_from_header_accept_language_example():
 
 
 def test_raises_for_route_mismatch():
-    def handler(a: FromRoute[str]):
-        ...
+    def handler(a: FromRoute[str]): ...
 
     with raises(RouteBinderMismatch):
         get_binders(Route(b"/", handler), Container())
 
 
 def test_raises_for_route_mismatch_2():
-    def handler(a: FromRoute[str]):
-        ...
+    def handler(a: FromRoute[str]): ...
 
     with raises(RouteBinderMismatch):
         get_binders(Route(b"/:b", handler), Container())
 
 
 def test_raises_for_unsupported_union():
-    def handler(a: FromRoute[Union[str, int]]):
-        ...
+    def handler(a: FromRoute[Union[str, int]]): ...
 
     with raises(NormalizationError):
         get_binders(Route(b"/:b", handler), Container())
 
 
 def test_request_binding():
-    def handler(request):
-        ...
+    def handler(request): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -613,8 +580,7 @@ def test_middleware_not_normalized_if_signature_matches_expected_signature():
 
 
 def test_get_raw_bound_value_type_fallsback_to_str():
-    class Foo:
-        ...
+    class Foo: ...
 
     assert _get_raw_bound_value_type(Foo) is str  # type: ignore
 
@@ -624,8 +590,7 @@ def test_normalization_with_service_json_route_param():
         foo_id: str,
         data: FromJSON[Cat],
         some_service: SomeService,
-    ):
-        ...
+    ): ...
 
     container = Container()
     container.add_transient(SomeService)
@@ -644,8 +609,7 @@ def test_normalization_with_service_json_route_param():
 
 
 def test_camel_case_route_parameter():
-    def handler(statusKey: FromRoute[str]):
-        ...
+    def handler(statusKey: FromRoute[str]): ...
 
     binders = get_binders(Route(b"/:statusKey", handler), Container())
 
@@ -654,8 +618,7 @@ def test_camel_case_route_parameter():
 
 
 def test_pascal_case_route_parameter():
-    def handler(StatusKey: FromRoute[str]):
-        ...
+    def handler(StatusKey: FromRoute[str]): ...
 
     binders = get_binders(Route(b"/:StatusKey", handler), Container())
 
@@ -669,8 +632,7 @@ async def test_binder_through_di():
     Tests support for dependency injection when resolving custom binders.
     """
 
-    class Foo:
-        ...
+    class Foo: ...
 
     class FromExample(BoundValue[str]):
         pass

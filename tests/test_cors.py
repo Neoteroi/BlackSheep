@@ -134,8 +134,7 @@ async def test_cors_request(app):
         return text("Hello, World")
 
     @app.router.put("/")
-    async def put_something():
-        ...
+    async def put_something(): ...
 
     await app.start()
 
@@ -322,8 +321,7 @@ async def test_cors_preflight_request(app):
         return text("Hello, World")
 
     @app.router.delete("/")
-    async def delete_example():
-        ...
+    async def delete_example(): ...
 
     await app.start()
 
@@ -460,8 +458,7 @@ async def test_cors_preflight_request_allow_credentials(app):
         return text("Hello, World")
 
     @app.router.post("/")
-    async def post_example():
-        ...
+    async def post_example(): ...
 
     await app.start()
 
@@ -492,8 +489,7 @@ async def test_cors_preflight_request_allow_any(app):
         return text("Hello, World")
 
     @app.router.post("/")
-    async def post_example():
-        ...
+    async def post_example(): ...
 
     await app.start()
 
@@ -601,8 +597,7 @@ async def test_add_cors_policy_configures_cors_settings(app):
         return text("Hello, World")
 
     @app.router.post("/another")
-    async def another():
-        ...
+    async def another(): ...
 
     await app.start()
 

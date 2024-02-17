@@ -7,6 +7,7 @@ automatically.
 See:
     https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
 """
+
 from abc import abstractmethod
 from base64 import urlsafe_b64decode
 from collections.abc import Iterable as IterableAbc
@@ -442,8 +443,8 @@ class BodyBinder(Binder):
         if expected_type is bytes:
             # note: the code is optimized for strings here, not bytes
             # since most of times the user will want to handle strings
-            return (
-                lambda value: urlsafe_b64decode(value.encode("utf8")).decode("utf8")
+            return lambda value: (
+                urlsafe_b64decode(value.encode("utf8")).decode("utf8")
                 if value
                 else None
             )
@@ -645,8 +646,8 @@ class SyncBinder(Binder):
             return lambda value: dateutil_parser(unquote(value)) if value else None
 
         if expected_type is date:
-            return (
-                lambda value: dateutil_parser(unquote(value)).date() if value else None
+            return lambda value: (
+                dateutil_parser(unquote(value)).date() if value else None
             )
 
         raise MissingConverterError(expected_type, self.__class__)
@@ -684,10 +685,8 @@ class SyncBinder(Binder):
             return lambda value: dateutil_parser(unquote(value[0])) if value else None
 
         if expected_type is date:
-            return (
-                lambda value: dateutil_parser(unquote(value[0])).date()
-                if value
-                else None
+            return lambda value: (
+                dateutil_parser(unquote(value[0])).date() if value else None
             )
 
         raise MissingConverterError(expected_type, self.__class__)

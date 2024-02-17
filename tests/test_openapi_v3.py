@@ -1,3 +1,4 @@
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
@@ -22,7 +23,14 @@ from openapidocs.v3 import (
 )
 from pydantic import VERSION as PYDANTIC_LIB_VERSION
 from pydantic import BaseModel, HttpUrl
-from pydantic.types import NegativeFloat, PositiveInt, condecimal, confloat, conint
+from pydantic.types import (
+    UUID4,
+    NegativeFloat,
+    PositiveInt,
+    condecimal,
+    confloat,
+    conint,
+)
 
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromForm
@@ -77,6 +85,9 @@ class PydExampleWithSpecificTypes(BaseModel):
 class PydCat(BaseModel):
     id: int
     name: str
+
+    if sys.version_info >= (3, 9):
+        childs: list[UUID4]
 
 
 class PydPaginatedSetOfCat(BaseModel):
@@ -226,20 +237,16 @@ def get_cats_api() -> Application:
     delete = app.router.delete
 
     @get("/api/cats")
-    def get_cats() -> PaginatedSet[Cat]:
-        ...
+    def get_cats() -> PaginatedSet[Cat]: ...
 
     @get("/api/cats/{cat_id}")
-    def get_cat_details(cat_id: int) -> CatDetails:
-        ...
+    def get_cat_details(cat_id: int) -> CatDetails: ...
 
     @post("/api/cats")
-    def create_cat(input: CreateCatInput) -> Cat:
-        ...
+    def create_cat(input: CreateCatInput) -> Cat: ...
 
     @delete("/api/cats/{cat_id}")
-    def delete_cat(cat_id: int) -> None:
-        ...
+    def delete_cat(cat_id: int) -> None: ...
 
     return app
 
@@ -285,8 +292,7 @@ async def test_raises_for_duplicated_content_example(docs):
             200: ResponseInfo("Example", content=[ContentInfo(Foo), ContentInfo(Foo)])
         }
     )
-    async def example():
-        ...
+    async def example(): ...
 
     with pytest.raises(DuplicatedContentTypeDocsException):
         docs.bind_app(app)
@@ -746,8 +752,7 @@ async def test_register_schema_for_multi_generic(
     app = get_app()
 
     @app.router.route("/combo")
-    def combo_example() -> Combo[Cat, Foo]:
-        ...
+    def combo_example() -> Combo[Cat, Foo]: ...
 
     docs.bind_app(app)
     await app.start()
@@ -830,13 +835,11 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
 
     @docs(tags=["B tag"])
     @app.router.route("/one")
-    def one() -> PaginatedSet[Cat]:
-        ...
+    def one() -> PaginatedSet[Cat]: ...
 
     @docs(tags=["A tag"])
     @app.router.route("/two")
-    def two() -> PaginatedSet[Cat]:
-        ...
+    def two() -> PaginatedSet[Cat]: ...
 
     await app.start()
 
@@ -923,8 +926,7 @@ async def test_handling_of_forward_references(
     app = get_app()
 
     @app.router.route("/")
-    def forward_ref_example() -> ForwardRefExample:
-        ...
+    def forward_ref_example() -> ForwardRefExample: ...
 
     docs.bind_app(app)
     await app.start()
@@ -1001,8 +1003,7 @@ async def test_handling_of_normal_class(docs: OpenAPIHandler, serializer: Serial
     app = get_app()
 
     @app.router.route("/")
-    def plain_class() -> PlainClass:
-        ...
+    def plain_class() -> PlainClass: ...
 
     docs.bind_app(app)
     await app.start()
@@ -1040,17 +1041,77 @@ async def test_handling_of_pydantic_class_with_generic(
     app = get_app()
 
     @app.router.route("/")
-    def home() -> PydPaginatedSetOfCat:
-        ...
+    def home() -> PydPaginatedSetOfCat: ...
 
     docs.bind_app(app)
     await app.start()
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
+    if sys.version_info >= (3, 9):
+        assert (
+            yaml.strip()
+            == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydPaginatedSetOfCat'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
+        PydPaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+tags: []
+""".strip()
+        )
+    else:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1098,7 +1159,7 @@ components:
                     nullable: false
 tags: []
 """.strip()
-    )
+        )
 
 
 @pytest.mark.asyncio
@@ -1108,17 +1169,98 @@ async def test_handling_of_pydantic_class_with_child_models(
     app = get_app()
 
     @app.router.route("/")
-    def home() -> PydTypeWithChildModels:
-        ...
+    def home() -> PydTypeWithChildModels: ...
 
     docs.bind_app(app)
     await app.start()
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
+    if sys.version_info >= (3, 9):
+        assert (
+            yaml.strip()
+            == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydTypeWithChildModels'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
+        PydPaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        PydExampleWithSpecificTypes:
+            type: object
+            required:
+            - url
+            properties:
+                url:
+                    type: string
+                    format: uri
+                    maxLength: 2083
+                    minLength: 1
+                    nullable: false
+        PydTypeWithChildModels:
+            type: object
+            required:
+            - child
+            - friend
+            properties:
+                child:
+                    $ref: '#/components/schemas/PydPaginatedSetOfCat'
+                friend:
+                    $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+tags: []
+    """.strip()
+        )
+    else:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1186,8 +1328,8 @@ components:
                 friend:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
 tags: []
-""".strip()
-    )
+    """.strip()
+        )
 
 
 @pytest.mark.asyncio
@@ -1197,17 +1339,77 @@ async def test_handling_of_pydantic_class_in_generic(
     app = get_app()
 
     @app.router.route("/")
-    def home() -> PaginatedSet[PydCat]:
-        ...
+    def home() -> PaginatedSet[PydCat]: ...
 
     docs.bind_app(app)
     await app.start()
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
+    if sys.version_info >= (3, 9):
+        assert (
+            yaml.strip()
+            == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfPydCat'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
+        PaginatedSetOfPydCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+tags: []
+    """.strip()
+        )
+    else:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1254,8 +1456,8 @@ components:
                     format: int64
                     nullable: false
 tags: []
-""".strip()
-    )
+    """.strip()
+        )
 
 
 @pytest.mark.asyncio
@@ -1263,8 +1465,7 @@ async def test_handling_of_sequence(docs: OpenAPIHandler, serializer: Serializer
     app = get_app()
 
     @app.router.route("/")
-    def home() -> Sequence[Cat]:
-        ...
+    def home() -> Sequence[Cat]: ...
 
     docs.bind_app(app)
     await app.start()
@@ -1705,8 +1906,7 @@ async def test_handling_of_pydantic_types(docs: OpenAPIHandler, serializer: Seri
     app = get_app()
 
     @app.router.route("/")
-    def home() -> PydExampleWithSpecificTypes:
-        ...
+    def home() -> PydExampleWithSpecificTypes: ...
 
     docs.bind_app(app)
     await app.start()
@@ -1754,8 +1954,7 @@ async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
     @app.router.route("/")
-    def home() -> PydResponse[PydCat]:
-        ...
+    def home() -> PydResponse[PydCat]: ...
 
     docs.bind_app(app)
     await app.start()
@@ -1763,7 +1962,73 @@ async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if PYDANTIC_VERSION == 1:
-        expected_result = """
+        if sys.version_info >= (3, 9):
+            expected_result = """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydResponse[PydCat]'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
+        Error:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+                code:
+                    type: integer
+                    format: int64
+                    nullable: false
+                message:
+                    type: string
+                    nullable: false
+        PydResponse[PydCat]:
+            type: object
+            required:
+            - data
+            - error
+            properties:
+                data:
+                    $ref: '#/components/schemas/PydCat'
+                error:
+                    $ref: '#/components/schemas/Error'
+tags: []
+""".strip()
+        else:
+            expected_result = """
 openapi: 3.0.3
 info:
     title: Example
@@ -1820,7 +2085,77 @@ components:
 tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
-        expected_result = """
+        if sys.version_info >= (3, 9):
+            expected_result = """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydResponse[PydCat]'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
+                        format: uuid
+                        nullable: false
+        Error:
+            type: object
+            required:
+            - code
+            - message
+            properties:
+                code:
+                    type: integer
+                    format: int64
+                    nullable: false
+                message:
+                    type: string
+                    nullable: false
+        PydResponse[PydCat]:
+            type: object
+            required:
+            - data
+            - error
+            properties:
+                data:
+                    anyOf:
+                    -   $ref: '#/components/schemas/PydCat'
+                    -   type: 'null'
+                error:
+                    anyOf:
+                    -   $ref: '#/components/schemas/Error'
+                    -   type: 'null'
+tags: []
+""".strip()
+        else:
+            expected_result = """
 openapi: 3.0.3
 info:
     title: Example
@@ -1890,8 +2225,7 @@ async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Seri
     app = get_app()
 
     @app.router.route("/")
-    def home() -> PydConstrained:
-        ...
+    def home() -> PydConstrained: ...
 
     docs.bind_app(app)
     await app.start()
@@ -2086,14 +2420,12 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
             },
         )
     )
-    class A:
-        ...
+    class A: ...
 
     app = get_app()
 
     @app.router.route("/")
-    def home() -> A:
-        ...
+    def home() -> A: ...
 
     @docs(
         security=[
@@ -2102,8 +2434,7 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
         ]
     )
     @app.router.route("/", methods=["POST"])
-    def auth_home() -> A:
-        ...
+    def auth_home() -> A: ...
 
     docs.bind_app(app)
     await app.start()
@@ -2171,20 +2502,16 @@ async def test_handles_ref_for_optional_type(
     app = get_app()
 
     @app.router.route("/cats")
-    def one() -> PaginatedSet[Cat]:
-        ...
+    def one() -> PaginatedSet[Cat]: ...
 
     @app.router.route("/cats/{cat_id}")
-    def two(cat_id: int) -> Optional[Cat]:
-        ...
+    def two(cat_id: int) -> Optional[Cat]: ...
 
     @app.router.route("/cats_alt/{cat_id}")
-    def three(cat_id: int) -> Cat:
-        ...
+    def three(cat_id: int) -> Cat: ...
 
     @app.router.route("/cats_value_pattern/{uuid:cat_id}")
-    def four(cat_id: UUID) -> Cat:
-        ...
+    def four(cat_id: UUID) -> Cat: ...
 
     docs.bind_app(app)
     await app.start()
@@ -2308,8 +2635,7 @@ async def test_handles_from_form_docs(docs: OpenAPIHandler, serializer: Serializ
     app = get_app()
 
     @app.router.post("/foo")
-    def one(data: FromForm[CreateFooInput]) -> Foo:
-        ...
+    def one(data: FromForm[CreateFooInput]) -> Foo: ...
 
     docs.bind_app(app)
     await app.start()
@@ -2396,12 +2722,10 @@ async def test_websockets_routes_are_ignored(
     app = get_app()
 
     @app.router.post("/foo")
-    def one(data: FromForm[CreateFooInput]) -> Foo:
-        ...
+    def one(data: FromForm[CreateFooInput]) -> Foo: ...
 
     @app.router.ws("/ws")
-    def websocket_route() -> None:
-        ...
+    def websocket_route() -> None: ...
 
     docs.bind_app(app)
     await app.start()
@@ -3170,8 +3494,7 @@ async def test_any_of_dataclasses(docs: OpenAPIHandler, serializer: Serializer):
     docs.bind_app(app)
 
     @app.router.post("/one")
-    def one(data: AnyOfTestClass) -> AnyOfResponseTestClass:
-        ...
+    def one(data: AnyOfTestClass) -> AnyOfResponseTestClass: ...
 
     await app.start()
 
@@ -3243,8 +3566,7 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
     docs.bind_app(app)
 
     @app.router.post("/one")
-    def one(data: AnyOfTestClassPyd) -> AnyOfResponseTestClassPyd:
-        ...
+    def one(data: AnyOfTestClassPyd) -> AnyOfResponseTestClassPyd: ...
 
     await app.start()
 

@@ -18,6 +18,7 @@ class BaseApplication:
         self.router = router
         self.exceptions_handlers = self.init_exceptions_handlers()
         self.show_error_details = show_error_details
+
     def init_exceptions_handlers(self) -> ExceptionHandlersType: ...
     async def handle(self, request: Request) -> Response: ...
     async def handle_internal_server_error(

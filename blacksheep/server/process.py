@@ -1,8 +1,12 @@
 """
 Provides functions related to the server process.
 """
+
+import os
 import signal
 from typing import TYPE_CHECKING
+
+from blacksheep.utils import truthy
 
 if TYPE_CHECKING:
     from blacksheep.server.application import Application
@@ -15,6 +19,10 @@ def is_stopping() -> bool:
     Returns a value indicating whether the server process received a SIGINT or a SIGTERM
     signal, and therefore the application is stopping.
     """
+    if not truthy(os.environ.get("APP_SIGNAL_HANDLER", "")):
+        raise RuntimeError(
+            "This function can only be used if the env variable `APP_SIGNAL_HANDLER=1`"
+        )
     return _STOPPING
 
 

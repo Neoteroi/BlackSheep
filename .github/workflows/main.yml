@@ -2,10 +2,11 @@ name: Main
 
 on:
   workflow_dispatch:
-    publish_artifacts:
-      description: 'Publish artifacts (Y|N)'
-      required: true
-      default: 'N'
+    inputs:
+      publish_artifacts:
+        description: 'Publish artifacts (Y|N)'
+        required: true
+        default: 'N'
   release:
     types: [published]
   push:
@@ -93,7 +94,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install black==23.12.1 isort flake8
+          pip install black==24.2.0 isort==5.13.2 flake8==7.0.0
 
       - name: Compile Cython extensions
         run: |
@@ -214,13 +215,6 @@ jobs:
         with:
           name: dist-${{ matrix.os }}-${{ matrix.python-version }}
           path: dist
-
-      - name: Test wheels
-        if: |
-          !startsWith(matrix.os, 'windows')
-        run: |
-          pip install blacksheep -f "file:///${GITHUB_WORKSPACE}/dist"
-          pip freeze | grep blacksheep
 
   publish:
     runs-on: ubuntu-latest

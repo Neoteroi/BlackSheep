@@ -1,5 +1,6 @@
 import collections.abc as collections_abc
 import inspect
+import sys
 import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict
@@ -8,6 +9,10 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+
+if sys.version_info >= (3, 9):
+    from typing import _AnnotatedAlias as AnnotatedAlias
+
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
@@ -396,9 +401,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
         ]
-        self._binder_docs: Dict[
-            Type[Binder], Iterable[Union[Parameter, Reference]]
-        ] = {}
+        self._binder_docs: Dict[Type[Binder], Iterable[Union[Parameter, Reference]]] = (
+            {}
+        )
         self.security_schemes = security_schemes or {}
 
     @property
@@ -650,6 +655,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         stored_ref = self._get_stored_reference(object_type, type_args)
         if stored_ref:  # pragma: no cover
             return stored_ref
+
+        if sys.version_info >= (3, 9):
+            if isinstance(object_type, AnnotatedAlias):
+                # Replace Annotated object type with the original type
+                object_type = getattr(object_type, "__origin__")
 
         if self._can_handle_class_type(object_type):
             return self._get_schema_for_class(object_type)
@@ -950,9 +960,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                         param_info.source or ParameterSource.QUERY
                     ),
                     required=param_info.required,
-                    schema=self.get_schema_by_type(param_info.value_type)
-                    if param_info.value_type
-                    else None,
+                    schema=(
+                        self.get_schema_by_type(param_info.value_type)
+                        if param_info.value_type
+                        else None
+                    ),
                     description=param_info.description,
                     example=param_info.example,
                 )
@@ -1010,9 +1022,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         for content in response_content:
             if content.content_type not in oad_content:
-                oad_content[
-                    content.content_type
-                ] = self._get_media_type_from_content_doc(content)
+                oad_content[content.content_type] = (
+                    self._get_media_type_from_content_doc(content)
+                )
             else:
                 raise DuplicatedContentTypeDocsException(content.content_type)
 

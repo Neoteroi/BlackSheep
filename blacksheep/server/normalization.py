@@ -136,8 +136,7 @@ def ensure_response(result) -> Response:
     return result
 
 
-class NormalizationError(Exception):
-    ...
+class NormalizationError(Exception): ...
 
 
 class UnsupportedSignatureError(NormalizationError):
@@ -237,6 +236,23 @@ _types_handled_with_query = {
     Set[UUID],
     Tuple[UUID],
 }
+
+try:
+    # Note: try catch here is to support Python 3.8
+    # it can be removed when support for Python 3.8 is dropped
+    _types_handled_with_query |= {
+        list[str],
+        list[int],
+        list[float],
+        list[bool],
+        list[UUID],
+        tuple[str],
+        tuple[int],
+        tuple[float],
+        tuple[bool],
+    }
+except TypeError:
+    pass
 
 
 def _check_union(

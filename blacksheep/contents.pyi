@@ -16,8 +16,10 @@ class Content:
         self.type = content_type
         self.body = data
         self.length = len(data)
+
     async def read(self) -> bytes:
         return self.body
+
     def dispose(self) -> None: ...
 
 class StreamedContent(Content):
@@ -31,6 +33,7 @@ class StreamedContent(Content):
         self.body = None
         self.length = data_length
         self.generator = data_provider
+
     async def get_parts(self) -> AsyncIterable[bytes]: ...
 
 class ASGIContent(Content):
@@ -39,6 +42,7 @@ class ASGIContent(Content):
         self.body = None
         self.length = -1
         self.receive = receive
+
     def dispose(self): ...
     async def stream(self) -> AsyncIterable[bytes]: ...
     async def read(self) -> bytes: ...
@@ -85,6 +89,7 @@ class FormPart:
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+
     def __repr__(self):
         return f"<FormPart {self.name} - at {id(self)}>"
 

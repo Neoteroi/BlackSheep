@@ -849,8 +849,7 @@ async def test_app_404_handler_static_files_not_found(app):
 
 @pytest.mark.asyncio
 async def test_serve_files_index_html_options(files2_index_contents, app: Application):
-    def on_response(request, response):
-        ...
+    def on_response(request, response): ...
 
     mock = create_autospec(on_response, return_value=None)
 
@@ -894,8 +893,7 @@ async def test_serve_files_index_html_options(files2_index_contents, app: Applic
 async def test_serve_files_index_html_options_fallback(
     files2_index_contents, app: Application
 ):
-    def on_response(request, response):
-        ...
+    def on_response(request, response): ...
 
     mock = create_autospec(on_response, return_value=None)
 

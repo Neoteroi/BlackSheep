@@ -59,8 +59,7 @@ class UIProvider(ABC):
         """
 
     @property
-    def default_ui_files(self) -> UIFilesOptions:
-        ...
+    def default_ui_files(self) -> UIFilesOptions: ...
 
 
 class SwaggerUIProvider(UIProvider):

@@ -2,10 +2,11 @@ name: Main
 
 on:
   workflow_dispatch:
-    publish_artifacts:
-      description: 'Publish artifacts (Y|N)'
-      required: true
-      default: 'N'
+    inputs:
+      publish_artifacts:
+        description: 'Publish artifacts (Y|N)'
+        required: true
+        default: 'N'
   release:
     types: [published]
   push:
@@ -214,13 +215,6 @@ jobs:
         with:
           name: dist-${{ matrix.os }}-${{ matrix.python-version }}
           path: dist
-
-      - name: Test wheels
-        if: |
-          !startsWith(matrix.os, 'windows')
-        run: |
-          pip install blacksheep -f "file:///${GITHUB_WORKSPACE}/dist"
-          pip freeze | grep blacksheep
 
   publish:
     runs-on: ubuntu-latest

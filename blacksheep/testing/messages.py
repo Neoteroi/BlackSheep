@@ -41,9 +41,9 @@ class MockReceive:
         return {
             "body": message,
             "type": "http.message",
-            "more_body": False
-            if (len(self.messages) == self.index or not message)
-            else True,
+            "more_body": (
+                False if (len(self.messages) == self.index or not message) else True
+            ),
         }
 
 

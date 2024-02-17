@@ -453,8 +453,7 @@ class Cats(APIController):
         """
 
     @get("foos")
-    def get_foos() -> FooList:
-        ...
+    def get_foos() -> FooList: ...
 
     @get("cats2")
     def get_cats_alt2(
@@ -575,8 +574,7 @@ class Cats(APIController):
 
     @docs.ignore()
     @get("/ignored")
-    def secret_api(self):
-        ...
+    def secret_api(self): ...
 
     @docs.summary("Some deprecated API")
     @docs.deprecated()
@@ -668,26 +666,21 @@ class Cats(APIController):
         """
 
     @post("forward_ref")
-    def magic_cat4(self, example: Example2) -> Response:
-        ...
+    def magic_cat4(self, example: Example2) -> Response: ...
 
     @post("poor-use-of-list-annotation")
-    def magic_cat5(self, example: list) -> Response:
-        ...
+    def magic_cat5(self, example: list) -> Response: ...
 
     @post("poor-use-of-set-annotation2")
-    def magic_cat6(self, example: Set) -> Response:
-        ...
+    def magic_cat6(self, example: Set) -> Response: ...
 
     @post("/polymorph-example")
     @docs(on_created=on_polymorph_example_docs_created)
-    def polymorph_example(self) -> Response:
-        ...
+    def polymorph_example(self) -> Response: ...
 
     @post("/polymorph-example-pydantic")
     @docs(on_created=on_polymorph_example_docs_created_pydantic)
-    def polymorph_example_pydantic(self) -> Response:
-        ...
+    def polymorph_example_pydantic(self) -> Response: ...
 
 
 if __name__ == "__main__":

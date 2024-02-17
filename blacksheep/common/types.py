@@ -1,6 +1,7 @@
 """
 Common types annotations and functions.
 """
+
 from typing import AnyStr, Dict, Iterable, List, Optional, Tuple, Union
 
 from blacksheep.url import URL

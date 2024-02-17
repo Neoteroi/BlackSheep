@@ -36,6 +36,7 @@ class Cookie:
         self.secure = secure
         self.max_age = max_age
         self.same_site = same_site
+
     def clone(self) -> "Cookie": ...
     def __eq__(self, other: Union[str, bytes, "Cookie"]) -> bool: ...
     def __repr__(self) -> str:

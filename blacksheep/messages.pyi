@@ -38,11 +38,13 @@ class Message:
         otherwise kept as raw bytes.
         In case of ambiguity, use the dedicated `multiparts()` method.
         """
+
     async def multipart(self) -> List[FormPart]:
         """
         Returns parts read from multipart/form-data, if present, otherwise
         None
         """
+
     def declares_content_type(self, type: bytes) -> bool: ...
     def declares_json(self) -> bool: ...
     def declares_xml(self) -> bool: ...
@@ -68,6 +70,7 @@ class Request(Message):
         self.user: Optional[Identity] = ...
         self.scope: ASGIScopeInterface = ...
         self._session: Optional[Session]
+
     @classmethod
     def incoming(
         cls, method: str, path: bytes, query: bytes, headers: List[HeaderType]
@@ -143,6 +146,7 @@ class Response(Message):
     ) -> None:
         self.status = status
         self.content = content
+
     def __repr__(self) -> str: ...
     @property
     def cookies(self) -> Cookies: ...

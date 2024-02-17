@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   effects. Handling signals is now opt-in and can be achieved using the env
   variable `APP_SIGNAL_HANDLER=1`. The `is_stopping` function is modified to
   work only when the option is enabled. Issue reported by @netanel-haber.
+- Upgrades `black` version and format files accordingly.
 
 ## [2.0.6] - 2024-01-17 :kr: :heart:
 

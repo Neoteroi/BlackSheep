@@ -2,6 +2,7 @@
 This module is under integration tests folder because it uses a partially faked
 authorization server in a running Flask server.
 """
+
 import json
 import re
 from datetime import datetime
@@ -709,16 +710,13 @@ async def test_redirect_state_includes_original_path(
     )
 
     @app.router.get("/")
-    async def home():
-        ...
+    async def home(): ...
 
     @app.router.get("/account")
-    async def account_page():
-        ...
+    async def account_page(): ...
 
     @app.router.get("/product/{category}/{name}")
-    async def product_details():
-        ...
+    async def product_details(): ...
 
     await app.start()
     await app(
@@ -786,8 +784,7 @@ async def test_raises_for_nonce_mismatch(app: FakeApplication):
     )
 
     @app.router.get("/")
-    async def home():
-        ...
+    async def home(): ...
 
     await app.start()
     await app(
@@ -1264,8 +1261,7 @@ async def test_default_openid_connect_handler_redirects_unauthenticated_users(
     )
 
     @app.router.get("/account")
-    def get_account_details():
-        ...
+    def get_account_details(): ...
 
     @app.router.get("/requirement")
     def example():

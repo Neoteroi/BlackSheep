@@ -136,8 +136,7 @@ def ensure_response(result) -> Response:
     return result
 
 
-class NormalizationError(Exception):
-    ...
+class NormalizationError(Exception): ...
 
 
 class UnsupportedSignatureError(NormalizationError):

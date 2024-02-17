@@ -2,6 +2,7 @@
 This module provides classes to handle OpenID Connect authentication through integration
 with OAuth applications, supporting Authorization Code Grant and Hybrid flows.
 """
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

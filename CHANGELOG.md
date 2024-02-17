@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.7] - 2024-02-17 :tulip:
 
-- Fixes bug #38, to support properly `list[T]` and `tuple[T]` when defining
-  query string parameters. Reported by @ranggakd.
+- Fixes bug [#38](https://github.com/Neoteroi/BlackSheep-Docs/issues/38),
+  to support properly `list[T]` and `tuple[T]` when defining query string
+  parameters. Reported by @ranggakd.
 - Passes annotated origin type to build OpenAPI docs (#475), by @tyzhnenko.
+- Fixes #481, disabling signal handling by default to avoid negative side
+  effects. Handling signals is now opt-in and can be achieved using the env
+  variable `APP_SIGNAL_HANDLER=1`. The `is_stopping` function is modified to
+  work only when the option is enabled. Issue reported by @netanel-haber.
 
 ## [2.0.6] - 2024-01-17 :kr: :heart:
 

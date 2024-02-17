@@ -40,4 +40,4 @@ class EnvironmentSettings:
         self.show_error_details = truthy(os.environ.get("APP_SHOW_ERROR_DETAILS", ""))
         self.mount_auto_events = truthy(os.environ.get("APP_MOUNT_AUTO_EVENTS", "1"))
         self.use_default_router = truthy(os.environ.get("APP_DEFAULT_ROUTER", "1"))
-        self.add_signal_handler = truthy(os.environ.get("APP_SIGNAL_HANDLER", "1"))
+        self.add_signal_handler = truthy(os.environ.get("APP_SIGNAL_HANDLER", ""))

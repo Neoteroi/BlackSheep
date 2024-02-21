@@ -7,7 +7,7 @@ cffi==1.16.0
 charset-normalizer==3.3.1
 click==8.1.7
 coverage==7.3.2
-cryptography==41.0.6
+cryptography==42.0.4
 Cython==3.0.4; platform_system != "Windows"
 essentials==1.1.5
 essentials-openapi==1.0.8

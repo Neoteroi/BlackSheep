@@ -1,9 +1,11 @@
+import asyncio
 from typing import Optional
 
 from blacksheep.contents import Content
 from blacksheep.server.application import Application
 from blacksheep.server.responses import Response
 from blacksheep.testing.simulator import AbstractTestSimulator, TestSimulator
+from blacksheep.testing.websocket import TestWebSocket
 
 from .helpers import CookiesType, HeadersType, QueryType
 
@@ -157,3 +159,22 @@ class TestClient:
             content=None,
             cookies=cookies,
         )
+
+    def websocket_connect(
+        self,
+        path: str,
+        headers: HeadersType = None,
+        query: QueryType = None,
+        cookies: CookiesType = None,
+    ) -> TestWebSocket:
+        return self._test_simulator.websocket_connect(
+            path=path,
+            headers=headers,
+            query=query,
+            content=None,
+            cookies=cookies,
+        )
+
+    async def websocket_all_closed(self):
+        await asyncio.gather(*self._test_simulator.websocket_tasks)
+        self._test_simulator.websocket_tasks = []

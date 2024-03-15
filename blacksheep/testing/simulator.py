@@ -1,4 +1,5 @@
 import abc
+import asyncio
 from typing import Dict, Optional
 
 from blacksheep.contents import Content
@@ -6,6 +7,7 @@ from blacksheep.messages import Request
 from blacksheep.server.application import Application
 from blacksheep.server.responses import Response
 from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.websocket import TestWebSocket
 
 from .helpers import CookiesType, HeadersType, QueryType
 
@@ -47,6 +49,17 @@ class AbstractTestSimulator:
         Then you can define an own TestClient, with the custom logic.
         """
 
+    @abc.abstractmethod
+    async def websocket_connect(
+        self,
+        path,
+        headers: HeadersType = None,
+        query: QueryType = None,
+        content: Optional[Content] = None,
+        cookies: CookiesType = None,
+    ) -> TestWebSocket:
+        """Entrypoint for WebSocket"""
+
 
 class TestSimulator(AbstractTestSimulator):
     """Base Test simulator class
@@ -57,6 +70,7 @@ class TestSimulator(AbstractTestSimulator):
 
     def __init__(self, app: Application):
         self.app = app
+        self.websocket_tasks = []
         self._is_started_app()
 
     async def send_request(
@@ -89,6 +103,30 @@ class TestSimulator(AbstractTestSimulator):
         response = await self.app.handle(request)
 
         return response
+
+    def websocket_connect(
+        self,
+        path: str,
+        headers: HeadersType = None,
+        query: QueryType = None,
+        content: Optional[Content] = None,
+        cookies: CookiesType = None,
+    ) -> TestWebSocket:
+        scope = _create_scope("GET_WS", path, headers, query, cookies=cookies)
+        scope["type"] = "websocket"
+        test_websocket = TestWebSocket()
+
+        self.websocket_tasks.append(
+            asyncio.create_task(
+                self.app(
+                    scope,
+                    test_websocket._receive,
+                    test_websocket._send,
+                ),
+            ),
+        )
+
+        return test_websocket
 
     def _is_started_app(self):
         assert (

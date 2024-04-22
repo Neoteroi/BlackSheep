@@ -308,7 +308,7 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
         except AttributeError:
             # Pydantic v2
             # Here we support only simple types
-            return List[field_info.annotation.__args__[0]]
+            return field_info.annotation
 
     def _get_fields_info(self, object_type):
         try:

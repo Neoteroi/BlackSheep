@@ -23,6 +23,25 @@ def _create_scope(
     )
 
 
+def should_use_chunked_encoding(content: Content) -> bool:
+    return content.length < 0
+
+
+def set_headers_for_response_content(message: Response):
+    content = message.content
+
+    if not content:
+        message.add_header(b"content-length", b"0")
+        return
+
+    message.add_header(b"content-type", content.type or b"application/octet-stream")
+
+    if should_use_chunked_encoding(content):
+        message.add_header(b"transfer-encoding", b"chunked")
+    else:
+        message.add_header(b"content-length", str(content.length).encode())
+
+
 class AbstractTestSimulator:
     """An abstract class for custom Test simulator clients"""
 
@@ -87,6 +106,7 @@ class TestSimulator(AbstractTestSimulator):
             request.content = content
 
         response = await self.app.handle(request)
+        set_headers_for_response_content(response)
 
         return response
 

@@ -106,9 +106,12 @@ def get_example_scope(
             (b"connection", b"keep-alive"),
             (b"upgrade-insecure-requests", b"1"),
         ]
-        + ([tuple(header) for header in extra_headers] if extra_headers else [])
         + cookies_headers
     )
+
+    headers = dict(headers) # convert sequence of tuple into dict
+    headers.update(dict(extra_headers) if extra_headers else {}) # overwrite previously defined header if any
+    headers = list(headers.items()) # convert dict to sequence of tuple
 
     return {
         "type": scheme,

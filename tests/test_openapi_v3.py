@@ -130,6 +130,11 @@ class CatDetails(Cat):
 
 
 @dataclass
+class CreateCatImages:
+    images: List[str]
+
+
+@dataclass
 class Combo(Generic[T, U]):
     item_one: T
     item_two: U
@@ -247,6 +252,9 @@ def get_cats_api() -> Application:
 
     @delete("/api/cats/{cat_id}")
     def delete_cat(cat_id: int) -> None: ...
+
+    @post("/api/cats/{cat_id}/images")
+    def upload_images(cat_id: int, images: FromForm[CreateCatImages]) -> None: ...
 
     return app
 
@@ -1593,6 +1601,30 @@ paths:
                     nullable: false
                 description: ''
                 required: true
+    /api/cats/{cat_id}/images:
+        post:
+            responses:
+                '204':
+                    description: Success response
+            operationId: upload_images
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                    application/x-www-form-urlencoded:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                required: true
 components:
     schemas:
         Cat:
@@ -1671,6 +1703,17 @@ components:
                     items:
                         type: integer
                         format: int64
+                        nullable: false
+        CreateCatImages:
+            type: object
+            required:
+            - images
+            properties:
+                images:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
                         nullable: false
 tags: []
 """.strip()
@@ -1757,6 +1800,30 @@ paths:
                     nullable: false
                 description: ''
                 required: true
+    /api/cats/{cat_id}/images:
+        post:
+            responses:
+                '204':
+                    description: Success response
+            operationId: Upload images
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                    application/x-www-form-urlencoded:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                required: true
 components:
     schemas:
         Cat:
@@ -1835,6 +1902,17 @@ components:
                     items:
                         type: integer
                         format: int64
+                        nullable: false
+        CreateCatImages:
+            type: object
+            required:
+            - images
+            properties:
+                images:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
                         nullable: false
 tags: []
 """.strip()

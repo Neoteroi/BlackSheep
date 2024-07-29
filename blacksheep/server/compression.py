@@ -75,7 +75,7 @@ class GzipMiddleware:
             return any(_type in content_type for _type in self.handled_types)
 
         def is_handled_encoding() -> bool:
-            return b"gzip" in (request.get_first_header(b"accept-encoding") or "")
+            return b"gzip" in (request.get_first_header(b"accept-encoding") or b"")
 
         def is_handled_response_content() -> bool:
             if response is None or response.content is None:

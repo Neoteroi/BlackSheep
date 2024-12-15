@@ -19,7 +19,7 @@ h11==0.14.0
 h2==4.1.0
 hpack==4.0.0
 httptools==0.6.4
-hypercorn==0.17.3
+hypercorn==0.14.4
 hyperframe==6.0.1
 idna==3.10
 iniconfig==2.0.0

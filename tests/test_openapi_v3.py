@@ -1049,9 +1049,68 @@ async def test_handling_of_pydantic_class_with_generic(
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if sys.version_info >= (3, 9):
-        assert (
-            yaml.strip()
-            == """
+        if PYDANTIC_VERSION == 1:
+            assert (
+                yaml.strip()
+                == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydPaginatedSetOfCat'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        nullable: false
+        PydPaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+tags: []
+""".strip()
+            )
+        else:
+            assert (
+                yaml.strip()
+                == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1107,7 +1166,7 @@ components:
                     nullable: false
 tags: []
 """.strip()
-        )
+            )
     else:
         assert (
             yaml.strip()
@@ -1177,9 +1236,89 @@ async def test_handling_of_pydantic_class_with_child_models(
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if sys.version_info >= (3, 9):
-        assert (
-            yaml.strip()
-            == """
+        if PYDANTIC_VERSION == 1:
+            assert (
+                yaml.strip()
+                == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydTypeWithChildModels'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        nullable: false
+        PydPaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        PydExampleWithSpecificTypes:
+            type: object
+            required:
+            - url
+            properties:
+                url:
+                    type: string
+                    format: uri
+                    maxLength: 2083
+                    minLength: 1
+                    nullable: false
+        PydTypeWithChildModels:
+            type: object
+            required:
+            - child
+            - friend
+            properties:
+                child:
+                    $ref: '#/components/schemas/PydPaginatedSetOfCat'
+                friend:
+                    $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+tags: []
+    """.strip()
+            )
+        else:
+            assert (
+                yaml.strip()
+                == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1256,7 +1395,7 @@ components:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
 tags: []
     """.strip()
-        )
+            )
     else:
         assert (
             yaml.strip()
@@ -1347,9 +1486,68 @@ async def test_handling_of_pydantic_class_in_generic(
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if sys.version_info >= (3, 9):
-        assert (
-            yaml.strip()
-            == """
+        if PYDANTIC_VERSION == 1:
+            assert (
+                yaml.strip()
+                == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfPydCat'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        nullable: false
+        PaginatedSetOfPydCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+tags: []
+    """.strip()
+            )
+        else:
+            assert (
+                yaml.strip()
+                == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1405,7 +1603,7 @@ components:
                     nullable: false
 tags: []
     """.strip()
-        )
+            )
     else:
         assert (
             yaml.strip()
@@ -1939,8 +2137,6 @@ components:
                     type: array
                     nullable: false
                     items:
-                        type: string
-                        format: uuid
                         nullable: false
         Error:
             type: object

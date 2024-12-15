@@ -2221,8 +2221,8 @@ components:
                 big_float:
                     type: number
                     format: float
-                    maximum: 1024
-                    minimum: 1000
+                    maximum: 1024.0
+                    minimum: 1000.0
                     nullable: false
                 unit_interval:
                     type: number

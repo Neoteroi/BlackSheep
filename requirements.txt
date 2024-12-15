@@ -8,7 +8,7 @@ charset-normalizer==3.3.1
 click==8.1.7
 coverage==7.3.2
 cryptography==41.0.6
-Cython==3.0.4; platform_system != "Windows"
+Cython==3.0.11
 essentials==1.1.5
 essentials-openapi==1.0.8
 Flask==3.0.0
@@ -44,7 +44,7 @@ PyYAML==6.0.1
 regex==2023.10.3
 requests==2.31.0
 rodi==2.0.3
-setuptools==68.2.2
+setuptools==75.3.0
 six==1.16.0
 toml==0.10.2
 tomli==2.0.1

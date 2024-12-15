@@ -103,10 +103,10 @@ jobs:
         run: |
           pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
 
-      - name: Run tests with Pydantic v2
+      - name: Run tests with Pydantic v1
         run: |
-          echo "[*] The previous tests used Pydantic v1, now running with v2"
-          pip install -U pydantic==2.4.2
+          echo "[*] The previous tests used Pydantic v2, now running with v1"
+          pip install -U "pydantic<2"
           pytest
 
       - name: Run linters

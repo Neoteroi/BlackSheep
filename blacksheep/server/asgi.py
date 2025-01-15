@@ -20,11 +20,19 @@ def get_request_url_from_scope(
     try:
         path = scope["path"]
         protocol = scope["scheme"]
-        host, port = scope["server"]
+        for key, val in scope["headers"]:
+            if key.lower() in (b"host", b"x-forwarded-host", b"x-original-host"):
+                host = val.decode("latin-1")
+                port = 0
+                break
+        else:
+            host, port = scope["server"]
     except KeyError as key_error:
         raise ValueError(f"Invalid scope: {key_error}")
 
-    if protocol == "http" and port == 80:
+    if not port:
+        port_part = ""
+    elif protocol == "http" and port == 80:
         port_part = ""
     elif protocol == "https" and port == 443:
         port_part = ""

@@ -684,6 +684,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if object_type is str:
             return Schema(type=ValueType.STRING)
 
+        if object_type is bytes:
+            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
+
         if object_type is int:
             return Schema(type=ValueType.INTEGER, format=ValueFormat.INT64)
 

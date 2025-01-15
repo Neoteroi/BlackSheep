@@ -130,6 +130,11 @@ class CatDetails(Cat):
 
 
 @dataclass
+class CreateCatImages:
+    images: List[str]
+
+
+@dataclass
 class Combo(Generic[T, U]):
     item_one: T
     item_two: U
@@ -247,6 +252,9 @@ def get_cats_api() -> Application:
 
     @delete("/api/cats/{cat_id}")
     def delete_cat(cat_id: int) -> None: ...
+
+    @post("/api/cats/{cat_id}/images")
+    def upload_images(cat_id: int, images: FromForm[CreateCatImages]) -> None: ...
 
     return app
 
@@ -1049,9 +1057,68 @@ async def test_handling_of_pydantic_class_with_generic(
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if sys.version_info >= (3, 9):
-        assert (
-            yaml.strip()
-            == """
+        if PYDANTIC_VERSION == 1:
+            assert (
+                yaml.strip()
+                == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydPaginatedSetOfCat'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        nullable: false
+        PydPaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+tags: []
+""".strip()
+            )
+        else:
+            assert (
+                yaml.strip()
+                == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1107,7 +1174,7 @@ components:
                     nullable: false
 tags: []
 """.strip()
-        )
+            )
     else:
         assert (
             yaml.strip()
@@ -1177,9 +1244,89 @@ async def test_handling_of_pydantic_class_with_child_models(
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if sys.version_info >= (3, 9):
-        assert (
-            yaml.strip()
-            == """
+        if PYDANTIC_VERSION == 1:
+            assert (
+                yaml.strip()
+                == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydTypeWithChildModels'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        nullable: false
+        PydPaginatedSetOfCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+        PydExampleWithSpecificTypes:
+            type: object
+            required:
+            - url
+            properties:
+                url:
+                    type: string
+                    format: uri
+                    maxLength: 2083
+                    minLength: 1
+                    nullable: false
+        PydTypeWithChildModels:
+            type: object
+            required:
+            - child
+            - friend
+            properties:
+                child:
+                    $ref: '#/components/schemas/PydPaginatedSetOfCat'
+                friend:
+                    $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+tags: []
+    """.strip()
+            )
+        else:
+            assert (
+                yaml.strip()
+                == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1256,7 +1403,7 @@ components:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
 tags: []
     """.strip()
-        )
+            )
     else:
         assert (
             yaml.strip()
@@ -1347,9 +1494,68 @@ async def test_handling_of_pydantic_class_in_generic(
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if sys.version_info >= (3, 9):
-        assert (
-            yaml.strip()
-            == """
+        if PYDANTIC_VERSION == 1:
+            assert (
+                yaml.strip()
+                == """
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PaginatedSetOfPydCat'
+            operationId: home
+components:
+    schemas:
+        PydCat:
+            type: object
+            required:
+            - id
+            - name
+            - childs
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+                childs:
+                    type: array
+                    nullable: false
+                    items:
+                        nullable: false
+        PaginatedSetOfPydCat:
+            type: object
+            required:
+            - items
+            - total
+            properties:
+                items:
+                    type: array
+                    nullable: false
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                total:
+                    type: integer
+                    format: int64
+                    nullable: false
+tags: []
+    """.strip()
+            )
+        else:
+            assert (
+                yaml.strip()
+                == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1405,7 +1611,7 @@ components:
                     nullable: false
 tags: []
     """.strip()
-        )
+            )
     else:
         assert (
             yaml.strip()
@@ -1593,6 +1799,30 @@ paths:
                     nullable: false
                 description: ''
                 required: true
+    /api/cats/{cat_id}/images:
+        post:
+            responses:
+                '204':
+                    description: Success response
+            operationId: upload_images
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                    application/x-www-form-urlencoded:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                required: true
 components:
     schemas:
         Cat:
@@ -1671,6 +1901,17 @@ components:
                     items:
                         type: integer
                         format: int64
+                        nullable: false
+        CreateCatImages:
+            type: object
+            required:
+            - images
+            properties:
+                images:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
                         nullable: false
 tags: []
 """.strip()
@@ -1757,6 +1998,30 @@ paths:
                     nullable: false
                 description: ''
                 required: true
+    /api/cats/{cat_id}/images:
+        post:
+            responses:
+                '204':
+                    description: Success response
+            operationId: Upload images
+            parameters:
+            -   name: cat_id
+                in: path
+                schema:
+                    type: integer
+                    format: int64
+                    nullable: false
+                description: ''
+                required: true
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                    application/x-www-form-urlencoded:
+                        schema:
+                            $ref: '#/components/schemas/CreateCatImages'
+                required: true
 components:
     schemas:
         Cat:
@@ -1835,6 +2100,17 @@ components:
                     items:
                         type: integer
                         format: int64
+                        nullable: false
+        CreateCatImages:
+            type: object
+            required:
+            - images
+            properties:
+                images:
+                    type: array
+                    nullable: false
+                    items:
+                        type: string
                         nullable: false
 tags: []
 """.strip()
@@ -1939,8 +2215,6 @@ components:
                     type: array
                     nullable: false
                     items:
-                        type: string
-                        format: uuid
                         nullable: false
         Error:
             type: object
@@ -2221,8 +2495,8 @@ components:
                 big_float:
                     type: number
                     format: float
-                    maximum: 1024
-                    minimum: 1000
+                    maximum: 1024.0
+                    minimum: 1000.0
                     nullable: false
                 unit_interval:
                     type: number

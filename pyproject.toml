@@ -17,6 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Environment :: Web Environment",
     "Operating System :: OS Independent",
     "Framework :: AsyncIO",
@@ -25,13 +26,13 @@ keywords = ["blacksheep", "web framework", "asyncio"]
 dependencies = [
     "httptools>=0.5",
     "certifi>=2022.9.24",
-    "charset-normalizer~=3.1.0",
+    "charset-normalizer~=3.4.0",
     "guardpost>=1.0.2",
     "rodi~=2.0.2",
     "essentials>=1.1.4,<2.0",
     "essentials-openapi>=1.0.6,<1.1",
-    "python-dateutil~=2.8.2",
-    "itsdangerous~=2.1.2",
+    "python-dateutil~=2.9.0",
+    "itsdangerous~=2.2.0",
 ]
 
 [tool.setuptools]
@@ -42,7 +43,7 @@ version = { attr = "blacksheep.__version__" }
 
 [project.optional-dependencies]
 jinja = ["Jinja2~=3.1.2"]
-full = ["cryptography>=38.0.1,<41.1.0", "PyJWT~=2.6.0", "websockets~=10.3"]
+full = ["cryptography>=44.0.0,<45.0.0", "PyJWT~=2.9.0", "websockets~=13.1"]
 
 [project.urls]
 "Homepage" = "https://github.com/Neoteroi/BlackSheep"

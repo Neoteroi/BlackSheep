@@ -861,9 +861,14 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return ParameterLocation.QUERY
         if isinstance(binder, CookieBinder):
             return ParameterLocation.COOKIE
-        if (isinstance(binder, HeaderBinder)
-            # exclude those specific header value per documentation https://swagger.io/docs/specification/describing-parameters/#header-parameters
-            and binder.parameter_name.lower() not in ['content-type', 'accept', 'authorization']):
+
+        # exclude those specific header value per documentation
+        # https://swagger.io/docs/specification/describing-parameters/#header-parameters
+        if isinstance(binder, HeaderBinder) and binder.parameter_name.lower() not in [
+            "content-type",
+            "accept",
+            "authorization",
+        ]:
             return ParameterLocation.HEADER
         return None
 

@@ -1,6 +1,5 @@
 import collections.abc as collections_abc
 import inspect
-import sys
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass

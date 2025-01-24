@@ -85,9 +85,7 @@ class PydExampleWithSpecificTypes(BaseModel):
 class PydCat(BaseModel):
     id: int
     name: str
-
-    if sys.version_info >= (3, 9):
-        childs: list[UUID4]
+    childs: list[UUID4]
 
 
 class PydPaginatedSetOfCat(BaseModel):
@@ -1056,11 +1054,10 @@ async def test_handling_of_pydantic_class_with_generic(
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    if sys.version_info >= (3, 9):
-        if PYDANTIC_VERSION == 1:
-            assert (
-                yaml.strip()
-                == """
+    if PYDANTIC_VERSION == 1:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1114,11 +1111,11 @@ components:
                     nullable: false
 tags: []
 """.strip()
-            )
-        else:
-            assert (
-                yaml.strip()
-                == """
+        )
+    else:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1157,58 +1154,6 @@ components:
                         type: string
                         format: uuid
                         nullable: false
-        PydPaginatedSetOfCat:
-            type: object
-            required:
-            - items
-            - total
-            properties:
-                items:
-                    type: array
-                    nullable: false
-                    items:
-                        $ref: '#/components/schemas/PydCat'
-                total:
-                    type: integer
-                    format: int64
-                    nullable: false
-tags: []
-""".strip()
-            )
-    else:
-        assert (
-            yaml.strip()
-            == """
-openapi: 3.0.3
-info:
-    title: Example
-    version: 0.0.1
-paths:
-    /:
-        get:
-            responses:
-                '200':
-                    description: Success response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PydPaginatedSetOfCat'
-            operationId: home
-components:
-    schemas:
-        PydCat:
-            type: object
-            required:
-            - id
-            - name
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
         PydPaginatedSetOfCat:
             type: object
             required:
@@ -1243,11 +1188,10 @@ async def test_handling_of_pydantic_class_with_child_models(
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    if sys.version_info >= (3, 9):
-        if PYDANTIC_VERSION == 1:
-            assert (
-                yaml.strip()
-                == """
+    if PYDANTIC_VERSION == 1:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1322,11 +1266,11 @@ components:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
 tags: []
     """.strip()
-            )
-        else:
-            assert (
-                yaml.strip()
-                == """
+        )
+    else:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1365,79 +1309,6 @@ components:
                         type: string
                         format: uuid
                         nullable: false
-        PydPaginatedSetOfCat:
-            type: object
-            required:
-            - items
-            - total
-            properties:
-                items:
-                    type: array
-                    nullable: false
-                    items:
-                        $ref: '#/components/schemas/PydCat'
-                total:
-                    type: integer
-                    format: int64
-                    nullable: false
-        PydExampleWithSpecificTypes:
-            type: object
-            required:
-            - url
-            properties:
-                url:
-                    type: string
-                    format: uri
-                    maxLength: 2083
-                    minLength: 1
-                    nullable: false
-        PydTypeWithChildModels:
-            type: object
-            required:
-            - child
-            - friend
-            properties:
-                child:
-                    $ref: '#/components/schemas/PydPaginatedSetOfCat'
-                friend:
-                    $ref: '#/components/schemas/PydExampleWithSpecificTypes'
-tags: []
-    """.strip()
-            )
-    else:
-        assert (
-            yaml.strip()
-            == """
-openapi: 3.0.3
-info:
-    title: Example
-    version: 0.0.1
-paths:
-    /:
-        get:
-            responses:
-                '200':
-                    description: Success response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PydTypeWithChildModels'
-            operationId: home
-components:
-    schemas:
-        PydCat:
-            type: object
-            required:
-            - id
-            - name
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
         PydPaginatedSetOfCat:
             type: object
             required:
@@ -1493,11 +1364,10 @@ async def test_handling_of_pydantic_class_in_generic(
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    if sys.version_info >= (3, 9):
-        if PYDANTIC_VERSION == 1:
-            assert (
-                yaml.strip()
-                == """
+    if PYDANTIC_VERSION == 1:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1551,11 +1421,11 @@ components:
                     nullable: false
 tags: []
     """.strip()
-            )
-        else:
-            assert (
-                yaml.strip()
-                == """
+        )
+    else:
+        assert (
+            yaml.strip()
+            == """
 openapi: 3.0.3
 info:
     title: Example
@@ -1594,58 +1464,6 @@ components:
                         type: string
                         format: uuid
                         nullable: false
-        PaginatedSetOfPydCat:
-            type: object
-            required:
-            - items
-            - total
-            properties:
-                items:
-                    type: array
-                    nullable: false
-                    items:
-                        $ref: '#/components/schemas/PydCat'
-                total:
-                    type: integer
-                    format: int64
-                    nullable: false
-tags: []
-    """.strip()
-            )
-    else:
-        assert (
-            yaml.strip()
-            == """
-openapi: 3.0.3
-info:
-    title: Example
-    version: 0.0.1
-paths:
-    /:
-        get:
-            responses:
-                '200':
-                    description: Success response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PaginatedSetOfPydCat'
-            operationId: home
-components:
-    schemas:
-        PydCat:
-            type: object
-            required:
-            - id
-            - name
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
         PaginatedSetOfPydCat:
             type: object
             required:
@@ -2178,8 +1996,7 @@ async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
     if PYDANTIC_VERSION == 1:
-        if sys.version_info >= (3, 9):
-            expected_result = """
+        expected_result = """
 openapi: 3.0.3
 info:
     title: Example
@@ -2241,66 +2058,8 @@ components:
                     $ref: '#/components/schemas/Error'
 tags: []
 """.strip()
-        else:
-            expected_result = """
-openapi: 3.0.3
-info:
-    title: Example
-    version: 0.0.1
-paths:
-    /:
-        get:
-            responses:
-                '200':
-                    description: Success response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PydResponse[PydCat]'
-            operationId: home
-components:
-    schemas:
-        PydCat:
-            type: object
-            required:
-            - id
-            - name
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-        Error:
-            type: object
-            required:
-            - code
-            - message
-            properties:
-                code:
-                    type: integer
-                    format: int64
-                    nullable: false
-                message:
-                    type: string
-                    nullable: false
-        PydResponse[PydCat]:
-            type: object
-            required:
-            - data
-            - error
-            properties:
-                data:
-                    $ref: '#/components/schemas/PydCat'
-                error:
-                    $ref: '#/components/schemas/Error'
-tags: []
-""".strip()
     elif PYDANTIC_VERSION == 2:
-        if sys.version_info >= (3, 9):
-            expected_result = """
+        expected_result = """
 openapi: 3.0.3
 info:
     title: Example
@@ -2339,67 +2098,6 @@ components:
                         type: string
                         format: uuid
                         nullable: false
-        Error:
-            type: object
-            required:
-            - code
-            - message
-            properties:
-                code:
-                    type: integer
-                    format: int64
-                    nullable: false
-                message:
-                    type: string
-                    nullable: false
-        PydResponse[PydCat]:
-            type: object
-            required:
-            - data
-            - error
-            properties:
-                data:
-                    anyOf:
-                    -   $ref: '#/components/schemas/PydCat'
-                    -   type: 'null'
-                error:
-                    anyOf:
-                    -   $ref: '#/components/schemas/Error'
-                    -   type: 'null'
-tags: []
-""".strip()
-        else:
-            expected_result = """
-openapi: 3.0.3
-info:
-    title: Example
-    version: 0.0.1
-paths:
-    /:
-        get:
-            responses:
-                '200':
-                    description: Success response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/PydResponse[PydCat]'
-            operationId: home
-components:
-    schemas:
-        PydCat:
-            type: object
-            required:
-            - id
-            - name
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
         Error:
             type: object
             required:

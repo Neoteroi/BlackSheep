@@ -8,8 +8,7 @@ from datetime import date, datetime
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
 
-if sys.version_info >= (3, 9):
-    from typing import _AnnotatedAlias as AnnotatedAlias
+from typing import _AnnotatedAlias as AnnotatedAlias
 
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
@@ -658,10 +657,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if stored_ref:  # pragma: no cover
             return stored_ref
 
-        if sys.version_info >= (3, 9):
-            if isinstance(object_type, AnnotatedAlias):
-                # Replace Annotated object type with the original type
-                object_type = getattr(object_type, "__origin__")
+        if isinstance(object_type, AnnotatedAlias):
+            # Replace Annotated object type with the original type
+            object_type = getattr(object_type, "__origin__")
 
         if self._can_handle_class_type(object_type):
             return self._get_schema_for_class(object_type)

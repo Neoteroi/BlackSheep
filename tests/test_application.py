@@ -5,7 +5,7 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import wraps
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar, Annotated
 from uuid import UUID, uuid4
 
 import pytest
@@ -1512,30 +1512,27 @@ async def test_handler_from_json_parameter(app):
     assert app.response.status == 204
 
 
-if sys.version_info >= (3, 9):
-    from typing import Annotated
+@pytest.mark.asyncio
+async def test_handler_from_json_annotated_parameter(app):
+    @app.router.post("/")
+    async def home(item: Annotated[Item, FromJSON]):
+        assert item is not None
+        value = item
+        assert value.a == "Hello"
+        assert value.b == "World"
+        assert value.c == 10
 
-    @pytest.mark.asyncio
-    async def test_handler_from_json_annotated_parameter(app):
-        @app.router.post("/")
-        async def home(item: Annotated[Item, FromJSON]):
-            assert item is not None
-            value = item
-            assert value.a == "Hello"
-            assert value.b == "World"
-            assert value.c == 10
-
-        app.normalize_handlers()
-        await app(
-            get_example_scope(
-                "POST",
-                "/",
-                [(b"content-type", b"application/json"), (b"content-length", b"32")],
-            ),
-            MockReceive([b'{"a":"Hello","b":"World","c":10}']),
-            MockSend(),
-        )
-        assert app.response.status == 204
+    app.normalize_handlers()
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [(b"content-type", b"application/json"), (b"content-length", b"32")],
+        ),
+        MockReceive([b'{"a":"Hello","b":"World","c":10}']),
+        MockSend(),
+    )
+    assert app.response.status == 204
 
 
 @pytest.mark.asyncio

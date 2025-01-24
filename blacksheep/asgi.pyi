@@ -1,7 +1,4 @@
-import sys
-from typing import List, Tuple
-
-from typing import TypedDict
+from typing import List, Tuple, TypedDict
 
 class ASGIScopeInterface(TypedDict):
     type: str

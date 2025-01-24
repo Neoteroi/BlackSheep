@@ -5,7 +5,7 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import wraps
-from typing import Any, Dict, List, Optional, TypeVar, Annotated
+from typing import Annotated, Any, Dict, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pytest

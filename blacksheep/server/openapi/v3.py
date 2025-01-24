@@ -6,9 +6,7 @@ from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
-
 from typing import _AnnotatedAlias as AnnotatedAlias
-
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID

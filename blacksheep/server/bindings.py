@@ -29,6 +29,7 @@ from typing import (
 )
 from urllib.parse import unquote
 from uuid import UUID
+import inspect
 
 from dateutil.parser import parse as dateutil_parser
 from guardpost import Identity
@@ -811,7 +812,10 @@ class ServiceBinder(Binder):
             scope = None
         assert self.services is not None
         try:
-            return self.services.resolve(self.expected_type, scope)
+            if inspect.iscoroutinefunction(self.services.resolve):
+                return await self.services.resolve(self.expected_type, scope)
+            else:
+                return self.services.resolve(self.expected_type, scope)
         except CannotResolveTypeException:
             return None
 

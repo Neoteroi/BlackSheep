@@ -1,10 +1,4 @@
-import sys
-from typing import List, Tuple
-
-if sys.version_info >= (3, 8):
-    from typing import TypedDict
-else:
-    from typing_extensions import TypedDict
+from typing import List, Tuple, TypedDict
 
 class ASGIScopeInterface(TypedDict):
     type: str

@@ -5,12 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.8] - 2025-01-??
+## [2.0.8] - 2025-01-25
 
+- Add Python 3.13 to the build matrix and several maintenance fixes, by @waketzheng.
 - Fix type error in `blacksheep/server/compression.py` `is_handled_encoding`;
   contributed by @bymoye and @ChenyangGao.
 - Fix issue where the host is not the proxy address when there is a proxy by
   @ChenyangGao.
+- Bump up action versions: actions/checkout@v1 -> v4, actions/setup-python@v4 -> v5
+  by @waketzheng.
+- Upgrade dependencies by @waketzheng.
+- Handle the bytes type during build OpenAPI Specification, by @tyzhnenko.
+- Exclude Accept, Content-type and Authorization header from OpenAPI docs, by @ticapix.
+- Fix OpenAPI v3 issue (#492) by @mmangione.
+- Set content-type header in TestSimulator (#502), by @tyzhnenko.
+- Added support for WebSocket in TestClient, by @Randomneo.
 
 ## [2.0.7] - 2024-02-17 :tulip:
 

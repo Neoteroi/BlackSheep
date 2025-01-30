@@ -30,7 +30,7 @@ dependencies = [
     "guardpost>=1.0.2",
     "rodi~=2.0.2",
     "essentials>=1.1.4,<2.0",
-    "essentials-openapi>=1.0.6,<1.1",
+    "essentials-openapi>=1.1.0,<2.0",
     "python-dateutil~=2.9.0",
     "itsdangerous~=2.2.0",
 ]

@@ -26,6 +26,14 @@ cdef class BadRequestFormat(BadRequest):
         self.inner_exception = inner_exception
 
 
+cdef class FailedRequestError(HTTPException):
+    def __init__(self, int status, str data) -> None:
+        super().__init__(
+            status, f"The response status code does not indicate success: {status}. Response body: {data}"
+        )
+        self.data = data
+
+
 cdef class NotFound(HTTPException):
 
     def __init__(self, message=None):

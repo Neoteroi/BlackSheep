@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-03-16
+
+- Remove support for Python 3.8, by @bymoye.
+- Add an async method `raise_for_status` to the `Response` object, which raises
+  an exception of type `FailedRequestError` if the response status is not in
+  the range 200-299.
+
 ## [2.0.8] - 2025-01-25
 
 - Add Python 3.13 to the build matrix and several maintenance fixes, by @waketzheng.

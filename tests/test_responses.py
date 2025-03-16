@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from blacksheep import Content, Cookie, Response, scribe
+from blacksheep.exceptions import FailedRequestError
 from blacksheep.server.controllers import (
     CannotDetermineDefaultViewNameError,
     Controller,
@@ -1108,3 +1109,27 @@ async def test_pretty_json_response_in_controller(
             assert f'    "{name}": "{value}"' in raw
         else:
             assert f'    "{name}": ' in raw
+
+
+@pytest.mark.asyncio
+async def test_response_raise_for_status():
+    response = Response(200)
+    await response.raise_for_status()
+
+    response = Response(404).with_content(Content(b"text/plain", b"Hello, World"))
+
+    with pytest.raises(FailedRequestError) as exc_info:
+        await response.raise_for_status()
+
+    assert exc_info.value.status == 404
+    assert exc_info.value.data == "Hello, World"
+
+    response = Response(500).with_content(
+        Content(b"text/plain", b"Internal server error")
+    )
+
+    with pytest.raises(FailedRequestError) as exc_info:
+        await response.raise_for_status()
+
+    assert exc_info.value.status == 500
+    assert exc_info.value.data == "Internal server error"

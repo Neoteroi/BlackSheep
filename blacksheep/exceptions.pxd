@@ -27,3 +27,7 @@ cdef class InvalidArgument(Exception):
 
 cdef class InvalidOperation(Exception):
     pass
+
+
+cdef class FailedRequestError(HTTPException):
+    cdef public str data

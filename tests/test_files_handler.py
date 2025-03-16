@@ -23,7 +23,6 @@ def temp_files_folder():
     shutil.rmtree(temp_folder)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "file_name", ["example.txt", "pexels-photo-126407.jpeg", "README.md"]
 )
@@ -39,7 +38,6 @@ async def test_read_file(files_folder: pathlib.Path, file_name: str):
     assert contents == expected_contents
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("file_name", ["example.txt", "README.md"])
 async def test_read_file_rt_mode(files_folder: pathlib.Path, file_name: str):
     handler = FilesHandler()
@@ -53,7 +51,6 @@ async def test_read_file_rt_mode(files_folder: pathlib.Path, file_name: str):
     assert contents == expected_contents
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "file_name", ["example.txt", "pexels-photo-126407.jpeg", "README.md"]
 )
@@ -70,7 +67,6 @@ async def test_read_file_with_open(files_folder: pathlib.Path, file_name: str):
     assert contents == expected_contents
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "file_name,index,size",
     [
@@ -99,7 +95,6 @@ async def test_seek_and_read_chunk(
     assert chunk_read_async == chunk_read
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "file_name", ["example.txt", "pexels-photo-126407.jpeg", "README.md"]
 )
@@ -128,7 +123,6 @@ async def test_read_file_chunks(files_folder: pathlib.Path, file_name: str):
     assert contents == expected_contents
 
 
-@pytest.mark.asyncio
 async def test_write_file(temp_files_folder: pathlib.Path):
     handler = FilesHandler()
     file_name = str(uuid4()) + ".txt"
@@ -143,7 +137,6 @@ async def test_write_file(temp_files_folder: pathlib.Path):
     assert contents == expected_contents
 
 
-@pytest.mark.asyncio
 async def test_write_file_text_mode(temp_files_folder: pathlib.Path):
     handler = FilesHandler()
     file_name = str(uuid4()) + ".txt"
@@ -158,7 +151,6 @@ async def test_write_file_text_mode(temp_files_folder: pathlib.Path):
     assert contents == expected_contents
 
 
-@pytest.mark.asyncio
 async def test_write_file_with_iterable(temp_files_folder: pathlib.Path):
     handler = FilesHandler()
     file_name = str(uuid4()) + ".txt"
@@ -180,7 +172,6 @@ async def test_write_file_with_iterable(temp_files_folder: pathlib.Path):
     assert b"Lorem ipsum dolor sit" == expected_contents
 
 
-@pytest.mark.asyncio
 async def test_file_context_raises_for_invalid_mode():
     handler = FilesHandler()
 
@@ -191,7 +182,6 @@ async def test_file_context_raises_for_invalid_mode():
     assert "invalid mode" in str(error_info.value)
 
 
-@pytest.mark.asyncio
 async def test_file_context_raises_if_file_is_not_open():
     with pytest.raises(TypeError) as error_info:
         file_context = FileContext("foo.txt")

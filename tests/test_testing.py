@@ -40,7 +40,6 @@ def test_app():
     return Application(show_error_details=True)
 
 
-@pytest.mark.asyncio
 async def test_client_response(test_app):
     @test_app.router.route("/")
     async def home(request):
@@ -58,7 +57,6 @@ async def test_client_response(test_app):
     assert actual_json_body == expected_body
 
 
-@pytest.mark.asyncio
 async def test_client_headers(test_app):
     class FromTestHeader(FromHeader[str]):
         name = "test_header"
@@ -78,7 +76,6 @@ async def test_client_headers(test_app):
     assert actual_header_value == expected_header_value
 
 
-@pytest.mark.asyncio
 async def test_client_content(test_app):
     @test_app.router.route("/", methods=["POST"])
     async def home(request):
@@ -105,7 +102,6 @@ async def test_client_content(test_app):
         b"foo=bar",
     ],
 )
-@pytest.mark.asyncio
 async def test_client_queries(test_app, input_query):
     @test_app.router.route("/")
     async def home(request):
@@ -129,7 +125,6 @@ async def test_client_queries(test_app, input_query):
         [(b"foo", b"bar")],
     ],
 )
-@pytest.mark.asyncio
 async def test_client_cookies(test_app, input_cookies):
     @test_app.router.route("/")
     async def home(request):
@@ -146,7 +141,6 @@ async def test_client_cookies(test_app, input_cookies):
     assert actual_response == expected_response
 
 
-@pytest.mark.asyncio
 async def test_client_content_raise_error_if_incorrect_type(test_app):
     with pytest.raises(ValueError):
         await _start_application(test_app)
@@ -156,13 +150,11 @@ async def test_client_content_raise_error_if_incorrect_type(test_app):
         await test_client.post("/", content={"foo": "bar"})
 
 
-@pytest.mark.asyncio
 async def test_client_application_not_started_error(test_app):
     with pytest.raises(AssertionError):
         TestClient(test_app)
 
 
-@pytest.mark.asyncio
 async def test_custom_test_simulator(test_app):
     test_client = TestClient(test_app, test_simulator=CustomTestSimulator())
 
@@ -185,7 +177,6 @@ async def test_custom_test_simulator(test_app):
         ("HEAD", "HEAD"),
     ],
 )
-@pytest.mark.asyncio
 async def test_client_methods(test_app, method, expected_method):
     @test_app.router.route("/", methods=[method])
     async def home(request):
@@ -206,7 +197,6 @@ def test_get_example_scope_raise_error_if_query_provided():
         get_example_scope("GET", "/test?")
 
 
-@pytest.mark.asyncio
 async def test_app_controller_handle_correct_method(test_app):
     test_app.controllers_router = RoutesRegistry()
     get = test_app.controllers_router.get
@@ -228,7 +218,6 @@ async def test_app_controller_handle_correct_method(test_app):
     assert actual_method == expected_method
 
 
-@pytest.mark.asyncio
 async def test_app_controller_get_correct_post_body(test_app):
     test_app.controllers_router = RoutesRegistry()
     post = test_app.controllers_router.post
@@ -250,7 +239,6 @@ async def test_app_controller_get_correct_post_body(test_app):
     assert actual_json_body == expected_json_body
 
 
-@pytest.mark.asyncio
 async def test_app_controller_get_correct_query_parameters(test_app):
     test_app.controllers_router = RoutesRegistry()
     get = test_app.controllers_router.get

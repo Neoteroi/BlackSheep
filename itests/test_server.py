@@ -884,7 +884,6 @@ def test_post_json_to_app_using_custom_json_settings(session_4, data):
     assert response.json() == data
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "route,data",
     [
@@ -903,7 +902,6 @@ async def test_websocket(server_host, server_port_4, route, data):
         assert data == echo
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "route",
     [
@@ -922,7 +920,6 @@ async def test_websocket_auth(server_host, server_port_2, route):
     assert "server rejected" in str(error.value)
 
 
-@pytest.mark.asyncio
 async def test_websocket_server_error(server_host, server_port_2):
     uri = f"ws://{server_host}:{server_port_2}/websocket-server-error"
 

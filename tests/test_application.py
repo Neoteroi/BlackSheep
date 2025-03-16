@@ -72,7 +72,6 @@ def read_multipart_mix_dat():
         return dat_file.read()
 
 
-@pytest.mark.asyncio
 async def test_application_supports_dynamic_attributes(app):
     foo = object()
 
@@ -83,7 +82,6 @@ async def test_application_supports_dynamic_attributes(app):
     assert app.foo is foo  # type: ignore
 
 
-@pytest.mark.asyncio
 async def test_application_get_handler(app):
     @app.router.get("/")
     async def home(request):
@@ -104,7 +102,6 @@ async def test_application_get_handler(app):
     assert connection == (b"keep-alive",)
 
 
-@pytest.mark.asyncio
 async def test_application_post_multipart_formdata(app):
     @app.router.post("/files/upload")
     async def upload_files(request):
@@ -213,7 +210,6 @@ async def test_application_post_multipart_formdata(app):
     assert response.status == 200, data
 
 
-@pytest.mark.asyncio
 async def test_application_post_handler(app):
     called_times = 0
 
@@ -252,7 +248,6 @@ async def test_application_post_handler(app):
     assert {"id": "123"} == response_data
 
 
-@pytest.mark.asyncio
 async def test_application_post_handler_invalid_content_type(app):
     called_times = 0
 
@@ -290,7 +285,6 @@ async def test_application_post_handler_invalid_content_type(app):
     assert response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_application_post_json_handles_missing_body(app):
     @app.router.post("/api/cat")
     async def create_cat(request):
@@ -317,7 +311,6 @@ async def test_application_post_json_handles_missing_body(app):
     assert response.status == 201
 
 
-@pytest.mark.asyncio
 async def test_application_returns_400_for_invalid_json(app):
     @app.router.post("/api/cat")
     async def create_cat(request):
@@ -348,7 +341,6 @@ async def test_application_returns_400_for_invalid_json(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_application_middlewares_one(app):
     calls = []
 
@@ -386,7 +378,6 @@ async def test_application_middlewares_one(app):
     assert calls == [1, 3, 5, 4, 2]
 
 
-@pytest.mark.asyncio
 async def test_application_middlewares_as_classes(app):
     calls = []
 
@@ -425,7 +416,6 @@ async def test_application_middlewares_as_classes(app):
     assert calls == [1, 3, 5, 4, 2]
 
 
-@pytest.mark.asyncio
 async def test_application_middlewares_are_applied_only_once(app):
     """
     This test checks that the same request handled bound to several routes
@@ -465,7 +455,6 @@ async def test_application_middlewares_are_applied_only_once(app):
         calls.clear()
 
 
-@pytest.mark.asyncio
 async def test_application_middlewares_two(app):
     calls = []
 
@@ -511,7 +500,6 @@ async def test_application_middlewares_two(app):
     assert calls == [1, 3, 6, 5, 7, 4, 2]
 
 
-@pytest.mark.asyncio
 async def test_application_middlewares_skip_handler(app):
     calls = []
 
@@ -555,7 +543,6 @@ async def test_application_middlewares_skip_handler(app):
     assert calls == [1, 3, 6, 4, 2]
 
 
-@pytest.mark.asyncio
 async def test_application_post_multipart_formdata_files_handler(app):
     ensure_folder("out")
     ensure_folder("tests/out")
@@ -634,7 +621,6 @@ async def test_application_post_multipart_formdata_files_handler(app):
                 assert binary == clone_binary
 
 
-@pytest.mark.asyncio
 async def test_application_http_exception_handlers(app):
     called = False
 
@@ -664,7 +650,6 @@ async def test_application_http_exception_handlers(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_application_http_exception_handlers_called_in_application_context(app):
     async def exception_handler(self, request, http_exception):
         nonlocal app
@@ -688,7 +673,6 @@ async def test_application_http_exception_handlers_called_in_application_context
     )
 
 
-@pytest.mark.asyncio
 async def test_application_user_defined_exception_handlers(app):
     called = False
 
@@ -721,7 +705,6 @@ async def test_application_user_defined_exception_handlers(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_user_defined_exception_handlers_called_in_application_context(app):
     class CustomException(Exception):
         pass
@@ -752,7 +735,6 @@ async def test_user_defined_exception_handlers_called_in_application_context(app
     )
 
 
-@pytest.mark.asyncio
 async def test_application_exception_handler_decorator_by_custom_exception(app):
     expected_handler_response_text = "Called"
 
@@ -782,7 +764,6 @@ async def test_application_exception_handler_decorator_by_custom_exception(app):
     assert actual_response_text == expected_handler_response_text
 
 
-@pytest.mark.asyncio
 async def test_application_exception_handler_decorator_by_http_status_code(app):
     expected_exception_status_code = 519
     expected_handler_response_text = "Called"
@@ -809,7 +790,6 @@ async def test_application_exception_handler_decorator_by_http_status_code(app):
     assert actual_response_text == expected_handler_response_text
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_value",
     [("a", "a"), ("foo", "foo"), ("Hello%20World!!%3B%3B", "Hello World!!;;")],
@@ -830,7 +810,6 @@ async def test_handler_route_value_binding_single(parameter, expected_value, app
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_a,expected_b",
     [
@@ -850,7 +829,6 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_value", [("12", 12), ("0", 0), ("16549", 16549)]
 )
@@ -870,7 +848,6 @@ async def test_handler_route_value_binding_single_int(parameter, expected_value,
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("parameter", ["xx", "x"])
 async def test_handler_route_value_binding_single_int_invalid(parameter, app):
     called = False
@@ -888,7 +865,6 @@ async def test_handler_route_value_binding_single_int_invalid(parameter, app):
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("parameter", ["xx", "x"])
 async def test_handler_route_value_binding_single_float_invalid(parameter, app):
     called = False
@@ -906,7 +882,6 @@ async def test_handler_route_value_binding_single_float_invalid(parameter, app):
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_value", [("12", 12.0), ("0", 0.0), ("16549.55", 16549.55)]
 )
@@ -926,7 +901,6 @@ async def test_handler_route_value_binding_single_float(parameter, expected_valu
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter,expected_a,expected_b,expected_c",
     [
@@ -949,7 +923,6 @@ async def test_handler_route_value_binding_mixed_types(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value",
     [
@@ -970,7 +943,6 @@ async def test_handler_query_value_binding_single(query, expected_value, app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value", [(b"a=10", 10), (b"b=20", None), (b"", None)]
 )
@@ -984,7 +956,6 @@ async def test_handler_query_value_binding_optional_int(query, expected_value, a
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value",
     [
@@ -1005,7 +976,6 @@ async def test_handler_query_value_binding_optional_float(query, expected_value,
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value",
     [
@@ -1027,7 +997,6 @@ async def test_handler_query_value_binding_optional_list(query, expected_value, 
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_a,expected_b,expected_c",
     [
@@ -1050,7 +1019,6 @@ async def test_handler_query_value_binding_mixed_types(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value",
     [
@@ -1070,7 +1038,6 @@ async def test_handler_query_value_binding_list(query, expected_value, app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value",
     [(b"a=2", [2]), (b"a=2&a=44", [2, 44]), (b"a=1&a=5&a=18", [1, 5, 18])],
@@ -1085,7 +1052,6 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_value, a
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_value",
     [
@@ -1104,7 +1070,6 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_value,
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method(app):
     @app.router.get("/")
     def home(request):
@@ -1115,7 +1080,6 @@ async def test_handler_normalize_sync_method(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_header(app):
     @app.router.get("/")
     def home(request, xx: FromHeader[str]):
@@ -1130,7 +1094,6 @@ async def test_handler_normalize_sync_method_from_header(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_header_name_compatible(app):
     class AcceptLanguageHeader(FromHeader[str]):
         name = "accept-language"
@@ -1149,7 +1112,6 @@ async def test_handler_normalize_sync_method_from_header_name_compatible(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_query(app):
     @app.router.get("/")
     def home(xx: FromQuery[int]):
@@ -1160,7 +1122,6 @@ async def test_handler_normalize_sync_method_from_query(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_query_implicit_default(app):
     @app.router.get("/")
     def get_products(
@@ -1212,7 +1173,6 @@ async def test_handler_normalize_sync_method_from_query_implicit_default(app):
     assert content == "Page: 2; size: 50; search: foo"
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_query_default(app):
     @app.router.get("/")
     def get_products(
@@ -1265,7 +1225,6 @@ async def test_handler_normalize_sync_method_from_query_default(app):
     assert content == "Page: 2; size: 50; search: foo"
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_list_sync_method_from_query_default(app):
     @app.router.get("/")
     def example(
@@ -1317,7 +1276,6 @@ async def test_handler_normalize_list_sync_method_from_query_default(app):
     assert content == f"A: {[1349, 55]}; B: {[10]}; C: {['Hello']}"
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_without_arguments(app):
     @app.router.get("/")
     def home():
@@ -1328,7 +1286,6 @@ async def test_handler_normalize_sync_method_without_arguments(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_query_optional(app):
     @app.router.get("/")
     def home(xx: FromQuery[Optional[int]], yy: FromQuery[Optional[int]]):
@@ -1340,7 +1297,6 @@ async def test_handler_normalize_sync_method_from_query_optional(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_optional_binder(app):
     @app.router.get("/1")
     def home1(xx: Optional[FromQuery[int]], yy: Optional[FromQuery[int]]):
@@ -1368,7 +1324,6 @@ async def test_handler_normalize_optional_binder(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_sync_method_from_query_optional_list(app):
     @app.router.get("/")
     def home(xx: FromQuery[Optional[List[int]]], yy: FromQuery[Optional[List[int]]]):
@@ -1384,7 +1339,6 @@ async def test_handler_normalize_sync_method_from_query_optional_list(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "query,expected_values",
     [
@@ -1405,7 +1359,6 @@ async def test_handler_normalize_sync_method_from_query_default_type(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_normalize_method_without_input(app):
     @app.router.get("/")
     async def home():
@@ -1416,7 +1369,6 @@ async def test_handler_normalize_method_without_input(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "value,expected_value",
     [["dashboard", "dashboard"], ["hello_world", "hello_world"]],
@@ -1431,7 +1383,6 @@ async def test_handler_from_route(value, expected_value, app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "value_one,value_two,expected_value_one,expected_value_two",
     [
@@ -1460,7 +1411,6 @@ async def test_handler_two_routes_parameters(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "value_one,value_two,expected_value_one,expected_value_two",
     [
@@ -1489,7 +1439,6 @@ async def test_handler_two_routes_parameters_implicit(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
@@ -1512,7 +1461,6 @@ async def test_handler_from_json_parameter(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_annotated_parameter(app):
     @app.router.post("/")
     async def home(item: Annotated[Item, FromJSON]):
@@ -1535,7 +1483,6 @@ async def test_handler_from_json_annotated_parameter(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_without_annotation(app):
     @app.router.post("/")
     async def home(item: FromJSON):
@@ -1557,7 +1504,6 @@ async def test_handler_from_json_without_annotation(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_dict(app):
     @app.router.post("/")
     async def home(item: FromJSON[dict]):
@@ -1579,7 +1525,6 @@ async def test_handler_from_json_parameter_dict(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_dict_unannotated(app):
     @app.router.post("/")
     async def home(item: FromJSON[Dict]):
@@ -1601,7 +1546,6 @@ async def test_handler_from_json_parameter_dict_unannotated(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_dict_annotated(app):
     @app.router.post("/")
     async def home(item: FromJSON[Dict[str, Any]]):
@@ -1631,7 +1575,6 @@ async def test_handler_from_json_parameter_dict_annotated(app):
         "Lorem ipsum dolor sit amet\n" * 200,
     ],
 )
-@pytest.mark.asyncio
 async def test_handler_from_text_parameter(value: str, app):
     @app.router.post("/")
     async def home(text: FromText):
@@ -1661,7 +1604,6 @@ async def test_handler_from_text_parameter(value: str, app):
         b"Lorem ipsum dolor sit amet\n" * 200,
     ],
 )
-@pytest.mark.asyncio
 async def test_handler_from_bytes_parameter(value: bytes, app):
     @app.router.post("/")
     async def home(text: FromBytes):
@@ -1683,7 +1625,6 @@ async def test_handler_from_bytes_parameter(value: bytes, app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_files(app):
     @app.router.post("/")
     async def home(files: FromFiles):
@@ -1789,7 +1730,6 @@ async def _multipart_mix_scenario(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_files_and_form(app):
     """
     Tests proper handling of a separate FromFiles and FromForm binders, with class
@@ -1830,7 +1770,6 @@ async def test_handler_from_files_and_form(app):
     await _multipart_mix_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_handler_from_form_handling_whole_multipart_with_class(app):
     """
     Tests proper handling of a single FromForm binder, handling multipart with files
@@ -1874,7 +1813,6 @@ async def test_handler_from_form_handling_whole_multipart_with_class(app):
     await _multipart_mix_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_handler_from_form_handling_whole_multipart_without_class(app):
     """
     Tests proper handling of a single FromForm binder, handling multipart with files
@@ -1898,7 +1836,6 @@ async def test_handler_from_form_handling_whole_multipart_without_class(app):
     await _multipart_mix_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_handler_from_files_and_form_dict(app):
     """
     Tests proper handling of a separate FromFiles and FromForm binders, without class
@@ -1922,7 +1859,6 @@ async def test_handler_from_files_and_form_dict(app):
     await _multipart_mix_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_handler_from_files_handles_empty_body(app):
     @app.router.post("/")
     async def home(files: FromFiles):
@@ -1942,7 +1878,6 @@ async def test_handler_from_files_handles_empty_body(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_missing_property(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]): ...
@@ -1967,7 +1902,6 @@ async def test_handler_from_json_parameter_missing_property(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_handler_json_response_implicit(app):
     @app.router.get("/")
     async def get_item() -> Item2:
@@ -1990,7 +1924,6 @@ async def test_handler_json_response_implicit(app):
     assert data == Item2("Hello", "World", "!").__dict__
 
 
-@pytest.mark.asyncio
 async def test_handler_json_response_implicit_no_annotation(app):
     @app.router.get("/")
     async def get_item():
@@ -2013,7 +1946,6 @@ async def test_handler_json_response_implicit_no_annotation(app):
     assert data == Item2("Hello", "World", "!").__dict__
 
 
-@pytest.mark.asyncio
 async def test_handler_text_response_implicit(app):
     @app.router.get("/")
     async def get_lorem():
@@ -2036,7 +1968,6 @@ async def test_handler_text_response_implicit(app):
     assert data == "Lorem ipsum"
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_missing_property_complex_type(app):
     @inject()
     @app.router.post("/")
@@ -2062,7 +1993,6 @@ async def test_handler_from_json_parameter_missing_property_complex_type(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_missing_property_array(app):
     @app.router.post("/")
     async def home(item: FromJSON[List[Item]]): ...
@@ -2086,7 +2016,6 @@ async def test_handler_from_json_parameter_missing_property_array(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_handles_request_without_body(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]):
@@ -2106,7 +2035,6 @@ async def test_handler_from_json_parameter_handles_request_without_body(app):
     assert app.response.content.body == b"Bad Request: Expected request content"
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_list_of_objects(app):
     @app.router.post("/")
     async def home(item: FromJSON[List[Item]]):
@@ -2201,7 +2129,6 @@ async def test_handler_from_json_list_of_objects(app):
         ],
     ],
 )
-@pytest.mark.asyncio
 async def test_handler_from_json_list_of_primitives(
     expected_type, request_body, expected_result, app
 ):
@@ -2228,7 +2155,6 @@ async def test_handler_from_json_list_of_primitives(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_dataclass(app):
     @dataclass
     class Foo:
@@ -2256,7 +2182,6 @@ async def test_handler_from_json_dataclass(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_default(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
@@ -2280,7 +2205,6 @@ async def test_handler_from_json_parameter_default(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_default_override(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item] = FromJSON(Item("One", "Two", 3))):
@@ -2303,7 +2227,6 @@ async def test_handler_from_json_parameter_default_override(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_implicit(app):
     @app.router.post("/")
     async def home(item: Item):
@@ -2325,7 +2248,6 @@ async def test_handler_from_json_parameter_implicit(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_json_parameter_implicit_default(app):
     @app.router.post("/")
     async def home(item: Item = Item(1, 2, 3)):
@@ -2347,7 +2269,6 @@ async def test_handler_from_json_parameter_implicit_default(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(item: FromJSON[Optional[Item]]):
@@ -2368,7 +2289,6 @@ async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(ap
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_handler_from_wrong_method_json_parameter_gets_bad_request(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(request, item: FromJSON[Item]):
@@ -2392,7 +2312,6 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request(app):
     assert content == "Bad Request: Expected request content"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameter,expected_value",
     [
@@ -2441,7 +2360,6 @@ async def test_valid_query_parameter_parse(
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameter,expected_value",
     [
@@ -2489,7 +2407,6 @@ async def test_valid_cookie_parameter_parse(
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameters,expected_value",
     [
@@ -2536,7 +2453,6 @@ async def test_valid_query_parameter_list_parse(
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameter",
     [
@@ -2567,7 +2483,6 @@ async def test_invalid_query_parameter_400(parameter_type, parameter, app):
     assert "Bad Request: Invalid value ['nope'] for parameter `foo`;" in content
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameter,expected_value",
     [
@@ -2611,7 +2526,6 @@ async def test_valid_route_parameter_parse(
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameter,expected_value",
     [
@@ -2660,7 +2574,6 @@ async def test_valid_header_parameter_parse(
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameter_one,parameter_two",
     [
@@ -2716,7 +2629,6 @@ async def test_valid_query_parameter(parameter_type, parameter_one, parameter_tw
     assert content == f"Got: {parameter_one}"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "parameter_type,parameter_one,parameter_two",
     [
@@ -2765,7 +2677,6 @@ async def test_valid_query_parameter_implicit(
     assert content == f"Got: {parameter_one}"
 
 
-@pytest.mark.asyncio
 async def test_valid_query_parameter_list_of_int(app):
     expected_values_1 = [1349]
     expected_values_2 = [1349, 164]
@@ -2797,7 +2708,6 @@ async def test_valid_query_parameter_list_of_int(app):
     assert content == f"Got: {expected_values_2}"
 
 
-@pytest.mark.asyncio
 async def test_invalid_query_parameter_int(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[int]): ...
@@ -2845,7 +2755,6 @@ async def test_invalid_query_parameter_int(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_invalid_query_parameter_float(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[float]): ...
@@ -2893,7 +2802,6 @@ async def test_invalid_query_parameter_float(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_invalid_query_parameter_bool(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[bool]): ...
@@ -2941,7 +2849,6 @@ async def test_invalid_query_parameter_bool(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_invalid_query_parameter_uuid(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[UUID]):
@@ -2965,7 +2872,6 @@ async def test_invalid_query_parameter_uuid(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_valid_route_parameter_uuid(app):
     @app.router.get("/:foo")
     async def home(request, foo: FromRoute[UUID]):
@@ -2986,7 +2892,6 @@ async def test_valid_route_parameter_uuid(app):
     assert content == f"Got: {value_1}"
 
 
-@pytest.mark.asyncio
 async def test_valid_route_parameter_uuid_2(app):
     @app.router.get("/:a_id/:b_id")
     async def home(request, a_id: FromRoute[UUID], b_id: FromRoute[UUID]):
@@ -3008,7 +2913,6 @@ async def test_valid_route_parameter_uuid_2(app):
     assert content == f"Got: {value_1} and {value_2}"
 
 
-@pytest.mark.asyncio
 async def test_valid_header_parameter_uuid_list(app):
     @app.router.get("/")
     async def home(request, x_foo: FromHeader[List[UUID]]):
@@ -3034,7 +2938,6 @@ async def test_valid_header_parameter_uuid_list(app):
     assert content == f"Got: {[value_1, value_2]}"
 
 
-@pytest.mark.asyncio
 async def test_invalid_route_parameter_uuid(app):
     @app.router.get("/:document_id")
     async def home(request, document_id: FromRoute[UUID]):
@@ -3058,7 +2961,6 @@ async def test_invalid_route_parameter_uuid(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_valid_route_parameter_uuid_implicit(app):
     @app.router.get("/:foo")
     async def home(request, foo: UUID):
@@ -3079,7 +2981,6 @@ async def test_valid_route_parameter_uuid_implicit(app):
     assert content == f"Got: {value_1}"
 
 
-@pytest.mark.asyncio
 async def test_route_resolution_order(app):
     @app.router.get("/:id")
     async def example_a():
@@ -3140,7 +3041,6 @@ async def test_route_resolution_order(app):
     assert content == "C"
 
 
-@pytest.mark.asyncio
 async def test_client_server_info_bindings(app):
     @app.router.get("/")
     async def home(client: ClientInfo, server: ServerInfo):
@@ -3162,7 +3062,6 @@ async def test_client_server_info_bindings(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_service_bindings():
     container = Container()
 
@@ -3213,7 +3112,6 @@ async def test_service_bindings():
         assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_di_middleware_enables_scoped_services_in_handle_signature():
     container = Container()
 
@@ -3255,7 +3153,6 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature():
         assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signature():
     container = Container()
 
@@ -3287,7 +3184,6 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
         assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_service_bindings_default():
     # Extremely unlikely, but still supported if the user defines a default service
     container = Container()
@@ -3334,7 +3230,6 @@ async def test_service_bindings_default():
         assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_service_bindings_default_override():
     # Extremely unlikely, but still supported if the user defines a default service
     container = Container()
@@ -3386,7 +3281,6 @@ async def test_service_bindings_default_override():
         assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_user_binding(app):
     class MockAuthHandler(AuthenticationHandler):
         async def authenticate(self, context):
@@ -3439,7 +3333,6 @@ async def test_user_binding(app):
         assert content == "User name: Charlie Brown"
 
 
-@pytest.mark.asyncio
 async def test_request_binding(app):
     @app.router.get("/")
     async def example(req: Request):
@@ -3459,7 +3352,6 @@ async def test_request_binding(app):
     assert content == "Foo"
 
 
-@pytest.mark.asyncio
 async def test_use_auth_raises_if_app_is_already_started(app):
     class MockAuthHandler(AuthenticationHandler):
         async def authenticate(self, context):
@@ -3480,7 +3372,6 @@ async def test_use_auth_raises_if_app_is_already_started(app):
         app.use_authorization()
 
 
-@pytest.mark.asyncio
 async def test_default_headers(app):
     app.default_headers = (("Example", "Foo"),)
 
@@ -3503,7 +3394,6 @@ async def test_default_headers(app):
     assert response.headers.get_first(b"Example") == b"Foo"
 
 
-@pytest.mark.asyncio
 async def test_start_stop_events(app):
     on_start_called = False
     on_after_start_called = False
@@ -3545,7 +3435,6 @@ async def test_start_stop_events(app):
 
 
 @pytest.mark.parametrize("method", ["environ", "explicit"])
-@pytest.mark.asyncio
 async def test_mounted_app_auto_events(method: str):
     if method == "environ":
         os.environ["APP_MOUNT_AUTO_EVENTS"] = "1"
@@ -3598,7 +3487,6 @@ async def test_mounted_app_auto_events(method: str):
     assert on_stop_called is True
 
 
-@pytest.mark.asyncio
 async def test_start_stop_multiple_events(app):
     on_start_count = 0
     on_stop_count = 0
@@ -3650,7 +3538,6 @@ async def test_start_stop_multiple_events(app):
     assert on_stop_count == 2
 
 
-@pytest.mark.asyncio
 async def test_start_stop_multiple_events_using_decorators(app: Application):
     on_start_count = 0
     on_stop_count = 0
@@ -3701,7 +3588,6 @@ async def test_start_stop_multiple_events_using_decorators(app: Application):
     assert on_stop_count == 2
 
 
-@pytest.mark.asyncio
 async def test_on_middlewares_configured_event(app: Application):
     on_middlewares_configuration_count = 0
 
@@ -3724,7 +3610,6 @@ async def test_on_middlewares_configured_event(app: Application):
     assert on_middlewares_configuration_count == 2
 
 
-@pytest.mark.asyncio
 async def test_app_events_decorator_args_support(app: Application):
     @app.on_start
     async def before_start_1(application: FakeApplication) -> None: ...
@@ -3733,7 +3618,6 @@ async def test_app_events_decorator_args_support(app: Application):
     async def before_start_2(application: FakeApplication) -> None: ...
 
 
-@pytest.mark.asyncio
 async def test_start_stop_remove_event_handlers(app):
     on_start_count = 0
     on_stop_count = 0
@@ -3781,7 +3665,6 @@ async def test_start_stop_remove_event_handlers(app):
     assert on_stop_count == 1
 
 
-@pytest.mark.asyncio
 async def test_start_runs_once(app):
     on_start_count = 0
 
@@ -3803,7 +3686,6 @@ async def test_start_runs_once(app):
     assert on_start_count == 1
 
 
-@pytest.mark.asyncio
 async def test_handles_on_start_error_asgi_lifespan(app):
     async def before_start(application: FakeApplication) -> None:
         raise RuntimeError("Crash!")
@@ -3825,7 +3707,6 @@ async def test_handles_on_start_error_asgi_lifespan(app):
     assert mock_send.messages[0] == {"type": "lifespan.startup.failed"}
 
 
-@pytest.mark.asyncio
 async def test_app_with_mounts_handles_on_start_error_asgi_lifespan(app: Application):
     async def before_start(application: FakeApplication) -> None:
         raise RuntimeError("Crash!")
@@ -3855,7 +3736,6 @@ def test_register_controller_types_handle_empty_list(app):
     assert app.register_controllers([]) is None
 
 
-@pytest.mark.asyncio
 async def test_response_normalization_wrapped(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
@@ -3895,7 +3775,6 @@ async def test_response_normalization_wrapped(app):
     assert response.content.body == b"Hello, World"
 
 
-@pytest.mark.asyncio
 async def test_response_normalization_with_cors(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
@@ -3928,7 +3807,6 @@ async def test_response_normalization_with_cors(app):
     assert response.content.body == b"Hello, World"
 
 
-@pytest.mark.asyncio
 async def test_async_event_raises_for_fire_method():
     event = ApplicationSyncEvent(None)
 
@@ -3936,7 +3814,6 @@ async def test_async_event_raises_for_fire_method():
         await event.fire()
 
 
-@pytest.mark.asyncio
 async def test_application_raises_for_unhandled_scope_type(app):
     with pytest.raises(TypeError) as app_type_error:
         await app(
@@ -3953,7 +3830,6 @@ def test_mounting_self_raises(app):
         app.mount("/nope", app)
 
 
-@pytest.mark.asyncio
 async def test_custom_handler_for_500_internal_server_error(app):
     @app.exception_handler(500)
     async def unhandled_exception_handler(
@@ -3991,7 +3867,6 @@ def get_pydantic_error(cls, data) -> str:
     return expected_error
 
 
-@pytest.mark.asyncio
 async def test_application_pydantic_json_error(app):
     class CreateCatInput(BaseModel):
         name: str
@@ -4024,7 +3899,6 @@ async def test_application_pydantic_json_error(app):
     assert response.content.body.decode() == expected_error
 
 
-@pytest.mark.asyncio
 async def test_app_fallback_route(app):
     def not_found_handler():
         return text("Example", 404)
@@ -4041,7 +3915,6 @@ async def test_app_fallback_route(app):
     assert (await response.text()) == "Example"
 
 
-@pytest.mark.asyncio
 async def test_hsts_middleware(app):
     @app.router.get("/")
     async def home():
@@ -4061,7 +3934,6 @@ async def test_hsts_middleware(app):
 
 
 @pytest.mark.skipif(sys.version_info < (3, 10), reason="requires python3.10 or higher")
-@pytest.mark.asyncio
 async def test_pep_593(app):
     """
     Tests a scenario that was reported as bug here:
@@ -4097,7 +3969,6 @@ async def test_pep_593(app):
     ]
 
 
-@pytest.mark.asyncio
 async def test_lifespan_event(app: Application):
     initialized = False
     disposed = False
@@ -4133,7 +4004,6 @@ def test_mounting_apps_using_the_same_router_raises_error():
         Application(router=single_router)
 
 
-@pytest.mark.asyncio
 async def test_application_sub_router_normalization():
     router = Router()
     app = FakeApplication(router=Router(sub_routers=[router]))

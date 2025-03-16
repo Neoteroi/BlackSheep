@@ -39,7 +39,6 @@ def example():
     return example_decorator
 
 
-@pytest.mark.asyncio
 async def test_handler_through_controller(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -72,7 +71,6 @@ async def test_handler_through_controller(app):
     assert body == "foo"
 
 
-@pytest.mark.asyncio
 async def test_ws_handler_through_controller(app):
     app.controllers_router = RoutesRegistry()
     ws = app.controllers_router.ws
@@ -98,7 +96,6 @@ async def test_ws_handler_through_controller(app):
     assert called is True
 
 
-@pytest.mark.asyncio
 async def test_user_binder_with_controller(app):
     """
     The following test covers the scenario where the User object is first
@@ -163,7 +160,6 @@ async def test_user_binder_with_controller(app):
     assert called is True
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "path_one,path_two",
     [
@@ -226,7 +222,6 @@ async def test_handler_catch_all_through_controller(path_one, path_two, app):
     assert body == "foo"
 
 
-@pytest.mark.asyncio
 async def test_handler_through_controller_owned_text_method(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -259,7 +254,6 @@ async def test_handler_through_controller_owned_text_method(app):
     assert body == "foo"
 
 
-@pytest.mark.asyncio
 async def test_handler_through_controller_owned_html_method(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -285,7 +279,6 @@ async def test_handler_through_controller_owned_html_method(app):
     assert app.response.content_type() == b"text/html; charset=utf-8"
 
 
-@pytest.mark.asyncio
 async def test_controller_supports_on_request(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -326,7 +319,6 @@ async def test_controller_supports_on_request(app):
         assert k == j
 
 
-@pytest.mark.asyncio
 async def test_controller_supports_on_response(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -370,7 +362,6 @@ async def test_controller_supports_on_response(app):
         assert k == j
 
 
-@pytest.mark.asyncio
 async def test_handler_through_controller_supports_generic_decorator(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -393,7 +384,6 @@ async def test_handler_through_controller_supports_generic_decorator(app):
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("value", ["Hello World", "Charlie Brown"])
 async def test_controller_with_dependency(value, app: Application):
     app.controllers_router = RoutesRegistry()
@@ -426,7 +416,6 @@ async def test_controller_with_dependency(value, app: Application):
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("value", ["Hello World", "Charlie Brown"])
 async def test_many_controllers(value, app):
     app.controllers_router = RoutesRegistry()
@@ -463,7 +452,6 @@ async def test_many_controllers(value, app):
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "first_pattern,second_pattern",
     [
@@ -507,7 +495,6 @@ async def test_controllers_with_duplicate_routes_throw(
     )
 
 
-@pytest.mark.asyncio
 async def test_controller_on_request_setting_identity(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -530,7 +517,6 @@ async def test_controller_on_request_setting_identity(app):
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_controller_with_base_route_as_string_attribute(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -561,7 +547,6 @@ async def test_controller_with_base_route_as_string_attribute(app):
     assert body == "Hello World"
 
 
-@pytest.mark.asyncio
 async def test_application_raises_for_invalid_route_class_attribute(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -581,7 +566,6 @@ async def test_application_raises_for_invalid_route_class_attribute(app):
         app.setup_controllers()
 
 
-@pytest.mark.asyncio
 async def test_controller_with_base_route_as_class_method(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -618,7 +602,6 @@ async def test_controller_with_base_route_as_class_method(app):
         assert body == "Good"
 
 
-@pytest.mark.asyncio
 async def test_controller_with_base_route_as_class_method_fragments(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -655,7 +638,6 @@ async def test_controller_with_base_route_as_class_method_fragments(app):
         assert body == "Good"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "first_pattern,second_pattern", [("/", "/home"), (b"/", b"/home")]
 )
@@ -682,7 +664,6 @@ async def test_controllers_with_duplicate_routes_with_base_route_throw(
         app.use_controllers()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "first_pattern,second_pattern", [("/", "/home"), (b"/", b"/home")]
 )
@@ -708,7 +689,6 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
         app.use_controllers()
 
 
-@pytest.mark.asyncio
 async def test_api_controller_without_version(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -751,7 +731,6 @@ async def test_api_controller_without_version(app):
         assert body == value
 
 
-@pytest.mark.asyncio
 async def test_api_controller_with_version(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -798,7 +777,6 @@ async def test_api_controller_with_version(app):
         assert body == value
 
 
-@pytest.mark.asyncio
 async def test_api_controller_with_version_2(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -870,7 +848,6 @@ async def test_api_controller_with_version_2(app):
         assert body == value
 
 
-@pytest.mark.asyncio
 async def test_controller_parameter_name_match(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -902,7 +879,6 @@ async def test_controller_parameter_name_match(app):
     assert body == "foo"
 
 
-@pytest.mark.asyncio
 async def test_controller_return_file(app):
     file_path = get_file_path("example.config", "files2")
 
@@ -939,7 +915,6 @@ class Foo:
     value: float
 
 
-@pytest.mark.asyncio
 async def test_handler_through_controller_default_type(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -957,7 +932,6 @@ async def test_handler_through_controller_default_type(app):
     assert data == {"name": "Hello", "value": 5.5}
 
 
-@pytest.mark.asyncio
 async def test_handler_through_controller_default_str(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -975,7 +949,6 @@ async def test_handler_through_controller_default_str(app):
     assert data == "Hello World"
 
 
-@pytest.mark.asyncio
 async def test_controller_filters(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get

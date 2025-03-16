@@ -25,7 +25,6 @@ def test_request_supports_dynamic_attributes():
     assert request.foo is foo  # type: ignore
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "url,method,headers,content,expected_result",
     [
@@ -98,7 +97,6 @@ def test_parse_query(url, query, parsed_query):
     assert request.query == parsed_query
 
 
-@pytest.mark.asyncio
 async def test_can_read_json_data_even_without_content_type_header():
     request = Request("POST", b"/", None)
 
@@ -108,7 +106,6 @@ async def test_can_read_json_data_even_without_content_type_header():
     assert json == {"hello": "world", "foo": False}
 
 
-@pytest.mark.asyncio
 async def test_if_read_json_fails_content_type_header_is_checked_json_gives_bad_request_format():
     request = Request("POST", b"/", [(b"Content-Type", b"application/json")])
 
@@ -118,7 +115,6 @@ async def test_if_read_json_fails_content_type_header_is_checked_json_gives_bad_
         await request.json()
 
 
-@pytest.mark.asyncio
 async def test_if_read_json_fails_content_type_header_is_checked_non_json_gives_invalid_operation():
     request = Request("POST", b"/", [])
 
@@ -531,7 +527,6 @@ def test_updating_request_url_read_host():
     assert request.host == "github.com"
 
 
-@pytest.mark.asyncio
 async def test_updating_request_host_in_headers():
     request = Request("GET", b"https://www.neoteroi.dev/blacksheep", [])
 
@@ -553,7 +548,6 @@ async def test_updating_request_host_in_headers():
     assert request.headers[b"host"] == (b"github.com",)
 
 
-@pytest.mark.asyncio
 async def test_write_request_cookies():
     request = Request("GET", b"https://www.neoteroi.dev/blacksheep", [])
 
@@ -593,7 +587,6 @@ def test_scope_root_path():
     assert request.base_path == "/app2"
 
 
-@pytest.mark.asyncio
 async def test_write_small_request_streamed():
     async def content_gen():
         yield b"Hello"
@@ -612,7 +605,6 @@ async def test_write_small_request_streamed():
     )
 
 
-@pytest.mark.asyncio
 async def test_write_small_request_streamed_fixed_length():
     async def content_gen():
         yield b"Hello"

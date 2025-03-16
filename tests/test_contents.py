@@ -20,7 +20,6 @@ from blacksheep.multipart import (
 from blacksheep.scribe import write_chunks, write_request_body_only
 
 
-@pytest.mark.asyncio
 async def test_chunked_encoding_with_generated_content():
     async def data_generator():
         yield b'{"hello":"world",'
@@ -83,7 +82,6 @@ def test_form_urlencoded_writer(data, expected_result):
     assert expected_result == content
 
 
-@pytest.mark.asyncio
 async def test_multipart_form_data():
     data = MultiPartFormData(
         [
@@ -289,7 +287,6 @@ def test_text_content_data(text):
     assert content.body == text.encode("utf8")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "req,expected_chunks",
     [

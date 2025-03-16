@@ -55,7 +55,6 @@ class ExampleThree:
         self.b = b
 
 
-@pytest.mark.asyncio
 async def test_from_body_json_binding():
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent({"a": "world", "b": 9000})
@@ -70,7 +69,6 @@ async def test_from_body_json_binding():
     assert value.b == 9000
 
 
-@pytest.mark.asyncio
 async def test_from_body_json_binding_extra_parameters_strategy():
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent(
@@ -91,7 +89,6 @@ async def test_from_body_json_binding_extra_parameters_strategy():
     assert value.b == 9000
 
 
-@pytest.mark.asyncio
 async def test_from_body_json_with_converter():
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent(
@@ -115,7 +112,6 @@ async def test_from_body_json_with_converter():
     assert value.b == 9000
 
 
-@pytest.mark.asyncio
 async def test_from_body_json_binding_request_missing_content_type():
     request = Request("POST", b"/", [])
 
@@ -126,7 +122,6 @@ async def test_from_body_json_binding_request_missing_content_type():
     assert value is None
 
 
-@pytest.mark.asyncio
 async def test_from_body_json_binding_invalid_input():
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent({"c": 1, "d": 2})
@@ -138,7 +133,6 @@ async def test_from_body_json_binding_invalid_input():
         await parameter.get_value(request)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "expected_type,header_value,expected_value",
     [
@@ -165,7 +159,6 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
     assert value == expected_value
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "expected_type,header_value,expected_value",
     [
@@ -192,7 +185,6 @@ async def test_from_header_binding_name_ci(expected_type, header_value, expected
     assert value == expected_value
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "expected_type,query_value,expected_value",
     [
@@ -218,7 +210,6 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
     assert value == expected_value
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "expected_type,route_value,expected_value",
     [
@@ -250,14 +241,12 @@ async def test_from_route_binding(expected_type, route_value, expected_value):
     assert value == expected_value
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("binder_type", [HeaderBinder, QueryBinder, RouteBinder])
 async def test_raises_for_missing_default_converter(binder_type):
     with raises(MissingConverterError):
         binder_type("example", ExampleOne)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "expected_type,invalid_value",
     [[int, "x"], [int, ""], [float, "x"], [float, ""], [bool, "x"], [bool, "yes"]],
@@ -272,7 +261,6 @@ async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_va
         await parameter.get_value(request)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "expected_type,invalid_value",
     [
@@ -295,7 +283,6 @@ async def test_from_query_raises_for_invalid_parameter(
         await parameter.get_value(request)
 
 
-@pytest.mark.asyncio
 async def test_from_services():
     request = Request("GET", b"/", [])
 
@@ -309,7 +296,6 @@ async def test_from_services():
     assert value is service_instance
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "declared_type,expected_type,header_values,expected_values",
     [
@@ -342,7 +328,6 @@ async def test_from_header_binding_iterables(
     assert value == expected_values
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "declared_type,expected_type,query_values,expected_values",
     [
@@ -413,7 +398,6 @@ async def test_from_query_binding_iterables(
     assert values == expected_values
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
 )
@@ -422,7 +406,6 @@ async def test_nested_iterables_raise_missing_converter_from_header(declared_typ
         HeaderBinder(declared_type)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
 )
@@ -431,7 +414,6 @@ async def test_nested_iterables_raise_missing_converter_from_query(declared_type
         QueryBinder("example", declared_type)
 
 
-@pytest.mark.asyncio
 async def test_identity_binder_identity_not_set():
     request = Request("GET", b"/", None)
 
@@ -442,7 +424,6 @@ async def test_identity_binder_identity_not_set():
     assert value is None
 
 
-@pytest.mark.asyncio
 async def test_identity_binder():
     request = Request("GET", b"/", None)
     request.user = Identity({})
@@ -454,7 +435,6 @@ async def test_identity_binder():
     assert value is request.user
 
 
-@pytest.mark.asyncio
 async def test_from_body_form_binding_urlencoded():
     request = Request("POST", b"/", []).with_content(
         FormContent({"a": "world", "b": 9000})
@@ -469,7 +449,6 @@ async def test_from_body_form_binding_urlencoded():
     assert value.b == 9000
 
 
-@pytest.mark.asyncio
 async def test_from_body_form_binding_urlencoded_keys_duplicates():
     request = Request("POST", b"/", []).with_content(
         FormContent([("a", "world"), ("b", "one"), ("b", "two"), ("b", "three")])
@@ -484,7 +463,6 @@ async def test_from_body_form_binding_urlencoded_keys_duplicates():
     assert value.b == ["one", "two", "three"]
 
 
-@pytest.mark.asyncio
 async def test_from_body_form_binding_multipart():
     request = Request("POST", b"/", []).with_content(
         MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
@@ -498,7 +476,6 @@ async def test_from_body_form_binding_multipart():
     assert value.b == 9000
 
 
-@pytest.mark.asyncio
 async def test_from_body_form_binding_multipart_keys_duplicates():
     request = Request("POST", b"/", []).with_content(
         MultiPartFormData(
@@ -520,7 +497,6 @@ async def test_from_body_form_binding_multipart_keys_duplicates():
     assert value.b == ["one", "two", "three"]
 
 
-@pytest.mark.asyncio
 async def test_custom_bound_value_and_binder():
     class FromMethod(BoundValue[str]):
         pass
@@ -538,7 +514,6 @@ async def test_custom_bound_value_and_binder():
         assert value == method
 
 
-@pytest.mark.asyncio
 async def test_custom_bound_value_fails_for_missing_binder():
     class FromSomething(BoundValue[str]):
         pass
@@ -550,7 +525,6 @@ async def test_custom_bound_value_fails_for_missing_binder():
         get_binder_by_type(FromSomething)
 
 
-@pytest.mark.asyncio
 async def test_raises_for_duplicate_binders():
     class FromMethod(BoundValue[str]):
         pass
@@ -581,7 +555,6 @@ def test_sync_binder_source_name(
     assert binder.source_name == expected_source_name
 
 
-@pytest.mark.asyncio
 async def test_body_binder_throws_for_abstract_methods():
     body_binder = BodyBinder(dict)
 
@@ -592,7 +565,6 @@ async def test_body_binder_throws_for_abstract_methods():
         await body_binder.read_data(Request("HEAD", b"/", []))
 
 
-@pytest.mark.asyncio
 async def test_body_binder_throws_bad_request_for_missing_body():
     class CustomBodyBinder(BodyBinder):
         def matches_content_type(self, request: Request) -> bool:
@@ -614,7 +586,6 @@ async def test_body_binder_throws_bad_request_for_missing_body():
         await body_binder.get_value(Request("POST", b"/", []))
 
 
-@pytest.mark.asyncio
 async def test_body_binder_throws_bad_request_for_value_error():
     body_binder = JSONBinder(dict, required=True)
 
@@ -639,7 +610,6 @@ def test_sync_binders_source_name():
 
 
 @pytest.mark.parametrize("method", ["GET", "OPTIONS", "POST"])
-@pytest.mark.asyncio
 async def test_request_method_binder(method):
     request = Request(method, b"/", [])
     parameter = RequestMethodBinder()
@@ -648,7 +618,6 @@ async def test_request_method_binder(method):
 
 
 @pytest.mark.parametrize("url", [b"/", b"/api/cats/123", b"/foo/index.html?s=20"])
-@pytest.mark.asyncio
 async def test_request_url_binder(url):
     request = Request("GET", url, [])
     parameter = RequestURLBinder()

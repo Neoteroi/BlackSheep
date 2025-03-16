@@ -11,7 +11,6 @@ from blacksheep.testing.messages import MockReceive, MockSend
     "comp_level, comp_size",
     (zip(range(0, 10), (468, 283, 283, 283, 282, 282, 282, 282, 282, 282))),
 )
-@pytest.mark.asyncio
 async def test_gzip_output(app, comp_level, comp_size):
     return_value = (
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "
@@ -46,7 +45,6 @@ async def test_gzip_output(app, comp_level, comp_size):
     assert response.headers.get_single(b"content-encoding") == b"gzip"
 
 
-@pytest.mark.asyncio
 async def test_skip_gzip_small_output(app):
     @app.router.get("/")
     async def home():
@@ -73,7 +71,6 @@ async def test_skip_gzip_small_output(app):
         assert response.headers.get_single(b"content-encoding")
 
 
-@pytest.mark.asyncio
 async def test_skip_gzip_output_without_header(app):
     @app.router.get("/")
     async def home():
@@ -101,7 +98,6 @@ async def test_skip_gzip_output_without_header(app):
         assert response.headers.get_single(b"content-encoding")
 
 
-@pytest.mark.asyncio
 async def test_skip_gzip_output_for_unhandled_type(app):
     @app.router.get("/")
     async def home():

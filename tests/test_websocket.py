@@ -30,7 +30,6 @@ def test_websocket_repr(example_scope):
     assert str(ws) == "<WebSocket /ws>"
 
 
-@pytest.mark.asyncio
 async def test_connect_raises_if_not_connecting(example_scope):
     ws = WebSocket(
         example_scope, MockReceive([{"type": "websocket.connect"}]), MockSend()
@@ -51,7 +50,6 @@ async def test_connect_raises_if_not_connecting(example_scope):
     )
 
 
-@pytest.mark.asyncio
 async def test_websocket_accept(example_scope):
     """
     A websocket gets fully connected when the ASGI server sends a message of type
@@ -67,7 +65,6 @@ async def test_websocket_accept(example_scope):
     assert ws.application_state == WebSocketState.CONNECTED
 
 
-@pytest.mark.asyncio
 async def test_websocket_receive_text(example_scope):
     """
     A first message is received when the underlying ASGI server first sends a
@@ -90,7 +87,6 @@ async def test_websocket_receive_text(example_scope):
     assert message == "Lorem ipsum dolor sit amet"
 
 
-@pytest.mark.asyncio
 async def test_websocket_receive_bytes(example_scope):
     """
     A first message is received when the underlying ASGI server first sends a
@@ -113,7 +109,6 @@ async def test_websocket_receive_bytes(example_scope):
     assert message == b"Lorem ipsum dolor sit amet"
 
 
-@pytest.mark.asyncio
 async def test_websocket_receive_json(example_scope):
     """
     A first message is received when the underlying ASGI server first sends a
@@ -136,7 +131,6 @@ async def test_websocket_receive_json(example_scope):
     assert message == {"message": "Lorem ipsum"}
 
 
-@pytest.mark.asyncio
 async def test_websocket_receive_json_from_bytes(example_scope):
     """
     A first message is received when the underlying ASGI server first sends a
@@ -159,7 +153,6 @@ async def test_websocket_receive_json_from_bytes(example_scope):
     assert message == {"message": "Lorem ipsum"}
 
 
-@pytest.mark.asyncio
 async def test_websocket_send_text(example_scope):
     """
     A message is sent by the server to clients, by sending a message to the underlying
@@ -183,7 +176,6 @@ async def test_websocket_send_text(example_scope):
     assert message.get("type") == "websocket.send"
 
 
-@pytest.mark.asyncio
 async def test_websocket_send_bytes(example_scope):
     """
     A message is sent by the server to clients, by sending a message to the underlying
@@ -207,7 +199,6 @@ async def test_websocket_send_bytes(example_scope):
     assert message.get("type") == "websocket.send"
 
 
-@pytest.mark.asyncio
 async def test_websocket_send_json(example_scope):
     """
     A message is sent by the server to clients, by sending a message to the underlying
@@ -231,7 +222,6 @@ async def test_websocket_send_json(example_scope):
     assert message.get("type") == "websocket.send"
 
 
-@pytest.mark.asyncio
 async def test_websocket_send_json_as_bytes(example_scope):
     """
     A message is sent by the server to clients, by sending a message to the underlying
@@ -255,7 +245,6 @@ async def test_websocket_send_json_as_bytes(example_scope):
     assert message.get("type") == "websocket.send"
 
 
-@pytest.mark.asyncio
 async def test_connecting_websocket_raises_for_receive(example_scope):
     ws = WebSocket(example_scope, MockReceive(), MockSend())
 
@@ -274,7 +263,6 @@ async def test_connecting_websocket_raises_for_receive(example_scope):
     )
 
 
-@pytest.mark.asyncio
 async def test_connecting_websocket_raises_for_send(example_scope):
     ws = WebSocket(example_scope, MockReceive(), MockSend())
 
@@ -293,7 +281,6 @@ async def test_connecting_websocket_raises_for_send(example_scope):
     )
 
 
-@pytest.mark.asyncio
 async def test_websocket_raises_for_receive_when_closed_by_client(example_scope):
     """
     If the underlying ASGI server sends a message of type "websocket.disconnect",
@@ -322,7 +309,6 @@ async def test_websocket_raises_for_receive_when_closed_by_client(example_scope)
     )
 
 
-@pytest.mark.asyncio
 async def test_application_handling_websocket_request_not_found():
     """
     If a client tries to open a WebSocket connection on an endpoint that is not handled,
@@ -339,7 +325,6 @@ async def test_application_handling_websocket_request_not_found():
     assert close_message == {"type": "websocket.close", "reason": None, "code": 1000}
 
 
-@pytest.mark.asyncio
 async def test_application_handling_proper_websocket_request():
     """
     If a client tries to open a WebSocket connection on an endpoint that is handled,
@@ -363,7 +348,6 @@ async def test_application_handling_proper_websocket_request():
         pass
 
 
-@pytest.mark.asyncio
 async def test_application_handling_proper_websocket_request_with_query():
     app = FakeApplication()
 
@@ -384,7 +368,6 @@ async def test_application_handling_proper_websocket_request_with_query():
         pass
 
 
-@pytest.mark.asyncio
 async def test_application_handling_proper_websocket_request_header_binding():
     app = FakeApplication()
 
@@ -402,7 +385,6 @@ async def test_application_handling_proper_websocket_request_header_binding():
         pass
 
 
-@pytest.mark.asyncio
 async def test_application_websocket_binding_by_type_annotation():
     """
     This test verifies that the WebSocketBinder can bind a WebSocket by type annotation.
@@ -423,7 +405,6 @@ async def test_application_websocket_binding_by_type_annotation():
         pass
 
 
-@pytest.mark.asyncio
 async def test_websocket_handler_must_not_return():
     """
     This test verifies that normalized request handlers handling WebSockets are not
@@ -444,7 +425,6 @@ async def test_websocket_handler_must_not_return():
         assert await route.handler(...) is None
 
 
-@pytest.mark.asyncio
 async def test_testwebsocket_closing():
     """
     This test verifies that websocket.disconnect is sent by TestWebSocket
@@ -469,7 +449,6 @@ async def test_testwebsocket_closing():
     assert disconnected is True
 
 
-@pytest.mark.asyncio
 async def test_testwebsocket_send_receive_methods():
     """
     This test verifies that TestWebSocket sends and receives different formats

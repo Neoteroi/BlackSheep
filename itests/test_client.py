@@ -17,7 +17,6 @@ def ensure_success(response: Response):
     assert response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_get_plain_text(session):
     for _ in range(5):
         response = await session.get("/hello-world")
@@ -26,7 +25,6 @@ async def test_get_plain_text(session):
         assert text == "Hello, World!"
 
 
-@pytest.mark.asyncio
 async def test_get_neoteroi_home(session):
     for _ in range(2):
         response = await session.get("https://www.neoteroi.dev")
@@ -35,7 +33,6 @@ async def test_get_neoteroi_home(session):
         assert "Neoteroi" in text
 
 
-@pytest.mark.asyncio
 async def test_get_plain_text_stream(session):
     response = await session.get("/hello-world")
     ensure_success(response)
@@ -47,7 +44,6 @@ async def test_get_plain_text_stream(session):
     assert bytes(data) == b"Hello, World!"
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "headers",
     [
@@ -64,7 +60,6 @@ async def test_headers(session, headers):
         assert (value,) == header
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "headers",
     [
@@ -87,7 +82,6 @@ async def test_default_headers(session_alt, headers, server_host, server_port):
         assert (value,) == header
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "cookies", [{"x-foo": str(uuid4())}, {"x-a": "Hello", "x-b": "World", "x-c": "!!"}]
 )
@@ -112,7 +106,6 @@ async def test_cookies(session, cookies):
         assert value == header
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "name,value", [("Foo", "Foo"), ("Character-Name", "Charlie Brown")]
 )
@@ -123,7 +116,6 @@ async def test_set_cookie(session, name, value):
     assert value == response.cookies[name]
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "data",
     [
@@ -138,7 +130,6 @@ async def test_post_json(session, data):
     assert await response.json() == data
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "data",
     [
@@ -153,7 +144,6 @@ async def test_post_form(session, data):
     assert await response.json() == data
 
 
-@pytest.mark.asyncio
 async def test_post_multipart_form_with_files(session):
     if os.path.exists("out"):
         shutil.rmtree("out")
@@ -189,7 +179,6 @@ async def test_post_multipart_form_with_files(session):
     assert_file_content_equals("./out/binary", "aωb")
 
 
-@pytest.mark.asyncio
 async def test_post_multipart_form_with_images(session):
     if os.path.exists("out"):
         shutil.rmtree("out")
@@ -224,7 +213,6 @@ async def test_post_multipart_form_with_images(session):
     assert_files_equals("./out/four.jpg", file_two_path)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "url_path,file_path",
     [
@@ -243,14 +231,12 @@ async def test_download_file(session, url_path, file_path):
     assert get_file_bytes(file_path) == bytes(value)
 
 
-@pytest.mark.asyncio
 async def test_close_connection(session):
     for _ in range(3):
         response = await session.get("/close-connection")
         ensure_success(response)
 
 
-@pytest.mark.asyncio
 async def test_cookies_with_redirect(session):
     """
     Tests proper handling of set-cookie header and client middlewares in general, when

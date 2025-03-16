@@ -94,7 +94,6 @@ def test_cookie_jar_throws_for_url_without_host():
         jar.get_cookies_for_url(URL(b"/"))
 
 
-@pytest.mark.asyncio
 async def test_cookies_jar_single_cookie():
     fake_pools = FakePools(
         [
@@ -127,7 +126,6 @@ async def test_cookies_jar_single_cookie():
         await client.get(b"/")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "first_request_url,second_request_url,set_cookies,expected_cookies",
     [
@@ -292,7 +290,6 @@ async def test_cookies_jar(
         await client.get(second_request_url)
 
 
-@pytest.mark.asyncio
 async def test_remove_cookie_with_expiration():
     expire_cookie = Cookie("X-Foo", "Foo")
     expire_cookie.expires = utcnow() + timedelta(days=-2)
@@ -335,7 +332,6 @@ async def test_remove_cookie_with_expiration():
         )  # <-- expect missing cookie; was deleted by previous response
 
 
-@pytest.mark.asyncio
 async def test_remove_cookie_with_max_age():
     expire_cookie = Cookie("X-Foo", "Foo")
     expire_cookie.max_age = 0

@@ -5,7 +5,6 @@ from blacksheep.client import ClientSession, ConnectionTimeout, RequestTimeout
 from . import FakePools
 
 
-@pytest.mark.asyncio
 async def test_connection_timeout():
     fake_pools = FakePools([])
     fake_pools.pool.sleep_for = (
@@ -21,7 +20,6 @@ async def test_connection_timeout():
             await client.get(b"/")
 
 
-@pytest.mark.asyncio
 async def test_request_timeout():
     fake_pools = FakePools([])
     fake_pools.pool.connection.sleep_for = (

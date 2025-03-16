@@ -29,7 +29,6 @@ def get_scenarios(fn):
     return args
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "responses,expected_status,expected_location",
     get_scenarios(
@@ -84,7 +83,6 @@ async def test_non_url_redirect(
         assert location_header == expected_location
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "responses,expected_response_body",
     get_scenarios(
@@ -120,7 +118,6 @@ async def test_good_redirect(responses, expected_response_body, pools_factory):
         assert content == expected_response_body
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "responses,expected_location",
     [
@@ -149,7 +146,6 @@ async def test_not_follow_redirect(responses, expected_location, pools_factory):
         assert location[0] == expected_location
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "responses,maximum_redirects",
     [
@@ -192,7 +188,6 @@ async def test_maximum_number_of_redirects_detection(
             await client.get(b"/")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "responses,expected_error_message",
     [
@@ -279,7 +274,6 @@ def test_redirects_cache_missing():
     assert cache[b"/foo"] is None
 
 
-@pytest.mark.asyncio
 async def test_use_standard_redirect():
     async with ClientSession(base_url=b"http://localhost:8080") as client:
         assert client.non_standard_handling_of_301_302_redirect_method is True

@@ -67,7 +67,6 @@ def test_write_cache_control_response_header_raises_for_priv_pub():
         write_cache_control_response_header(private=True, public=True)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("params,expected_header", CACHE_CONTROL_PARAMS_EXPECTED)
 async def test_cache_control_decorator(app, params, expected_header):
     @app.router.get("/")
@@ -78,7 +77,6 @@ async def test_cache_control_decorator(app, params, expected_header):
     await _assert_scenario(app, expected_header)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("params,expected_header", CACHE_CONTROL_PARAMS_EXPECTED)
 async def test_cache_control_in_controller(app, params, expected_header):
     app.controllers_router = RoutesRegistry()
@@ -93,7 +91,6 @@ async def test_cache_control_in_controller(app, params, expected_header):
     await _assert_scenario(app, expected_header)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("params,expected_header", CACHE_CONTROL_PARAMS_EXPECTED)
 async def test_cache_control_middleware(app, params, expected_header):
     app.middlewares.append(CacheControlMiddleware(**params))

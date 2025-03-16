@@ -55,7 +55,6 @@ async def _assert_generation_scenario(response: Response):
     assert value != control_value
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_generation(home_model):
     app, render = get_app(False)
 
@@ -70,7 +69,6 @@ async def test_anti_forgery_token_generation(home_model):
     await _assert_generation_scenario(app.response)
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_click_jacking_protection(home_model):
     app, render = get_app(False)
 
@@ -90,7 +88,6 @@ async def test_anti_forgery_token_click_jacking_protection(home_model):
     assert x_frame_options == (b"SAMEORIGIN",)
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_generation_multiple(home_model):
     """
     Verifies that using {% af_input %} doesn't generate multiple values for the same
@@ -130,7 +127,6 @@ async def test_anti_forgery_token_generation_multiple(home_model):
     assert af_cookie is not None
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_missing_request_context(home_model):
     app, render = get_app(False)
 
@@ -191,7 +187,6 @@ async def _valid_scenario(app: FakeApplication):
     assert response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_validation_using_input_1(home_model):
     """
     Tests a valid scenario.
@@ -209,7 +204,6 @@ async def test_anti_forgery_token_validation_using_input_1(home_model):
     await _valid_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_validation_using_input_1b(home_model):
     """
     Tests handling of an anomalous situation when the same form contains two elements
@@ -261,7 +255,6 @@ async def test_anti_forgery_token_validation_using_input_1b(home_model):
     assert response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_cookie_must_be_http_only(home_model):
     app, render = get_app(False)
 
@@ -279,7 +272,6 @@ async def test_anti_forgery_cookie_must_be_http_only(home_model):
     assert af_cookie.http_only is True
 
 
-@pytest.mark.asyncio
 async def test_tokens_reuse_across_requests(home_model):
     """
     When the same client has multiple pages open on the same website, they should use
@@ -348,7 +340,6 @@ async def test_tokens_reuse_across_requests(home_model):
     assert response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_tokens_reuse_across_requests_invalid_token(home_model):
     """
     Tests an invalid value sent for aftoken cookie.
@@ -384,7 +375,6 @@ async def test_tokens_reuse_across_requests_invalid_token(home_model):
     assert second_cookie is not None
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_validation_using_input_2(home_model):
     """
     Tests invalid request, missing the value in the cookie.
@@ -439,7 +429,6 @@ async def test_anti_forgery_token_validation_using_input_2(home_model):
     assert reason == (b"Missing anti-forgery token cookie",)
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_validation_using_input_3(home_model):
     """
     Tests invalid control value, that cannot be deserialized (BadSignature).
@@ -492,7 +481,6 @@ async def test_anti_forgery_token_validation_using_input_3(home_model):
     assert reason == (b"Invalid anti-forgery token",)
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_validation_using_input_4(home_model):
     """
     Tests invalid control value, which was generated for another request.
@@ -550,7 +538,6 @@ async def test_anti_forgery_token_validation_using_input_4(home_model):
     assert reason == (b"Invalid anti-forgery token",)
 
 
-@pytest.mark.asyncio
 async def test_missing_control_value(home_model):
     """
     Tests missing control value, which was generated for another request.
@@ -591,7 +578,6 @@ async def test_missing_control_value(home_model):
     assert reason == (b"Missing anti-forgery token control value",)
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_token_validation_using_header(home_model):
     app, render = get_app(False)
 
@@ -634,7 +620,6 @@ async def test_anti_forgery_token_validation_using_header(home_model):
     assert response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_controller_view_generation(home_model):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -652,7 +637,6 @@ async def test_controller_view_generation(home_model):
     await _assert_generation_scenario(app.response)
 
 
-@pytest.mark.asyncio
 async def test_controller_async_view_generation(home_model, async_jinja_env):
     app, _ = get_app(True)
     app.controllers_router = RoutesRegistry()
@@ -670,7 +654,6 @@ async def test_controller_async_view_generation(home_model, async_jinja_env):
     await _assert_generation_scenario(app.response)
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_base_extension_raises_without_handler(home_model):
     assert isinstance(html_settings.renderer, JinjaRenderer)
     env = html_settings.renderer.env
@@ -688,7 +671,6 @@ async def test_anti_forgery_base_extension_raises_without_handler(home_model):
         instance.handler
 
 
-@pytest.mark.asyncio
 async def test_anti_forgery_ignore_decorator(home_model):
     """
     Tests a valid scenario, using the ignore_anti_forgery decorator.

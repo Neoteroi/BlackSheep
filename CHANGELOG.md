@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add an async method `raise_for_status` to the `Response` object, which raises
   an exception of type `FailedRequestError` if the response status is not in
   the range 200-299.
+- Use `asyncio_mode=auto` for `pytest` (remove `@pytest.mark.asyncio` decorators).
 
 ## [2.0.8] - 2025-01-25
 

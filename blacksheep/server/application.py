@@ -614,8 +614,8 @@ class Application(BaseApplication):
 
     def register_controllers(self, controller_types: List[Type]):
         """
-        Registers controller types as transient services
-        in the application service container.
+        Registers controller types as transient services in the application service
+        container.
         """
         if not controller_types:
             return

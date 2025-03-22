@@ -27,6 +27,14 @@ def is_production() -> bool:
     return get_env().lower() in {"prod", "production"}
 
 
+def get_global_route_prefix() -> str:
+    """
+    Returns the global route prefix, if any, defined by the `APP_ROUTE_PREFIX`
+    environment variable.
+    """
+    return os.environ.get("APP_ROUTE_PREFIX", "")
+
+
 @dataclass(init=False)
 class EnvironmentSettings:
     env: str

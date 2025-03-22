@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an exception of type `FailedRequestError` if the response status is not in
   the range 200-299.
 - Use `asyncio_mode=auto` for `pytest` (remove `@pytest.mark.asyncio` decorators).
+- Use `Python 3.12` to publish the package, in the GitHub Workflow.
+- Add support for specifying a prefix for the `Router`, and for configuring a
+  global prefix using the env variable `APP_ROUTE_PREFIX`.
+- Correct some docstrings.
 
 ## [2.0.8] - 2025-01-25
 

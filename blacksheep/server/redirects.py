@@ -4,7 +4,8 @@ from blacksheep import Response
 from blacksheep.server.responses import moved_permanently
 
 
-_default_trailing_slash_exclude = lambda path: "/api/" in path
+def default_trailing_slash_exclude(path: str) -> bool:
+    return "/api/" in path
 
 
 def get_trailing_slash_middleware(

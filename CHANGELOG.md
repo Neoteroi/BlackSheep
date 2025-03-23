@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   incoming requests are created.
 - Modify the `OpenAPIHandler` class to support specifying the list of `Server`
   objects in the constructor.
+- Update `essentials-openapi` pinned version, by @stollero.
+- Bump jinja2 from 3.1.4 to 3.1.6.
+- Bump cryptography from 44.0.0 to 44.0.1.
 - Correct some docstrings.
 
 ## [2.0.8] - 2025-01-25

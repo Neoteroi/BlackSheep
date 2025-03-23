@@ -42,8 +42,8 @@ include = ["blacksheep*"]
 version = { attr = "blacksheep.__version__" }
 
 [project.optional-dependencies]
-jinja = ["Jinja2~=3.1.2"]
-full = ["cryptography>=44.0.0,<45.0.0", "PyJWT~=2.9.0", "websockets~=13.1"]
+jinja = ["Jinja2~=3.1.6"]
+full = ["cryptography>=44.0.1,<45.0.0", "PyJWT~=2.9.0", "websockets~=13.1"]
 
 [project.urls]
 "Homepage" = "https://github.com/Neoteroi/BlackSheep"

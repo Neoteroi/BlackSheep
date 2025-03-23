@@ -412,7 +412,7 @@ def test_open_api_ui(session_2):
     <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
     <script>
       const ui = SwaggerUIBundle({
-        url: "/openapi.json",
+        url: "openapi.json",
         oauth2RedirectUrl: window.location.origin + window.location.pathname.replace(/\/$/, "") + "/oauth2-redirect",
         dom_id: "#swagger-ui",
         presets: [
@@ -455,7 +455,7 @@ def test_open_api_redoc_ui(session_2):
     </style>
   </head>
   <body>
-    <redoc spec-url="/openapi.json"></redoc>
+    <redoc spec-url="openapi.json"></redoc>
     <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
   </body>
 </html>
@@ -485,7 +485,7 @@ def test_open_api_ui_custom_cdn(session_4):
     <script src="{get_test_files_url("swag-js")}"></script>
     <script>
       const ui = SwaggerUIBundle({{
-        url: "/openapi.json",
+        url: "openapi.json",
         oauth2RedirectUrl: window.location.origin + window.location.pathname.replace(/\/$/, "") + "/oauth2-redirect",
         dom_id: "#swagger-ui",
         presets: [
@@ -528,7 +528,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
     </style>
   </head>
   <body>
-    <redoc spec-url="/openapi.json"></redoc>
+    <redoc spec-url="openapi.json"></redoc>
     <script src="{get_test_files_url("redoc-js")}"></script>
   </body>
 </html>

@@ -14,8 +14,8 @@ from blacksheep.common.types import (
     normalize_headers,
     normalize_params,
 )
-from blacksheep.server.env import get_global_route_prefix
 from blacksheep.messages import Request
+from blacksheep.server.env import get_global_route_prefix
 from blacksheep.utils import ensure_bytes, ensure_str
 
 
@@ -789,6 +789,8 @@ class Router(RouterBase):
         value = ensure_bytes(pattern)
         if self._prefix:
             return self._prefix + value
+        if not value.startswith(b"/"):
+            return b"/" + value
         return value
 
     def add(

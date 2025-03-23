@@ -1,6 +1,5 @@
 from typing import Any
 
-import pytest
 from guardpost import Identity
 
 from blacksheep.messages import Request, Response

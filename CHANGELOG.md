@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `Python 3.12` to publish the package, in the GitHub Workflow.
 - Add support for specifying a prefix for the `Router`, and for configuring a
   global prefix using the env variable `APP_ROUTE_PREFIX`.
-- Improve the OpenAPI UI to support router prefixes.
+- Improve the OpenAPI UI to support router prefixes, and fetching the
+  specification file using relative links.
 - Upgrade to `Cython` to `3.0.12` in the GitHub Workflow.
 - Handle setuptools warning: _SetuptoolsDeprecationWarning: License classifiers are deprecated_.
 - Improve `pyproject.toml` to use `tool.setuptools.packages.find`.

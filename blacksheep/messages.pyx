@@ -19,7 +19,12 @@ from .contents cimport (
     parse_www_form_urlencoded,
 )
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
-from .exceptions cimport BadRequest, BadRequestFormat, MessageAborted, FailedRequestError
+from .exceptions cimport (
+    BadRequest,
+    BadRequestFormat,
+    FailedRequestError,
+    MessageAborted,
+)
 from .headers cimport Headers
 from .url cimport URL, build_absolute_url
 

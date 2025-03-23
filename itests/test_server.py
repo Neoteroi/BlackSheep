@@ -397,7 +397,7 @@ def test_open_api_ui(session_2):
     text = response.text
     assert (
         text.strip()
-        == """
+        == r"""
 <!DOCTYPE html>
 <html>
   <head>
@@ -470,7 +470,7 @@ def test_open_api_ui_custom_cdn(session_4):
     text = response.text
     assert (
         text.strip()
-        == f"""
+        == rf"""
 <!DOCTYPE html>
 <html>
   <head>

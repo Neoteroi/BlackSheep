@@ -8,7 +8,7 @@ charset-normalizer==3.4.0
 click==8.1.7
 coverage==7.6.1
 cryptography==44.0.1
-Cython==3.0.11
+Cython==3.0.12
 essentials==1.1.5
 essentials-openapi==1.0.9
 Flask==3.0.3
@@ -30,7 +30,6 @@ mccabe==0.7.0
 packaging==24.2
 pluggy==1.5.0
 priority==2.0.0
-py==1.11.0
 pycparser==2.22
 pydantic==2.10.3
 pydantic-core==2.27.1

@@ -15,6 +15,7 @@ from blacksheep.common.types import (
     normalize_params,
 )
 from blacksheep.messages import Request
+from blacksheep.server.env import get_global_route_prefix
 from blacksheep.utils import ensure_bytes, ensure_str
 
 
@@ -453,7 +454,7 @@ class FilterRoute(Route):
 
 class RouterBase(ABC):
     """
-    Base abstract class for types that can register types and can implement filters.
+    Base abstract class for types that can register HTTP routes and filters.
     """
 
     def __init__(
@@ -638,6 +639,22 @@ class RouterFiltersMixin:
 RouteConfig = Union[Dict[str, Any], "Router"]
 
 
+def _combine_with_global_prefix(prefix: str) -> str:
+    """
+    Combines a router specific prefix with the global prefix, if one is defined using
+    env variables.
+    """
+    global_prefix = get_global_route_prefix()
+    if global_prefix:
+        if not prefix:
+            return global_prefix
+
+        global_prefix = global_prefix.rstrip("/")
+        prefix = prefix.lstrip("/")
+        return f"{global_prefix}/{prefix}"
+    return prefix
+
+
 class Router(RouterBase):
     __slots__ = (
         "routes",
@@ -646,6 +663,7 @@ class Router(RouterBase):
         "_fallback",
         "_sub_routers",
         "_filters",
+        "_prefix",
     )
 
     def __init__(
@@ -656,6 +674,7 @@ class Router(RouterBase):
         params: Optional[ParamsType] = None,
         filters: Optional[List[RouteFilter]] = None,
         sub_routers: Optional[List["Router"]] = None,
+        prefix: str = "",
     ):
         super().__init__(
             host=host,
@@ -666,6 +685,9 @@ class Router(RouterBase):
 
         self._map = {}
         self._fallback = None
+        self._prefix: bytes = self._normalize_prefix(
+            _combine_with_global_prefix(prefix)
+        )
         self.routes: Dict[bytes, List[Route]] = defaultdict(list)
         self.controllers_routes = RoutesRegistry()
         self._sub_routers = sub_routers
@@ -685,6 +707,10 @@ class Router(RouterBase):
         if self._sub_routers:
             for sub_router in self._sub_routers:
                 sub_router.reset()
+
+    @property
+    def prefix(self) -> str:
+        return self._prefix.decode("utf8")
 
     @property
     def fallback(self):
@@ -717,6 +743,23 @@ class Router(RouterBase):
         if self._fallback:
             yield "*", self._fallback
 
+    def _normalize_prefix(self, prefix: str) -> bytes:
+        if not prefix:
+            return b""
+
+        if "." in prefix:
+            prefix = prefix.replace(".", "")
+
+        while "//" in prefix:
+            prefix = prefix.replace("//", "/")
+
+        value = ensure_bytes(prefix)
+        if not value.startswith(b"/"):
+            value = b"/" + value
+        if value.endswith(b"/"):
+            value = value[:-1]
+        return value
+
     def _is_route_configured(self, method: bytes, route: Route):
         if isinstance(route, FilterRoute):  # pragma: no cover
             # The route defines action filters, we cannot determine if the user is
@@ -746,6 +789,14 @@ class Router(RouterBase):
             raise RouteDuplicate(method, new_route.pattern, current_route.handler)
         self._set_configured_route(method, new_route)
 
+    def _get_pattern(self, pattern: AnyStr) -> bytes:
+        value = ensure_bytes(pattern)
+        if self._prefix:
+            return self._prefix + value
+        if not value.startswith(b"/"):
+            return b"/" + value
+        return value
+
     def add(
         self,
         method: str,
@@ -761,9 +812,9 @@ class Router(RouterBase):
         self.mark_handler(handler)
         method_name = ensure_bytes(method)
         new_route = (
-            FilterRoute(ensure_bytes(pattern), handler, route_filters)
+            FilterRoute(self._get_pattern(pattern), handler, route_filters)
             if route_filters
-            else Route(ensure_bytes(pattern), handler)
+            else Route(self._get_pattern(pattern), handler)
         )
 
         if not route_filters:
@@ -979,11 +1030,10 @@ def validate_default_router():
             raise OrphanDefaultRouterError() from None
 
 
-# Singleton router used to store initial configuration,
-# before the application starts
-# this is used as *default* router, but it can be overridden;
+# Singleton router used to store initial configuration, before the application starts.
+# This is used as *default* router, but it can be overridden.
 # This is done for two reasons: to reduce code verbosity when defining routes,
-# and because we can expect that in most use cases web applications use a single
+# and because we can expect that in most use cases, web applications use a single
 # Application and Router (the same approach can be easily used for more complex use
 # cases where more than one router is used).
 router = Router()

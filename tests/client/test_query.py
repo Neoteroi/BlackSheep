@@ -6,7 +6,6 @@ from blacksheep.client import ClientSession
 from . import FakePools
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "params,expected_query",
     [
@@ -41,7 +40,6 @@ async def test_query_params(params, expected_query):
         await client.trace(b"/", params=params)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "request_url,params,expected_query",
     [

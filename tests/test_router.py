@@ -16,6 +16,7 @@ from blacksheep.server.routing import (
     Router,
     normalize_filters,
 )
+from tests.utils import modified_env
 
 FAKE = b"FAKE"
 
@@ -78,7 +79,7 @@ class MockHandler:
 )
 def test_route_good_matches(pattern, url, expected_values):
     route = Route(pattern, mock_handler)
-    print(route.full_pattern)
+
     match = route.match_by_path(url)
 
     assert match is not None
@@ -1034,3 +1035,44 @@ def test_routes_with_filters_can_have_duplicates():
     assert len(routes) == 4
     handlers = [route.handler for route in routes]
     assert set(handlers) == {home, post_foo, test_home, post_cat}
+
+
+def _router_prefix_scenario_1(router, prefix):
+    @router.get("/")
+    def home():
+        return "Hello, World"
+
+    match = router.get_match(Request("GET", prefix.encode(), []))
+    assert match is not None
+    assert match.handler() == "Hello, World"
+
+    if prefix.endswith("/"):
+        other_path = prefix[:-1]
+    else:
+        other_path = prefix + "/"
+
+    match = router.get_match(Request("GET", other_path.encode(), []))
+    assert match is not None
+    assert match.handler() == "Hello, World"
+
+    match = router.get_match(Request("GET", b"/", []))
+    assert match is None
+
+
+@pytest.mark.parametrize("prefix", ("/foo", "/x/", "/foo/bar/"))
+def test_router_with_prefix(prefix):
+    _router_prefix_scenario_1(Router(prefix=prefix), prefix)
+
+
+@pytest.mark.parametrize("prefix", ("/foo", "/x/", "/foo/bar/"))
+def test_router_with_env_prefix(prefix):
+    with modified_env(APP_ROUTE_PREFIX=prefix):
+        _router_prefix_scenario_1(Router(), prefix)
+
+
+@pytest.mark.parametrize(
+    "env_prefix,prefix", (("/foo", "/bar"), ("/x/", "v1"), ("/a", "/v1"))
+)
+def test_router_with_combined_prefix(env_prefix, prefix):
+    with modified_env(APP_ROUTE_PREFIX=env_prefix):
+        _router_prefix_scenario_1(Router(prefix=prefix), env_prefix + prefix)

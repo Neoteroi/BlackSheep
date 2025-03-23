@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ 3.9, "3.10", "3.11", "3.12", "3.13"]
+        python-version: [3.9, "3.10", "3.11", "3.12", "3.13"]
     runs-on: windows-latest
     if: github.event_name == 'pull_request' || github.event_name == 'push'
 
@@ -181,7 +181,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          pip install cython==3.0.11
+          pip install cython==3.0.12
           pip install --upgrade build
 
       - name: Compile Cython extensions
@@ -227,10 +227,10 @@ jobs:
           merge-multiple: true
           path: dist
 
-      - name: Use Python 3.11
+      - name: Use Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |

@@ -1,12 +1,9 @@
-import pytest
-
 from blacksheep import Response, TextContent
 from blacksheep.client import ClientSession
 
 from . import FakePools
 
 
-@pytest.mark.asyncio
 async def test_single_middleware():
     fake_pools = FakePools([Response(200, None, TextContent("Hello, World!"))])
 
@@ -33,7 +30,6 @@ async def test_single_middleware():
         assert len(client.middlewares) == 2
 
 
-@pytest.mark.asyncio
 async def test_falsy_middleware():
     fake_pools = FakePools([Response(200, None, TextContent("Hello, World!"))])
 
@@ -58,7 +54,6 @@ async def test_falsy_middleware():
         assert text == "Hello, World!"
 
 
-@pytest.mark.asyncio
 async def test_multiple_middleware():
     fake_pools = FakePools([Response(200, None, TextContent("Hello, World!"))])
 
@@ -95,7 +90,6 @@ async def test_multiple_middleware():
         assert text == "Hello, World!"
 
 
-@pytest.mark.asyncio
 async def test_middlewares_can_be_applied_multiple_times_without_changing():
     fake_pools = FakePools([Response(200, None, TextContent("Hello, World!"))])
 

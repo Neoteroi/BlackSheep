@@ -424,7 +424,6 @@ def test_services_binding():
     assert isinstance(binders[0], ExactBinder)
 
 
-@pytest.mark.asyncio
 async def test_services_from_normalization():
     app_services = Container()
 
@@ -465,7 +464,6 @@ async def fake_handler(_):
     return "fake-handler-result"
 
 
-@pytest.mark.asyncio
 async def test_middleware_normalization():
     container = Container()
     container.add_singleton(object)
@@ -486,7 +484,6 @@ async def test_middleware_normalization():
     assert result == "fake-handler-result"
 
 
-@pytest.mark.asyncio
 async def test_middleware_normalization_2():
     services = Container()  # {"context": object(), "foo": object()}
     fake_request = Request("GET", b"/", None)
@@ -501,7 +498,6 @@ async def test_middleware_normalization_2():
     assert result == "fake-handler-result"
 
 
-@pytest.mark.asyncio
 async def test_middleware_normalization_raises_for_sync_function():
     def faulty_middleware(request, handler):
         pass
@@ -510,7 +506,6 @@ async def test_middleware_normalization_raises_for_sync_function():
         normalize_middleware(faulty_middleware, Services())  # type: ignore
 
 
-@pytest.mark.asyncio
 async def test_middleware_query_normalization():
     container = Container()
     container.register("context", instance=object())
@@ -530,7 +525,6 @@ async def test_middleware_query_normalization():
     assert result == "fake-handler-result"
 
 
-@pytest.mark.asyncio
 async def test_middleware_header_normalization():
     container = Container()
     container.register("context", instance=object())
@@ -549,7 +543,6 @@ async def test_middleware_header_normalization():
     assert result == "fake-handler-result"
 
 
-@pytest.mark.asyncio
 async def test_middleware_normalization_no_parameters():
     container = Container()
     container.register("context", instance=object())
@@ -626,7 +619,6 @@ def test_pascal_case_route_parameter():
     assert binders[0].parameter_name == "StatusKey"
 
 
-@pytest.mark.asyncio
 async def test_binder_through_di():
     """
     Tests support for dependency injection when resolving custom binders.

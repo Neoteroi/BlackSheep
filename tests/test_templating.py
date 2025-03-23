@@ -155,7 +155,6 @@ async def _view_scenario(app: FakeApplication, expected_text, url="/"):
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_jinja_async_mode(home_model, async_jinja_env):
     app, render = get_app(True)
 
@@ -166,7 +165,6 @@ async def test_jinja_async_mode(home_model, async_jinja_env):
     await _home_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_jinja_sync_mode(home_model):
     app, render = get_app(False)
 
@@ -177,7 +175,6 @@ async def test_jinja_sync_mode(home_model):
     await _home_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_controller_conventional_view_name(home_model):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -193,7 +190,6 @@ async def test_controller_conventional_view_name(home_model):
     await _home_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_controller_conventional_view_name_async(home_model, async_jinja_env):
     app, _ = get_app(True)
     app.controllers_router = RoutesRegistry()
@@ -208,7 +204,6 @@ async def test_controller_conventional_view_name_async(home_model, async_jinja_e
     await _home_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_controller_specific_view_name(home_model, specific_text):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -224,7 +219,6 @@ async def test_controller_specific_view_name(home_model, specific_text):
     await _home_scenario(app, expected_text=specific_text)
 
 
-@pytest.mark.asyncio
 async def test_controller_specific_view_name_async(
     home_model, specific_text, async_jinja_env
 ):
@@ -241,7 +235,6 @@ async def test_controller_specific_view_name_async(
     await _home_scenario(app, expected_text=specific_text)
 
 
-@pytest.mark.asyncio
 async def test_controller_specific_view_name_async_no_model(async_jinja_env):
     app, _ = get_app(True)
     app.controllers_router = RoutesRegistry()
@@ -256,7 +249,6 @@ async def test_controller_specific_view_name_async_no_model(async_jinja_env):
     await _home_scenario(app, expected_text=nomodel_text)
 
 
-@pytest.mark.asyncio
 async def test_controller_conventional_view_name_no_model(home_model):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -272,7 +264,6 @@ async def test_controller_conventional_view_name_no_model(home_model):
     await _home_scenario(app, "/nomodel", expected_text=nomodel_text)
 
 
-@pytest.mark.asyncio
 async def test_controller_conventional_view_name_sub_function(home_model):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -294,7 +285,6 @@ async def test_controller_conventional_view_name_sub_function(home_model):
     await _home_scenario(app)
 
 
-@pytest.mark.asyncio
 async def test_controller_conventional_view_name_extraneous_function(home_model):
     app, _ = get_app(False)
     app.controllers_router = RoutesRegistry()
@@ -331,7 +321,6 @@ def test_template_name(value, expected_name):
     assert get_template_name(value) == expected_name
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "model_fixture",
     [

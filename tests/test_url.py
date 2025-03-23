@@ -1,6 +1,6 @@
 import pytest
 
-from blacksheep.url import URL, InvalidURL
+from blacksheep.url import URL, InvalidURL, join_prefix
 
 
 def test_empty_url():
@@ -110,3 +110,24 @@ def test_base_url(value, expected_base_url):
 def test_raises_for_invalid_scheme():
     with pytest.raises(InvalidURL):
         URL(b"file://D:/a/b/c")
+
+
+@pytest.mark.parametrize(
+    "prefix,value,expected_result",
+    [
+        ("/", "/", "/"),
+        ("", "/cats", "/cats"),
+        ("/", "/cats", "/cats"),
+        ("/", "/api/cats", "/api/cats"),
+        ("/api", "/cats", "/api/cats"),
+        ("/api", "cats", "/api/cats"),
+        ("/api/", "/cats", "/api/cats"),
+        ("/api/", "cats", "/api/cats"),
+        ("/api", "/cats/", "/api/cats/"),
+        ("/api", "cats/", "/api/cats/"),
+        ("/api/", "/cats/", "/api/cats/"),
+        ("/api/", "cats/", "/api/cats/"),
+    ],
+)
+def test_join_prefix(prefix, value, expected_result):
+    assert join_prefix(prefix, value) == expected_result

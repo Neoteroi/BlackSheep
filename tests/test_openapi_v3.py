@@ -277,7 +277,6 @@ def serializer() -> Serializer:
     return Serializer()
 
 
-@pytest.mark.asyncio
 async def test_raises_for_started_app(docs):
     app = get_app()
 
@@ -287,7 +286,6 @@ async def test_raises_for_started_app(docs):
         docs.bind_app(app)
 
 
-@pytest.mark.asyncio
 async def test_raises_for_duplicated_content_example(docs):
     app = get_app()
 
@@ -750,7 +748,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_register_schema_for_multi_generic(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -831,7 +828,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_register_schema_for_generic_with_list_reusing_ref(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -924,7 +920,6 @@ def test_get_type_name_raises_for_invalid_object_type(docs: OpenAPIHandler):
         docs.get_type_name(10)
 
 
-@pytest.mark.asyncio
 async def test_handling_of_forward_references(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -998,7 +993,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_handling_of_normal_class(docs: OpenAPIHandler, serializer: Serializer):
     """
     Plain classes are simply ignored, since their handling would be ambiguous:
@@ -1039,7 +1033,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_handling_of_pydantic_class_with_generic(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -1173,7 +1166,6 @@ tags: []
         )
 
 
-@pytest.mark.asyncio
 async def test_handling_of_pydantic_class_with_child_models(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -1349,7 +1341,6 @@ tags: []
         )
 
 
-@pytest.mark.asyncio
 async def test_handling_of_pydantic_class_in_generic(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -1483,7 +1474,6 @@ tags: []
         )
 
 
-@pytest.mark.asyncio
 async def test_handling_of_sequence(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
@@ -1541,7 +1531,6 @@ def test_handling_of_generic_with_forward_references(docs: OpenAPIHandler):
         docs.register_schema_for_type(GenericWithForwardRefExample[Cat])
 
 
-@pytest.mark.asyncio
 async def test_cats_api(docs: OpenAPIHandler, serializer: Serializer):
     app = get_cats_api()
     docs.bind_app(app)
@@ -1735,7 +1724,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_cats_api_capital_operations_ids(
     capitalize_operation_id_docs: CapitalizeOperationDocs,
     serializer: Serializer,
@@ -1934,7 +1922,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_handling_of_pydantic_types(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
@@ -1982,7 +1969,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
@@ -2131,7 +2117,6 @@ tags: []
     assert yaml.strip() == expected_result
 
 
-@pytest.mark.asyncio
 async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
@@ -2315,7 +2300,6 @@ def test_pydantic_model_handler_handles_type_without__fields__():
     handler.get_type_fields(Foo, None)
 
 
-@pytest.mark.asyncio
 async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer):
     @docs.register(
         Schema(
@@ -2406,7 +2390,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_handles_ref_for_optional_type(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -2541,7 +2524,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_handles_from_form_docs(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
 
@@ -2626,7 +2608,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_websockets_routes_are_ignored(
     docs: OpenAPIHandler, serializer: Serializer
 ):
@@ -2716,7 +2697,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_mount_oad_generation(serializer: Serializer):
     """
     Tests support for OAD generation of mounted apps, using the options:
@@ -2980,7 +2960,6 @@ tags: []
     )
 
 
-@pytest.mark.asyncio
 async def test_mount_oad_generation_sub_children(serializer: Serializer):
     """
     Tests support for OAD generation of mounted apps, using the options:
@@ -3077,7 +3056,6 @@ tags:
     )
 
 
-@pytest.mark.asyncio
 async def test_sorting_api_controllers_tags(serializer: Serializer):
     app = get_app()
     get = app.controllers_router.get
@@ -3399,7 +3377,6 @@ class AnyOfResponseTestClassPyd(BaseModel):
     data: Union[DPyd, EPyd, FPyd]
 
 
-@pytest.mark.asyncio
 async def test_any_of_dataclasses(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
     docs.bind_app(app)
@@ -3471,7 +3448,6 @@ async def test_any_of_dataclasses(docs: OpenAPIHandler, serializer: Serializer):
         assert fragment.strip() in yaml
 
 
-@pytest.mark.asyncio
 async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializer):
     app = get_app()
     docs.bind_app(app)

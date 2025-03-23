@@ -90,6 +90,7 @@ format:
 check-flake8:
 	@echo "$(BOLD)Checking flake8$(RESET)"
 	@flake8 blacksheep 2>&1
+	@flake8 itests 2>&1
 	@flake8 tests 2>&1
 
 

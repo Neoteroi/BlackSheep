@@ -1,12 +1,9 @@
-import pytest
-
 from blacksheep import Response, TextContent
 from blacksheep.client import ClientSession
 
 from . import FakePools
 
 
-@pytest.mark.asyncio
 async def test_default_headers():
     fake_pools = FakePools([Response(200, [], TextContent("Hello, World!"))])
 
@@ -28,7 +25,6 @@ async def test_default_headers():
         await client.get(b"/")
 
 
-@pytest.mark.asyncio
 async def test_request_headers():
     fake_pools = FakePools([Response(200, [], TextContent("Hello, World!"))])
 
@@ -49,7 +45,6 @@ async def test_request_headers():
         await client.delete(b"/", headers=[(b"Hello", b"World")])
 
 
-@pytest.mark.asyncio
 async def test_request_headers_override_default_header():
     fake_pools = FakePools([Response(200, [], TextContent("Hello, World!"))])
 

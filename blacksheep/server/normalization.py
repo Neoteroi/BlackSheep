@@ -698,7 +698,7 @@ def normalize_handler(
     options when defining request handlers.
 
     When a request handler already has the right signature, it is kept as-is (this
-    avoids performance fees when handling request handlers). If a request handler
+    avoids performance fees when handling requests). If a request handler
     instead has an arbitrary signature, it is wrapped inside a normal request handler
     (`async def handler(request) -> Response: ...`).
     """

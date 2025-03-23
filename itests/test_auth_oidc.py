@@ -199,7 +199,6 @@ def assert_redirect_to_sign_in(response: Optional[Response], has_secret: bool = 
         assert b"response_type=id_token" in location
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_redirect(app: FakeApplication):
     oidc = configure_test_oidc_cookie_auth_id_token(app)
     assert isinstance(oidc, OpenIDConnectHandler)
@@ -211,7 +210,6 @@ async def test_oidc_handler_redirect(app: FakeApplication):
     assert_redirect_to_sign_in(app.response)
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_redirect_with_jwt_handler(app: FakeApplication):
     oidc = configure_test_oidc_jwt_auth_id_token(app)
     assert isinstance(oidc, OpenIDConnectHandler)
@@ -223,7 +221,6 @@ async def test_oidc_handler_redirect_with_jwt_handler(app: FakeApplication):
     assert_redirect_to_sign_in(app.response)
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_redirect_with_secret(app: FakeApplication):
     oidc = configure_test_oidc_with_secret(app)
     assert isinstance(oidc, OpenIDConnectHandler)
@@ -235,7 +232,6 @@ async def test_oidc_handler_redirect_with_secret(app: FakeApplication):
     assert_redirect_to_sign_in(app.response, has_secret=True)
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_cookie_auth_post_id_token(app: FakeApplication):
     """
     Tests the response from the built-in CookiesOpenIDTokensHandler handler after a
@@ -290,7 +286,6 @@ async def test_oidc_handler_cookie_auth_post_id_token(app: FakeApplication):
     assert parsed_cookie_value == claims
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_jwt_auth_post_id_token(app: FakeApplication):
     """
     Tests the response from the built-in JWTOpenIDTokensHandler handler after a
@@ -345,7 +340,6 @@ async def test_oidc_handler_jwt_auth_post_id_token(app: FakeApplication):
     assert parsed_id_token.data == claims
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_jwt_refresh_token(app: FakeApplication):
     """
     Tests handling of refresh tokens using the JWT handler.
@@ -390,7 +384,6 @@ async def test_oidc_handler_jwt_refresh_token(app: FakeApplication):
     assert "refresh_token" in data
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_jwt_refresh_token_invalid_token(app: FakeApplication):
     """
     Tests that the JWT handler ignores invalid refresh tokens.
@@ -430,7 +423,6 @@ async def test_oidc_handler_jwt_refresh_token_invalid_token(app: FakeApplication
     assert "Missing refresh_token" in text
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_cookie_refresh_token(app: FakeApplication):
     """
     Tests handling of refresh tokens using the JWT handler.
@@ -472,7 +464,6 @@ async def test_oidc_handler_cookie_refresh_token(app: FakeApplication):
     assert parsed_cookie_value == claims
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_refresh_token_missing_user_context(app: FakeApplication):
     oidc = configure_test_oidc_cookie_auth_id_token(app, secret="TEST_EXAMPLE")
     oidc.auth_handler.tokens_store = FakeTokensStore(refresh_token=None)  # type: ignore
@@ -492,7 +483,6 @@ async def test_oidc_handler_refresh_token_missing_user_context(app: FakeApplicat
     assert "Missing user" in text
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_refresh_token_missing_refresh_token_context(
     app: FakeApplication,
 ):
@@ -526,7 +516,6 @@ async def test_oidc_handler_refresh_token_missing_refresh_token_context(
     assert "Missing refresh_token" in text
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_auth_post_id_token_code_1(app: FakeApplication):
     oidc = configure_test_oidc_with_secret(app)
     assert isinstance(oidc, OpenIDConnectHandler)
@@ -604,7 +593,6 @@ async def test_oidc_handler_auth_post_id_token_code_1(app: FakeApplication):
     assert parsed_cookie_value == id_token_claims
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_auth_post_id_token_code_2(app: FakeApplication):
     oidc = configure_test_oidc_with_secret(app)
     assert isinstance(oidc, OpenIDConnectHandler)
@@ -693,7 +681,6 @@ async def test_oidc_handler_auth_post_id_token_code_2(app: FakeApplication):
         ("/product/garden/bench", {"page": 2, "search": "red bench"}),
     ],
 )
-@pytest.mark.asyncio
 async def test_redirect_state_includes_original_path(
     app: FakeApplication, original_path, query
 ):
@@ -769,7 +756,6 @@ async def test_redirect_state_includes_original_path(
     )
 
 
-@pytest.mark.asyncio
 async def test_raises_for_nonce_mismatch(app: FakeApplication):
     """
     Tests the ability to redirect the user to the original path that was requested
@@ -826,7 +812,6 @@ async def test_raises_for_nonce_mismatch(app: FakeApplication):
     assert str(oidc_error.value) == "nonce mismatch error"
 
 
-@pytest.mark.asyncio
 async def test_raises_for_missing_data(app: FakeApplication):
     oidc = configure_test_oidc_cookie_auth_id_token(app)
 
@@ -844,7 +829,6 @@ async def test_raises_for_missing_data(app: FakeApplication):
     assert str(bad_request.value) == "Expected either an error, an id_token, or a code."
 
 
-@pytest.mark.asyncio
 async def test_raises_for_failure_in_exchange_token(app: FakeApplication):
     oidc = configure_test_oidc_with_secret(app)
 
@@ -865,7 +849,6 @@ async def test_raises_for_failure_in_exchange_token(app: FakeApplication):
         await oidc.handle_auth_redirect(request)
 
 
-@pytest.mark.asyncio
 async def test_refresh_token(app: FakeApplication):
     oidc = configure_test_oidc_with_secret(app)
 
@@ -879,7 +862,6 @@ async def test_refresh_token(app: FakeApplication):
     assert token_response.refresh_token == "example RT"
 
 
-@pytest.mark.asyncio
 async def test_raises_for_failure_in_refresh_token(app: FakeApplication):
     oidc = configure_test_oidc_with_secret(app)
 
@@ -892,7 +874,6 @@ async def test_raises_for_failure_in_refresh_token(app: FakeApplication):
         await oidc.refresh_token("example")
 
 
-@pytest.mark.asyncio
 async def test_uses_settings_redirect_error_if_set(app: FakeApplication):
     oidc = configure_test_oidc_with_secret(app)
     oidc.settings.error_redirect_path = "/error-foo"
@@ -904,7 +885,6 @@ async def test_uses_settings_redirect_error_if_set(app: FakeApplication):
     assert response.headers.get_single(b"location").startswith(b"/error-foo")
 
 
-@pytest.mark.asyncio
 async def test_raises_for_invalid_id_token(app: FakeApplication):
     """
     Tests handling of forged id_token.
@@ -955,7 +935,6 @@ def test_parameters_builder_raises_for_invalid_state():
     assert str(bad_request.value) == "Invalid state"
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_with_secret_and_audience_no_id_token(
     app: FakeApplication,
 ):
@@ -1041,7 +1020,6 @@ async def test_oidc_handler_with_secret_and_audience_no_id_token(
     assert parsed_cookie_value == {}
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_auth_post_id_token_code_3(app: FakeApplication):
     """With token store"""
     oidc = configure_test_oidc_with_secret(app)
@@ -1106,7 +1084,6 @@ async def test_oidc_handler_auth_post_id_token_code_3(app: FakeApplication):
     assert names == {scheme, f"{scheme}.at", f"{scheme}.rt"}
 
 
-@pytest.mark.asyncio
 async def test_cookies_tokens_store_restoring_context(
     app: FakeApplication,
 ):
@@ -1148,7 +1125,6 @@ async def test_cookies_tokens_store_restoring_context(
     assert request.user.refresh_token == "secret-refresh"
 
 
-@pytest.mark.asyncio
 async def test_cookies_tokens_store_discards_invalid_tokens(
     app: FakeApplication,
 ):
@@ -1176,7 +1152,6 @@ async def test_cookies_tokens_store_discards_invalid_tokens(
     assert getattr(request.user, "refresh_token", None) is None
 
 
-@pytest.mark.asyncio
 async def test_cookies_tokens_store_handle_missing_cookies(
     app: FakeApplication,
 ):
@@ -1198,7 +1173,6 @@ async def test_cookies_tokens_store_handle_missing_cookies(
     assert getattr(request.user, "refresh_token", None) is None
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_auth_post_error(app: FakeApplication):
     oidc = configure_test_oidc_cookie_auth_id_token(app)
     assert isinstance(oidc, OpenIDConnectHandler)
@@ -1230,7 +1204,6 @@ async def test_oidc_handler_auth_post_error(app: FakeApplication):
     assert response.headers.get_single(b"location") == b"/?error=access_denied"
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_handling_request_without_host_header(
     app: FakeApplication,
 ):
@@ -1250,7 +1223,6 @@ async def test_oidc_handler_handling_request_without_host_header(
     assert response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_default_openid_connect_handler_redirects_unauthenticated_users(
     app: FakeApplication,
 ):
@@ -1298,7 +1270,6 @@ async def test_default_openid_connect_handler_redirects_unauthenticated_users(
     assert response.status == 401  # unauthorized
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_logout_endpoint(
     app: FakeApplication,
 ):
@@ -1452,7 +1423,6 @@ def test_raises_for_missing_authority_and_discovery_endpoint():
         handler.get_well_known_openid_configuration_url()
 
 
-@pytest.mark.asyncio
 async def test_raises_for_failed_request_to_fetch_openid_configuration():
     handler = OpenIDConnectHandler(
         OpenIDSettings(client_id="1", discovery_endpoint="http://localhost:44123"),
@@ -1463,7 +1433,6 @@ async def test_raises_for_failed_request_to_fetch_openid_configuration():
         await handler.fetch_openid_configuration()
 
 
-@pytest.mark.asyncio
 async def test_oidc_handler_auth_post_without_input(app: FakeApplication):
     oidc = configure_test_oidc_cookie_auth_id_token(app)
     assert isinstance(oidc, OpenIDConnectHandler)
@@ -1483,7 +1452,6 @@ async def test_oidc_handler_auth_post_without_input(app: FakeApplication):
     assert response.status == 202  # accepted
 
 
-@pytest.mark.asyncio
 async def test_logout_cookie_handler_unset_tokens():
     tokens_store = FakeTokensStore()
     tokens_store.unset_tokens = AsyncMock()
@@ -1495,7 +1463,6 @@ async def test_logout_cookie_handler_unset_tokens():
     assert tokens_store.unset_tokens.call_args == ((logout_request,),)
 
 
-@pytest.mark.asyncio
 async def test_jwt_handler_get_logout_response():
     handler = JWTOpenIDTokensHandler(
         JWTBearerAuthentication(
@@ -1512,7 +1479,6 @@ async def test_jwt_handler_get_logout_response():
     assert 'sessionStorage.setItem("REFRESH_TOKEN", "");' in html
 
 
-@pytest.mark.asyncio
 async def test_jwt_handler_get_refresh_tokens_response():
     handler = JWTOpenIDTokensHandler(
         JWTBearerAuthentication(
@@ -1542,7 +1508,6 @@ async def test_jwt_handler_get_refresh_tokens_response():
     assert handler._serializer.loads(data["refresh_token"]) == "b"
 
 
-@pytest.mark.asyncio
 async def test_jwt_handler_restore_refresh_token():
     handler = JWTOpenIDTokensHandler(
         JWTBearerAuthentication(

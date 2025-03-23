@@ -5,6 +5,7 @@ from typing import Callable, Optional
 from blacksheep.messages import Request, Response
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
+from blacksheep.server.responses import moved_permanently
 from blacksheep.utils.time import utcnow
 
 SWAGGER_UI_JS_URL = (
@@ -31,6 +32,7 @@ class UIFilesOptions:
 class UIOptions:
     spec_url: str
     page_title: str
+    favicon_url: str = "favicon.png"
 
 
 class UIProvider(ABC):
@@ -80,6 +82,7 @@ class SwaggerUIProvider(UIProvider):
             get_resource_file_content("swagger-ui.html")
             .replace("##SPEC_URL##", options.spec_url)
             .replace("##PAGE_TITLE##", options.page_title)
+            .replace("##FAVICON_URL##", options.favicon_url)
             .replace("##JS_URL##", self.ui_files.js_url)
             .replace("##CSS_URL##", self.ui_files.css_url or "")
         )
@@ -91,6 +94,12 @@ class SwaggerUIProvider(UIProvider):
         current_time = utcnow().timestamp()
 
         def get_open_api_ui(request: Request) -> Response:
+            path = request.path
+
+            # This is needed to ensure relative URLs in the Swagger UI work properly.
+            if not path.endswith("/"):
+                return moved_permanently(f"/{path.strip('/')}/")
+
             return get_response_for_static_content(
                 request, b"text/html; charset=utf-8", self._ui_html, current_time
             )
@@ -129,6 +138,12 @@ class ReDocUIProvider(UIProvider):
         current_time = utcnow().timestamp()
 
         def get_open_api_ui(request: Request) -> Response:
+            path = request.path
+
+            # This is needed to ensure relative URLs in the Swagger UI work properly.
+            if not path.endswith("/"):
+                return moved_permanently(f"/{path.strip('/')}/")
+
             return get_response_for_static_content(
                 request, b"text/html; charset=utf-8", self._ui_html, current_time
             )

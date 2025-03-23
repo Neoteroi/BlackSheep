@@ -180,7 +180,6 @@ def test_session_json_serializer(value, session):
     assert serializer.read(value) == session
 
 
-@pytest.mark.asyncio
 async def test_session_middleware_basics(app):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
 
@@ -234,7 +233,6 @@ async def test_session_middleware_basics(app):
     assert session_set_cookie is None
 
 
-@pytest.mark.asyncio
 async def test_session_middleware_use_method(app):
     app.use_sessions("LOREM_IPSUM")
 
@@ -288,7 +286,6 @@ async def test_session_middleware_use_method(app):
     assert session_set_cookie is None
 
 
-@pytest.mark.asyncio
 async def test_session_middleware_handling_of_invalid_signature(app):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
 
@@ -319,7 +316,6 @@ async def test_session_middleware_handling_of_invalid_signature(app):
     assert response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_session_middleware_handling_of_expired_signature(app):
     app.middlewares.append(SessionMiddleware("LOREM_IPSUM", session_max_age=1))
 

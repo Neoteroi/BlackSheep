@@ -123,7 +123,6 @@ def test_cors_strategy_raises_for_duplicate_policy_name():
         cors.add_policy("a", CORSPolicy())
 
 
-@pytest.mark.asyncio
 async def test_cors_request(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
@@ -176,7 +175,6 @@ async def test_cors_request(app):
         assert response.content.body == b"Hello, World"
 
 
-@pytest.mark.asyncio
 async def test_cors_request_response_normalization(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
@@ -200,7 +198,6 @@ async def test_cors_request_response_normalization(app):
         assert response.content.body == b"Hello, World"
 
 
-@pytest.mark.asyncio
 async def test_response_to_cors_request_contains_cors_headers(app):
     app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
 
@@ -231,7 +228,6 @@ async def test_response_to_cors_request_contains_cors_headers(app):
     assert response.headers.get_single(b"Access-Control-Expose-Headers") is not None
 
 
-@pytest.mark.asyncio
 async def test_response_to_failed_cors_request_contains_cors_headers(app):
     async def example(*args):
         return text("Oh, no!", status=500)
@@ -312,7 +308,6 @@ async def test_response_to_failed_cors_request_contains_cors_headers(app):
     assert response.headers.get_single(b"Access-Control-Expose-Headers") is not None
 
 
-@pytest.mark.asyncio
 async def test_cors_preflight_request(app):
     app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
 
@@ -369,7 +364,6 @@ async def test_cors_preflight_request(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_cors_preflight_request_allow_headers(app):
     app.use_cors(
         allow_methods="GET POST",
@@ -445,7 +439,6 @@ async def test_cors_preflight_request_allow_headers(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_cors_preflight_request_allow_credentials(app):
     app.use_cors(
         allow_methods="GET POST",
@@ -480,7 +473,6 @@ async def test_cors_preflight_request_allow_credentials(app):
     assert response.headers.get_single(b"Access-Control-Allow-Credentials") == b"true"
 
 
-@pytest.mark.asyncio
 async def test_cors_preflight_request_allow_any(app):
     app.use_cors(allow_methods="*", allow_origins="*", allow_headers="*")
 
@@ -550,7 +542,6 @@ async def test_cors_preflight_request_allow_any(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_non_cors_options_request(app):
     app.use_cors(
         allow_methods="GET POST",
@@ -574,7 +565,6 @@ async def test_non_cors_options_request(app):
     assert response.status == 404
 
 
-@pytest.mark.asyncio
 async def test_use_cors_raises_for_started_app(app):
     await app.start()
 
@@ -585,7 +575,6 @@ async def test_use_cors_raises_for_started_app(app):
         app.add_cors_policy("deny")
 
 
-@pytest.mark.asyncio
 async def test_add_cors_policy_configures_cors_settings(app):
     app.add_cors_policy(
         "yes", allow_methods="GET POST", allow_origins="https://www.neoteroi.dev"
@@ -645,7 +634,6 @@ async def test_add_cors_policy_configures_cors_settings(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_cors_by_handler(app):
     app.use_cors(
         allow_methods="GET POST DELETE", allow_origins="https://www.neoteroi.dev"
@@ -740,7 +728,6 @@ def test_cors_decorator_raises_for_non_request_handler(app):
             return text("Hello, World")
 
 
-@pytest.mark.asyncio
 async def test_cors_preflight_request_handles_404_for_missing_routes(app):
     app.use_cors(allow_methods="GET POST", allow_origins="https://www.neoteroi.dev")
 
@@ -763,7 +750,6 @@ async def test_cors_preflight_request_handles_404_for_missing_routes(app):
     assert response.status == 404
 
 
-@pytest.mark.asyncio
 async def test_response_to_cors_request_contains_single_allow_origin(app):
     app.use_cors(
         allow_methods="GET POST",

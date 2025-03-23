@@ -207,7 +207,7 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self._session_middleware: Optional[SessionMiddleware] = None
-        self.base_path: str = ""
+        self.base_path: str = ""  # TODO: deprecate
         self._mount_registry = mount
 
         validate_router(self)
@@ -523,6 +523,7 @@ class Application(BaseApplication):
             cache_time: Controls the Cache-Control Max-Age in seconds for static files.
             root_path: Path prefix used for routing requests.
             For example, if set to "public", files are served at "/public/*".
+            If the Application router uses a prefix, it is applied automatically.
             allow_anonymous: Whether to enable anonymous access to static files, true by
             default.
             index_document: The name of the index document to display, if present,
@@ -534,6 +535,12 @@ class Application(BaseApplication):
             default_file_options: Optional options to serve the default file
             (index.html)
         """
+        if self.router.prefix:
+            if not root_path:
+                root_path = self.router.prefix
+            else:
+                root_path = join_fragments(self.router.prefix, root_path)
+
         serve_files_dynamic(
             self.router,
             self.files_handler,
@@ -614,8 +621,8 @@ class Application(BaseApplication):
 
     def register_controllers(self, controller_types: List[Type]):
         """
-        Registers controller types as transient services
-        in the application service container.
+        Registers controller types as transient services in the application service
+        container.
         """
         if not controller_types:
             return
@@ -707,6 +714,7 @@ class Application(BaseApplication):
             await self.on_start.fire()
 
         validate_default_router()
+        self._check_prefix()
         self.use_controllers()
         self.normalize_handlers()
         self.configure_middlewares()
@@ -764,9 +772,7 @@ class Application(BaseApplication):
                 # will anyway respond 403 to the client.
                 await ws.close()
 
-    async def _handle_http(self, scope, receive, send) -> None:
-        assert scope["type"] == "http"
-
+    def instantiate_request(self, scope, receive) -> Request:
         request = Request.incoming(
             scope["method"],
             scope["raw_path"],
@@ -776,12 +782,27 @@ class Application(BaseApplication):
 
         request.scope = scope
         request.content = ASGIContent(receive)
+        return request
 
+    def _check_prefix(self):
+        """
+        If the application router uses a prefix, modify the class to apply the prefix
+        automatically to each instantiated request.base_path. This is used by the
+        get_absolute_url_to_path to produce appropriate URLs for redirections to the
+        application (e.g. in OIDC integrations).
+        """
+        if self.router.prefix and not isinstance(self, PathPrefixMixin):
+            self.extend(PathPrefixMixin)
+
+    async def _handle_http(self, scope, receive, send) -> None:
+        assert scope["type"] == "http"
+
+        request = self.instantiate_request(scope, receive)
         response = await self.handle(request)
         await send_asgi_response(response, send)
 
         request.scope = None  # type: ignore
-        request.content.dispose()
+        request.content.dispose()  # type: ignore
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
@@ -794,6 +815,15 @@ class Application(BaseApplication):
             return await self._handle_lifespan(receive, send)
 
         raise TypeError(f"Unsupported scope type: {scope['type']}")
+
+
+class PathPrefixMixin:
+    router: Router
+
+    def instantiate_request(self, scope, receive) -> Request:
+        request = super().instantiate_request(scope, receive)  # type: ignore
+        request.base_path = self.router.prefix
+        return request
 
 
 class MountMixin:

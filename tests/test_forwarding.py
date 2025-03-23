@@ -21,7 +21,6 @@ from tests.utils.application import FakeApplication
         (b"id42.example-cdn.com", b"2001:db8:85a3:8d3:1319:8a2e:370:7348", b"http"),
     ],
 )
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware(
     app: FakeApplication,
     forwarded_host,
@@ -61,7 +60,6 @@ async def test_x_forwarded_headers_middleware(
     assert last_request.original_client_ip == forwarded_ip.decode()
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_multiple_proxies(app: FakeApplication):
     app.middlewares.append(
         XForwardedHeadersMiddleware(
@@ -127,7 +125,6 @@ async def test_x_forwarded_headers_middleware_multiple_proxies(app: FakeApplicat
     assert last_request.original_client_ip == "203.0.113.195"
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_invalid_host(app: FakeApplication):
     app.middlewares.append(XForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -182,7 +179,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host(app: FakeAppli
     assert called
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_without_forwarded_for(
     app: FakeApplication,
 ):
@@ -211,7 +207,6 @@ async def test_x_forwarded_headers_middleware_without_forwarded_for(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_without_forwarded_proto(
     app: FakeApplication,
 ):
@@ -241,7 +236,6 @@ async def test_x_forwarded_headers_middleware_without_forwarded_proto(
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_too_many_forwards(
     app: FakeApplication,
 ):
@@ -271,7 +265,6 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forwards(
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_host_headers(
     app: FakeApplication,
 ):
@@ -306,7 +299,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_host_hea
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_headers(
     app: FakeApplication,
 ):
@@ -338,7 +330,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_he
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_values(
     app: FakeApplication,
 ):
@@ -369,7 +360,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_va
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_for_headers(
     app: FakeApplication,
 ):
@@ -402,7 +392,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_for_head
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_too_many_forward_values(
     app: FakeApplication,
 ):
@@ -435,7 +424,6 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forward_values(
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_invalid_host_not_forwarded(
     app: FakeApplication,
 ):
@@ -468,7 +456,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host_not_forwarded(
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
     app: FakeApplication,
 ):
@@ -528,7 +515,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
     assert called
 
 
-@pytest.mark.asyncio
 async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network(
     app: FakeApplication,
 ):
@@ -591,7 +577,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network
     assert called
 
 
-@pytest.mark.asyncio
 async def test_forwarded_header_middleware(app: FakeApplication):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -626,7 +611,6 @@ async def test_forwarded_header_middleware(app: FakeApplication):
     assert app.request.scheme == "https"
 
 
-@pytest.mark.asyncio
 async def test_forwarded_header_middleware_by_invalid(app: FakeApplication):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -656,7 +640,6 @@ async def test_forwarded_header_middleware_by_invalid(app: FakeApplication):
     assert app.response.status == 400
 
 
-@pytest.mark.asyncio
 async def test_forwarded_header_middleware_by_hidden(app: FakeApplication):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 
@@ -691,7 +674,6 @@ async def test_forwarded_header_middleware_by_hidden(app: FakeApplication):
     assert app.request.scheme == "https"
 
 
-@pytest.mark.asyncio
 async def test_forwarded_header_middleware_blocks_requests_with_too_many_forwards(
     app: FakeApplication,
 ):
@@ -792,7 +774,6 @@ def test_parse_forwarded_entry(value, expected_result):
     assert parsed == expected_result
 
 
-@pytest.mark.asyncio
 async def test_trusted_hosts_middleware_blocks_invalid_host(app: FakeApplication):
     app.middlewares.append(TrustedHostsMiddleware(["neoteroi.dev"]))
 

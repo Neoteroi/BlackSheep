@@ -122,7 +122,6 @@ class AdminsPolicy(Policy):
         super().__init__("admin", AdminRequirement())
 
 
-@pytest.mark.asyncio
 async def test_authentication_sets_identity_in_request(app):
     app.use_authentication().add(MockAuthHandler())
 
@@ -144,7 +143,6 @@ async def test_authentication_sets_identity_in_request(app):
     assert identity["name"] == "Charlie Brown"
 
 
-@pytest.mark.asyncio
 async def test_authorization_forbidden_error_1(app):
     app.use_authentication().add(MockAuthHandler())
 
@@ -161,7 +159,6 @@ async def test_authorization_forbidden_error_1(app):
     assert app.response.status == 403
 
 
-@pytest.mark.asyncio
 async def test_authorization_policy_success(app):
     admin = Identity({"id": "001", "name": "Charlie Brown", "role": "admin"}, "JWT")
 
@@ -180,7 +177,6 @@ async def test_authorization_policy_success(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_authorization_forbidden_error_2(app):
     admin = Identity({"id": "001", "name": "Charlie Brown", "role": "user"}, "JWT")
 
@@ -199,7 +195,6 @@ async def test_authorization_forbidden_error_2(app):
     assert app.response.status == 403
 
 
-@pytest.mark.asyncio
 async def test_authorization_default_allows_anonymous(app):
     app.use_authentication().add(MockAuthHandler())
 
@@ -215,7 +210,6 @@ async def test_authorization_default_allows_anonymous(app):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_authorization_supports_default_require_authenticated(app):
     app.use_authentication().add(MockNotAuthHandler())
 
@@ -233,7 +227,6 @@ async def test_authorization_supports_default_require_authenticated(app):
     assert app.response.status == 401
 
 
-@pytest.mark.asyncio
 async def test_static_files_allow_anonymous_by_default(app):
     app.use_authentication().add(MockNotAuthHandler())
 
@@ -260,7 +253,6 @@ async def test_static_files_allow_anonymous_by_default(app):
     assert content == "Lorem ipsum dolor sit amet\n"
 
 
-@pytest.mark.asyncio
 async def test_static_files_support_authentication(app):
     app.use_authentication().add(MockNotAuthHandler())
 
@@ -285,7 +277,6 @@ async def test_static_files_support_authentication(app):
     assert app.response.status == 401
 
 
-@pytest.mark.asyncio
 async def test_static_files_support_authentication_by_route(app):
     app.use_authentication().add(MockNotAuthHandler())
 
@@ -332,7 +323,6 @@ async def test_static_files_support_authentication_by_route(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_authorization_supports_allow_anonymous(app):
     from blacksheep.server.responses import text
 
@@ -353,7 +343,6 @@ async def test_authorization_supports_allow_anonymous(app):
     assert app.response.status == 200
 
 
-@pytest.mark.asyncio
 async def test_authentication_challenge_response(app):
     app.use_authentication().add(AccessTokenCrashingHandler())
 
@@ -378,7 +367,6 @@ async def test_authentication_challenge_response(app):
     )
 
 
-@pytest.mark.asyncio
 async def test_authorization_strategy_without_authentication_raises(app):
     app.use_authorization()
 
@@ -436,7 +424,6 @@ def test_get_www_authenticated_header_from_generic_unauthorized_error(
     assert value == expected_value
 
 
-@pytest.mark.asyncio
 async def test_authorization_default_requires_authenticated_user(app):
     app.use_authentication().add(MockNotAuthHandler())
 
@@ -459,7 +446,6 @@ async def test_authorization_default_requires_authenticated_user(app):
     assert app.response.status == 401
 
 
-@pytest.mark.asyncio
 async def test_jwt_bearer_authentication(app, default_keys_provider):
     app.use_authentication().add(
         JWTBearerAuthentication(
@@ -598,7 +584,6 @@ class TestHandlerReqDep(AuthenticationHandler):
         return Identity()
 
 
-@pytest.mark.asyncio
 async def test_di_works_with_auth_handlers(app: Application):
     app.services.register(Foo)
     app.services.register(TestHandler)
@@ -622,7 +607,6 @@ async def test_di_works_with_auth_handlers(app: Application):
     assert app.response.status == 204
 
 
-@pytest.mark.asyncio
 async def test_di_supports_scoped_auth_handlers(app: Application):
     """
     Verifies that it is possible to have scoped services across request handlers and
@@ -665,7 +649,6 @@ async def test_di_supports_scoped_auth_handlers(app: Application):
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
 
-@pytest.mark.asyncio
 async def test_di_supports_scoped_auth_handlers_with_request_dep(app: Application):
     """
     Verifies that an authentication handler having Request as dependency, is created

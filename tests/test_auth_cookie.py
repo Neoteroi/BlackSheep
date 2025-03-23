@@ -1,6 +1,5 @@
 from typing import Any
 
-import pytest
 from guardpost import Identity
 
 from blacksheep.messages import Request, Response
@@ -15,7 +14,6 @@ def get_auth_cookie(handler: CookieAuthentication, data: Any) -> str:
     return handler.cookie_name + "=" + response.cookies[handler.cookie_name].value
 
 
-@pytest.mark.asyncio
 async def test_cookie_authentication():
     handler = CookieAuthentication()
 
@@ -47,7 +45,6 @@ async def test_cookie_authentication():
     assert request.user.claims.get("email") == "example@neoteroi.dev"
 
 
-@pytest.mark.asyncio
 async def test_cookie_authentication_handles_invalid_signature():
     handler = CookieAuthentication()
 

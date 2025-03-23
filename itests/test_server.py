@@ -397,14 +397,14 @@ def test_open_api_ui(session_2):
     text = response.text
     assert (
         text.strip()
-        == """
+        == r"""
 <!DOCTYPE html>
 <html>
   <head>
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
   </head>
   <body>
@@ -412,8 +412,8 @@ def test_open_api_ui(session_2):
     <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
     <script>
       const ui = SwaggerUIBundle({
-        url: "/openapi.json",
-        oauth2RedirectUrl: window.location.origin + "/docs/oauth2-redirect",
+        url: "openapi.json",
+        oauth2RedirectUrl: window.location.origin + window.location.pathname.replace(/\/$/, "") + "/oauth2-redirect",
         dom_id: "#swagger-ui",
         presets: [
           SwaggerUIBundle.presets.apis,
@@ -445,7 +445,7 @@ def test_open_api_redoc_ui(session_2):
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet" />
     <style>
       body {
@@ -455,7 +455,7 @@ def test_open_api_redoc_ui(session_2):
     </style>
   </head>
   <body>
-    <redoc spec-url="/openapi.json"></redoc>
+    <redoc spec-url="openapi.json"></redoc>
     <script src="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"></script>
   </body>
 </html>
@@ -470,14 +470,14 @@ def test_open_api_ui_custom_cdn(session_4):
     text = response.text
     assert (
         text.strip()
-        == f"""
+        == rf"""
 <!DOCTYPE html>
 <html>
   <head>
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link type="text/css" rel="stylesheet" href="{get_test_files_url("swag-css")}" />
   </head>
   <body>
@@ -485,8 +485,8 @@ def test_open_api_ui_custom_cdn(session_4):
     <script src="{get_test_files_url("swag-js")}"></script>
     <script>
       const ui = SwaggerUIBundle({{
-        url: "/openapi.json",
-        oauth2RedirectUrl: window.location.origin + "/docs/oauth2-redirect",
+        url: "openapi.json",
+        oauth2RedirectUrl: window.location.origin + window.location.pathname.replace(/\/$/, "") + "/oauth2-redirect",
         dom_id: "#swagger-ui",
         presets: [
           SwaggerUIBundle.presets.apis,
@@ -518,7 +518,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link href="{get_test_files_url("redoc-fonts")}" rel="stylesheet" />
     <style>
       body {{
@@ -528,7 +528,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
     </style>
   </head>
   <body>
-    <redoc spec-url="/openapi.json"></redoc>
+    <redoc spec-url="openapi.json"></redoc>
     <script src="{get_test_files_url("redoc-js")}"></script>
   </body>
 </html>
@@ -884,7 +884,6 @@ def test_post_json_to_app_using_custom_json_settings(session_4, data):
     assert response.json() == data
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "route,data",
     [
@@ -903,7 +902,6 @@ async def test_websocket(server_host, server_port_4, route, data):
         assert data == echo
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "route",
     [
@@ -922,7 +920,6 @@ async def test_websocket_auth(server_host, server_port_2, route):
     assert "server rejected" in str(error.value)
 
 
-@pytest.mark.asyncio
 async def test_websocket_server_error(server_host, server_port_2):
     uri = f"ws://{server_host}:{server_port_2}/websocket-server-error"
 

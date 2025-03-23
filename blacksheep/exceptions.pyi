@@ -50,3 +50,11 @@ class InternalServerError(HTTPException):
 class NotImplementedByServer(HTTPException):
     def __init__(self, message: str = "Not Implemented"):
         super().__init__(501, message)
+
+class FailedRequestError(HTTPException):
+    def __init__(self, status: int, data: str) -> None:
+        super().__init__(
+            status,
+            f"The response status code does not indicate success: {status}. Response body: {data}",
+        )
+        self.data = data

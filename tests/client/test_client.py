@@ -72,7 +72,6 @@ def test_update_request_for_redirect_raises_for_urn_redirects():
     )
 
 
-@pytest.mark.asyncio
 async def test_client_send_handles_connection_closed_error():
     attempt = 0
 
@@ -94,7 +93,6 @@ async def test_client_send_handles_connection_closed_error():
             )
 
 
-@pytest.mark.asyncio
 async def test_client_session_without_middlewares_and_cookiejar():
     called = False
 
@@ -114,14 +112,12 @@ async def test_client_session_without_middlewares_and_cookiejar():
         assert called is True
 
 
-@pytest.mark.asyncio
 async def test_client_session_validate_url_for_relative_urls_no_base_url():
     async with ClientSession() as client:
         with pytest.raises(ValueError):
             client._validate_request_url(Request("GET", b"/", None))
 
 
-@pytest.mark.asyncio
 async def test_client_session_validate_url_for_relative_urls_with_base_url():
     async with ClientSession(base_url=b"https://foo.org") as client:
         request = Request("GET", b"/home", None)

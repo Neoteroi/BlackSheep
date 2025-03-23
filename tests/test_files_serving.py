@@ -47,7 +47,6 @@ def files2_index_contents():
         return actual_file.read()
 
 
-@pytest.mark.asyncio
 async def test_get_response_for_file_raise_for_file_not_found():
     with pytest.raises(FileNotFoundError):
         get_response_for_file(
@@ -65,7 +64,6 @@ TEST_FILES_METHODS = [[i, "GET"] for i in TEST_FILES] + [
 ]
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("file_path", TEST_FILES)
 async def test_get_response_for_file_returns_file_contents(file_path):
     response = get_response_for_file(
@@ -81,7 +79,6 @@ async def test_get_response_for_file_returns_file_contents(file_path):
     assert data == contents
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("file_path,method", TEST_FILES_METHODS)
 async def test_get_response_for_file_returns_headers(file_path, method):
     response = get_response_for_file(
@@ -105,7 +102,6 @@ async def test_get_response_for_file_returns_headers(file_path, method):
         assert value == expected_header_value
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("file_path,method", TEST_FILES_METHODS)
 async def test_get_response_for_file_returns_not_modified_handling_if_none_match_header(
     file_path, method
@@ -124,7 +120,6 @@ async def test_get_response_for_file_returns_not_modified_handling_if_none_match
     assert data is None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("file_path", TEST_FILES)
 async def test_get_response_for_file_with_head_method_returns_empty_body_with_info(
     file_path,
@@ -138,7 +133,6 @@ async def test_get_response_for_file_with_head_method_returns_empty_body_with_in
     assert data is None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("cache_time", [100, 500, 1200])
 async def test_get_response_for_file_returns_cache_control_header(cache_time):
     response = get_response_for_file(
@@ -151,7 +145,6 @@ async def test_get_response_for_file_returns_cache_control_header(cache_time):
     assert header == f"max-age={cache_time}".encode()
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "range_value,expected_bytes,expected_content_range",
     [
@@ -201,7 +194,6 @@ async def test_text_file_range_request_single_part(
     assert response.get_single_header(b"content-range") == expected_content_range
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "range_value",
     [
@@ -222,7 +214,6 @@ async def test_invalid_range_request_range_not_satisfiable(range_value):
         )
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "range_value,expected_bytes_lines",
     [
@@ -281,7 +272,6 @@ async def test_text_file_range_request_multi_part(
     assert body.splitlines() == expected_bytes_lines
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "range_value,matches",
     [
@@ -322,7 +312,6 @@ async def test_text_file_range_request_single_part_if_range_handling(
             assert body == actual_file.read()
 
 
-@pytest.mark.asyncio
 async def test_serve_files_no_discovery(app):
     # Note the folder files3 does not contain an index.html page
     app.serve_files(get_folder_path("files3"))
@@ -340,7 +329,6 @@ async def test_serve_files_no_discovery(app):
     assert response.status == 404
 
 
-@pytest.mark.asyncio
 async def test_serve_files_fallback_document(files2_index_contents: bytes, app):
     """Feature used to serve SPAs that use HTML5 History API"""
     app.serve_files(get_folder_path("files2"), fallback_document="index.html")
@@ -360,7 +348,6 @@ async def test_serve_files_fallback_document(files2_index_contents: bytes, app):
         assert await response.read() == files2_index_contents
 
 
-@pytest.mark.asyncio
 async def test_serve_files_serves_index_html_by_default(files2_index_contents, app):
     app.serve_files(get_folder_path("files2"))
 
@@ -378,7 +365,6 @@ async def test_serve_files_serves_index_html_by_default(files2_index_contents, a
     assert files2_index_contents == await response.read()
 
 
-@pytest.mark.asyncio
 async def test_serve_files_can_disable_index_html_by_default(app):
     app.serve_files(get_folder_path("files2"), index_document=None)
 
@@ -395,7 +381,6 @@ async def test_serve_files_can_disable_index_html_by_default(app):
     assert response.status == 404
 
 
-@pytest.mark.asyncio
 async def test_serve_files_custom_index_page(app):
     # Note the folder files3 does not contain an index.html page
     app.serve_files(get_folder_path("files3"), index_document="lorem-ipsum.txt")
@@ -417,7 +402,6 @@ async def test_serve_files_custom_index_page(app):
         assert content == await response.text()
 
 
-@pytest.mark.asyncio
 async def test_cannot_serve_files_outside_static_folder(app):
     folder_path = get_folder_path("files")
     app.serve_files(folder_path, discovery=True, extensions={".py"})
@@ -435,7 +419,6 @@ async def test_cannot_serve_files_outside_static_folder(app):
     assert response.status == 404
 
 
-@pytest.mark.asyncio
 async def test_cannot_serve_files_with_unhandled_extension(app):
     folder_path = get_folder_path("files2")
     app.serve_files(folder_path, discovery=True, extensions={".py"})
@@ -453,7 +436,6 @@ async def test_cannot_serve_files_with_unhandled_extension(app):
     assert response.status == 404
 
 
-@pytest.mark.asyncio
 async def test_can_serve_files_with_relative_paths(files2_index_contents, app):
     folder_path = get_folder_path("files2")
     app.serve_files(folder_path, discovery=True)
@@ -496,7 +478,6 @@ async def test_can_serve_files_with_relative_paths(files2_index_contents, app):
 
 
 @pytest.mark.parametrize("folder_name", ["files", "files2"])
-@pytest.mark.asyncio
 async def test_serve_files_discovery(folder_name: str, app):
     folder_path = get_folder_path(folder_name)
     app.serve_files(folder_path, discovery=True)
@@ -528,7 +509,6 @@ async def test_serve_files_discovery(folder_name: str, app):
             assert item.name not in body
 
 
-@pytest.mark.asyncio
 async def test_serve_files_discovery_subfolder(app):
     folder_path = get_folder_path("files2")
     app.serve_files(folder_path, discovery=True)
@@ -551,7 +531,6 @@ async def test_serve_files_discovery_subfolder(app):
         assert f"/{item.name}" in body
 
 
-@pytest.mark.asyncio
 async def test_serve_files_with_custom_files_handler(app):
     file_path = files2_index_path
 
@@ -597,7 +576,6 @@ def test_file_context_mode_property():
     assert isinstance(context.loop, AbstractEventLoop)
 
 
-@pytest.mark.asyncio
 async def test_serve_files_multiple_folders(files2_index_contents, app):
     files1 = get_folder_path("files")
     files2 = get_folder_path("files2")
@@ -680,7 +658,6 @@ def test_get_requested_range_raises_for_invalid_range():
         _get_requested_range(request)
 
 
-@pytest.mark.asyncio
 async def test_get_range_file_getter_raises_for_invalid():
     getter = get_range_file_getter(
         FilesHandler(), files2_index_path, 100, Range("bytes", [RangePart(None, None)])
@@ -713,7 +690,6 @@ def test_file_info():
     assert info.mime in repr(info)
 
 
-@pytest.mark.asyncio
 async def test_get_response_for_static_content_returns_given_bytes():
     response = get_response_for_static_content(
         Request("GET", b"/", None),
@@ -727,7 +703,6 @@ async def test_get_response_for_static_content_returns_given_bytes():
     assert data == b"Lorem ipsum dolor sit amet\n"
 
 
-@pytest.mark.asyncio
 async def test_get_response_for_static_content_handles_head():
     response = get_response_for_static_content(
         Request("GET", b"/", None),
@@ -753,7 +728,6 @@ async def test_get_response_for_static_content_handles_head():
         assert head_response.get_single_header(name) is not None
 
 
-@pytest.mark.asyncio
 async def test_get_response_for_static_content_can_disable_max_age():
     response = get_response_for_static_content(
         Request("GET", b"/", None),
@@ -777,7 +751,6 @@ async def test_get_response_for_static_content_can_disable_max_age():
     assert b"20" in response.headers.get_first(b"Cache-Control")
 
 
-@pytest.mark.asyncio
 async def test_get_response_for_static_content_handles_304():
     response = get_response_for_static_content(
         Request("GET", b"/", None),
@@ -798,7 +771,6 @@ async def test_get_response_for_static_content_handles_304():
     assert response.status == 304
 
 
-@pytest.mark.asyncio
 async def test_app_fallback_route_static_files(app):
     called = False
 
@@ -823,7 +795,6 @@ async def test_app_fallback_route_static_files(app):
     assert response_text == "Example"
 
 
-@pytest.mark.asyncio
 async def test_app_404_handler_static_files_not_found(app):
     called = False
 
@@ -847,7 +818,6 @@ async def test_app_404_handler_static_files_not_found(app):
     assert response_text == "Example"
 
 
-@pytest.mark.asyncio
 async def test_serve_files_index_html_options(files2_index_contents, app: Application):
     def on_response(request, response): ...
 
@@ -889,7 +859,6 @@ async def test_serve_files_index_html_options(files2_index_contents, app: Applic
     assert response.headers[b"cache-control"] != (b"no-cache, no-store",)
 
 
-@pytest.mark.asyncio
 async def test_serve_files_index_html_options_fallback(
     files2_index_contents, app: Application
 ):

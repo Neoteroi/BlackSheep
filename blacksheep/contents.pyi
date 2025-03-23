@@ -103,7 +103,7 @@ def parse_www_form(content: str) -> Dict[str, Union[str, List[str]]]:
     """Parses application/x-www-form-urlencoded content"""
 
 def write_www_form_urlencoded(
-    data: Union[Dict[str, str], List[Tuple[str, str]]]
+    data: Union[Dict[str, str], List[Tuple[str, str]]],
 ) -> bytes: ...
 
 class ServerSentEvent:

@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from blacksheep import Content, Cookie, Response, scribe
+from blacksheep.exceptions import FailedRequestError
 from blacksheep.server.controllers import (
     CannotDetermineDefaultViewNameError,
     Controller,
@@ -139,7 +140,6 @@ def test_response_supports_dynamic_attributes():
     assert response.foo is foo  # type: ignore
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "response,cookies,expected_result",
     [
@@ -199,7 +199,6 @@ def test_is_redirect():
 
 
 @pytest.mark.parametrize("method,expected_status", REDIRECT_METHODS)
-@pytest.mark.asyncio
 async def test_redirect_method(method, expected_status, app):
     @app.router.get("/")
     async def home():
@@ -229,7 +228,6 @@ def test_redirect_method_raises_for_invalid_location(method):
 
 
 @pytest.mark.parametrize("method,expected_status", REDIRECT_METHODS)
-@pytest.mark.asyncio
 async def test_redirect_method_bytes_location(method, expected_status, app):
     @app.router.get("/")
     async def home():
@@ -250,7 +248,6 @@ async def test_redirect_method_bytes_location(method, expected_status, app):
 
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_NO_BODY)
-@pytest.mark.asyncio
 async def test_no_body_method(method, expected_status, app):
     @app.router.get("/")
     async def home():
@@ -270,7 +267,6 @@ async def test_no_body_method(method, expected_status, app):
 
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
-@pytest.mark.asyncio
 async def test_status_method_response(method, expected_status, app):
     @app.router.get("/")
     async def home():
@@ -290,7 +286,6 @@ async def test_status_method_response(method, expected_status, app):
 
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
-@pytest.mark.asyncio
 async def test_status_method_response_empty_body(method, expected_status, app):
     @app.router.get("/")
     async def home():
@@ -310,7 +305,6 @@ async def test_status_method_response_empty_body(method, expected_status, app):
 
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
-@pytest.mark.asyncio
 async def test_status_method_response_with_object(method, expected_status, app):
     @app.router.get("/")
     async def home():
@@ -331,7 +325,6 @@ async def test_status_method_response_with_object(method, expected_status, app):
 
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
-@pytest.mark.asyncio
 async def test_status_code_response_with_text(status: int, app):
     @app.router.get("/")
     async def home():
@@ -351,7 +344,6 @@ async def test_status_code_response_with_text(status: int, app):
 
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
-@pytest.mark.asyncio
 async def test_status_code_response_with_empty_body(status: int, app):
     @app.router.get("/")
     async def home():
@@ -371,7 +363,6 @@ async def test_status_code_response_with_empty_body(status: int, app):
 
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
-@pytest.mark.asyncio
 async def test_status_code_response_with_object(status: int, app):
     @app.router.get("/")
     async def home():
@@ -391,7 +382,6 @@ async def test_status_code_response_with_object(status: int, app):
     assert content.get("ufo") is True
 
 
-@pytest.mark.asyncio
 async def test_created_response_with_empty_body(app):
     @app.router.get("/")
     async def home():
@@ -411,7 +401,6 @@ async def test_created_response_with_empty_body(app):
     assert location == b"https://foo.org/foo/001"
 
 
-@pytest.mark.asyncio
 async def test_created_response_with_value(app):
     @app.router.get("/")
     async def home():
@@ -438,7 +427,6 @@ async def test_created_response_with_value(app):
     assert content.get("ufo") is False
 
 
-@pytest.mark.asyncio
 async def test_text_response_default_status(app):
     @app.router.get("/")
     async def home():
@@ -471,7 +459,6 @@ async def test_text_response_default_status(app):
         ("""Lorem ipsum dolor sit amet""", 200),
     ],
 )
-@pytest.mark.asyncio
 async def test_text_response_with_status(content, status, app):
     @app.router.get("/")
     async def home():
@@ -495,7 +482,6 @@ async def test_text_response_with_status(content, status, app):
     assert body == content
 
 
-@pytest.mark.asyncio
 async def test_html_response_default_status(app):
     @app.router.get("/")
     async def home():
@@ -528,7 +514,6 @@ async def test_html_response_default_status(app):
         ("<div><h2>Partial View</h2><p>Lorem ipsum dolor sit amet</p></div>", 400),
     ],
 )
-@pytest.mark.asyncio
 async def test_html_response_with_status(content, status, app):
     @app.router.get("/")
     async def home():
@@ -553,7 +538,6 @@ async def test_html_response_with_status(content, status, app):
 
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
-@pytest.mark.asyncio
 async def test_json_response(obj: Any, values: Dict[str, Any], app):
     @app.router.get("/")
     async def home():
@@ -585,7 +569,6 @@ async def test_json_response(obj: Any, values: Dict[str, Any], app):
 
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
-@pytest.mark.asyncio
 async def test_pretty_json_response(obj: Any, values: Dict[str, Any], app):
     @app.router.get("/")
     async def home():
@@ -615,7 +598,6 @@ async def test_pretty_json_response(obj: Any, values: Dict[str, Any], app):
             assert f'    "{name}": ' in raw
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_fs(app):
     file_path = get_file_path("example.config", "files2")
 
@@ -642,7 +624,6 @@ async def test_file_response_from_fs(app):
         assert contents == text
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_fs_with_filename(app):
     file_path = get_file_path("example.config", "files2")
 
@@ -682,7 +663,6 @@ async def get_example_css():
     yield b"}\n"
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_generator(app):
     @app.router.get("/")
     async def home():
@@ -705,7 +685,6 @@ async def test_file_response_from_generator(app):
     assert text == await read_from_asynciterable(get_example_css)
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_bytes_io(app):
     bytes_io: Optional[BytesIO] = None
 
@@ -736,7 +715,6 @@ async def test_file_response_from_bytes_io(app):
     assert bytes_io.closed  # type: ignore
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_generator_inline(app):
     @app.router.get("/")
     async def home():
@@ -763,7 +741,6 @@ async def test_file_response_from_generator_inline(app):
     assert text == await read_from_asynciterable(get_example_css)
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_bytes(app):
     @app.router.get("/")
     async def home():
@@ -794,7 +771,6 @@ async def test_file_response_from_bytes(app):
     assert text == EXAMPLE_HTML
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_byte_array(app):
     value = bytearray()
     value.extend(b"Hello!\n")
@@ -831,7 +807,6 @@ async def test_file_response_from_byte_array(app):
     assert text == expected_result
 
 
-@pytest.mark.asyncio
 async def test_file_response_from_generator_inline_with_name(app):
     @app.router.get("/")
     async def home():
@@ -889,7 +864,6 @@ def test_json_response_raises_for_not_json_serializable():
 
 
 @pytest.mark.parametrize("status", [200, 201, 202, 400, 404, 500])
-@pytest.mark.asyncio
 async def test_status_code_response_with_text_in_controller(status: int, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -913,7 +887,6 @@ async def test_status_code_response_with_text_in_controller(status: int, app):
 
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_OPTIONAL_BODY)
-@pytest.mark.asyncio
 async def test_status_method_response_in_controller(method, expected_status, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -943,7 +916,6 @@ async def test_status_method_response_in_controller(method, expected_status, app
 
 
 @pytest.mark.parametrize("method,expected_status", STATUS_METHODS_NO_BODY)
-@pytest.mark.asyncio
 async def test_status_method_without_body_response_in_controller(
     method, expected_status, app
 ):
@@ -975,7 +947,6 @@ async def test_status_method_without_body_response_in_controller(
 
 
 @pytest.mark.parametrize("method,expected_status", REDIRECT_METHODS)
-@pytest.mark.asyncio
 async def test_redirect_method_in_controller(method, expected_status, app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -1005,7 +976,6 @@ async def test_redirect_method_in_controller(method, expected_status, app):
     assert location == b"https://foo.org/somewhere"
 
 
-@pytest.mark.asyncio
 async def test_view_methods_in_controller_throw_if_view_name_cannot_be_determined():
     class Home(Controller):
         pass
@@ -1018,7 +988,6 @@ async def test_view_methods_in_controller_throw_if_view_name_cannot_be_determine
         await home.view_async()
 
 
-@pytest.mark.asyncio
 async def test_view_methods_in_controller_throw_if_sys_get_frame_is_not_defined():
     class Home(Controller):
         pass
@@ -1037,7 +1006,6 @@ async def test_view_methods_in_controller_throw_if_sys_get_frame_is_not_defined(
 
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
-@pytest.mark.asyncio
 async def test_json_response_in_controller(obj: Any, values: Dict[str, Any], app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -1073,7 +1041,6 @@ async def test_json_response_in_controller(obj: Any, values: Dict[str, Any], app
 
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
-@pytest.mark.asyncio
 async def test_pretty_json_response_in_controller(
     obj: Any, values: Dict[str, Any], app
 ):
@@ -1108,3 +1075,26 @@ async def test_pretty_json_response_in_controller(
             assert f'    "{name}": "{value}"' in raw
         else:
             assert f'    "{name}": ' in raw
+
+
+async def test_response_raise_for_status():
+    response = Response(200)
+    await response.raise_for_status()
+
+    response = Response(404).with_content(Content(b"text/plain", b"Hello, World"))
+
+    with pytest.raises(FailedRequestError) as exc_info:
+        await response.raise_for_status()
+
+    assert exc_info.value.status == 404
+    assert exc_info.value.data == "Hello, World"
+
+    response = Response(500).with_content(
+        Content(b"text/plain", b"Internal server error")
+    )
+
+    with pytest.raises(FailedRequestError) as exc_info:
+        await response.raise_for_status()
+
+    assert exc_info.value.status == 500
+    assert exc_info.value.data == "Internal server error"

@@ -33,6 +33,7 @@ from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.routing import Route, Router
+from blacksheep.url import join_prefix
 from blacksheep.utils.time import utcnow
 
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
@@ -164,8 +165,8 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self,
         *,
         ui_path: str = "/docs",
-        json_spec_path: str = "/openapi.json",
-        yaml_spec_path: str = "/openapi.yaml",
+        json_spec_path: str = "openapi.json",
+        yaml_spec_path: str = "openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
     ) -> None:
@@ -360,6 +361,8 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     def register_docs_handler(self, app: Application) -> None:
         current_time = utcnow().timestamp()
 
+        # Note: the first routes below are added for backward compatibility.
+        # The ui providers routes are to support relative paths in the UI.
         @self.ignore()
         @allow_anonymous(self.anonymous_access)
         @app.router.route(self.json_spec_path, methods=["GET", "HEAD"])
@@ -378,6 +381,14 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         def get_open_api_yaml(request: Request):
             return get_response_for_static_content(
                 request, b"text/yaml", self._yaml_docs, current_time, cache_time=1
+            )
+
+        for ui_provider in self.ui_providers:
+            app.router.add_get(
+                join_prefix(ui_provider.ui_path, self.json_spec_path), get_open_api_json
+            )
+            app.router.add_get(
+                join_prefix(ui_provider.ui_path, self.yaml_spec_path), get_open_api_yaml
             )
 
     def normalize_example(self, value: Any) -> Any:

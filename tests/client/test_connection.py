@@ -103,7 +103,6 @@ def test_connection_has_a_response_when_headers_are_complete(
         assert response.headers.get_single(name) == value
 
 
-@pytest.mark.asyncio
 async def test_connection_send_throws_if_closed(connection: ClientConnection):
     connection.open = False
 
@@ -111,7 +110,6 @@ async def test_connection_send_throws_if_closed(connection: ClientConnection):
         await connection.send(Request("GET", b"/", None))
 
 
-@pytest.mark.asyncio
 async def test_connection_handle_upgrades(
     connection: ClientConnection,
 ):
@@ -129,7 +127,6 @@ async def test_connection_handle_upgrades(
     assert connection._upgraded is True
 
 
-@pytest.mark.asyncio
 async def test_connection_handle_expect_100_continue_and_1xx(
     connection: ClientConnection,
 ):
@@ -216,7 +213,6 @@ def test_connection_throws_invalid_response_from_server_on_parser_error(connecti
     assert connection.open is False
 
 
-@pytest.mark.asyncio
 async def test_connection_stops_sending_body_if_server_returns_response(connection):
     async def dummy_body_generator() -> AsyncIterable[bytes]:
         for i in range(5):
@@ -250,7 +246,6 @@ async def test_connection_stops_sending_body_if_server_returns_response(connecti
     ]
 
 
-@pytest.mark.asyncio
 async def test_on_connection_lost_send_throws(connection):
     async def dummy_body_generator() -> AsyncIterable[bytes]:
         for i in range(5):
@@ -272,7 +267,6 @@ async def test_on_connection_lost_send_throws(connection):
         await connection.send(request)
 
 
-@pytest.mark.asyncio
 async def test_on_writing_paused_awaits(connection):
     async def dummy_body_generator() -> AsyncIterable[bytes]:
         for i in range(5):
@@ -309,14 +303,12 @@ async def test_on_writing_paused_awaits(connection):
 def test_connection_throws_for_invalid_content_length(connection):
     connection.headers = get_example_headers()
     connection.headers.append((b"Content-Length", b"NOT_A_NUMBER"))
-    connection.headers.append((b"Content-Type", b"text/html"))
     connection.parser = FakeParser(200)
 
     with pytest.raises(InvalidResponseFromServer):
         connection.on_headers_complete()
 
 
-@pytest.mark.asyncio
 async def test_connection_handle_chunked_transfer_encoding(
     connection: ClientConnection,
 ):

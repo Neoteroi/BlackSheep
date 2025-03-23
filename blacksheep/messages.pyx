@@ -19,7 +19,12 @@ from .contents cimport (
     parse_www_form_urlencoded,
 )
 from .cookies cimport Cookie, parse_cookie, split_value, write_cookie_for_response
-from .exceptions cimport BadRequest, BadRequestFormat, MessageAborted
+from .exceptions cimport (
+    BadRequest,
+    BadRequestFormat,
+    FailedRequestError,
+    MessageAborted,
+)
 from .headers cimport Headers
 from .url cimport URL, build_absolute_url
 
@@ -359,7 +364,7 @@ cdef class Request(Message):
 
     @property
     def path(self) -> str:
-        return self._path.decode()
+        return self._path.decode("utf8")
 
     @property
     def base_path(self) -> str:
@@ -630,6 +635,10 @@ cdef class Response(Message):
 
     cpdef bint is_redirect(self):
         return self.status in {301, 302, 303, 307, 308}
+
+    async def raise_for_status(self):
+        if not (200 <= self.status < 300):
+            raise FailedRequestError(self.status, await self.text())
 
 
 cpdef bint is_cors_request(Request request):

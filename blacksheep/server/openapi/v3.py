@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
 from typing import _AnnotatedAlias as AnnotatedAlias
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
@@ -381,6 +381,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 SecuritySchemes,
             ]
         ] = None,
+        servers: Optional[Sequence[Server]] = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -393,7 +394,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self._tags = tags
         self.components = Components()
         self._objects_references: Dict[Any, Reference] = {}
-        self.servers: List[Server] = []
+        self.servers: List[Server] = list(servers) if servers else []
         self.common_responses: Dict[ResponseStatusType, ResponseDoc] = {}
         self._object_types_handlers: List[ObjectTypeHandler] = [
             DataClassTypeHandler(),

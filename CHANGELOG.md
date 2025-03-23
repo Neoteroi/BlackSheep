@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove support for Python 3.8, by @bymoye.
 - Add an async method `raise_for_status` to the `Response` object, which raises
   an exception of type `FailedRequestError` if the response status is not in
-  the range **200-299**.
+  the range **200-299**. The method is asynchronous because in case of failure
+  it waits for the response body to be downloaded, to include it in the raised
+  exception.
 - Add support for specifying a prefix for the `Router`, and for configuring a
   global prefix for all routes using the env variable `APP_ROUTE_PREFIX`.
   If specified, the prefix is applied to all routes registered in the
@@ -21,24 +23,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   path based routing, to maintain the same path between the proxy server and
   the BlackSheep application. This is an alternative approach to the one used
   by the `root_path` offered by `ASGI` (still supported in `BlackSheep`).
-  ASGI `root_path` and route prefix in BlackSheep are two alternative ways to
-  address the same issue.
+  ASGI `root_path` and route prefix in BlackSheep are alternative ways to
+  address the same issue, and should not be used together.
 - Improve the OpenAPI UI to support router prefixes, and fetching the
   specification file using relative links.
 - Upgrade to `Cython` to `3.0.12` in the GitHub Workflow.
 - Handle setuptools warning: _SetuptoolsDeprecationWarning: License classifiers are deprecated_.
 - Improve `pyproject.toml` to use `tool.setuptools.packages.find`.
 - Add the missing "utf8" encoding to the `request.path` property decode call.
-- Add a built-in middleware to handle automatic redirects from URLs that do not
-  end with a "/" towards the same path with a trailing slash. This is useful
-  for endpoints that serve HTML documents, to ensure that relative URLs in the
+- Add a middleware to handle automatic redirects from URLs that do not end with
+  a "/" towards the same path with a trailing slash. This is useful for
+  endpoints that serve HTML documents, to ensure that relative URLs in the
   response body are correctly resolved
   (`from blacksheep.server.redirects import get_trailing_slash_middleware`).
+- Add a built-in strategy to handle startup errors and display an error page
+  when an application fails during initialization, in
+  `blacksheep.server.diagnostics.get_diagnostic_app`. Error details are not
+  displayed by default, but can be displayed setting the environment variable
+  `APP_SHOW_ERROR_DETAILS` to a value such as `1` or `true`.
 - Use `asyncio_mode=auto` for `pytest` (remove `@pytest.mark.asyncio` decorators).
 - Use `Python 3.12` to publish the package, in the GitHub Workflow.
 - Modify the `Application` object to instantiate requests in a dedicated method
   `instantiate_request`. This is to better support code that modifies how
   incoming requests are created.
+- Modify the `OpenAPIHandler` class to support specifying the list of `Server`
+  objects in the constructor.
 - Correct some docstrings.
 
 ## [2.0.8] - 2025-01-25

@@ -1,6 +1,5 @@
 import asyncio
 import json
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -75,13 +74,9 @@ class HTTPHandler:
         return await self.loop.run_in_executor(None, lambda: post(url, data))
 
 
-def get_running_loop() -> AbstractEventLoop:  # pragma: no cover
+def get_running_loop() -> AbstractEventLoop:
     try:
-        if sys.version_info[:2] <= (3, 7):
-            # For Python 3.6
-            return asyncio._get_running_loop() or asyncio.get_event_loop()
-        else:
-            return asyncio.get_running_loop()
+        return asyncio.get_running_loop()
     except RuntimeError:
         # TODO: fix deprecation warning happening in the test suite
         # DeprecationWarning: There is no current event loop

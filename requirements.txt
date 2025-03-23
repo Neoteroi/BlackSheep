@@ -30,7 +30,6 @@ mccabe==0.7.0
 packaging==24.2
 pluggy==1.5.0
 priority==2.0.0
-py==1.11.0
 pycparser==2.22
 pydantic==2.10.3
 pydantic-core==2.27.1

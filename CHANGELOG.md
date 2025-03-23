@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `essentials-openapi` pinned version, by @stollero.
 - Bump jinja2 from 3.1.4 to 3.1.6.
 - Bump cryptography from 44.0.0 to 44.0.1.
+- Remove `py` from the list of dependencies in `requirements.txt`.
 - Correct some docstrings.
 
 ## [2.0.8] - 2025-01-25

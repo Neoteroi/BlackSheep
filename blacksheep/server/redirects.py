@@ -21,7 +21,7 @@ def get_trailing_slash_middleware(
     The default exclude function excludes all requests whose path contains "/api/".
     """
     if exclude is None:
-        exclude = _default_trailing_slash_exclude
+        exclude = default_trailing_slash_exclude
 
     async def trailing_slash_middleware(request, handler):
         path = request.path

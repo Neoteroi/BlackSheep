@@ -319,6 +319,7 @@ class ClientConnection(asyncio.Protocol):
             self.response.content, IncomingContent
         ):
             self.response.content.exc = ConnectionLostError()
+            self.response.content.complete.set()
 
         if self._pending_task:
             self.response_ready.set()
@@ -341,6 +342,11 @@ class ClientConnection(asyncio.Protocol):
 
     def _has_content(self) -> bool:
         assert self.response is not None
+
+        content_type = self.response.get_first_header(b"content-type")
+        if content_type:
+            return True
+
         content_length = self.response.get_first_header(b"content-length")
 
         if content_length:

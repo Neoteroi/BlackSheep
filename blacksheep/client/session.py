@@ -4,7 +4,7 @@ from asyncio import AbstractEventLoop, TimeoutError
 from typing import Any, AnyStr, Callable, Dict, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import urlencode
 
-from blacksheep import URL, Content, InvalidURL, Request, Response
+from blacksheep import URL, Content, InvalidURL, Request, Response, __version__
 from blacksheep.common.types import HeadersType, ParamsType, URLType, normalize_headers
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.utils.aio import get_running_loop
@@ -52,6 +52,8 @@ class ClientRequestContext:
 
 
 class ClientSession:
+    USER_AGENT = f"python-blacksheep/{__version__}".encode("utf-8")
+
     def __init__(
         self,
         loop: Optional[AbstractEventLoop] = None,
@@ -329,6 +331,9 @@ class ClientSession:
 
     async def _send_core(self, request: Request) -> Response:
         self.check_permanent_redirects(request)
+
+        if not request.has_header(b"user-agent"):
+            request.add_header(b"user-agent", self.USER_AGENT)
 
         return await self._send_using_connection(request)
 

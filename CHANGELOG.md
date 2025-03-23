@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2025-03-23
 
 - Remove support for Python 3.8, by @bymoye.
+- Fix a bug in the `ClientSession`, happening when the server returns a response
+  body without specifying `Content-Length` and without specifying a
+  `Transfer-Encoding`.
+- Fix a bug in the `ClientSession`, happening when a server closes the
+  connection, and the response content is not set as completed.
+- Add a default `User-Agent` to web requests sent using the `ClientSession`,
+  the user agent is: `python-blacksheep/{__version__}`.
 - Add an async method `raise_for_status` to the `Response` object, which raises
   an exception of type `FailedRequestError` if the response status is not in
   the range **200-299**. The method is asynchronous because in case of failure

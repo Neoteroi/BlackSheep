@@ -303,7 +303,6 @@ async def test_on_writing_paused_awaits(connection):
 def test_connection_throws_for_invalid_content_length(connection):
     connection.headers = get_example_headers()
     connection.headers.append((b"Content-Length", b"NOT_A_NUMBER"))
-    connection.headers.append((b"Content-Type", b"text/html"))
     connection.parser = FakeParser(200)
 
     with pytest.raises(InvalidResponseFromServer):

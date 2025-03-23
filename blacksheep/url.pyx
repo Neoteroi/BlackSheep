@@ -121,3 +121,25 @@ cpdef URL build_absolute_url(
         + (b"/" if base_path else b"") + base_path.lstrip(b"/").rstrip(b"/")
         + (b"/" if path else b"") + path.lstrip(b"/")
     )
+
+
+cpdef str join_prefix(
+    str prefix,
+    str path
+):
+    if not prefix:
+        return path
+
+    if not prefix.startswith("/"):
+        prefix = "/" + prefix
+
+    if not path:
+        return prefix + "/"
+
+    if prefix[-1] == "/" and path[0] == "/":
+        return prefix + path[1:]
+
+    if prefix[-1] != "/" and path[0] != "/":
+        return prefix + "/" + path
+
+    return prefix + path

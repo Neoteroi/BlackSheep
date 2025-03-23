@@ -359,7 +359,7 @@ cdef class Request(Message):
 
     @property
     def path(self) -> str:
-        return self._path.decode()
+        return self._path.decode("utf8")
 
     @property
     def base_path(self) -> str:

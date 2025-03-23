@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use `Python 3.12` to publish the package, in the GitHub Workflow.
 - Add support for specifying a prefix for the `Router`, and for configuring a
   global prefix using the env variable `APP_ROUTE_PREFIX`.
+- Improve the OpenAPI UI to support router prefixes.
+- Upgrade to `Cython` to `3.0.12` in the GitHub Workflow.
+- Handle setuptools warning: _SetuptoolsDeprecationWarning: License classifiers are deprecated_.
+- Improve `pyproject.toml` to use `tool.setuptools.packages.find`.
+- Add the missing "utf8" encoding to the `request.path` property decode call.
+- Add a built-in middleware to handle automatic redirects from URLs that do not
+  end with a "/" towards the same path with a trailing slash. This is useful
+  for endpoints that serve HTML documents, to ensure that relative URLs in the
+  response body are correctly resolved.
 - Correct some docstrings.
 
 ## [2.0.8] - 2025-01-25

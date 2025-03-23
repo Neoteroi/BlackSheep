@@ -3,9 +3,11 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from blacksheep.messages import Request, Response
+from blacksheep.server.env import get_global_route_prefix
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.resources import get_resource_file_content
 from blacksheep.utils.time import utcnow
+from blacksheep.url import join_prefix
 
 SWAGGER_UI_JS_URL = (
     "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"
@@ -31,6 +33,16 @@ class UIFilesOptions:
 class UIOptions:
     spec_url: str
     page_title: str
+    favicon_url: str = "favicon.png"
+
+    def __post_init__(self):
+        # If a global route prefix is defined, it is applied to the spec URL and
+        # the favicon URL.
+        global_prefix = get_global_route_prefix()
+
+        if global_prefix:
+            self.spec_url = join_prefix(global_prefix, self.spec_url)
+            self.favicon_url = join_prefix(global_prefix, self.favicon_url)
 
 
 class UIProvider(ABC):
@@ -80,6 +92,7 @@ class SwaggerUIProvider(UIProvider):
             get_resource_file_content("swagger-ui.html")
             .replace("##SPEC_URL##", options.spec_url)
             .replace("##PAGE_TITLE##", options.page_title)
+            .replace("##FAVICON_URL##", options.favicon_url)
             .replace("##JS_URL##", self.ui_files.js_url)
             .replace("##CSS_URL##", self.ui_files.css_url or "")
         )

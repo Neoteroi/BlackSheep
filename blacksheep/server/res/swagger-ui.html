@@ -4,7 +4,7 @@
     <title>##PAGE_TITLE##</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="##FAVICON_URL##" />
     <link type="text/css" rel="stylesheet" href="##CSS_URL##" />
   </head>
   <body>
@@ -13,7 +13,7 @@
     <script>
       const ui = SwaggerUIBundle({
         url: "##SPEC_URL##",
-        oauth2RedirectUrl: window.location.origin + "/docs/oauth2-redirect",
+        oauth2RedirectUrl: window.location.origin + window.location.pathname.replace(/\/$/, "") + "/oauth2-redirect",
         dom_id: "#swagger-ui",
         presets: [
           SwaggerUIBundle.presets.apis,

@@ -8,7 +8,7 @@ charset-normalizer==3.4.0
 click==8.1.7
 coverage==7.6.1
 cryptography==44.0.1
-Cython==3.0.11
+Cython==3.0.12
 essentials==1.1.5
 essentials-openapi==1.0.9
 Flask==3.0.3

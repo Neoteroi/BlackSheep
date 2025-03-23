@@ -42,6 +42,7 @@ from blacksheep.server.openapi.common import (
     SecurityInfo,
 )
 from blacksheep.server.openapi.exceptions import DuplicatedContentTypeDocsException
+from blacksheep.server.openapi.ui import UIOptions
 from blacksheep.server.openapi.v3 import (
     DataClassTypeHandler,
     OpenAPIHandler,
@@ -50,6 +51,7 @@ from blacksheep.server.openapi.v3 import (
     check_union,
 )
 from blacksheep.server.routing import RoutesRegistry
+from tests.utils import modified_env
 
 GenericModel = BaseModel
 
@@ -3520,3 +3522,13 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
 
     for fragment in expected_fragments:
         assert fragment.strip() in yaml
+
+
+@pytest.mark.parametrize("env_prefix", ("/foo", "/bar"))
+def test_router_with_combined_prefix(env_prefix):
+    with modified_env(APP_ROUTE_PREFIX=env_prefix):
+        ui_options = UIOptions(spec_url="openapi.json", page_title="Test API")
+
+        assert ui_options.spec_url == env_prefix + "/openapi.json"
+        assert ui_options.favicon_url == env_prefix + "/favicon.png"
+        assert ui_options.page_title == "Test API"

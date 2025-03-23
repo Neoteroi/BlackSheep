@@ -181,7 +181,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          pip install cython==3.0.11
+          pip install cython==3.0.12
           pip install --upgrade build
 
       - name: Compile Cython extensions

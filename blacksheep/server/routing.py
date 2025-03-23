@@ -639,10 +639,10 @@ class RouterFiltersMixin:
 RouteConfig = Union[Dict[str, Any], "Router"]
 
 
-def _combine_prefix(prefix: str) -> str:
+def _combine_with_global_prefix(prefix: str) -> str:
     """
-    If a global prefix is defined using env variables, it is combined with the prefix
-    defined for a router.
+    Combines a router specific prefix with the global prefix, if one is defined using
+    env variables.
     """
     global_prefix = get_global_route_prefix()
     if global_prefix:
@@ -685,7 +685,9 @@ class Router(RouterBase):
 
         self._map = {}
         self._fallback = None
-        self._prefix: bytes = self._normalize_prefix(_combine_prefix(prefix))
+        self._prefix: bytes = self._normalize_prefix(
+            _combine_with_global_prefix(prefix)
+        )
         self.routes: Dict[bytes, List[Route]] = defaultdict(list)
         self.controllers_routes = RoutesRegistry()
         self._sub_routers = sub_routers

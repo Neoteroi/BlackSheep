@@ -404,7 +404,7 @@ def test_open_api_ui(session_2):
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
   </head>
   <body>
@@ -413,7 +413,7 @@ def test_open_api_ui(session_2):
     <script>
       const ui = SwaggerUIBundle({
         url: "/openapi.json",
-        oauth2RedirectUrl: window.location.origin + "/docs/oauth2-redirect",
+        oauth2RedirectUrl: window.location.origin + window.location.pathname.replace(/\/$/, "") + "/oauth2-redirect",
         dom_id: "#swagger-ui",
         presets: [
           SwaggerUIBundle.presets.apis,
@@ -445,7 +445,7 @@ def test_open_api_redoc_ui(session_2):
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet" />
     <style>
       body {
@@ -477,7 +477,7 @@ def test_open_api_ui_custom_cdn(session_4):
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link type="text/css" rel="stylesheet" href="{get_test_files_url("swag-css")}" />
   </head>
   <body>
@@ -486,7 +486,7 @@ def test_open_api_ui_custom_cdn(session_4):
     <script>
       const ui = SwaggerUIBundle({{
         url: "/openapi.json",
-        oauth2RedirectUrl: window.location.origin + "/docs/oauth2-redirect",
+        oauth2RedirectUrl: window.location.origin + window.location.pathname.replace(/\/$/, "") + "/oauth2-redirect",
         dom_id: "#swagger-ui",
         presets: [
           SwaggerUIBundle.presets.apis,
@@ -518,7 +518,7 @@ def test_open_api_redoc_ui_custom_cdn(session_4):
     <title>Cats API</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="/favicon.png" />
+    <link rel="icon" href="favicon.png" />
     <link href="{get_test_files_url("redoc-fonts")}" rel="stylesheet" />
     <style>
       body {{

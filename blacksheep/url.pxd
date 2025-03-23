@@ -29,3 +29,9 @@ cpdef URL build_absolute_url(
     bytes base_path,
     bytes path
 )
+
+
+cpdef str join_prefix(
+    str prefix,
+    str path
+)

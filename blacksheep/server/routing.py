@@ -698,23 +698,6 @@ class Router(RouterBase):
         if self._sub_routers:
             extend(self, MultiRouterMixin)
 
-    def _normalize_prefix(self, prefix: str) -> bytes:
-        if not prefix:
-            return b""
-
-        if "." in prefix:
-            prefix = prefix.replace(".", "")
-
-        while "//" in prefix:
-            prefix = prefix.replace("//", "/")
-
-        value = ensure_bytes(prefix)
-        if not value.startswith(b"/"):
-            value = b"/" + value
-        if value.endswith(b"/"):
-            value = value[:-1]
-        return value
-
     def reset(self):
         """Resets this router to its initial state."""
         self._map = {}
@@ -724,6 +707,10 @@ class Router(RouterBase):
         if self._sub_routers:
             for sub_router in self._sub_routers:
                 sub_router.reset()
+
+    @property
+    def prefix(self) -> str:
+        return self._prefix.decode("utf8")
 
     @property
     def fallback(self):
@@ -755,6 +742,23 @@ class Router(RouterBase):
                 yield method.decode(), route
         if self._fallback:
             yield "*", self._fallback
+
+    def _normalize_prefix(self, prefix: str) -> bytes:
+        if not prefix:
+            return b""
+
+        if "." in prefix:
+            prefix = prefix.replace(".", "")
+
+        while "//" in prefix:
+            prefix = prefix.replace("//", "/")
+
+        value = ensure_bytes(prefix)
+        if not value.startswith(b"/"):
+            value = b"/" + value
+        if value.endswith(b"/"):
+            value = value[:-1]
+        return value
 
     def _is_route_configured(self, method: bytes, route: Route):
         if isinstance(route, FilterRoute):  # pragma: no cover

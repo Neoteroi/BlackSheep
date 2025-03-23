@@ -5,16 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2025-03-16
+## [2.1.0] - 2025-03-23
 
 - Remove support for Python 3.8, by @bymoye.
 - Add an async method `raise_for_status` to the `Response` object, which raises
   an exception of type `FailedRequestError` if the response status is not in
-  the range 200-299.
-- Use `asyncio_mode=auto` for `pytest` (remove `@pytest.mark.asyncio` decorators).
-- Use `Python 3.12` to publish the package, in the GitHub Workflow.
+  the range **200-299**.
 - Add support for specifying a prefix for the `Router`, and for configuring a
-  global prefix using the env variable `APP_ROUTE_PREFIX`.
+  global prefix for all routes using the env variable `APP_ROUTE_PREFIX`.
+  If specified, the prefix is applied to all routes registered in the
+  application router. The prefix is used automatically by the
+  `serve_files` method, the `get_absolute_url_to_path` method, and by the
+  OpenAPI UI feature, to serve documentation to the correct path.
+  This feature is useful when exposing applications behind proxies using
+  path based routing, to maintain the same path between the proxy server and
+  the BlackSheep application. This is an alternative approach to the one used
+  by the `root_path` offered by `ASGI` (still supported in `BlackSheep`).
+  ASGI `root_path` and route prefix in BlackSheep are two alternative ways to
+  address the same issue.
 - Improve the OpenAPI UI to support router prefixes, and fetching the
   specification file using relative links.
 - Upgrade to `Cython` to `3.0.12` in the GitHub Workflow.
@@ -24,7 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a built-in middleware to handle automatic redirects from URLs that do not
   end with a "/" towards the same path with a trailing slash. This is useful
   for endpoints that serve HTML documents, to ensure that relative URLs in the
-  response body are correctly resolved.
+  response body are correctly resolved
+  (`from blacksheep.server.redirects import get_trailing_slash_middleware`).
+- Use `asyncio_mode=auto` for `pytest` (remove `@pytest.mark.asyncio` decorators).
+- Use `Python 3.12` to publish the package, in the GitHub Workflow.
+- Modify the `Application` object to instantiate requests in a dedicated method
+  `instantiate_request`. This is to better support code that modifies how
+  incoming requests are created.
 - Correct some docstrings.
 
 ## [2.0.8] - 2025-01-25

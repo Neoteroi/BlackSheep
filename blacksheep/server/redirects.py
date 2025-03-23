@@ -4,6 +4,9 @@ from blacksheep import Response
 from blacksheep.server.responses import moved_permanently
 
 
+_default_trailing_slash_exclude = lambda path: "/api/" in path
+
+
 def get_trailing_slash_middleware(
     exclude: Optional[Callable[[str], bool]] = None,
 ) -> Callable[..., Awaitable[Response]]:
@@ -14,7 +17,10 @@ def get_trailing_slash_middleware(
     URLs in the response body are correctly resolved.
     To filter certain requests from being redirected, pass a callable that returns
     True if the request should be excluded from redirection, by path.
+    The default exclude function excludes all requests whose path contains "/api/".
     """
+    if exclude is None:
+        exclude = _default_trailing_slash_exclude
 
     async def trailing_slash_middleware(request, handler):
         path = request.path

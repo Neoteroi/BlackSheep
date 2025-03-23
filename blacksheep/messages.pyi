@@ -103,7 +103,17 @@ class Request(Message):
     @session.setter
     def session(self, value: Session) -> None: ...
     @property
-    def base_path(self) -> str: ...
+    def base_path(self) -> str:
+        """
+        Gets or sets the base_path of the request, if any. A base_path can be specified
+        in two ways: when using the `root_path` of the ASGI specification, the base_path
+        returns the root_path from the scope. Alternatively, when using a prefix for
+        the BlackSheep application (e.g. using the env variable `APP_ROUTE_PREFIX`), the
+        base_path is populated automatically with that value.
+        ASGI `root_path` and route prefix in BlackSheep are two alternative ways to
+        address the same issue and should not be used together.
+        """
+
     @base_path.setter
     def base_path(self, value: str) -> None: ...
     @property

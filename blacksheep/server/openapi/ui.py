@@ -20,6 +20,12 @@ REDOC_UI_FONT_URL = (
     "https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700"
 )
 
+SCALAR_UI_JS_URL = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/browser/standalone.min.js"
+SCALAR_UI_CSS_URL = (
+    "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/style.min.css"
+)
+SCALAR_UI_FONT = None
+
 
 @dataclass
 class UIFilesOptions:
@@ -153,3 +159,93 @@ class ReDocUIProvider(UIProvider):
     @property
     def default_ui_files(self) -> UIFilesOptions:
         return UIFilesOptions(REDOC_UI_JS_URL, REDOC_UI_CSS_URL, REDOC_UI_FONT_URL)
+
+class ScalarUIProvider(UIProvider):
+    """
+    UI provider for Scalar API Reference.
+    Scalar is a modern, interactive API documentation tool.
+    """
+
+    def __init__(
+        self, ui_path: str = "/scalar", ui_files: UIFilesOptions | None = None
+    ) -> None:
+        super().__init__(ui_path, ui_files)
+
+        self._ui_html: bytes = b""
+
+    def get_openapi_ui_html(self, options: UIOptions) -> str:
+        """
+        Returns the HTML response to serve the Scalar API Reference UI.
+
+        Parameters:
+        options (UIOptions): Configuration options for the UI
+
+        Returns:
+        str: HTML content for the Scalar UI
+        """
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{options.page_title}</title>
+    <link rel="icon" href="{options.favicon_url}"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="{self.ui_files.css_url or ""}" rel="stylesheet">
+</head>
+<body>
+    <script
+      id="api-reference"
+      data-url="{options.spec_url}"></script>
+    
+    <script>
+      var configuration = {{
+        theme: 'default',
+      }}
+
+      document.getElementById('api-reference').dataset.configuration =
+        JSON.stringify(configuration)
+    </script>
+
+    <script src="{self.ui_files.js_url}"></script>
+</body>
+</html>"""
+
+    def build_ui(self, options: UIOptions) -> None:
+        """
+        Prepares the UI that will be served by the UI route.
+
+        Parameters:
+        options (UIOptions): Configuration options for the UI
+        """
+        self._ui_html = self.get_openapi_ui_html(options).encode("utf8")
+
+    def get_ui_handler(self) -> Callable[[Request], Response]:
+        """
+        Returns a request handler for the route that serves the Scalar UI.
+
+        Returns:
+        Callable: Request handler function
+        """
+        current_time = utcnow().timestamp()
+
+        def get_open_api_ui(request: Request) -> Response:
+            path = request.path
+
+            if not path.endswith("/"):
+                return moved_permanently(f"/{path.strip('/')}/")
+
+            return get_response_for_static_content(
+                request, b"text/html; charset=utf-8", self._ui_html, current_time
+            )
+
+        return get_open_api_ui
+
+    @property
+    def default_ui_files(self) -> UIFilesOptions:
+        """
+        Returns the default UI files options for Scalar.
+
+        Returns:
+        UIFilesOptions: Default CDN URLs for Scalar UI
+        """
+        return UIFilesOptions(SCALAR_UI_JS_URL, SCALAR_UI_CSS_URL, SCALAR_UI_FONT)

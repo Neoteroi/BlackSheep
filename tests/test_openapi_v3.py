@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
-from typing import Generic, List, Optional, Sequence, TypeVar, Union
+from typing import Generic, List, Mapping, Optional, Sequence, TypeVar, Union
 from uuid import UUID
 
 import pytest
@@ -1505,6 +1505,66 @@ paths:
                                 nullable: false
                                 items:
                                     $ref: '#/components/schemas/Cat'
+            operationId: home
+components:
+    schemas:
+        Cat:
+            type: object
+            required:
+            - id
+            - name
+            properties:
+                id:
+                    type: integer
+                    format: int64
+                    nullable: false
+                name:
+                    type: string
+                    nullable: false
+tags: []
+""".strip()
+    )
+
+
+@pytest.mark.asyncio
+async def test_handling_of_mapping(docs: OpenAPIHandler, serializer: Serializer):
+    app = get_app()
+
+    @app.router.route("/")
+    def home() -> Mapping[str, Mapping[int, List[Cat]]]:
+        ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == r"""
+openapi: 3.0.3
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties:
+                                    type: object
+                                    additionalProperties:
+                                        type: array
+                                        nullable: false
+                                        items:
+                                            $ref: '#/components/schemas/Cat'
+                                    nullable: false
+                                nullable: false
             operationId: home
 components:
     schemas:

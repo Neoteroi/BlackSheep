@@ -16,6 +16,7 @@ from blacksheep.server.files import (
     validate_source_path,
 )
 from blacksheep.server.resources import get_resource_file_content
+from blacksheep.server.responses import moved_permanently
 from blacksheep.server.routing import Route, Router
 from blacksheep.utils import join_fragments
 
@@ -258,6 +259,12 @@ def serve_files_dynamic(
 
     if not extensions:
         extensions = get_default_extensions()
+
+    if router.prefix:
+        if not root_path:
+            root_path = router.prefix
+        else:
+            root_path = join_fragments(router.prefix, root_path)
 
     handler = get_files_route_handler(
         files_handler,

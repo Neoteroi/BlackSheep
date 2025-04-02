@@ -535,12 +535,6 @@ class Application(BaseApplication):
             default_file_options: Optional options to serve the default file
             (index.html)
         """
-        if self.router.prefix:
-            if not root_path:
-                root_path = self.router.prefix
-            else:
-                root_path = join_fragments(self.router.prefix, root_path)
-
         serve_files_dynamic(
             self.router,
             self.files_handler,

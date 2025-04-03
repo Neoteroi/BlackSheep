@@ -49,6 +49,10 @@ cpdef bytes get_status_line(int status):
     return STATUS_LINES[status]
 
 
+cdef bytes write_request_method(Request request):
+    return request.method.encode()
+
+
 cdef bytes write_request_uri(Request request):
     cdef bytes p
     cdef URL url = request.url
@@ -149,7 +153,7 @@ cpdef bint request_has_body(Request request):
 
 cpdef bytes write_request_without_body(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(write_request_method(request) + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
 
     ensure_host_header(request)
 
@@ -160,7 +164,7 @@ cpdef bytes write_request_without_body(Request request):
 
 cpdef bytes write_small_request(Request request):
     cdef bytearray data = bytearray()
-    data.extend(request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
+    data.extend(write_request_method(request) + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
 
     ensure_host_header(request)
     set_headers_for_content(request)
@@ -228,7 +232,7 @@ async def write_request(Request request):
 
     set_headers_for_content(request)
 
-    yield request.method.encode() + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
+    yield write_request_method(request) + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
         write_headers(request._raw_headers) + b'\r\n'
 
     content = request.content

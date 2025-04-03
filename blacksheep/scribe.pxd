@@ -19,6 +19,8 @@ cpdef bint request_has_body(Request request)
 
 cpdef bytes write_small_request(Request request)
 
+cdef bytes write_request_method(Request request)
+
 cpdef bytes write_request_without_body(Request request)
 
 cdef bint is_small_response(Response response)

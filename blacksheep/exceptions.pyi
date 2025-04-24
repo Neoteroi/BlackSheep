@@ -1,3 +1,5 @@
+from typing import Optional
+
 class InvalidOperation(Exception):
     def __init__(self, message: str, inner_exception: object = None):
         super().__init__(message)
@@ -44,8 +46,13 @@ class MessageAborted(Exception):
         )
 
 class InternalServerError(HTTPException):
-    def __init__(self, message: str = "Internal Server Error"):
+    def __init__(
+        self,
+        message: str = "Internal Server Error",
+        source_error: Optional[Exception] = None,
+    ):
         super().__init__(500, message)
+        self.source_error = source_error
 
 class NotImplementedByServer(HTTPException):
     def __init__(self, message: str = "Not Implemented"):

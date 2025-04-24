@@ -32,6 +32,7 @@ from blacksheep.baseapp import BaseApplication, handle_not_found
 from blacksheep.common import extend
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
+from blacksheep.exceptions import NotFound
 from blacksheep.messages import Request, Response
 from blacksheep.middlewares import get_middlewares_chain
 from blacksheep.scribe import send_asgi_response
@@ -650,10 +651,10 @@ class Application(BaseApplication):
             async def fallback_handler(app, request, exc) -> Response:
                 return await fallback.handler(request)  # type: ignore
 
-            self.exceptions_handlers[404] = fallback_handler  # type: ignore
+            self.exceptions_handlers[NotFound] = fallback_handler  # type: ignore
 
     def _has_default_not_found_handler(self):
-        return self.exceptions_handlers.get(404) is handle_not_found
+        return self.get_http_exception_handler(NotFound()) is handle_not_found
 
     def configure_middlewares(self):
         if self._middlewares_configured:

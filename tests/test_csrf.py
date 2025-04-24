@@ -129,6 +129,7 @@ async def test_anti_forgery_token_generation_multiple(home_model):
 
 async def test_anti_forgery_missing_request_context(home_model):
     app, render = get_app(False)
+    app.show_error_details = True
 
     @app.router.get("/")
     async def home():
@@ -147,6 +148,23 @@ async def test_anti_forgery_missing_request_context(home_model):
         "missing from the render call. Pass the request object to the context of the "
         "template."
     ) in text
+
+
+async def test_anti_forgery_missing_request_context_hidden(home_model):
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home():
+        return render("form_1", home_model)
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+    assert app.response is not None
+    assert app.response.status == 500
+
+    text = await app.response.text()
+    assert text == "Internal Server Error"
 
 
 async def _valid_scenario(app: FakeApplication):

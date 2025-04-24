@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix #517. Add support for any HTTP method to the client, not only the common
   ones.
 - Fix #529. Add missing Jinja2 dependency in the `full` package.
+- Fix #538. The `Application` object can now use both `Type` keys and `int`
+  keys when applying the default _Not Found_ exception handler and the
+  _Internal Server Error_ exception handler.
+- When an _unhandled_ exception occurs, user-defined exception handlers for
+  _Internal Server Error_ status now always receive an instance of
+  `InternalServerError` class, containing a reference to the source exception.
+  Previously user-defined internal server error handlers could erroneously
+  receive any type of unhandled exception.
+- Modify the code so that `show_error_details` takes precedence over
+  user-defined `InternalServerError` exception handlers.
 
 ## [2.1.0] - 2025-03-23
 

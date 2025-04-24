@@ -2,13 +2,20 @@ import http
 import logging
 
 from .contents cimport Content, TextContent
-from .exceptions cimport HTTPException
+from .exceptions cimport BadRequest, HTTPException, InternalServerError, NotFound
 from .messages cimport Request, Response
 from .utils import get_class_instance_hierarchy
 
 
 async def handle_not_found(app, Request request, HTTPException http_exception):
-    return Response(404, content=TextContent('Resource not found'))
+    """Default Not Found handler, returns a simple 404 response."""
+    return Response(404, content=TextContent("Resource not found"))
+
+
+async def handle_internal_server_error(app, Request request, Exception exception):
+    """Default Internal Server Error handler, returns a simple 500 response."""
+    # Intentionally without details!
+    return Response(500, content=TextContent("Internal Server Error"))
 
 
 async def handle_bad_request(app, Request request, HTTPException http_exception):
@@ -82,7 +89,9 @@ cdef class BaseApplication:
             except Exception as exc:
                 response = await self.handle_request_handler_exception(request, exc)
         else:
-            response = await self.exceptions_handlers.get(404)(self, request, None)
+            not_found_handler = self.get_http_exception_handler(NotFound()) or handle_not_found
+
+            response = await not_found_handler(self, request, None)
             if not response:
                 response = Response(404)
         # if the request handler didn't return an object,
@@ -103,11 +112,11 @@ cdef class BaseApplication:
 
         return await self.handle_exception(request, exc)
 
-    cdef object get_http_exception_handler(self, HTTPException http_exception):
-        try:
-            return self.exceptions_handlers[type(http_exception)]
-        except KeyError:
-            return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
+    cpdef object get_http_exception_handler(self, HTTPException http_exception):
+        handler_by_type = self.get_exception_handler(http_exception)
+        if handler_by_type:
+            return handler_by_type
+        return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
 
     cdef bint is_handled_exception(self, Exception exception):
         for current_class_in_hierarchy in get_class_instance_hierarchy(exception):
@@ -124,21 +133,25 @@ cdef class BaseApplication:
 
     async def handle_internal_server_error(self, Request request, Exception exc):
         """
-        Handles an unhandled exception.
+        Handle an unhandled exception. If an exception handler is defined for
+        InternalServerError or status 500, it is used.
         """
-        if 500 in self.exceptions_handlers:
-            # give a chance to run to the custom exception handler - but if it
-            # fails, handle the failure (otherwise the
-            try:
-                return await self.exceptions_handlers[500](self, request, exc)
-            except Exception:
-                self.logger.exception(
-                    "An exception occurred while trying to apply a custom 500 Internal Server Error handler!"
-                )
-                return Response(500, content=TextContent('Internal Server Error'))
         if self.show_error_details:
             return self.server_error_details_handler.produce_response(request, exc)
-        return Response(500, content=TextContent("Internal server error."))
+
+        # We want to hide exception details, and possibly use a user-defined
+        # handler for this.
+        error = InternalServerError(exc)
+        internal_server_error_handler = self.get_http_exception_handler(error)
+
+        try:
+            return await internal_server_error_handler(self, request, error)
+        except Exception:
+            self.logger.exception(
+                "An exception occurred while trying to apply the configured "
+                "Internal Server Error handler!"
+            )
+        return Response(500, content=TextContent("Internal Server Error"))
 
     async def _apply_exception_handler(self, Request request, Exception exc, object exception_handler):
         try:

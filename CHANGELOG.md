@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.1] - 2025-??-??
 
-- Add missing Jinja2 dependency in the `full` package. Fix #529.
+- Fix #541. Correct the type hint for the Jinja loader to use the abstract
+  interface `BaseLoader`.
+- Fix #517. Add support for any HTTP method to the client, not only the common
+  ones.
+- Fix #529. Add missing Jinja2 dependency in the `full` package.
 
 ## [2.1.0] - 2025-03-23
 

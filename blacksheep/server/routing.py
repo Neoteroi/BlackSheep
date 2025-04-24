@@ -598,7 +598,7 @@ class MultiRouterMixin:
         Iters through the routes defined in this Router, yielding each route
         and its HTTP method.
         """
-        yield from super().__iter__()  # type: ignore
+        yield from super().iter_with_methods()  # type: ignore
 
         for router in self._sub_routers:
             yield from router.iter_with_methods()

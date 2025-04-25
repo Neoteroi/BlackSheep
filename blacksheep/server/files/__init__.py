@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterable, Callable, Optional, Set, Union
+from typing import AsyncIterable, Callable, Optional, Set, TypedDict, Union
 
 from blacksheep import Request, Response, StreamedContent
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -10,6 +10,12 @@ from blacksheep.common.files.pathsutils import get_mime_type_from_name
 from blacksheep.exceptions import BadRequest, InvalidArgument, RangeNotSatisfiable
 from blacksheep.ranges import InvalidRangeValue, Range, RangePart
 from blacksheep.server.headers.cache import CacheControlHeaderValue
+
+
+class FilePathInfo(TypedDict):
+    rel_path: str
+    full_path: str
+    is_dir: bool
 
 
 @dataclass

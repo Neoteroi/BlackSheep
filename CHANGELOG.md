@@ -18,10 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When an _unhandled_ exception occurs, user-defined exception handlers for
   _Internal Server Error_ status now always receive an instance of
   `InternalServerError` class, containing a reference to the source exception.
-  Previously user-defined internal server error handlers could erroneously
+  Previously user-defined internal server error handlers would erroneously
   receive any type of unhandled exception.
-- Modify the code so that `show_error_details` takes precedence over
-  user-defined `InternalServerError` exception handlers.
+- Fix bug that would prevent `show_error_details` from working as intended when
+  a user-defined `InternalServerError` exception handlers was defined.
+- Improve type annotations for `get_files_to_serve` and
+  `get_files_list_html_response`.
 
 ## [2.1.0] - 2025-03-23
 

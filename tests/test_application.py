@@ -3831,8 +3831,9 @@ def test_mounting_self_raises(app):
         app.mount("/nope", app)
 
 
-async def test_custom_handler_for_500_internal_server_error(app):
-    @app.exception_handler(500)
+@pytest.mark.parametrize("param", [500, InternalServerError])
+async def test_custom_handler_for_500_internal_server_error(app, param):
+    @app.exception_handler(param)
     async def unhandled_exception_handler(
         self: FakeApplication, request: Request, exc: InternalServerError
     ) -> Response:

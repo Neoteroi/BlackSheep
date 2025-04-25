@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix #541. Correct the type hint for the Jinja loader to use the abstract
   interface `BaseLoader`.
-- Fix #517. Add support for any HTTP method to the client, not only the common
-  ones.
+- Fix #517. Add support for any HTTP method when writing HTTP requests, not
+  only for the most common methods.
 - Fix #529. Add missing Jinja2 dependency in the `full` package.
 - Fix #538. The `Application` object can now use both `Type` keys and `int`
   keys when applying the default _Not Found_ exception handler and the
@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a user-defined `InternalServerError` exception handlers was defined.
 - Improve type annotations for `get_files_to_serve` and
   `get_files_list_html_response`.
+- Modify `pyproject.toml` to specify `requires-python = ">=3.8"` instead of
+  `requires-python = ">=3.7"`.
 
 ## [2.1.0] - 2025-03-23
 

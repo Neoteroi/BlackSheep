@@ -111,10 +111,7 @@ class AntiForgeryHandler:
         response: Response = await handler(request)
 
         # are there tokens issued for the current request?
-        # TODO: use walrus := when support for Python 3.7 is dropped
-        tokens = self.tokens.get(request)
-
-        if tokens:
+        if tokens := self.tokens.get(request):
             self.set_cookie(response, tokens[0])
             self.security_policy.protect(response)
 

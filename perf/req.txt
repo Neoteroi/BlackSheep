@@ -1,0 +1,6 @@
+ipython
+matplotlib
+memory_profiler
+pandas
+psutil
+line_profiler

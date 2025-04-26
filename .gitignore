@@ -127,4 +127,7 @@ example.jpg
 nice-cat.jpg
 venv*
 
-.local/*
+benchmark_results/
+performance_comparison.csv
+performance_trends.png
+.local

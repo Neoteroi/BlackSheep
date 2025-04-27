@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix #517. Add support for any HTTP method when writing HTTP requests, not
   only for the most common methods.
 - Fix #529. Add missing Jinja2 dependency in the `full` package.
+- Fix type annotation in `messages.pyi`, by @bymoye.
+- Improve `blacksheep/server/normalization.py` to bind any subclass of
+  `Identity` using the `request.user` rather than just `User` and `Identity`
+  exactly, by @bymoye.
 - Fix #538. The `Application` object can now use both `Type` keys and `int`
   keys when applying the default _Not Found_ exception handler and the
   _Internal Server Error_ exception handler.

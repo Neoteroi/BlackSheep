@@ -2,8 +2,10 @@ import collections.abc as collections_abc
 import inspect
 import warnings
 from abc import ABC, abstractmethod
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
 from typing import _AnnotatedAlias as AnnotatedAlias
@@ -666,6 +668,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if schema:
             return schema
 
+        # Dict, OrderedDict, defaultdict are handled first than GenericAlias
+        schema = self._try_get_schema_for_mapping(object_type, type_args)
+        if schema:
+            return schema
+
         # List, Set, Tuple are handled first than GenericAlias
         schema = self._try_get_schema_for_iterable(object_type, type_args)
         if schema:
@@ -734,6 +741,44 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return Schema(
             type=ValueType.ARRAY,
             items=self.get_schema_by_type(item_type, context_type_args),
+        )
+
+    def _try_get_schema_for_mapping(
+        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
+    ) -> Optional[Schema]:
+        if object_type in {dict, defaultdict, OrderedDict}:
+            # the user didn't specify the key and value types
+            return Schema(
+                type=ValueType.OBJECT,
+                additional_properties=Schema(
+                    type=ValueType.STRING,
+                ),
+            )
+
+        origin = get_origin(object_type)
+
+        if not origin or origin not in {
+            dict,
+            Dict,
+            collections_abc.Mapping,
+        }:
+            return None
+
+        # can be Dict, Dict[str, str] or dict[str, str] (Python 3.9),
+        # note: it could also be union if it wasn't handled above for dataclasses
+        try:
+            _, value_type = object_type.__args__  # type: ignore
+        except AttributeError:  # pragma: no cover
+            value_type = str
+
+        if context_type_args and value_type in context_type_args:
+            value_type = context_type_args.get(value_type, value_type)
+
+        return Schema(
+            type=ValueType.OBJECT,
+            additional_properties=self.get_schema_by_type(
+                value_type, context_type_args
+            ),
         )
 
     def get_fields(self, object_type: Any) -> List[FieldInfo]:

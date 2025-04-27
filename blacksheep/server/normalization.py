@@ -407,7 +407,7 @@ def _get_parameter_binder(
         return QueryBinder(annotation, name, True, required=not is_root_optional)
 
     # 5. is request user?
-    if annotation is User or annotation is Identity:
+    if issubclass(annotation, Identity):
         return IdentityBinder(
             annotation, name, implicit=True, required=not is_root_optional
         )

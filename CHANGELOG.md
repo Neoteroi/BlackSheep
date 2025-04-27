@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Documentation when `Dict` is used to describe an input parameter. This is a
   temporary solution, as more changes are needed to support documenting
   dictionaries (see issue #548).
+- Update the default message of the _InternalServerError_ class to be
+  _Internal Server Error_ instead of _Internal server error._.
 
 ## [2.1.0] - 2025-03-23
 

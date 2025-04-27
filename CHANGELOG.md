@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve `blacksheep/server/normalization.py` to bind any subclass of
   `Identity` using the `request.user` rather than just `User` and `Identity`
   exactly, by @bymoye.
+- Add new UI provider for OpenAPI Documentation, for [Scalar UI](https://github.com/scalar/scalar),
+  by @arthurbrenno and @bymoye.
+- Correct the `ReDocUIProvider` to support a custom `favicon`.
 - Fix #538. The `Application` object can now use both `Type` keys and `int`
   keys when applying the default _Not Found_ exception handler and the
   _Internal Server Error_ exception handler.

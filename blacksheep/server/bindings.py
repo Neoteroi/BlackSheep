@@ -570,10 +570,20 @@ class FormBinder(BodyBinder):
         return await request.form()
 
 
-class TextBinder(Binder):
+class TextBinder(BodyBinder):
     handle = FromText
 
-    async def get_value(self, request: Request) -> str:
+    @property
+    def content_type(self) -> str:
+        return "text/plain"
+
+    def matches_content_type(self, request: Request) -> bool:
+        return True
+
+    def parse_value(self, data: str):
+        return data  # No need for parsing
+
+    async def read_data(self, request: Request) -> Any:
         return await request.text()
 
 

@@ -64,6 +64,20 @@ def test_request_supports_dynamic_attributes():
             None,
             b"GET /a/b/c/?foo=1&ufo=0 HTTP/1.1\r\nhost: foo.org\r\ncontent-length: 0\r\n\r\n",
         ),
+        (
+            b"https://foo.org/a/b/c/",
+            "PROPFIND",  # Issue #517
+            [],
+            None,
+            b"PROPFIND /a/b/c/ HTTP/1.1\r\nhost: foo.org\r\ncontent-length: 0\r\n\r\n",
+        ),
+        (
+            b"https://foo.org/a/b/c/",
+            "UNLOCK",  # Issue #517
+            [],
+            None,
+            b"UNLOCK /a/b/c/ HTTP/1.1\r\nhost: foo.org\r\ncontent-length: 0\r\n\r\n",
+        ),
     ],
 )
 async def test_request_writing(url, method, headers, content, expected_result):

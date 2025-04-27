@@ -3833,12 +3833,14 @@ def test_mounting_self_raises(app):
 
 @pytest.mark.parametrize("param", [500, InternalServerError])
 async def test_custom_handler_for_500_internal_server_error(app, param):
+    # Issue #538
     @app.exception_handler(param)
     async def unhandled_exception_handler(
         self: FakeApplication, request: Request, exc: InternalServerError
     ) -> Response:
         nonlocal app
         assert self is app
+        assert isinstance(exc, InternalServerError)
         assert isinstance(exc.source_error, TypeError)
         return Response(200, content=TextContent("Called"))
 

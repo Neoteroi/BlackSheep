@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.1] - 2025-??-??
+## [2.2.0] - 2025-04-27
 
 - Fix #541. Correct the type hint for the Jinja loader to use the abstract
   interface `BaseLoader`.
@@ -15,17 +15,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix #538. The `Application` object can now use both `Type` keys and `int`
   keys when applying the default _Not Found_ exception handler and the
   _Internal Server Error_ exception handler.
-- When an _unhandled_ exception occurs, user-defined exception handlers for
-  _Internal Server Error_ status now always receive an instance of
-  `InternalServerError` class, containing a reference to the source exception.
-  Previously user-defined internal server error handlers would erroneously
-  receive any type of unhandled exception.
-- Fix bug that would prevent `show_error_details` from working as intended when
-  a user-defined `InternalServerError` exception handlers was defined.
+- **BREAKING CHANGE.** When an _unhandled_ exception occurs, user-defined
+  exception handlers for _Internal Server Error_ status now always receive an
+  instance of `InternalServerError` class, containing a reference to the source
+  exception. Previously, user-defined internal server error handlers would
+  **erroneously** receive any type of unhandled exception. If you defined your
+  own exception handler for _InternalServerError_ or for _500_ status and you
+  applied logic based on the type of the unhandled exception, update the code
+  to read the source unhandled exception from `exc.source_error`.
+- **BREAKING CHANGE.** Fix bug that would prevent `show_error_details` from
+  working as intended when a user-defined `InternalServerError` exception
+  handlers was defined. When `show_error_details` is enabled, any unhandled
+  exception is handled by the code that procudes the HTML document with error
+  details and the stack trace of the error, even if the user configured an
+  exception handler for internal server errors (using _500_ or
+  _InternalServerError_ as keys). This is a breaking change if you made the
+  mistake of running a production application with `show_error_details`
+  enabled, and exception details are hidden using a custom _500_ exception
+  handler.
 - Improve type annotations for `get_files_to_serve` and
   `get_files_list_html_response`.
+- The `TextBinder` is made a subclass of _BodyBinder_. This is correct and
+  enables validation of handler signature and better generation of OpenAPI
+  documentation. This binder was always about reading the request body as plain
+  text.
 - Modify `pyproject.toml` to specify `requires-python = ">=3.8"` instead of
   `requires-python = ">=3.7"`.
+- Update the error message of the `AmbiguousMethodSignatureError` to make it
+  clearer and offer a better user experience.
+- Prevent blocking bug from happening during the generation of OpenAPI
+  Documentation when `Dict` is used to describe an input parameter. This is a
+  temporary solution, as more changes are needed to support documenting
+  dictionaries (see issue #548).
 
 ## [2.1.0] - 2025-03-23
 

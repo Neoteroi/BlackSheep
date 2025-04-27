@@ -193,7 +193,7 @@ class AmbiguousMethodSignatureError(NormalizationError):
     def __init__(self, method):
         super().__init__(
             f"Cannot normalize the method `{method.__qualname__}` because it has an "
-            "ambiguous signature. "
+            "ambiguous signature (it specifies more than one body binder). "
             "Please specify exact binders for its arguments."
         )
 

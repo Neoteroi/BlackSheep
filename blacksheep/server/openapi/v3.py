@@ -795,6 +795,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> Optional[Reference]:
         origin = get_origin(object_type)
 
+        if origin is dict:
+            schema = Schema(type=ValueType.OBJECT)
+            return self._handle_object_type_schema(
+                object_type, context_type_args, schema
+            )
+
         if origin is Union:
             schema = Schema(
                 ValueType.OBJECT,
@@ -877,6 +883,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_request_body(self, handler: Any) -> Union[None, RequestBody, Reference]:
         if not hasattr(handler, "binders"):
             return None
+        # TODO: improve this code to support more scenarios!
+        # https://github.com/Neoteroi/BlackSheep/issues/546
         body_binder = self._get_body_binder(handler)
 
         if body_binder is None:

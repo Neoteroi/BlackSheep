@@ -10,7 +10,7 @@ coverage==7.6.1
 cryptography==44.0.1
 Cython==3.0.12
 essentials==1.1.5
-essentials-openapi==1.0.9
+essentials-openapi>=1.2.0
 Flask==3.0.3
 gevent==24.11.1
 greenlet==3.1.1

@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
-from decimal import Decimal
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
 from typing import _AnnotatedAlias as AnnotatedAlias
@@ -13,7 +12,7 @@ from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
 
-from openapidocs.common import Format
+from openapidocs.common import Format, Serializer
 from openapidocs.v3 import (
     APIKeySecurity,
     Components,
@@ -384,6 +383,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             ]
         ] = None,
         servers: Optional[Sequence[Server]] = None,
+        serializer: Optional[Serializer] = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -391,6 +391,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             yaml_spec_path=yaml_spec_path,
             preferred_format=preferred_format,
             anonymous_access=anonymous_access,
+            serializer=serializer or Serializer(),
         )
         self.info = info
         self._tags = tags
@@ -446,6 +447,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             paths=paths,
             components=self.components,
             tags=self._tags or self._tags_from_paths(paths),
+            json_schema_dialect=None,  # type: ignore
         )
 
     def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:

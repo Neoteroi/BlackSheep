@@ -53,6 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clearer and offer a better user experience.
 - Update the default message of the _InternalServerError_ class to be
   _Internal Server Error_ instead of _Internal server error._.
+- Update `essentials-openapi` dependency to version `>=1.2.0`.
+- Generates OpenAPI Specification with version `3.1.0` instead of `3.0.3`.
+- Add the possibility to control the `Serializer` class used to generate
+  JSON and YAML specification files for OpenAPI documentation, allowing the
+  user to modify the specification object after serialization. This enables
+  more scenarios as users can modify the specification object freely.
+  To use, pass a `serializer` parameter to the `OpenAPIHandler`'s constructor.
+
 
 ## [2.1.0] - 2025-03-23
 

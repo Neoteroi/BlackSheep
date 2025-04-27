@@ -20,7 +20,10 @@ REDOC_UI_FONT_URL = (
     "https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700"
 )
 
-SCALAR_UI_JS_URL = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/browser/standalone.min.js"
+SCALAR_UI_JS_URL = (
+    "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/browser/"
+    "standalone.min.js"
+)
 SCALAR_UI_CSS_URL = (
     "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/style.min.css"
 )

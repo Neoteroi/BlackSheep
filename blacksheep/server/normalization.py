@@ -19,7 +19,7 @@ from typing import (
 )
 from uuid import UUID
 
-from guardpost import Identity, User
+from guardpost import Identity
 from rodi import ContainerProtocol
 
 from blacksheep.messages import Request, Response

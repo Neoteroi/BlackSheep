@@ -169,6 +169,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         yaml_spec_path: str = "openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
+        serializer: Optional[Serializer] = None,
     ) -> None:
         self._handlers_docs: Dict[Any, EndpointDocs] = {}
         self.use_docstrings: bool = True
@@ -183,6 +184,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._types_schemas = {}
         self.events = OpenAPIEvents(self)
         self.handle_optional_response_with_404 = True
+        self._serializer = serializer
 
     def __call__(
         self,
@@ -414,7 +416,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     async def build_docs(self, app: Application) -> None:
         docs = self.generate_documentation(app)
         self.on_docs_generated(docs)
-        serializer = Serializer()
+        serializer = self._serializer or Serializer()
 
         ui_options = UIOptions(
             spec_url=self.get_spec_path(), page_title=self.get_ui_page_title()

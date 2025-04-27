@@ -448,7 +448,7 @@ def test_dates_handling(docs: OpenAPIHandler, serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -489,7 +489,7 @@ def test_register_schema_for_generic_with_list(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -553,7 +553,7 @@ def test_register_schema_for_multiple_generic_with_list(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -641,7 +641,7 @@ def test_register_schema_for_generic_with_property(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -699,7 +699,7 @@ def test_register_schema_for_generic_sub_property(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -764,7 +764,7 @@ async def test_register_schema_for_multi_generic(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -849,7 +849,7 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -936,7 +936,7 @@ async def test_handling_of_forward_references(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1012,7 +1012,7 @@ async def test_handling_of_normal_class(docs: OpenAPIHandler, serializer: Serial
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1050,7 +1050,7 @@ async def test_handling_of_pydantic_class_with_generic(
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1108,7 +1108,7 @@ tags: []
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1183,7 +1183,7 @@ async def test_handling_of_pydantic_class_with_child_models(
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1262,7 +1262,7 @@ tags: []
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1358,7 +1358,7 @@ async def test_handling_of_pydantic_class_in_generic(
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1416,7 +1416,7 @@ tags: []
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1488,7 +1488,7 @@ async def test_handling_of_sequence(docs: OpenAPIHandler, serializer: Serializer
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1531,8 +1531,7 @@ async def test_handling_of_mapping(docs: OpenAPIHandler, serializer: Serializer)
     app = get_app()
 
     @app.router.route("/")
-    def home() -> Mapping[str, Mapping[int, List[Cat]]]:
-        ...
+    def home() -> Mapping[str, Mapping[int, List[Cat]]]: ...
 
     docs.bind_app(app)
     await app.start()
@@ -1542,7 +1541,7 @@ async def test_handling_of_mapping(docs: OpenAPIHandler, serializer: Serializer)
     assert (
         yaml.strip()
         == r"""
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1601,7 +1600,7 @@ async def test_cats_api(docs: OpenAPIHandler, serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1799,7 +1798,7 @@ async def test_cats_api_capital_operations_ids(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1996,7 +1995,7 @@ async def test_handling_of_pydantic_types(docs: OpenAPIHandler, serializer: Seri
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2042,7 +2041,7 @@ async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
 
     if PYDANTIC_VERSION == 1:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2105,7 +2104,7 @@ tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2190,7 +2189,7 @@ async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Seri
     expected_result: str
     if PYDANTIC_VERSION == 1:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2258,7 +2257,7 @@ tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2399,7 +2398,7 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2475,7 +2474,7 @@ async def test_handles_ref_for_optional_type(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2598,7 +2597,7 @@ async def test_handles_from_form_docs(docs: OpenAPIHandler, serializer: Serializ
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2687,7 +2686,7 @@ async def test_websockets_routes_are_ignored(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2860,7 +2859,7 @@ async def test_mount_oad_generation(serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Parent API
     version: 0.0.1
@@ -2868,20 +2867,20 @@ paths:
     /:
         get:
             responses: {}
-            operationId: a_home
             summary: Parent root.
             description: Parent root.
+            operationId: a_home
     /cats:
         get:
             responses: {}
-            operationId: get_cats
             summary: Gets a list of cats.
             description: Gets a list of cats.
+            operationId: get_cats
         post:
             responses: {}
-            operationId: create_cat
             summary: Creates a new cat.
             description: Creates a new cat.
+            operationId: create_cat
             parameters: []
             requestBody:
                 content:
@@ -2892,9 +2891,9 @@ paths:
     /cats/{cat_id}:
         delete:
             responses: {}
-            operationId: delete_cat
             summary: Deletes a cat by id.
             description: Deletes a cat by id.
+            operationId: delete_cat
             parameters:
             -   name: cat_id
                 in: path
@@ -2906,14 +2905,14 @@ paths:
     /dogs:
         get:
             responses: {}
-            operationId: get_dogs
             summary: Gets a list of dogs.
             description: Gets a list of dogs.
+            operationId: get_dogs
         post:
             responses: {}
-            operationId: create_dog
             summary: Creates a new dog.
             description: Creates a new dog.
+            operationId: create_dog
             parameters: []
             requestBody:
                 content:
@@ -2924,9 +2923,9 @@ paths:
     /dogs/{dog_id}:
         delete:
             responses: {}
-            operationId: delete_dog
             summary: Deletes a dog by id.
             description: Deletes a dog by id.
+            operationId: delete_dog
             parameters:
             -   name: dog_id
                 in: path
@@ -2938,14 +2937,14 @@ paths:
     /parrots:
         get:
             responses: {}
-            operationId: get_parrots
             summary: Gets a list of parrots.
             description: Gets a list of parrots.
+            operationId: get_parrots
         post:
             responses: {}
-            operationId: create_parrot
             summary: Creates a new parrot.
             description: Creates a new parrot.
+            operationId: create_parrot
             parameters: []
             requestBody:
                 content:
@@ -2956,9 +2955,9 @@ paths:
     /parrots/{parrot_id}:
         delete:
             responses: {}
-            operationId: delete_parrot
             summary: Deletes a parrot by id.
             description: Deletes a parrot by id.
+            operationId: delete_parrot
             parameters:
             -   name: parrot_id
                 in: path
@@ -3078,7 +3077,7 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Parent API
     version: 0.0.1
@@ -3088,9 +3087,9 @@ paths:
             responses: {}
             tags:
             - A Home
-            operationId: a_home
             summary: Parent root.
             description: Parent root.
+            operationId: a_home
     /child-1:
         get:
             responses: {}
@@ -3208,7 +3207,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example API
     version: 0.0.1
@@ -3227,9 +3226,9 @@ paths:
                                     $ref: '#/components/schemas/Parrot'
             tags:
             - Parrots
-            operationId: get_parrots
             summary: Return the list of configured Parrots.
             description: Return the list of configured Parrots.
+            operationId: get_parrots
             parameters: []
         post:
             responses:
@@ -3237,9 +3236,9 @@ paths:
                     description: Success response
             tags:
             - Parrots
-            operationId: create_parrot
             summary: Add a Parrot to the system.
             description: Add a Parrot to the system.
+            operationId: create_parrot
             parameters: []
             requestBody:
                 content:
@@ -3261,9 +3260,9 @@ paths:
                                     $ref: '#/components/schemas/Dog'
             tags:
             - Dogs
-            operationId: get_dogs
             summary: Return the list of configured dogs.
             description: Return the list of configured dogs.
+            operationId: get_dogs
             parameters: []
         post:
             responses:
@@ -3271,9 +3270,9 @@ paths:
                     description: Success response
             tags:
             - Dogs
-            operationId: create_dog
             summary: Add a Dog to the system.
             description: Add a Dog to the system.
+            operationId: create_dog
             parameters: []
             requestBody:
                 content:
@@ -3295,9 +3294,9 @@ paths:
                                     $ref: '#/components/schemas/Cat'
             tags:
             - Cats
-            operationId: get_cats
             summary: Return the list of configured cats.
             description: Return the list of configured cats.
+            operationId: get_cats
             parameters: []
         post:
             responses:
@@ -3305,9 +3304,9 @@ paths:
                     description: Success response
             tags:
             - Cats
-            operationId: create_cat
             summary: Add a Cat to the system.
             description: Add a Cat to the system.
+            operationId: create_cat
             parameters: []
             requestBody:
                 content:

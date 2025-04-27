@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only for the most common methods.
 - Fix #529. Add missing Jinja2 dependency in the `full` package.
 - Fix type annotation in `messages.pyi`, by @bymoye.
+- Add support for mapping types in OpenAPI Documentation, by @tyzhnenko.
 - Improve `blacksheep/server/normalization.py` to bind any subclass of
   `Identity` using the `request.user` rather than just `User` and `Identity`
   exactly, by @bymoye.
@@ -50,10 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `requires-python = ">=3.7"`.
 - Update the error message of the `AmbiguousMethodSignatureError` to make it
   clearer and offer a better user experience.
-- Prevent blocking bug from happening during the generation of OpenAPI
-  Documentation when `Dict` is used to describe an input parameter. This is a
-  temporary solution, as more changes are needed to support documenting
-  dictionaries (see issue #548).
 - Update the default message of the _InternalServerError_ class to be
   _Internal Server Error_ instead of _Internal server error._.
 

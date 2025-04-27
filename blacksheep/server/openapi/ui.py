@@ -172,7 +172,7 @@ class ScalarUIProvider(UIProvider):
     """
 
     def __init__(
-        self, ui_path: str = "/scalar", ui_files: UIFilesOptions | None = None
+        self, ui_path: str = "/scalar", ui_files: Optional[UIFilesOptions] = None
     ) -> None:
         super().__init__(ui_path, ui_files)
 

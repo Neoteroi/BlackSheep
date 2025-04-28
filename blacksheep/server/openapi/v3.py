@@ -143,8 +143,22 @@ def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> 
 
 @dataclass
 class FieldInfo:
+    """
+    This class is a data structure used to represent information about a field in an
+    object type (e.g., a dataclass) when generating OpenAPI documentation.
+    Specifically, it encapsulates the following details about a field:
+        name: The name of the field.
+        type: The type of the field, which can be either a
+              Python type (e.g., str, int) or an OpenAPI Schema object.
+        schema: The dictionary obtained from Pydantic's schema generation.
+
+    This class is used by the ObjectTypeHandler implementations
+    to extract and organize field information from object types.
+    """
+
     name: str
     type: Union[Type, Schema]
+    schema: Optional[Dict[str, Any]] = None  # New property to store Pydantic schema
 
 
 class ObjectTypeHandler(ABC):
@@ -218,85 +232,6 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
                 item["$ref"] = f"#/components/schemas/{obj_type_name}"
             yield item
 
-    def _open_api_v2_field_schema_to_type(
-        self, field_info, schema, register_type=None
-    ) -> Union[Type, Schema]:
-        if "$ref" in schema:
-            if field_info is None:
-                return Schema()
-            try:
-                # Pydantic v1
-                return field_info.outer_type_
-            except AttributeError:
-                # Pydantic v2
-                return field_info.annotation
-
-        value_type = schema.get("type")
-        nullable = self._allow_none(field_info) if field_info is not None else False
-
-        if value_type == "null":
-            # OpenAPI 3.1
-            return Schema(type="null")
-
-        if value_type is None:
-            if "anyOf" in schema:
-                any_of = schema["anyOf"]
-
-                if any("$ref" in item for item in any_of):
-                    any_of = list(
-                        self._handle_any_of(
-                            any_of, field_info.annotation.__args__, register_type
-                        )
-                    )
-                return Schema(
-                    any_of=any_of,
-                    title=schema.get("title"),
-                )
-
-        if value_type == "string":
-            return Schema(
-                type=ValueType.STRING,
-                min_length=schema.get("minLength"),
-                max_length=schema.get("maxLength"),
-                format=schema.get("format"),
-                nullable=nullable,
-            )
-
-        if value_type == "boolean":
-            return Schema(type=ValueType.BOOLEAN, nullable=nullable)
-
-        if value_type == "file":
-            # TODO: improve support for file type,
-            # see "Considerations for File Uploads"
-            # at https://swagger.io/specification/
-            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
-
-        if value_type == "number":
-            return Schema(
-                type=ValueType.NUMBER,
-                minimum=schema.get("exclusiveMinimum"),
-                maximum=schema.get("exclusiveMaximum"),
-                format=ValueFormat.FLOAT,
-                nullable=nullable,
-            )
-
-        if value_type == "integer":
-            return Schema(
-                type=ValueType.INTEGER,
-                minimum=schema.get("exclusiveMinimum"),
-                maximum=schema.get("exclusiveMaximum"),
-                format=ValueFormat.INT64,
-                nullable=nullable,
-            )
-
-        if value_type == "array":
-            if field_info is not None:
-                return self._get_array_outer_type(field_info)
-            else:
-                return list
-
-        return Schema()
-
     def _get_array_outer_type(self, field_info):
         try:
             # Pydantic v1
@@ -331,21 +266,16 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
             return object_type.schema()
 
     def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
-        # to support all pydantic special types, here we rely on its schema,
-        # but since we want to be able to generate OpenAPI Documentation V3 (or V2 for
-        # that matter), we extract basic information we need; also using the type's
-        # __fields__ when available
+        # This code delegates to Pydantic the responsibility of generating
+        # OpenAPI documentation.
         schema = self._get_object_schema(object_type)
         properties = schema["properties"]
-
-        fields_info = self._get_fields_info(object_type)
 
         return [
             FieldInfo(
                 name,
-                self._open_api_v2_field_schema_to_type(
-                    fields_info.get(name, None), value, register_type
-                ),
+                value,
+                schema=value,  # Store the Pydantic schema for the field
             )
             for name, value in properties.items()
         ]
@@ -568,6 +498,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
+
+        # TODO: modify this code to use the schema directly from Pydantic!
+        # Here we don't care about fields but about the whole object schema.
 
         for field in self.get_fields(object_type):
             is_optional, child_type = check_union(field.type)
@@ -823,6 +756,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         type_args = dict(zip(parameters, args))
 
         for field in self.get_fields(origin):
+            # TODO: for Pydantic v2, delegate completely to it for the generation
+            # of OpenAPI schemas!
             is_optional, child_type = check_union(field.type)
             if not is_optional:
                 required.append(field.name)

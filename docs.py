@@ -1,23 +1,18 @@
-import json
-from typing import List, Optional
+from datetime import datetime
+from typing import Annotated, List, Optional
 
-from openapidocs.v3 import Info, OpenAPIElement
+from annotated_types import Gt
+from openapidocs.v3 import Info
 from pydantic import BaseModel, EmailStr, Field, HttpUrl
+from pydantic.dataclasses import dataclass
 
-from blacksheep import Application, get
+from blacksheep import Application, get, post
 from blacksheep.server.openapi.v3 import OpenAPIHandler
+
 
 app = Application()
 
 docs = OpenAPIHandler(info=Info("Example API", version="0.0.1"))
-
-
-class DirectSchema(OpenAPIElement):
-    def __init__(self, obj):
-        self.obj = obj
-
-    def to_obj(self):
-        return self.obj
 
 
 class Address(BaseModel):
@@ -37,9 +32,11 @@ class User(BaseModel):
     address: Address
 
 
-# Example usage
-user_schema = User.model_json_schema()
-print(json.dumps(user_schema, indent=2))
+@dataclass
+class OtherUser:
+    id: int
+    name: str = "John Doe"
+    signup_ts: datetime | None = None
 
 
 @get("/user")
@@ -50,8 +47,29 @@ async def get_user() -> User: ...
 async def get_users() -> list[User]: ...
 
 
-docs.set_type_schema(User, DirectSchema(User.model_json_schema()))
-docs.set_type_schema(Address, DirectSchema(Address.model_json_schema()))
+@get("/users/{user_id}/addresses")
+async def get_addresses(user_id: str) -> list[Address]: ...
+
+
+@get("/pydantic-dataclass")
+async def get_pydantic_dataclass_example() -> OtherUser: ...
+
+
+@post("/pydantic-dataclass")
+async def post(data: OtherUser): ...
+
+
+type PositiveIntList = list[Annotated[int, Gt(0)]]
+
+
+class Model(BaseModel):
+    x: PositiveIntList
+    y: PositiveIntList
+
+
+@get("/test-model")
+async def get_test_model(user_id: str) -> Model: ...
+
 
 docs.bind_app(app)
 

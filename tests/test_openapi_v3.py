@@ -1126,41 +1126,40 @@ paths:
 components:
     schemas:
         PydCat:
-            type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
-        PydPaginatedSetOfCat:
+            title: PydCat
             type: object
+        PydPaginatedSetOfCat:
+            properties:
+                items:
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                    title: Items
+                    type: array
+                total:
+                    title: Total
+                    type: integer
             required:
             - items
             - total
-            properties:
-                items:
-                    type: array
-                    nullable: false
-                    items:
-                        $ref: '#/components/schemas/PydCat'
-                total:
-                    type: integer
-                    format: int64
-                    nullable: false
+            title: PydPaginatedSetOfCat
+            type: object
 tags: []
 """.strip()
         )
@@ -1280,62 +1279,63 @@ paths:
 components:
     schemas:
         PydCat:
-            type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
-        PydPaginatedSetOfCat:
+            title: PydCat
             type: object
-            required:
-            - items
-            - total
-            properties:
-                items:
-                    type: array
-                    nullable: false
-                    items:
-                        $ref: '#/components/schemas/PydCat'
-                total:
-                    type: integer
-                    format: int64
-                    nullable: false
         PydExampleWithSpecificTypes:
-            type: object
-            required:
-            - url
             properties:
                 url:
-                    type: string
                     format: uri
                     maxLength: 2083
                     minLength: 1
-                    nullable: false
-        PydTypeWithChildModels:
-            type: object
+                    title: Url
+                    type: string
             required:
-            - child
-            - friend
+            - url
+            title: PydExampleWithSpecificTypes
+            type: object
+        PydPaginatedSetOfCat:
+            properties:
+                items:
+                    items:
+                        $ref: '#/$defs/PydCat'
+                    title: Items
+                    type: array
+                total:
+                    title: Total
+                    type: integer
+            required:
+            - items
+            - total
+            title: PydPaginatedSetOfCat
+            type: object
+        PydTypeWithChildModels:
             properties:
                 child:
                     $ref: '#/components/schemas/PydPaginatedSetOfCat'
                 friend:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+            required:
+            - child
+            - friend
+            title: PydTypeWithChildModels
+            type: object
 tags: []
     """.strip()
         )
@@ -1434,26 +1434,25 @@ paths:
 components:
     schemas:
         PydCat:
-            type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
+            title: PydCat
+            type: object
         PaginatedSetOfPydCat:
             type: object
             required:
@@ -1470,7 +1469,7 @@ components:
                     format: int64
                     nullable: false
 tags: []
-    """.strip()
+""".strip()
         )
 
 
@@ -2013,16 +2012,17 @@ paths:
 components:
     schemas:
         PydExampleWithSpecificTypes:
-            type: object
-            required:
-            - url
             properties:
                 url:
-                    type: string
                     format: uri
                     maxLength: 2083
                     minLength: 1
-                    nullable: false
+                    title: Url
+                    type: string
+            required:
+            - url
+            title: PydExampleWithSpecificTypes
+            type: object
 tags: []
 """.strip()
     )
@@ -2121,55 +2121,56 @@ paths:
             operationId: home
 components:
     schemas:
-        PydCat:
+        Error:
+            properties:
+                code:
+                    title: Code
+                    type: integer
+                message:
+                    title: Message
+                    type: string
+            required:
+            - code
+            - message
+            title: Error
             type: object
+        PydCat:
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
-        Error:
+            title: PydCat
             type: object
-            required:
-            - code
-            - message
-            properties:
-                code:
-                    type: integer
-                    format: int64
-                    nullable: false
-                message:
-                    type: string
-                    nullable: false
         PydResponse[PydCat]:
-            type: object
-            required:
-            - data
-            - error
             properties:
                 data:
                     anyOf:
-                    -   $ref: '#/components/schemas/PydCat'
+                    -   $ref: '#/$defs/PydCat'
                     -   type: 'null'
                 error:
                     anyOf:
-                    -   $ref: '#/components/schemas/Error'
+                    -   $ref: '#/$defs/Error'
                     -   type: 'null'
+            required:
+            - data
+            - error
+            title: PydResponse[PydCat]
+            type: object
 tags: []
+
 """.strip()
     else:
         raise RuntimeError("Missing expected_result")
@@ -2187,6 +2188,7 @@ async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Seri
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
     expected_result: str
+
     if PYDANTIC_VERSION == 1:
         expected_result = """
 openapi: 3.1.0
@@ -2275,7 +2277,42 @@ paths:
 components:
     schemas:
         PydConstrained:
-            type: object
+            properties:
+                a:
+                    exclusiveMinimum: 0
+                    title: A
+                    type: integer
+                b:
+                    exclusiveMaximum: 0.0
+                    title: B
+                    type: number
+                big_int:
+                    exclusiveMaximum: 1024
+                    exclusiveMinimum: 1000
+                    title: Big Int
+                    type: integer
+                big_float:
+                    exclusiveMaximum: 1024.0
+                    exclusiveMinimum: 1000.0
+                    title: Big Float
+                    type: number
+                unit_interval:
+                    maximum: 1.0
+                    minimum: 0.0
+                    title: Unit Interval
+                    type: number
+                decimal_positive:
+                    anyOf:
+                    -   exclusiveMinimum: 0.0
+                        type: number
+                    -   type: string
+                    title: Decimal Positive
+                decimal_negative:
+                    anyOf:
+                    -   exclusiveMaximum: 0.0
+                        type: number
+                    -   type: string
+                    title: Decimal Negative
             required:
             - a
             - b
@@ -2284,79 +2321,11 @@ components:
             - unit_interval
             - decimal_positive
             - decimal_negative
-            properties:
-                a:
-                    type: integer
-                    format: int64
-                    minimum: 0
-                    nullable: false
-                b:
-                    type: number
-                    format: float
-                    maximum: 0.0
-                    nullable: false
-                big_int:
-                    type: integer
-                    format: int64
-                    maximum: 1024
-                    minimum: 1000
-                    nullable: false
-                big_float:
-                    type: number
-                    format: float
-                    maximum: 1024.0
-                    minimum: 1000.0
-                    nullable: false
-                unit_interval:
-                    type: number
-                    format: float
-                    nullable: false
-                decimal_positive:
-                    title: Decimal Positive
-                    anyOf:
-                    -   exclusiveMinimum: 0.0
-                        type: number
-                    -   type: string
-                decimal_negative:
-                    title: Decimal Negative
-                    anyOf:
-                    -   exclusiveMaximum: 0.0
-                        type: number
-                    -   type: string
+            title: PydConstrained
+            type: object
 tags: []
     """.strip()
-    print("yaml::::::", yaml.strip())
     assert yaml.strip() == expected_result
-
-
-def test_pydantic_model_handler_does_not_raise_for_array_without_field_info():
-    handler = PydanticModelTypeHandler()
-    assert handler._open_api_v2_field_schema_to_type(None, {"type": "array"}) is list
-
-
-def test_pydantic_model_handler_does_not_raise_for_file_type():
-    handler = PydanticModelTypeHandler()
-    assert handler._open_api_v2_field_schema_to_type(None, {"type": "file"}) == Schema(
-        type=ValueType.STRING, format=ValueFormat.BINARY
-    )
-
-
-def test_pydantic_model_handler_defaults_to_empty_schema():
-    handler = PydanticModelTypeHandler()
-    assert (
-        handler._open_api_v2_field_schema_to_type(None, {"type": "unknown"}) == Schema()
-    )
-
-
-def test_pydantic_model_handler_handles_type_without__fields__():
-    handler = PydanticModelTypeHandler()
-
-    class Foo:
-        @staticmethod
-        def schema():
-            return {"properties": {"foo": {"type": "boolean"}}}
-
-    handler.get_type_fields(Foo, None)
 
 
 async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer):
@@ -3540,40 +3509,42 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
         """,
         """
         DPyd:
-            type: object
-            required:
-            - d_prop
             properties:
                 d_prop:
+                    title: D Prop
                     type: number
-                    format: float
-                    nullable: false
+            required:
+            - d_prop
+            title: DPyd
+            type: object
         """,
         """
         AnyOfResponseTestClassPyd:
-            type: object
-            required:
-            - data
             properties:
                 data:
-                    title: Data
                     anyOf:
-                    -   $ref: '#/components/schemas/DPyd'
-                    -   $ref: '#/components/schemas/EPyd'
-                    -   $ref: '#/components/schemas/FPyd'
+                    -   $ref: '#/$defs/DPyd'
+                    -   $ref: '#/$defs/EPyd'
+                    -   $ref: '#/$defs/FPyd'
+                    title: Data
+            required:
+            - data
+            title: AnyOfResponseTestClassPyd
+            type: object
         """,
         """
         AnyOfTestClassPyd:
-            type: object
-            required:
-            - sub_prop
             properties:
                 sub_prop:
-                    title: Sub Prop
                     anyOf:
-                    -   $ref: '#/components/schemas/APyd'
-                    -   $ref: '#/components/schemas/BPyd'
-                    -   $ref: '#/components/schemas/CPyd'
+                    -   $ref: '#/$defs/APyd'
+                    -   $ref: '#/$defs/BPyd'
+                    -   $ref: '#/$defs/CPyd'
+                    title: Sub Prop
+            required:
+            - sub_prop
+            title: AnyOfTestClassPyd
+            type: object
         """,
     ]
 

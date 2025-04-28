@@ -26,7 +26,7 @@ from typing import (
 )
 
 from essentials.json import dumps
-from openapidocs.common import Format, OpenAPIRoot, Serializer
+from openapidocs.common import Format, OpenAPIElement, OpenAPIRoot, Serializer
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application, ApplicationSyncEvent
@@ -39,6 +39,24 @@ from blacksheep.utils.time import utcnow
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
 
 T = TypeVar("T")
+
+
+class DirectSchema(OpenAPIElement):
+    """
+    This class is used to support ready-to-use schemas defined using dictionaries
+    compatible with OpenAPI Specification.
+    """
+
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __eq__(self, other):
+        if not isinstance(other, DirectSchema):
+            return False
+        return self._obj == other._obj
+
+    def to_obj(self):
+        return self._obj
 
 
 class ParameterSource(Enum):
@@ -242,6 +260,17 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         than an auto-generated schema.
         """
         self._types_schemas[object_type] = schema
+
+    def set_type_schema(self, object_type, schema) -> None:
+        """
+        Sets a schema to be used for a class. When the documentation handler needs
+        to obtain a schema for the decorated type, it uses the explicity schema rather
+        than an auto-generated schema.
+        """
+        if isinstance(schema, dict):
+            self._types_schemas[object_type] = DirectSchema(schema)
+        else:
+            self._types_schemas[object_type] = schema
 
     def get_handler_docs(self, obj: Any) -> Optional[EndpointDocs]:
         return self._handlers_docs.get(obj)

@@ -75,11 +75,18 @@ from .common import (
 )
 
 try:
-    from pydantic import BaseModel, TypeAdapter
-    from pydantic.dataclasses import is_pydantic_dataclass
+    from pydantic import BaseModel
 except ImportError:  # pragma: no cover
     # noqa
     BaseModel = ...
+
+
+# Pydantic v2 specific
+try:
+    from pydantic import TypeAdapter
+    from pydantic.dataclasses import is_pydantic_dataclass
+except ImportError:  # pragma: no cover
+    # noqa
     TypeAdapter = ...
     is_pydantic_dataclass = ...
 
@@ -264,37 +271,49 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
         Apply definitions in $defs to components.schemas, and replace references defined
         as #/$defs/Name with #/components/schemas/Name.
         """
+
         self._normalize_dict_schema_apply_defs(schema, context)
         self._normalize_dict_schema_replace_refs(schema)
 
+    def _get_defs_key(self) -> str:
+        if TypeAdapter is ...:
+            # Pydantic v1
+            return "definitions"
+        # Pydantic v2
+        return "$defs"
+
     def _normalize_dict_schema_apply_defs(self, schema, context: "OpenAPIHandler"):
-        if "$defs" in schema:
+        definitions_keys = self._get_defs_key()
+
+        if definitions_keys in schema:
             components = context.components
             if components.schemas is None:
                 components.schemas = {}
-            for key, value in schema["$defs"].items():
+            for key, value in schema[definitions_keys].items():
+                self._normalize_dict_schema_replace_refs(value)
                 components.schemas[key] = DirectSchema(value)  # type: ignore
-            del schema["$defs"]
+            del schema[definitions_keys]
 
     def _normalize_dict_schema_replace_refs(self, schema):
         """
-        Replace references defined as #/$defs/Name
+        Replace references defined as #/$defs/Name or #/definitions/Name
         with #/components/schemas/Name.
         """
+        definitions_keys = self._get_defs_key()
+        def_ref = f"#/{definitions_keys}/"
         to_replace = None
+
         for key, value in schema.items():
             if isinstance(value, dict):
                 self._normalize_dict_schema_replace_refs(value)
-            if (
-                key == "$ref"
-                and isinstance(value, str)
-                and value.startswith("#/$defs/")
-            ):
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        self._normalize_dict_schema_replace_refs(item)
+            if key == "$ref" and isinstance(value, str) and value.startswith(def_ref):
                 to_replace = value
         if to_replace:
-            schema["$ref"] = "#/components/schemas/" + to_replace.removeprefix(
-                "#/$defs/"
-            )
+            schema["$ref"] = "#/components/schemas/" + to_replace.removeprefix(def_ref)
 
 
 class PydanticDataClassTypeHandler(PydanticModelTypeHandler):

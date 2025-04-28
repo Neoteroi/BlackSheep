@@ -1068,39 +1068,40 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         PydPaginatedSetOfCat:
+            title: PydPaginatedSetOfCat
             type: object
-            required:
-            - items
-            - total
             properties:
                 items:
+                    title: Items
                     type: array
-                    nullable: false
                     items:
                         $ref: '#/components/schemas/PydCat'
                 total:
+                    title: Total
                     type: integer
-                    format: int64
-                    nullable: false
+            required:
+            - items
+            - total
 tags: []
 """.strip()
         )
@@ -1200,60 +1201,63 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         PydPaginatedSetOfCat:
+            title: PydPaginatedSetOfCat
             type: object
-            required:
-            - items
-            - total
             properties:
                 items:
+                    title: Items
                     type: array
-                    nullable: false
                     items:
                         $ref: '#/components/schemas/PydCat'
                 total:
+                    title: Total
                     type: integer
-                    format: int64
-                    nullable: false
-        PydExampleWithSpecificTypes:
-            type: object
             required:
-            - url
+            - items
+            - total
+        PydExampleWithSpecificTypes:
+            title: PydExampleWithSpecificTypes
+            type: object
             properties:
                 url:
-                    type: string
-                    format: uri
-                    maxLength: 2083
+                    title: Url
                     minLength: 1
-                    nullable: false
-        PydTypeWithChildModels:
-            type: object
+                    maxLength: 2083
+                    format: uri
+                    type: string
             required:
-            - child
-            - friend
+            - url
+        PydTypeWithChildModels:
+            title: PydTypeWithChildModels
+            type: object
             properties:
                 child:
                     $ref: '#/components/schemas/PydPaginatedSetOfCat'
                 friend:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+            required:
+            - child
+            - friend
 tags: []
     """.strip()
         )
@@ -1314,7 +1318,7 @@ components:
             properties:
                 items:
                     items:
-                        $ref: '#/$defs/PydCat'
+                        $ref: '#/components/schemas/PydCat'
                     title: Items
                     type: array
                 total:
@@ -1376,24 +1380,25 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         PaginatedSetOfPydCat:
             type: object
             required:
@@ -1991,6 +1996,44 @@ async def test_handling_of_pydantic_types(docs: OpenAPIHandler, serializer: Seri
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
+    if PYDANTIC_VERSION == 1:
+        assert (
+            yaml.strip()
+            == """
+openapi: 3.1.0
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+            operationId: home
+components:
+    schemas:
+        PydExampleWithSpecificTypes:
+            title: PydExampleWithSpecificTypes
+            type: object
+            properties:
+                url:
+                    title: Url
+                    minLength: 1
+                    maxLength: 2083
+                    format: uri
+                    type: string
+            required:
+            - url
+tags: []
+""".strip()
+        )
+        return
+
     assert (
         yaml.strip()
         == """
@@ -2059,42 +2102,41 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         Error:
+            title: Error
             type: object
+            properties:
+                code:
+                    title: Code
+                    type: integer
+                message:
+                    title: Message
+                    type: string
             required:
             - code
             - message
-            properties:
-                code:
-                    type: integer
-                    format: int64
-                    nullable: false
-                message:
-                    type: string
-                    nullable: false
         PydResponse[PydCat]:
+            title: PydResponse[PydCat]
             type: object
-            required:
-            - data
-            - error
             properties:
                 data:
                     $ref: '#/components/schemas/PydCat'
@@ -2158,11 +2200,11 @@ components:
             properties:
                 data:
                     anyOf:
-                    -   $ref: '#/$defs/PydCat'
+                    -   $ref: '#/components/schemas/PydCat'
                     -   type: 'null'
                 error:
                     anyOf:
-                    -   $ref: '#/$defs/Error'
+                    -   $ref: '#/components/schemas/Error'
                     -   type: 'null'
             required:
             - data
@@ -2170,7 +2212,6 @@ components:
             title: PydResponse[PydCat]
             type: object
 tags: []
-
 """.strip()
     else:
         raise RuntimeError("Missing expected_result")
@@ -2209,7 +2250,40 @@ paths:
 components:
     schemas:
         PydConstrained:
+            title: PydConstrained
             type: object
+            properties:
+                a:
+                    title: A
+                    exclusiveMinimum: 0
+                    type: integer
+                b:
+                    title: B
+                    exclusiveMaximum: 0
+                    type: number
+                big_int:
+                    title: Big Int
+                    exclusiveMinimum: 1000
+                    exclusiveMaximum: 1024
+                    type: integer
+                big_float:
+                    title: Big Float
+                    exclusiveMinimum: 1000.0
+                    exclusiveMaximum: 1024.0
+                    type: number
+                unit_interval:
+                    title: Unit Interval
+                    minimum: 0
+                    maximum: 1
+                    type: number
+                decimal_positive:
+                    title: Decimal Positive
+                    exclusiveMinimum: 0
+                    type: number
+                decimal_negative:
+                    title: Decimal Negative
+                    exclusiveMaximum: 0
+                    type: number
             required:
             - a
             - b
@@ -2218,43 +2292,6 @@ components:
             - unit_interval
             - decimal_positive
             - decimal_negative
-            properties:
-                a:
-                    type: integer
-                    format: int64
-                    minimum: 0
-                    nullable: false
-                b:
-                    type: number
-                    format: float
-                    maximum: 0
-                    nullable: false
-                big_int:
-                    type: integer
-                    format: int64
-                    maximum: 1024
-                    minimum: 1000
-                    nullable: false
-                big_float:
-                    type: number
-                    format: float
-                    maximum: 1024.0
-                    minimum: 1000.0
-                    nullable: false
-                unit_interval:
-                    type: number
-                    format: float
-                    nullable: false
-                decimal_positive:
-                    type: number
-                    format: float
-                    minimum: 0
-                    nullable: false
-                decimal_negative:
-                    type: number
-                    format: float
-                    maximum: 0
-                    nullable: false
 tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
@@ -2283,7 +2320,7 @@ components:
                     title: A
                     type: integer
                 b:
-                    exclusiveMaximum: 0.0
+                    exclusiveMaximum: 0
                     title: B
                     type: number
                 big_int:
@@ -2297,8 +2334,8 @@ components:
                     title: Big Float
                     type: number
                 unit_interval:
-                    maximum: 1.0
-                    minimum: 0.0
+                    maximum: 1
+                    minimum: 0
                     title: Unit Interval
                     type: number
                 decimal_positive:
@@ -3489,6 +3526,11 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
 
     expected_fragments = [
         """
+openapi: 3.1.0
+info:
+    title: Example
+    version: 0.0.1
+paths:
     /one:
         post:
             responses:
@@ -3506,8 +3548,17 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
                         schema:
                             $ref: '#/components/schemas/AnyOfTestClassPyd'
                 required: true
-        """,
-        """
+components:
+    schemas:
+        APyd:
+            properties:
+                a_prop:
+                    title: A Prop
+                    type: integer
+            required:
+            - a_prop
+            title: APyd
+            type: object
         DPyd:
             properties:
                 d_prop:
@@ -3517,36 +3568,180 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
             - d_prop
             title: DPyd
             type: object
-        """,
-        """
+        EPyd:
+            properties:
+                e_prop:
+                    title: E Prop
+                    type: integer
+            required:
+            - e_prop
+            title: EPyd
+            type: object
+        FPyd:
+            properties:
+                f_prop:
+                    title: F Prop
+                    type: string
+                f_prop2:
+                    $ref: '#/components/schemas/APyd'
+            required:
+            - f_prop
+            - f_prop2
+            title: FPyd
+            type: object
         AnyOfResponseTestClassPyd:
             properties:
                 data:
                     anyOf:
-                    -   $ref: '#/$defs/DPyd'
-                    -   $ref: '#/$defs/EPyd'
-                    -   $ref: '#/$defs/FPyd'
+                    -   $ref: '#/components/schemas/DPyd'
+                    -   $ref: '#/components/schemas/EPyd'
+                    -   $ref: '#/components/schemas/FPyd'
                     title: Data
             required:
             - data
             title: AnyOfResponseTestClassPyd
             type: object
-        """,
-        """
+        BPyd:
+            properties:
+                b_prop:
+                    title: B Prop
+                    type: string
+            required:
+            - b_prop
+            title: BPyd
+            type: object
+        CPyd:
+            properties:
+                c_prop:
+                    title: C Prop
+                    type: string
+            required:
+            - c_prop
+            title: CPyd
+            type: object
         AnyOfTestClassPyd:
             properties:
                 sub_prop:
                     anyOf:
-                    -   $ref: '#/$defs/APyd'
-                    -   $ref: '#/$defs/BPyd'
-                    -   $ref: '#/$defs/CPyd'
+                    -   $ref: '#/components/schemas/APyd'
+                    -   $ref: '#/components/schemas/BPyd'
+                    -   $ref: '#/components/schemas/CPyd'
                     title: Sub Prop
             required:
             - sub_prop
             title: AnyOfTestClassPyd
             type: object
-        """,
+tags: []
+        """.strip(),
     ]
+
+    if PYDANTIC_VERSION == 1:
+        expected_fragments = [
+            """
+    /one:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnyOfResponseTestClassPyd'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnyOfTestClassPyd'
+                required: true
+            """,
+            """
+components:
+    schemas:
+        DPyd:
+            title: DPyd
+            type: object
+            properties:
+                d_prop:
+                    title: D Prop
+                    type: number
+            required:
+            - d_prop
+        EPyd:
+            title: EPyd
+            type: object
+            properties:
+                e_prop:
+                    title: E Prop
+                    type: integer
+            required:
+            - e_prop
+        APyd:
+            title: APyd
+            type: object
+            properties:
+                a_prop:
+                    title: A Prop
+                    type: integer
+            required:
+            - a_prop
+        FPyd:
+            title: FPyd
+            type: object
+            properties:
+                f_prop:
+                    title: F Prop
+                    type: string
+                f_prop2:
+                    $ref: '#/components/schemas/APyd'
+            required:
+            - f_prop
+            - f_prop2
+        AnyOfResponseTestClassPyd:
+            title: AnyOfResponseTestClassPyd
+            type: object
+            properties:
+                data:
+                    title: Data
+                    anyOf:
+                    -   $ref: '#/components/schemas/DPyd'
+                    -   $ref: '#/components/schemas/EPyd'
+                    -   $ref: '#/components/schemas/FPyd'
+            required:
+            - data
+        BPyd:
+            title: BPyd
+            type: object
+            properties:
+                b_prop:
+                    title: B Prop
+                    type: string
+            required:
+            - b_prop
+        CPyd:
+            title: CPyd
+            type: object
+            properties:
+                c_prop:
+                    title: C Prop
+                    type: string
+            required:
+            - c_prop
+        AnyOfTestClassPyd:
+            title: AnyOfTestClassPyd
+            type: object
+            properties:
+                sub_prop:
+                    title: Sub Prop
+                    anyOf:
+                    -   $ref: '#/components/schemas/APyd'
+                    -   $ref: '#/components/schemas/BPyd'
+                    -   $ref: '#/components/schemas/CPyd'
+            required:
+            - sub_prop
+            """,
+        ]
 
     for fragment in expected_fragments:
         assert fragment.strip() in yaml

@@ -17,7 +17,6 @@ from openapidocs.v3 import (
     ParameterLocation,
     Reference,
     Schema,
-    ValueFormat,
     ValueType,
 )
 from pydantic import VERSION as PYDANTIC_LIB_VERSION

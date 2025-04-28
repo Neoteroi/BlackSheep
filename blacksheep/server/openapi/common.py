@@ -259,14 +259,6 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         to obtain a schema for the decorated type, it uses the explicity schema rather
         than an auto-generated schema.
         """
-        self._types_schemas[object_type] = schema
-
-    def set_type_schema(self, object_type, schema) -> None:
-        """
-        Sets a schema to be used for a class. When the documentation handler needs
-        to obtain a schema for the decorated type, it uses the explicity schema rather
-        than an auto-generated schema.
-        """
         if isinstance(schema, dict):
             self._types_schemas[object_type] = DirectSchema(schema)
         else:

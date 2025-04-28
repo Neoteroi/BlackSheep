@@ -23,7 +23,6 @@ from openapidocs.v3 import (
     MediaType,
     OAuth2Security,
     OpenAPI,
-    OpenAPIElement,
     OpenIdConnectSecurity,
     Operation,
     Parameter,

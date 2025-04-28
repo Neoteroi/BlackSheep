@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
-from decimal import Decimal
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
 from typing import _AnnotatedAlias as AnnotatedAlias
@@ -13,7 +12,7 @@ from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
 
-from openapidocs.common import Format
+from openapidocs.common import Format, Serializer
 from openapidocs.v3 import (
     APIKeySecurity,
     Components,
@@ -62,6 +61,7 @@ from ..application import Application
 from .common import (
     APIDocsHandler,
     ContentInfo,
+    DirectSchema,
     EndpointDocs,
     HeaderInfo,
     ParameterInfo,
@@ -74,10 +74,20 @@ from .common import (
 )
 
 try:
-    from pydantic import BaseModel  # type: ignore
+    from pydantic import BaseModel
 except ImportError:  # pragma: no cover
     # noqa
-    BaseModel = ...  # type: ignore
+    BaseModel = ...
+
+
+# Pydantic v2 specific
+try:
+    from pydantic import TypeAdapter
+    from pydantic.dataclasses import is_pydantic_dataclass
+except ImportError:  # pragma: no cover
+    # noqa
+    TypeAdapter = ...
+    is_pydantic_dataclass = ...
 
 
 # region PEP 604
@@ -144,8 +154,22 @@ def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> 
 
 @dataclass
 class FieldInfo:
+    """
+    This class is a data structure used to represent information about a field in an
+    object type (e.g., a dataclass) when generating OpenAPI documentation.
+    Specifically, it encapsulates the following details about a field:
+        name: The name of the field.
+        type: The type of the field, which can be either a
+              Python type (e.g., str, int) or an OpenAPI Schema object.
+        schema: The dictionary obtained from Pydantic's schema generation.
+
+    This class is used by the ObjectTypeHandler implementations
+    to extract and organize field information from object types.
+    """
+
     name: str
     type: Union[Type, Schema]
+    schema: Optional[Dict[str, Any]] = None  # New property to store Pydantic schema
 
 
 class ObjectTypeHandler(ABC):
@@ -162,18 +186,19 @@ class ObjectTypeHandler(ABC):
         """
 
     @abstractmethod
+    def set_type_schema(self, object_type, context: "OpenAPIHandler") -> None:
+        """
+        Allow to set the schema for the type as a whole, skipping inspections of its
+        fields. This is to enable delegating the generation of type schema to external
+        libraries and better support Pydantic and other libraries that can generate the
+        schema.
+        """
+
+    @abstractmethod
     def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
         """
         Returns a set of fields to be used for the handled type.
         """
-
-
-class DataClassTypeHandler(ObjectTypeHandler):
-    def handles_type(self, object_type) -> bool:
-        return is_dataclass(object_type)
-
-    def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
-        return [FieldInfo(field.name, field.type) for field in fields(object_type)]
 
 
 def _try_is_subclass(object_type, check_type):
@@ -183,7 +208,27 @@ def _try_is_subclass(object_type, check_type):
         return False
 
 
+class DataClassTypeHandler(ObjectTypeHandler):
+    """
+    An ObjectTypeHandler that can handle built-in dataclasses.
+    """
+
+    def handles_type(self, object_type) -> bool:
+        return is_dataclass(object_type)
+
+    def set_type_schema(self, object_type, context: "OpenAPIHandler") -> None:
+        # Raise not implemented, because fields inspection should run for this handler.
+        raise NotImplementedError()
+
+    def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
+        return [FieldInfo(field.name, field.type) for field in fields(object_type)]
+
+
 class PydanticModelTypeHandler(ObjectTypeHandler):
+    """
+    An ObjectTypeHandler that can handle subclasses of Pydantic BaseModel.
+    """
+
     def handles_type(self, object_type) -> bool:
         if isinstance(object_type, GenericAlias):
             # support for Generic BaseModel here is better since it can extract items
@@ -200,128 +245,17 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
             return True
         return False
 
-    def _allow_none(self, field_info):
-        try:
-            # Pydantic v1
-            return field_info.allow_none
-        except AttributeError:
-            # Pydantic v2
-            return not field_info.is_required()
+    def set_type_schema(self, object_type, context: "OpenAPIHandler") -> None:
+        """
+        Fully delegates to Pydantic the generation of the schema for the class, however
+        applies some changes to replace $defs with #/components/schemas for consistency.
+        """
+        schema = self._get_object_schema(object_type)
+        self._normalize_dict_schema(schema, context)
+        context.set_type_schema(object_type, schema)
 
-    def _handle_any_of(self, any_of, types_args, register_type):
-        for item in any_of:
-            if "$ref" in item:
-                obj_type_name = item["$ref"].split("/")[-1]
-                corresponding_type = next(
-                    obj for obj in types_args if obj.__name__ == obj_type_name
-                )
-                register_type(corresponding_type)
-                item["$ref"] = f"#/components/schemas/{obj_type_name}"
-            yield item
-
-    def _open_api_v2_field_schema_to_type(
-        self, field_info, schema, register_type=None
-    ) -> Union[Type, Schema]:
-        if "$ref" in schema:
-            if field_info is None:
-                return Schema()
-            try:
-                # Pydantic v1
-                return field_info.outer_type_
-            except AttributeError:
-                # Pydantic v2
-                return field_info.annotation
-
-        value_type = schema.get("type")
-        nullable = self._allow_none(field_info) if field_info is not None else False
-
-        if value_type == "null":
-            # OpenAPI 3.1
-            return Schema(type="null")
-
-        if value_type is None:
-            if "anyOf" in schema:
-                any_of = schema["anyOf"]
-
-                if any("$ref" in item for item in any_of):
-                    any_of = list(
-                        self._handle_any_of(
-                            any_of, field_info.annotation.__args__, register_type
-                        )
-                    )
-                return Schema(
-                    any_of=any_of,
-                    title=schema.get("title"),
-                )
-
-        if value_type == "string":
-            return Schema(
-                type=ValueType.STRING,
-                min_length=schema.get("minLength"),
-                max_length=schema.get("maxLength"),
-                format=schema.get("format"),
-                nullable=nullable,
-            )
-
-        if value_type == "boolean":
-            return Schema(type=ValueType.BOOLEAN, nullable=nullable)
-
-        if value_type == "file":
-            # TODO: improve support for file type,
-            # see "Considerations for File Uploads"
-            # at https://swagger.io/specification/
-            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
-
-        if value_type == "number":
-            return Schema(
-                type=ValueType.NUMBER,
-                minimum=schema.get("exclusiveMinimum"),
-                maximum=schema.get("exclusiveMaximum"),
-                format=ValueFormat.FLOAT,
-                nullable=nullable,
-            )
-
-        if value_type == "integer":
-            return Schema(
-                type=ValueType.INTEGER,
-                minimum=schema.get("exclusiveMinimum"),
-                maximum=schema.get("exclusiveMaximum"),
-                format=ValueFormat.INT64,
-                nullable=nullable,
-            )
-
-        if value_type == "array":
-            if field_info is not None:
-                return self._get_array_outer_type(field_info)
-            else:
-                return list
-
-        return Schema()
-
-    def _get_array_outer_type(self, field_info):
-        try:
-            # Pydantic v1
-            # example: typing.List[tests.test_openapi_v3.PydCat]
-            return field_info.outer_type_
-        except AttributeError:
-            # Pydantic v2
-            # Here we support only simple types
-            return (
-                field_info.annotation
-                if type(field_info.annotation) is type
-                else List[field_info.annotation.__args__[0]]
-            )
-
-    def _get_fields_info(self, object_type):
-        try:
-            if hasattr(object_type, "model_fields"):
-                # Pydantic v2
-                return object_type.model_fields
-            else:
-                # Pydantic v1
-                return object_type.__fields__
-        except AttributeError:
-            return dict()
+    def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
+        raise NotImplementedError()
 
     def _get_object_schema(self, object_type):
         if hasattr(object_type, "model_json_schema"):
@@ -331,25 +265,68 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
             # Pydantic v1
             return object_type.schema()
 
-    def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
-        # to support all pydantic special types, here we rely on its schema,
-        # but since we want to be able to generate OpenAPI Documentation V3 (or V2 for
-        # that matter), we extract basic information we need; also using the type's
-        # __fields__ when available
-        schema = self._get_object_schema(object_type)
-        properties = schema["properties"]
+    def _normalize_dict_schema(self, schema, context):
+        """
+        Apply definitions in $defs to components.schemas, and replace references defined
+        as #/$defs/Name with #/components/schemas/Name.
+        """
 
-        fields_info = self._get_fields_info(object_type)
+        self._normalize_dict_schema_apply_defs(schema, context)
+        self._normalize_dict_schema_replace_refs(schema)
 
-        return [
-            FieldInfo(
-                name,
-                self._open_api_v2_field_schema_to_type(
-                    fields_info.get(name, None), value, register_type
-                ),
-            )
-            for name, value in properties.items()
-        ]
+    def _get_defs_key(self) -> str:
+        if TypeAdapter is ...:
+            # Pydantic v1
+            return "definitions"
+        # Pydantic v2
+        return "$defs"
+
+    def _normalize_dict_schema_apply_defs(self, schema, context: "OpenAPIHandler"):
+        definitions_keys = self._get_defs_key()
+
+        if definitions_keys in schema:
+            components = context.components
+            if components.schemas is None:
+                components.schemas = {}
+            for key, value in schema[definitions_keys].items():
+                self._normalize_dict_schema_replace_refs(value)
+                components.schemas[key] = DirectSchema(value)  # type: ignore
+            del schema[definitions_keys]
+
+    def _normalize_dict_schema_replace_refs(self, schema):
+        """
+        Replace references defined as #/$defs/Name or #/definitions/Name
+        with #/components/schemas/Name.
+        """
+        definitions_keys = self._get_defs_key()
+        def_ref = f"#/{definitions_keys}/"
+        to_replace = None
+
+        for key, value in schema.items():
+            if isinstance(value, dict):
+                self._normalize_dict_schema_replace_refs(value)
+            if isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        self._normalize_dict_schema_replace_refs(item)
+            if key == "$ref" and isinstance(value, str) and value.startswith(def_ref):
+                to_replace = value
+        if to_replace:
+            schema["$ref"] = "#/components/schemas/" + to_replace.removeprefix(def_ref)
+
+
+class PydanticDataClassTypeHandler(PydanticModelTypeHandler):
+    """
+    An ObjectTypeHandler that can handle Pydantic dataclasses.
+    """
+
+    def handles_type(self, object_type) -> bool:
+        return is_pydantic_dataclass is not ... and is_pydantic_dataclass(object_type)
+
+    def _get_object_schema(self, object_type):
+        if TypeAdapter is ...:
+            raise TypeError("Missing Pydantic")
+        return TypeAdapter(object_type).json_schema()
 
 
 SecuritySchemes = Union[
@@ -384,6 +361,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             ]
         ] = None,
         servers: Optional[Sequence[Server]] = None,
+        serializer: Optional[Serializer] = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -391,6 +369,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             yaml_spec_path=yaml_spec_path,
             preferred_format=preferred_format,
             anonymous_access=anonymous_access,
+            serializer=serializer or Serializer(),
         )
         self.info = info
         self._tags = tags
@@ -401,6 +380,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self._object_types_handlers: List[ObjectTypeHandler] = [
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
+            PydanticDataClassTypeHandler(),
         ]
         self._binder_docs: Dict[Type[Binder], Iterable[Union[Parameter, Reference]]] = (
             {}
@@ -446,6 +426,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             paths=paths,
             components=self.components,
             tags=self._tags or self._tags_from_paths(paths),
+            json_schema_dialect=None,  # type: ignore
         )
 
     def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:
@@ -528,7 +509,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if self.components.schemas is None:
             self.components.schemas = {}
 
-        if name in self.components.schemas:
+        if name in self.components.schemas and self.components.schemas[name] != schema:
             counter = 0
             base_name = name
             while name in self.components.schemas:
@@ -564,6 +545,16 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if object_type in self._types_schemas:
             return self._handle_type_having_explicit_schema(object_type)
 
+        for handler in self._object_types_handlers:
+            if not handler.handles_type(object_type):
+                continue
+            try:
+                handler.set_type_schema(object_type, self)
+            except NotImplementedError:
+                pass
+            else:
+                return self._handle_type_having_explicit_schema(object_type)
+
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
 
@@ -578,6 +569,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
                 if field.name in annotations:
                     child_type = annotations[field.name]
+
+            if isinstance(child_type, str):
+                # This can happen if the user defined a wrong forward reference.
+                raise TypeError(f"Could not obtain the actual type for: {child_type}")
 
             properties[field.name] = self.get_schema_by_type(
                 child_type, root_optional=is_optional
@@ -795,6 +790,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> Optional[Reference]:
         origin = get_origin(object_type)
 
+        if origin is dict:
+            schema = Schema(type=ValueType.OBJECT)
+            return self._handle_object_type_schema(
+                object_type, context_type_args, schema
+            )
+
         if origin is Union:
             schema = Schema(
                 ValueType.OBJECT,
@@ -877,6 +878,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_request_body(self, handler: Any) -> Union[None, RequestBody, Reference]:
         if not hasattr(handler, "binders"):
             return None
+        # TODO: improve this code to support more scenarios!
+        # https://github.com/Neoteroi/BlackSheep/issues/546
         body_binder = self._get_body_binder(handler)
 
         if body_binder is None:

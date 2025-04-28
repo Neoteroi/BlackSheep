@@ -20,7 +20,10 @@ REDOC_UI_FONT_URL = (
     "https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700"
 )
 
-SCALAR_UI_JS_URL = "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/browser/standalone.min.js"
+SCALAR_UI_JS_URL = (
+    "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/browser/"
+    "standalone.min.js"
+)
 SCALAR_UI_CSS_URL = (
     "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.28.8/dist/style.min.css"
 )
@@ -134,6 +137,7 @@ class ReDocUIProvider(UIProvider):
             .replace("##SPEC_URL##", options.spec_url)
             .replace("##PAGE_TITLE##", options.page_title)
             .replace("##JS_URL##", self.ui_files.js_url)
+            .replace("##FAVICON_URL##", options.favicon_url)
             .replace("##FONT_URL##", self.ui_files.fonts_url or "")
         )
 
@@ -160,6 +164,7 @@ class ReDocUIProvider(UIProvider):
     def default_ui_files(self) -> UIFilesOptions:
         return UIFilesOptions(REDOC_UI_JS_URL, REDOC_UI_CSS_URL, REDOC_UI_FONT_URL)
 
+
 class ScalarUIProvider(UIProvider):
     """
     UI provider for Scalar API Reference.
@@ -167,7 +172,7 @@ class ScalarUIProvider(UIProvider):
     """
 
     def __init__(
-        self, ui_path: str = "/scalar", ui_files: UIFilesOptions | None = None
+        self, ui_path: str = "/scalar", ui_files: Optional[UIFilesOptions] = None
     ) -> None:
         super().__init__(ui_path, ui_files)
 
@@ -183,32 +188,15 @@ class ScalarUIProvider(UIProvider):
         Returns:
         str: HTML content for the Scalar UI
         """
-        return f"""<!DOCTYPE html>
-<html>
-<head>
-    <title>{options.page_title}</title>
-    <link rel="icon" href="{options.favicon_url}"/>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link href="{self.ui_files.css_url or ""}" rel="stylesheet">
-</head>
-<body>
-    <script
-      id="api-reference"
-      data-url="{options.spec_url}"></script>
-    
-    <script>
-      var configuration = {{
-        theme: 'default',
-      }}
-
-      document.getElementById('api-reference').dataset.configuration =
-        JSON.stringify(configuration)
-    </script>
-
-    <script src="{self.ui_files.js_url}"></script>
-</body>
-</html>"""
+        return (
+            get_resource_file_content("scalar-ui.html")
+            .replace("##SPEC_URL##", options.spec_url)
+            .replace("##PAGE_TITLE##", options.page_title)
+            .replace("##JS_URL##", self.ui_files.js_url)
+            .replace("##CSS_URL##", self.ui_files.css_url or "")
+            .replace("##FAVICON_URL##", options.favicon_url)
+            .replace("##FONT_URL##", self.ui_files.fonts_url or "")
+        )
 
     def build_ui(self, options: UIOptions) -> None:
         """

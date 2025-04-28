@@ -19,7 +19,7 @@ from typing import (
 )
 from uuid import UUID
 
-from guardpost import Identity, User
+from guardpost import Identity
 from rodi import ContainerProtocol
 
 from blacksheep.messages import Request, Response
@@ -193,7 +193,7 @@ class AmbiguousMethodSignatureError(NormalizationError):
     def __init__(self, method):
         super().__init__(
             f"Cannot normalize the method `{method.__qualname__}` because it has an "
-            "ambiguous signature. "
+            "ambiguous signature (it specifies more than one body binder). "
             "Please specify exact binders for its arguments."
         )
 
@@ -407,7 +407,7 @@ def _get_parameter_binder(
         return QueryBinder(annotation, name, True, required=not is_root_optional)
 
     # 5. is request user?
-    if issubclass(annotation, Identity):
+    if inspect.isclass(annotation) and issubclass(annotation, Identity):
         return IdentityBinder(
             annotation, name, implicit=True, required=not is_root_optional
         )

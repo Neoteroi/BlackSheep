@@ -17,7 +17,6 @@ from openapidocs.v3 import (
     ParameterLocation,
     Reference,
     Schema,
-    ValueFormat,
     ValueType,
 )
 from pydantic import VERSION as PYDANTIC_LIB_VERSION
@@ -448,7 +447,7 @@ def test_dates_handling(docs: OpenAPIHandler, serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -489,7 +488,7 @@ def test_register_schema_for_generic_with_list(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -553,7 +552,7 @@ def test_register_schema_for_multiple_generic_with_list(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -641,7 +640,7 @@ def test_register_schema_for_generic_with_property(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -699,7 +698,7 @@ def test_register_schema_for_generic_sub_property(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -764,7 +763,7 @@ async def test_register_schema_for_multi_generic(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -849,7 +848,7 @@ async def test_register_schema_for_generic_with_list_reusing_ref(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -936,7 +935,7 @@ async def test_handling_of_forward_references(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1012,7 +1011,7 @@ async def test_handling_of_normal_class(docs: OpenAPIHandler, serializer: Serial
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1050,7 +1049,7 @@ async def test_handling_of_pydantic_class_with_generic(
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1068,39 +1067,40 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         PydPaginatedSetOfCat:
+            title: PydPaginatedSetOfCat
             type: object
-            required:
-            - items
-            - total
             properties:
                 items:
+                    title: Items
                     type: array
-                    nullable: false
                     items:
                         $ref: '#/components/schemas/PydCat'
                 total:
+                    title: Total
                     type: integer
-                    format: int64
-                    nullable: false
+            required:
+            - items
+            - total
 tags: []
 """.strip()
         )
@@ -1108,7 +1108,7 @@ tags: []
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1126,41 +1126,40 @@ paths:
 components:
     schemas:
         PydCat:
-            type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
-        PydPaginatedSetOfCat:
+            title: PydCat
             type: object
+        PydPaginatedSetOfCat:
+            properties:
+                items:
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                    title: Items
+                    type: array
+                total:
+                    title: Total
+                    type: integer
             required:
             - items
             - total
-            properties:
-                items:
-                    type: array
-                    nullable: false
-                    items:
-                        $ref: '#/components/schemas/PydCat'
-                total:
-                    type: integer
-                    format: int64
-                    nullable: false
+            title: PydPaginatedSetOfCat
+            type: object
 tags: []
 """.strip()
         )
@@ -1183,7 +1182,7 @@ async def test_handling_of_pydantic_class_with_child_models(
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1201,60 +1200,63 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         PydPaginatedSetOfCat:
+            title: PydPaginatedSetOfCat
             type: object
-            required:
-            - items
-            - total
             properties:
                 items:
+                    title: Items
                     type: array
-                    nullable: false
                     items:
                         $ref: '#/components/schemas/PydCat'
                 total:
+                    title: Total
                     type: integer
-                    format: int64
-                    nullable: false
-        PydExampleWithSpecificTypes:
-            type: object
             required:
-            - url
+            - items
+            - total
+        PydExampleWithSpecificTypes:
+            title: PydExampleWithSpecificTypes
+            type: object
             properties:
                 url:
-                    type: string
-                    format: uri
-                    maxLength: 2083
+                    title: Url
                     minLength: 1
-                    nullable: false
-        PydTypeWithChildModels:
-            type: object
+                    maxLength: 2083
+                    format: uri
+                    type: string
             required:
-            - child
-            - friend
+            - url
+        PydTypeWithChildModels:
+            title: PydTypeWithChildModels
+            type: object
             properties:
                 child:
                     $ref: '#/components/schemas/PydPaginatedSetOfCat'
                 friend:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+            required:
+            - child
+            - friend
 tags: []
     """.strip()
         )
@@ -1262,7 +1264,7 @@ tags: []
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1280,62 +1282,63 @@ paths:
 components:
     schemas:
         PydCat:
-            type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
-        PydPaginatedSetOfCat:
+            title: PydCat
             type: object
-            required:
-            - items
-            - total
-            properties:
-                items:
-                    type: array
-                    nullable: false
-                    items:
-                        $ref: '#/components/schemas/PydCat'
-                total:
-                    type: integer
-                    format: int64
-                    nullable: false
         PydExampleWithSpecificTypes:
-            type: object
-            required:
-            - url
             properties:
                 url:
-                    type: string
                     format: uri
                     maxLength: 2083
                     minLength: 1
-                    nullable: false
-        PydTypeWithChildModels:
-            type: object
+                    title: Url
+                    type: string
             required:
-            - child
-            - friend
+            - url
+            title: PydExampleWithSpecificTypes
+            type: object
+        PydPaginatedSetOfCat:
+            properties:
+                items:
+                    items:
+                        $ref: '#/components/schemas/PydCat'
+                    title: Items
+                    type: array
+                total:
+                    title: Total
+                    type: integer
+            required:
+            - items
+            - total
+            title: PydPaginatedSetOfCat
+            type: object
+        PydTypeWithChildModels:
             properties:
                 child:
                     $ref: '#/components/schemas/PydPaginatedSetOfCat'
                 friend:
                     $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+            required:
+            - child
+            - friend
+            title: PydTypeWithChildModels
+            type: object
 tags: []
     """.strip()
         )
@@ -1358,7 +1361,7 @@ async def test_handling_of_pydantic_class_in_generic(
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1376,24 +1379,25 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         PaginatedSetOfPydCat:
             type: object
             required:
@@ -1416,7 +1420,7 @@ tags: []
         assert (
             yaml.strip()
             == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1434,26 +1438,25 @@ paths:
 components:
     schemas:
         PydCat:
-            type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
+            title: PydCat
+            type: object
         PaginatedSetOfPydCat:
             type: object
             required:
@@ -1470,7 +1473,7 @@ components:
                     format: int64
                     nullable: false
 tags: []
-    """.strip()
+""".strip()
         )
 
 
@@ -1488,7 +1491,7 @@ async def test_handling_of_sequence(docs: OpenAPIHandler, serializer: Serializer
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1531,8 +1534,7 @@ async def test_handling_of_mapping(docs: OpenAPIHandler, serializer: Serializer)
     app = get_app()
 
     @app.router.route("/")
-    def home() -> Mapping[str, Mapping[int, List[Cat]]]:
-        ...
+    def home() -> Mapping[str, Mapping[int, List[Cat]]]: ...
 
     docs.bind_app(app)
     await app.start()
@@ -1542,7 +1544,7 @@ async def test_handling_of_mapping(docs: OpenAPIHandler, serializer: Serializer)
     assert (
         yaml.strip()
         == r"""
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1601,7 +1603,7 @@ async def test_cats_api(docs: OpenAPIHandler, serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1799,7 +1801,7 @@ async def test_cats_api_capital_operations_ids(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -1993,10 +1995,11 @@ async def test_handling_of_pydantic_types(docs: OpenAPIHandler, serializer: Seri
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
 
-    assert (
-        yaml.strip()
-        == """
-openapi: 3.0.3
+    if PYDANTIC_VERSION == 1:
+        assert (
+            yaml.strip()
+            == """
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2014,16 +2017,54 @@ paths:
 components:
     schemas:
         PydExampleWithSpecificTypes:
+            title: PydExampleWithSpecificTypes
             type: object
-            required:
-            - url
             properties:
                 url:
+                    title: Url
+                    minLength: 1
+                    maxLength: 2083
+                    format: uri
                     type: string
+            required:
+            - url
+tags: []
+""".strip()
+        )
+        return
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.1.0
+info:
+    title: Example
+    version: 0.0.1
+paths:
+    /:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PydExampleWithSpecificTypes'
+            operationId: home
+components:
+    schemas:
+        PydExampleWithSpecificTypes:
+            properties:
+                url:
                     format: uri
                     maxLength: 2083
                     minLength: 1
-                    nullable: false
+                    title: Url
+                    type: string
+            required:
+            - url
+            title: PydExampleWithSpecificTypes
+            type: object
 tags: []
 """.strip()
     )
@@ -2042,7 +2083,7 @@ async def test_pydantic_generic(docs: OpenAPIHandler, serializer: Serializer):
 
     if PYDANTIC_VERSION == 1:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2060,42 +2101,41 @@ paths:
 components:
     schemas:
         PydCat:
+            title: PydCat
             type: object
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    title: Childs
+                    type: array
+                    items:
+                        type: string
+                        format: uuid4
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        nullable: false
         Error:
+            title: Error
             type: object
+            properties:
+                code:
+                    title: Code
+                    type: integer
+                message:
+                    title: Message
+                    type: string
             required:
             - code
             - message
-            properties:
-                code:
-                    type: integer
-                    format: int64
-                    nullable: false
-                message:
-                    type: string
-                    nullable: false
         PydResponse[PydCat]:
+            title: PydResponse[PydCat]
             type: object
-            required:
-            - data
-            - error
             properties:
                 data:
                     $ref: '#/components/schemas/PydCat'
@@ -2105,7 +2145,7 @@ tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2122,45 +2162,40 @@ paths:
             operationId: home
 components:
     schemas:
-        PydCat:
+        Error:
+            properties:
+                code:
+                    title: Code
+                    type: integer
+                message:
+                    title: Message
+                    type: string
+            required:
+            - code
+            - message
+            title: Error
             type: object
+        PydCat:
+            properties:
+                id:
+                    title: Id
+                    type: integer
+                name:
+                    title: Name
+                    type: string
+                childs:
+                    items:
+                        format: uuid4
+                        type: string
+                    title: Childs
+                    type: array
             required:
             - id
             - name
             - childs
-            properties:
-                id:
-                    type: integer
-                    format: int64
-                    nullable: false
-                name:
-                    type: string
-                    nullable: false
-                childs:
-                    type: array
-                    nullable: false
-                    items:
-                        type: string
-                        format: uuid
-                        nullable: false
-        Error:
+            title: PydCat
             type: object
-            required:
-            - code
-            - message
-            properties:
-                code:
-                    type: integer
-                    format: int64
-                    nullable: false
-                message:
-                    type: string
-                    nullable: false
         PydResponse[PydCat]:
-            type: object
-            required:
-            - data
-            - error
             properties:
                 data:
                     anyOf:
@@ -2170,6 +2205,11 @@ components:
                     anyOf:
                     -   $ref: '#/components/schemas/Error'
                     -   type: 'null'
+            required:
+            - data
+            - error
+            title: PydResponse[PydCat]
+            type: object
 tags: []
 """.strip()
     else:
@@ -2188,9 +2228,10 @@ async def test_pydantic_constrained_types(docs: OpenAPIHandler, serializer: Seri
 
     yaml = serializer.to_yaml(docs.generate_documentation(app))
     expected_result: str
+
     if PYDANTIC_VERSION == 1:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2208,7 +2249,40 @@ paths:
 components:
     schemas:
         PydConstrained:
+            title: PydConstrained
             type: object
+            properties:
+                a:
+                    title: A
+                    exclusiveMinimum: 0
+                    type: integer
+                b:
+                    title: B
+                    exclusiveMaximum: 0
+                    type: number
+                big_int:
+                    title: Big Int
+                    exclusiveMinimum: 1000
+                    exclusiveMaximum: 1024
+                    type: integer
+                big_float:
+                    title: Big Float
+                    exclusiveMinimum: 1000.0
+                    exclusiveMaximum: 1024.0
+                    type: number
+                unit_interval:
+                    title: Unit Interval
+                    minimum: 0
+                    maximum: 1
+                    type: number
+                decimal_positive:
+                    title: Decimal Positive
+                    exclusiveMinimum: 0
+                    type: number
+                decimal_negative:
+                    title: Decimal Negative
+                    exclusiveMaximum: 0
+                    type: number
             required:
             - a
             - b
@@ -2217,48 +2291,11 @@ components:
             - unit_interval
             - decimal_positive
             - decimal_negative
-            properties:
-                a:
-                    type: integer
-                    format: int64
-                    minimum: 0
-                    nullable: false
-                b:
-                    type: number
-                    format: float
-                    maximum: 0
-                    nullable: false
-                big_int:
-                    type: integer
-                    format: int64
-                    maximum: 1024
-                    minimum: 1000
-                    nullable: false
-                big_float:
-                    type: number
-                    format: float
-                    maximum: 1024.0
-                    minimum: 1000.0
-                    nullable: false
-                unit_interval:
-                    type: number
-                    format: float
-                    nullable: false
-                decimal_positive:
-                    type: number
-                    format: float
-                    minimum: 0
-                    nullable: false
-                decimal_negative:
-                    type: number
-                    format: float
-                    maximum: 0
-                    nullable: false
 tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
         expected_result = """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2276,7 +2313,42 @@ paths:
 components:
     schemas:
         PydConstrained:
-            type: object
+            properties:
+                a:
+                    exclusiveMinimum: 0
+                    title: A
+                    type: integer
+                b:
+                    exclusiveMaximum: 0
+                    title: B
+                    type: number
+                big_int:
+                    exclusiveMaximum: 1024
+                    exclusiveMinimum: 1000
+                    title: Big Int
+                    type: integer
+                big_float:
+                    exclusiveMaximum: 1024.0
+                    exclusiveMinimum: 1000.0
+                    title: Big Float
+                    type: number
+                unit_interval:
+                    maximum: 1
+                    minimum: 0
+                    title: Unit Interval
+                    type: number
+                decimal_positive:
+                    anyOf:
+                    -   exclusiveMinimum: 0.0
+                        type: number
+                    -   type: string
+                    title: Decimal Positive
+                decimal_negative:
+                    anyOf:
+                    -   exclusiveMaximum: 0.0
+                        type: number
+                    -   type: string
+                    title: Decimal Negative
             required:
             - a
             - b
@@ -2285,79 +2357,11 @@ components:
             - unit_interval
             - decimal_positive
             - decimal_negative
-            properties:
-                a:
-                    type: integer
-                    format: int64
-                    minimum: 0
-                    nullable: false
-                b:
-                    type: number
-                    format: float
-                    maximum: 0.0
-                    nullable: false
-                big_int:
-                    type: integer
-                    format: int64
-                    maximum: 1024
-                    minimum: 1000
-                    nullable: false
-                big_float:
-                    type: number
-                    format: float
-                    maximum: 1024.0
-                    minimum: 1000.0
-                    nullable: false
-                unit_interval:
-                    type: number
-                    format: float
-                    nullable: false
-                decimal_positive:
-                    title: Decimal Positive
-                    anyOf:
-                    -   exclusiveMinimum: 0.0
-                        type: number
-                    -   type: string
-                decimal_negative:
-                    title: Decimal Negative
-                    anyOf:
-                    -   exclusiveMaximum: 0.0
-                        type: number
-                    -   type: string
+            title: PydConstrained
+            type: object
 tags: []
     """.strip()
-    print("yaml::::::", yaml.strip())
     assert yaml.strip() == expected_result
-
-
-def test_pydantic_model_handler_does_not_raise_for_array_without_field_info():
-    handler = PydanticModelTypeHandler()
-    assert handler._open_api_v2_field_schema_to_type(None, {"type": "array"}) is list
-
-
-def test_pydantic_model_handler_does_not_raise_for_file_type():
-    handler = PydanticModelTypeHandler()
-    assert handler._open_api_v2_field_schema_to_type(None, {"type": "file"}) == Schema(
-        type=ValueType.STRING, format=ValueFormat.BINARY
-    )
-
-
-def test_pydantic_model_handler_defaults_to_empty_schema():
-    handler = PydanticModelTypeHandler()
-    assert (
-        handler._open_api_v2_field_schema_to_type(None, {"type": "unknown"}) == Schema()
-    )
-
-
-def test_pydantic_model_handler_handles_type_without__fields__():
-    handler = PydanticModelTypeHandler()
-
-    class Foo:
-        @staticmethod
-        def schema():
-            return {"properties": {"foo": {"type": "boolean"}}}
-
-    handler.get_type_fields(Foo, None)
 
 
 async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer):
@@ -2399,7 +2403,7 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2475,7 +2479,7 @@ async def test_handles_ref_for_optional_type(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2598,7 +2602,7 @@ async def test_handles_from_form_docs(docs: OpenAPIHandler, serializer: Serializ
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2687,7 +2691,7 @@ async def test_websockets_routes_are_ignored(
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example
     version: 0.0.1
@@ -2860,7 +2864,7 @@ async def test_mount_oad_generation(serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Parent API
     version: 0.0.1
@@ -2868,20 +2872,20 @@ paths:
     /:
         get:
             responses: {}
-            operationId: a_home
             summary: Parent root.
             description: Parent root.
+            operationId: a_home
     /cats:
         get:
             responses: {}
-            operationId: get_cats
             summary: Gets a list of cats.
             description: Gets a list of cats.
+            operationId: get_cats
         post:
             responses: {}
-            operationId: create_cat
             summary: Creates a new cat.
             description: Creates a new cat.
+            operationId: create_cat
             parameters: []
             requestBody:
                 content:
@@ -2892,9 +2896,9 @@ paths:
     /cats/{cat_id}:
         delete:
             responses: {}
-            operationId: delete_cat
             summary: Deletes a cat by id.
             description: Deletes a cat by id.
+            operationId: delete_cat
             parameters:
             -   name: cat_id
                 in: path
@@ -2906,14 +2910,14 @@ paths:
     /dogs:
         get:
             responses: {}
-            operationId: get_dogs
             summary: Gets a list of dogs.
             description: Gets a list of dogs.
+            operationId: get_dogs
         post:
             responses: {}
-            operationId: create_dog
             summary: Creates a new dog.
             description: Creates a new dog.
+            operationId: create_dog
             parameters: []
             requestBody:
                 content:
@@ -2924,9 +2928,9 @@ paths:
     /dogs/{dog_id}:
         delete:
             responses: {}
-            operationId: delete_dog
             summary: Deletes a dog by id.
             description: Deletes a dog by id.
+            operationId: delete_dog
             parameters:
             -   name: dog_id
                 in: path
@@ -2938,14 +2942,14 @@ paths:
     /parrots:
         get:
             responses: {}
-            operationId: get_parrots
             summary: Gets a list of parrots.
             description: Gets a list of parrots.
+            operationId: get_parrots
         post:
             responses: {}
-            operationId: create_parrot
             summary: Creates a new parrot.
             description: Creates a new parrot.
+            operationId: create_parrot
             parameters: []
             requestBody:
                 content:
@@ -2956,9 +2960,9 @@ paths:
     /parrots/{parrot_id}:
         delete:
             responses: {}
-            operationId: delete_parrot
             summary: Deletes a parrot by id.
             description: Deletes a parrot by id.
+            operationId: delete_parrot
             parameters:
             -   name: parrot_id
                 in: path
@@ -3078,7 +3082,7 @@ async def test_mount_oad_generation_sub_children(serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Parent API
     version: 0.0.1
@@ -3088,9 +3092,9 @@ paths:
             responses: {}
             tags:
             - A Home
-            operationId: a_home
             summary: Parent root.
             description: Parent root.
+            operationId: a_home
     /child-1:
         get:
             responses: {}
@@ -3208,7 +3212,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
     assert (
         yaml.strip()
         == """
-openapi: 3.0.3
+openapi: 3.1.0
 info:
     title: Example API
     version: 0.0.1
@@ -3227,9 +3231,9 @@ paths:
                                     $ref: '#/components/schemas/Parrot'
             tags:
             - Parrots
-            operationId: get_parrots
             summary: Return the list of configured Parrots.
             description: Return the list of configured Parrots.
+            operationId: get_parrots
             parameters: []
         post:
             responses:
@@ -3237,9 +3241,9 @@ paths:
                     description: Success response
             tags:
             - Parrots
-            operationId: create_parrot
             summary: Add a Parrot to the system.
             description: Add a Parrot to the system.
+            operationId: create_parrot
             parameters: []
             requestBody:
                 content:
@@ -3261,9 +3265,9 @@ paths:
                                     $ref: '#/components/schemas/Dog'
             tags:
             - Dogs
-            operationId: get_dogs
             summary: Return the list of configured dogs.
             description: Return the list of configured dogs.
+            operationId: get_dogs
             parameters: []
         post:
             responses:
@@ -3271,9 +3275,9 @@ paths:
                     description: Success response
             tags:
             - Dogs
-            operationId: create_dog
             summary: Add a Dog to the system.
             description: Add a Dog to the system.
+            operationId: create_dog
             parameters: []
             requestBody:
                 content:
@@ -3295,9 +3299,9 @@ paths:
                                     $ref: '#/components/schemas/Cat'
             tags:
             - Cats
-            operationId: get_cats
             summary: Return the list of configured cats.
             description: Return the list of configured cats.
+            operationId: get_cats
             parameters: []
         post:
             responses:
@@ -3305,9 +3309,9 @@ paths:
                     description: Success response
             tags:
             - Cats
-            operationId: create_cat
             summary: Add a Cat to the system.
             description: Add a Cat to the system.
+            operationId: create_cat
             parameters: []
             requestBody:
                 content:
@@ -3521,6 +3525,11 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
 
     expected_fragments = [
         """
+openapi: 3.1.0
+info:
+    title: Example
+    version: 0.0.1
+paths:
     /one:
         post:
             responses:
@@ -3538,23 +3547,159 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
                         schema:
                             $ref: '#/components/schemas/AnyOfTestClassPyd'
                 required: true
-        """,
-        """
-        DPyd:
-            type: object
+components:
+    schemas:
+        APyd:
+            properties:
+                a_prop:
+                    title: A Prop
+                    type: integer
             required:
-            - d_prop
+            - a_prop
+            title: APyd
+            type: object
+        DPyd:
             properties:
                 d_prop:
+                    title: D Prop
                     type: number
-                    format: float
-                    nullable: false
-        """,
-        """
-        AnyOfResponseTestClassPyd:
+            required:
+            - d_prop
+            title: DPyd
             type: object
+        EPyd:
+            properties:
+                e_prop:
+                    title: E Prop
+                    type: integer
+            required:
+            - e_prop
+            title: EPyd
+            type: object
+        FPyd:
+            properties:
+                f_prop:
+                    title: F Prop
+                    type: string
+                f_prop2:
+                    $ref: '#/components/schemas/APyd'
+            required:
+            - f_prop
+            - f_prop2
+            title: FPyd
+            type: object
+        AnyOfResponseTestClassPyd:
+            properties:
+                data:
+                    anyOf:
+                    -   $ref: '#/components/schemas/DPyd'
+                    -   $ref: '#/components/schemas/EPyd'
+                    -   $ref: '#/components/schemas/FPyd'
+                    title: Data
             required:
             - data
+            title: AnyOfResponseTestClassPyd
+            type: object
+        BPyd:
+            properties:
+                b_prop:
+                    title: B Prop
+                    type: string
+            required:
+            - b_prop
+            title: BPyd
+            type: object
+        CPyd:
+            properties:
+                c_prop:
+                    title: C Prop
+                    type: string
+            required:
+            - c_prop
+            title: CPyd
+            type: object
+        AnyOfTestClassPyd:
+            properties:
+                sub_prop:
+                    anyOf:
+                    -   $ref: '#/components/schemas/APyd'
+                    -   $ref: '#/components/schemas/BPyd'
+                    -   $ref: '#/components/schemas/CPyd'
+                    title: Sub Prop
+            required:
+            - sub_prop
+            title: AnyOfTestClassPyd
+            type: object
+tags: []
+        """.strip(),
+    ]
+
+    if PYDANTIC_VERSION == 1:
+        expected_fragments = [
+            """
+    /one:
+        post:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnyOfResponseTestClassPyd'
+            operationId: one
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnyOfTestClassPyd'
+                required: true
+            """,
+            """
+components:
+    schemas:
+        DPyd:
+            title: DPyd
+            type: object
+            properties:
+                d_prop:
+                    title: D Prop
+                    type: number
+            required:
+            - d_prop
+        EPyd:
+            title: EPyd
+            type: object
+            properties:
+                e_prop:
+                    title: E Prop
+                    type: integer
+            required:
+            - e_prop
+        APyd:
+            title: APyd
+            type: object
+            properties:
+                a_prop:
+                    title: A Prop
+                    type: integer
+            required:
+            - a_prop
+        FPyd:
+            title: FPyd
+            type: object
+            properties:
+                f_prop:
+                    title: F Prop
+                    type: string
+                f_prop2:
+                    $ref: '#/components/schemas/APyd'
+            required:
+            - f_prop
+            - f_prop2
+        AnyOfResponseTestClassPyd:
+            title: AnyOfResponseTestClassPyd
+            type: object
             properties:
                 data:
                     title: Data
@@ -3562,12 +3707,29 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
                     -   $ref: '#/components/schemas/DPyd'
                     -   $ref: '#/components/schemas/EPyd'
                     -   $ref: '#/components/schemas/FPyd'
-        """,
-        """
-        AnyOfTestClassPyd:
-            type: object
             required:
-            - sub_prop
+            - data
+        BPyd:
+            title: BPyd
+            type: object
+            properties:
+                b_prop:
+                    title: B Prop
+                    type: string
+            required:
+            - b_prop
+        CPyd:
+            title: CPyd
+            type: object
+            properties:
+                c_prop:
+                    title: C Prop
+                    type: string
+            required:
+            - c_prop
+        AnyOfTestClassPyd:
+            title: AnyOfTestClassPyd
+            type: object
             properties:
                 sub_prop:
                     title: Sub Prop
@@ -3575,8 +3737,10 @@ async def test_any_of_pydantic_models(docs: OpenAPIHandler, serializer: Serializ
                     -   $ref: '#/components/schemas/APyd'
                     -   $ref: '#/components/schemas/BPyd'
                     -   $ref: '#/components/schemas/CPyd'
-        """,
-    ]
+            required:
+            - sub_prop
+            """,
+        ]
 
     for fragment in expected_fragments:
         assert fragment.strip() in yaml

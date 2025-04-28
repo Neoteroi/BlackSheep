@@ -1,7 +1,7 @@
 import html
 import os
 from pathlib import Path
-from typing import Awaitable, Callable, Dict, Iterable, Optional, Sequence, Set, Union
+from typing import Awaitable, Callable, Iterable, Optional, Sequence, Set, Union
 from urllib.parse import unquote
 
 from blacksheep import HTMLContent, Request, Response
@@ -11,6 +11,7 @@ from blacksheep.exceptions import NotFound
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.files import (
     DefaultFileOptions,
+    FilePathInfo,
     get_default_extensions,
     get_response_for_file,
     validate_source_path,
@@ -22,7 +23,7 @@ from blacksheep.utils import join_fragments
 
 def get_files_to_serve(
     source_folder: Path, extensions: Set[str], root_folder: Optional[Path] = None
-) -> Iterable[Dict[str, Union[str, bool]]]:
+) -> Iterable[FilePathInfo]:
     assert source_folder.exists(), "The source folder path must exist"
     assert source_folder.is_dir(), "The source folder path must be a directory"
 
@@ -72,7 +73,7 @@ def get_files_to_serve(
 def get_files_list_html_response(
     template: str,
     parent_folder_path: str,
-    contents: Sequence[Dict[str, str]],
+    contents: Sequence[FilePathInfo],
     root_path: str,
 ) -> Response:
     info_lines = []
@@ -258,6 +259,12 @@ def serve_files_dynamic(
 
     if not extensions:
         extensions = get_default_extensions()
+
+    if router.prefix:
+        if not root_path:
+            root_path = router.prefix
+        else:
+            root_path = join_fragments(router.prefix, root_path)
 
     handler = get_files_route_handler(
         files_handler,

@@ -58,7 +58,7 @@ test:
 
 
 itest:
-	pytest itests/
+	APP_DEFAULT_ROUTER=false pytest itests/
 
 
 init:

@@ -2,7 +2,14 @@ import os
 from functools import lru_cache
 from typing import Optional
 
-from jinja2 import Environment, PackageLoader, Template, nodes, select_autoescape
+from jinja2 import (
+    BaseLoader,
+    Environment,
+    PackageLoader,
+    Template,
+    nodes,
+    select_autoescape,
+)
 from jinja2.ext import Extension
 from jinja2.utils import pass_context
 
@@ -84,7 +91,7 @@ class AntiForgeryValueExtension(AntiForgeryBaseExtension):
 class JinjaRenderer(Renderer):
     def __init__(
         self,
-        loader: Optional[PackageLoader] = None,
+        loader: Optional[BaseLoader] = None,
         debug: bool = False,
         enable_async: bool = False,
     ) -> None:

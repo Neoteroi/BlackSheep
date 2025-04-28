@@ -126,3 +126,5 @@ example.html
 example.jpg
 nice-cat.jpg
 venv*
+
+.local/*

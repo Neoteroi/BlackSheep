@@ -210,7 +210,7 @@ def test_exception_handling_without_details(session_2):
     response = session_2.get("/crash")
 
     assert response.status_code == 500
-    assert response.text == "Internal server error."
+    assert response.text == "Internal Server Error"
 
 
 def test_exception_handling_with_response(session_2):

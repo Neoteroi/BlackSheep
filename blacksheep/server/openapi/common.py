@@ -26,7 +26,7 @@ from typing import (
 )
 
 from essentials.json import dumps
-from openapidocs.common import Format, OpenAPIRoot, Serializer
+from openapidocs.common import Format, OpenAPIElement, OpenAPIRoot, Serializer
 
 from blacksheep.messages import Request
 from blacksheep.server.application import Application, ApplicationSyncEvent
@@ -39,6 +39,24 @@ from blacksheep.utils.time import utcnow
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
 
 T = TypeVar("T")
+
+
+class DirectSchema(OpenAPIElement):
+    """
+    This class is used to support ready-to-use schemas defined using dictionaries
+    compatible with OpenAPI Specification.
+    """
+
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __eq__(self, other):
+        if not isinstance(other, DirectSchema):
+            return False
+        return self._obj == other._obj
+
+    def to_obj(self):
+        return self._obj
 
 
 class ParameterSource(Enum):
@@ -169,6 +187,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         yaml_spec_path: str = "openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
+        serializer: Optional[Serializer] = None,
     ) -> None:
         self._handlers_docs: Dict[Any, EndpointDocs] = {}
         self.use_docstrings: bool = True
@@ -183,6 +202,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._types_schemas = {}
         self.events = OpenAPIEvents(self)
         self.handle_optional_response_with_404 = True
+        self._serializer = serializer
 
     def __call__(
         self,
@@ -239,7 +259,10 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         to obtain a schema for the decorated type, it uses the explicity schema rather
         than an auto-generated schema.
         """
-        self._types_schemas[object_type] = schema
+        if isinstance(schema, dict):
+            self._types_schemas[object_type] = DirectSchema(schema)
+        else:
+            self._types_schemas[object_type] = schema
 
     def get_handler_docs(self, obj: Any) -> Optional[EndpointDocs]:
         return self._handlers_docs.get(obj)
@@ -414,7 +437,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     async def build_docs(self, app: Application) -> None:
         docs = self.generate_documentation(app)
         self.on_docs_generated(docs)
-        serializer = Serializer()
+        serializer = self._serializer or Serializer()
 
         ui_options = UIOptions(
             spec_url=self.get_spec_path(), page_title=self.get_ui_page_title()

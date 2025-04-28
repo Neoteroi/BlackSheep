@@ -60,8 +60,9 @@ cdef class RangeNotSatisfiable(HTTPException):
 
 cdef class InternalServerError(HTTPException):
 
-    def __init__(self):
+    def __init__(self, Exception source_error = None):
         super().__init__(500, "Internal server error")
+        self.source_error = source_error
 
 
 cdef class NotImplementedByServer(HTTPException):

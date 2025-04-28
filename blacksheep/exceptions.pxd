@@ -21,6 +21,10 @@ cdef class NotFound(HTTPException):
     pass
 
 
+cdef class InternalServerError(HTTPException):
+    cdef readonly object source_error
+
+
 cdef class InvalidArgument(Exception):
     pass
 

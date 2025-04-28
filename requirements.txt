@@ -10,7 +10,7 @@ coverage==7.6.1
 cryptography==44.0.1
 Cython==3.0.12
 essentials==1.1.5
-essentials-openapi==1.0.9
+essentials-openapi>=1.2.0
 Flask==3.0.3
 gevent==24.11.1
 greenlet==3.1.1
@@ -25,14 +25,14 @@ idna==3.10
 iniconfig==2.0.0
 itsdangerous==2.2.0
 Jinja2==3.1.6
-MarkupSafe==2.1.5
+MarkupSafe
 mccabe==0.7.0
 packaging==24.2
 pluggy==1.5.0
 priority==2.0.0
 pycparser==2.22
-pydantic==2.10.3
-pydantic-core==2.27.1
+pydantic==2.11.3
+pydantic_core==2.33.1
 PyJWT==2.9.0
 pyparsing==3.1.4
 pytest==8.3.4

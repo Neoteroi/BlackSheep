@@ -9,7 +9,7 @@ authors = [{ name = "Roberto Prevato", email = "roberto.prevato@gmail.com" }]
 description = "Fast web framework for Python asyncio"
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3.9",
@@ -29,7 +29,7 @@ dependencies = [
     "guardpost>=1.0.2",
     "rodi~=2.0.2",
     "essentials>=1.1.4,<2.0",
-    "essentials-openapi>=1.1.0,<2.0",
+    "essentials-openapi>=1.2.0,<2.0",
     "python-dateutil~=2.9.0",
     "itsdangerous~=2.2.0",
 ]
@@ -43,7 +43,12 @@ version = { attr = "blacksheep.__version__" }
 
 [project.optional-dependencies]
 jinja = ["Jinja2~=3.1.6"]
-full = ["cryptography>=44.0.1,<45.0.0", "PyJWT~=2.9.0", "websockets~=13.1"]
+full = [
+    "cryptography>=44.0.1,<45.0.0",
+    "PyJWT~=2.9.0",
+    "websockets~=13.1",
+    "Jinja2~=3.1.6",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/Neoteroi/BlackSheep"

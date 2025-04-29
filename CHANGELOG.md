@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix [#365](https://github.com/Neoteroi/BlackSheep/issues/365), adding support for
   Pydantic's `@validate_arguments` and other wrappers applied to functions before they
-  are decorated as request handlers.
+  are decorated as request handlers. Contribution by @aldem, who provided the resolution
+  in the issue.
 
 ## [2.2.0] - 2025-04-28 🎉
 

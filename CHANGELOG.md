@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2025-??-??
+
+- Fix [#365](https://github.com/Neoteroi/BlackSheep/issues/365), adding support for
+  Pydantic's `@validate_call` and `@validate_arguments` and other wrappers applied to
+  functions before they are configured as request handlers.
+  Contribution by @aldem, who reported the issue and provided the solution.
+- To better support `@validate_call`, automatically configures a default
+  exception handler for `pydantic.ValidationError` when Pydantic is installed.
+
 ## [2.2.0] - 2025-04-28 🎉
 
 - Fix [#533](https://github.com/Neoteroi/BlackSheep/issues/533). **A feature

@@ -662,7 +662,11 @@ def _get_async_wrapper_for_output(
 ) -> Callable[[Request], Awaitable[Response]]:
     @wraps(method)
     async def handler(request: Request) -> Response:
-        return ensure_response(await method(request))
+        response = await method(request)
+        # Handle consequences of an async decorator
+        if inspect.isawaitable(response):
+            response = await response
+        return ensure_response(response)
 
     return handler
 
@@ -687,6 +691,10 @@ def get_streaming_response_class(object_type):
         return _STREAMING_TYPES[object_type]
     except KeyError:
         return None
+
+
+def _is_wrapped_function(func):
+    return hasattr(func, "__wrapped__")
 
 
 def normalize_handler(
@@ -747,6 +755,9 @@ def normalize_handler(
             # this scenario enables a more accurate automatic generation of
             # OpenAPI Documentation, for responses
             setattr(route.handler, "return_type", return_type)
+        normalized = _get_async_wrapper_for_output(normalized)
+
+    if _is_wrapped_function(normalized):
         normalized = _get_async_wrapper_for_output(normalized)
 
     if normalized is not method:

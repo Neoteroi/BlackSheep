@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from functools import wraps
-from typing import Optional
+from typing import Annotated, Optional
 
 import pytest
 from guardpost import AuthenticationHandler, User
+from pydantic import Field
 from rodi import inject
 
 from blacksheep import Request, Response
@@ -22,6 +23,13 @@ from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils import ensure_str
 from tests.test_files_serving import get_file_path
+
+try:
+    # v2
+    from pydantic import validate_call
+except ImportError:
+    # v1
+    from pydantic import validate_arguments as validate_call
 
 
 # NB: the following is an example of generic decorator (defined using *args and **kwargs)
@@ -973,3 +981,43 @@ async def test_controller_filters(app):
     assert app.response.status == 200
     data = await app.response.text()
     assert data == "Hello World"
+
+
+async def test_controller_pydantic_validate_call_scenario(app):
+    from pydantic import VERSION as PYDANTIC_LIB_VERSION
+
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Home(Controller):
+        @get("/test1")
+        @validate_call
+        async def test1(self, i: Annotated[int, Field(ge=1, le=10)] = 1) -> str:
+            return f"i={i}"
+
+        @get("/test2")
+        @validate_call
+        async def test2(self, i: Annotated[int, Field(ge=1, le=10)] = 1) -> Response:
+            return self.text(f"i={i}")
+
+    await app.start()
+
+    expectations = [
+        ("", 200, "i=1"),
+        ("i=5", 200, "i=5"),
+        ("i=-3", 400, "Input should be greater than or equal to 1"),
+        ("i=20", 400, "Input should be less than or equal to 10"),
+    ]
+
+    for endpoint in ["/test1", "/test2"]:
+        for query, status, response_text in expectations:
+            await app(
+                get_example_scope("GET", endpoint, query=query),
+                MockReceive(),
+                MockSend(),
+            )
+            response = app.response
+            assert response is not None
+            assert response.status == status
+            if int(PYDANTIC_LIB_VERSION[0]) > 1:
+                assert response_text in (await response.text())

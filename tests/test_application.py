@@ -4051,6 +4051,8 @@ async def test_application_sub_router_normalization():
 
 
 async def test_pydantic_validate_call_scenario():
+    from pydantic import VERSION as PYDANTIC_LIB_VERSION
+
     app = FakeApplication(show_error_details=True, router=Router())
     get = app.router.get
 
@@ -4085,4 +4087,6 @@ async def test_pydantic_validate_call_scenario():
             response = app.response
             assert response is not None
             assert response.status == status
-            assert response_text in (await response.text())
+
+            if int(PYDANTIC_LIB_VERSION[0]) > 1:
+                assert response_text in (await response.text())

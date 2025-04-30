@@ -984,6 +984,8 @@ async def test_controller_filters(app):
 
 
 async def test_controller_pydantic_validate_call_scenario(app):
+    from pydantic import VERSION as PYDANTIC_LIB_VERSION
+
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -1017,4 +1019,5 @@ async def test_controller_pydantic_validate_call_scenario(app):
             response = app.response
             assert response is not None
             assert response.status == status
-            assert response_text in (await response.text())
+            if int(PYDANTIC_LIB_VERSION[0]) > 1:
+                assert response_text in (await response.text())

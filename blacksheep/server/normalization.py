@@ -663,8 +663,7 @@ def _get_async_wrapper_for_output(
     @wraps(method)
     async def handler(request: Request) -> Response:
         response = await method(request)
-        # Handle consequences of @validate_arguments decorator
-        # applied to async code
+        # Handle consequences of an async decorator
         if inspect.isawaitable(response):
             response = await response
         return ensure_response(response)

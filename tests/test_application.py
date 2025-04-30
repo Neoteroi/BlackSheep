@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 import pytest
 from guardpost import AuthenticationHandler, Identity, User
 from openapidocs.v3 import Info
-from pydantic import BaseModel, Field, ValidationError, validate_call
+from pydantic import BaseModel, Field, ValidationError
 from rodi import Container, inject
 
 from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
@@ -44,6 +44,13 @@ from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 from tests.utils.folder import ensure_folder
+
+try:
+    # v2
+    from pydantic import validate_call
+except ImportError:
+    # v1
+    from pydantic import validate_arguments as validate_call
 
 
 class Item:
@@ -4043,14 +4050,14 @@ async def test_application_sub_router_normalization():
     assert response.status == 200
 
 
-async def test_pydantic_validate_args_scenario():
+async def test_pydantic_validate_call_scenario():
     app = FakeApplication(show_error_details=True, router=Router())
     get = app.router.get
 
     @get("/test1")
     @validate_call
     async def something(i: Annotated[int, Field(ge=1, le=10)] = 1):
-        return text(f"i={i}")
+        return f"i={i}"
 
     @get("/test2")
     @validate_call
@@ -4064,6 +4071,7 @@ async def test_pydantic_validate_args_scenario():
     expectations = [
         ("", 200, "i=1"),
         ("i=5", 200, "i=5"),
+        ("i=-3", 400, "Input should be greater than or equal to 1"),
         ("i=20", 400, "Input should be less than or equal to 10"),
     ]
 

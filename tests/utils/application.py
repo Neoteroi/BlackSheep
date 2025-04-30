@@ -8,7 +8,7 @@ class FakeApplication(Application):
     """Application class used for testing."""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(show_error_details=False, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.request: Optional[Request] = None
         self.response: Optional[Response] = None
 

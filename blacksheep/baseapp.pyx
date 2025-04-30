@@ -4,7 +4,14 @@ import logging
 from .contents cimport Content, TextContent
 from .exceptions cimport BadRequest, HTTPException, InternalServerError, NotFound
 from .messages cimport Request, Response
+
 from .utils import get_class_instance_hierarchy
+
+# Better support for Pydantic
+try:
+    from pydantic import ValidationError
+except ImportError:
+    ValidationError = None
 
 
 async def handle_not_found(app, Request request, HTTPException http_exception):
@@ -21,9 +28,13 @@ async def handle_internal_server_error(app, Request request, Exception exception
 async def handle_bad_request(app, Request request, HTTPException http_exception):
     # supports for pydantic ValidationError with json() method
     if http_exception.__context__ is not None and callable(getattr(http_exception.__context__, "json", None)):
-        return Response(http_exception.status, content=Content(b"application/json", http_exception.__context__.json().encode()))
+        return Response(http_exception.status, content=Content(b"application/json", http_exception.__context__.json().encode("utf8")))
 
     return Response(400, content=TextContent(f'Bad Request: {str(http_exception)}'))
+
+
+async def _default_pydantic_validation_error_handler(app, Request request, Exception error):
+    return Response(400, content=Content(b"application/json", error.json(indent=4).encode("utf-8")))
 
 
 async def common_http_exception_handler(app, Request request, HTTPException http_exception):
@@ -45,10 +56,13 @@ cdef class BaseApplication:
         self.logger = get_logger()
 
     def init_exceptions_handlers(self):
-        return {
+        default_handlers = {
             404: handle_not_found,
             400: handle_bad_request
         }
+        if ValidationError is not None:
+            default_handlers[ValidationError] = _default_pydantic_validation_error_handler
+        return default_handlers
 
     async def log_unhandled_exc(self, request, exc):
         self.logger.error(

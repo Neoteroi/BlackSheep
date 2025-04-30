@@ -695,7 +695,7 @@ def get_streaming_response_class(object_type):
 
 
 def _is_wrapped_function(func):
-    return hasattr(func, '__wrapped__')
+    return hasattr(func, "__wrapped__")
 
 
 def normalize_handler(

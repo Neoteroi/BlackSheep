@@ -134,3 +134,18 @@ class ServerSentEvent:
         self.id = id
         self.retry = retry
         self.comment = comment
+
+    def write_data(self) -> str: ...
+
+class TextServerSentEvent(ServerSentEvent):
+    def __init__(
+        self,
+        data: str,
+        event: Optional[str] = None,
+        id: Optional[str] = None,
+        retry: int = -1,
+        comment: Optional[str] = None,
+    ):
+        super().__init__(data, event, id, retry, comment)
+
+    def write_data(self) -> str: ...

@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.settings.json import json_settings
 
+
 from .exceptions cimport MessageAborted
 
 
@@ -278,7 +279,7 @@ cdef class ServerSentEvent:
     in a asynchronous generator.
 
     Attributes:
-        data: An object that will be transmitted to the client, in JSON.
+        data: An object that will be transmitted to the client, in JSON format.
         event: Optional event name.
         id: Optional event ID to set the EventSource's last event ID value.
         retry: The reconnection time. If the connection to the server is lost,
@@ -304,5 +305,37 @@ cdef class ServerSentEvent:
         self.retry = retry
         self.comment = comment
 
+    cpdef str write_data(self):
+        return json_settings.dumps(self.data)
+
     def __repr__(self):
         return f"ServerSentEvent({self.data})"
+
+
+cdef class TextServerSentEvent(ServerSentEvent):
+    """
+    Represents a single event of a Server-sent event communication, to be used
+    in a asynchronous generator.
+
+    Attributes:
+        data: A string that will be transmitted to the client as is.
+        event: Optional event name.
+        id: Optional event ID to set the EventSource's last event ID value.
+        retry: The reconnection time. If the connection to the server is lost,
+               the browser will wait for the specified time before attempting
+               to reconnect.
+        comment: Optional comment.
+    """
+
+    def __init__(
+        self,
+        str data,
+        str event = None,
+        str id = None,
+        int retry = -1,
+        str comment = None,
+    ):
+        super().__init__(data, event, id, retry, comment)
+
+    cpdef str write_data(self):
+        return self.data

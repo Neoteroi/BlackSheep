@@ -6,8 +6,6 @@ from .cookies cimport Cookie, write_cookie_for_response
 from .messages cimport Request, Response
 from .url cimport URL
 
-from blacksheep.settings.json import json_settings
-
 
 cdef int MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 
@@ -378,8 +376,7 @@ cpdef bytes write_sse(ServerSentEvent event):
         value.extend(b"event: " + _NEW_LINES_RX.sub("", event.event).encode("utf8") + b"\r\n")
 
     if event.data:
-        json_data = json_settings.dumps(event.data)
-        value.extend(b"data: " + json_data.encode("utf8") + b"\r\n")
+        value.extend(b"data: " + event.write_data().encode("utf8") + b"\r\n")
 
     if event.retry > -1:
         value.extend(b"retry: " + str(event.retry).encode() + b"\r\n")

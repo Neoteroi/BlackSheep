@@ -4,12 +4,13 @@ This module offer built-in functions for Server Sent Events.
 
 from typing import AsyncIterable, Callable, List, Optional, Tuple
 
-from blacksheep.contents import ServerSentEvent, StreamedContent
+from blacksheep.contents import ServerSentEvent, StreamedContent, TextServerSentEvent
 from blacksheep.messages import Response
 from blacksheep.scribe import write_sse
 
 __all__ = [
     "ServerSentEvent",
+    "TextServerSentEvent",
     "ServerSentEventsContent",
     "ServerSentEventsResponse",
     "EventsProvider",

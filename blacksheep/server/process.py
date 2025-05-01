@@ -4,6 +4,7 @@ Provides functions related to the server process.
 
 import os
 import signal
+import warnings
 from typing import TYPE_CHECKING
 
 from blacksheep.utils import truthy
@@ -20,9 +21,12 @@ def is_stopping() -> bool:
     signal, and therefore the application is stopping.
     """
     if not truthy(os.environ.get("APP_SIGNAL_HANDLER", "")):
-        raise RuntimeError(
+        warnings.warn(
             "This function can only be used if the env variable `APP_SIGNAL_HANDLER=1`"
+            " is set.",
+            UserWarning,
         )
+        return False  # Return a default value since the function cannot proceed
     return _STOPPING
 
 

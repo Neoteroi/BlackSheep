@@ -50,6 +50,11 @@ cdef class ServerSentEvent:
     cdef readonly str id
     cdef readonly int retry
     cdef readonly str comment
+    cpdef str write_data(self)
+
+
+cdef class TextServerSentEvent(ServerSentEvent):
+    pass
 
 
 cdef class MultiPartFormData(Content):

@@ -687,10 +687,12 @@ def get_streaming_response_class(object_type):
     Returns the kind of Response class used to handle objects of the given type, or None
     if None is configured.
     """
-    try:
-        return _STREAMING_TYPES[object_type]
-    except KeyError:
-        return None
+    for _class in object_type.__mro__:
+        try:
+            return _STREAMING_TYPES[_class]
+        except KeyError:
+            pass
+    return None
 
 
 def _is_wrapped_function(func):

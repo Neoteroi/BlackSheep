@@ -1,8 +1,10 @@
+import asyncio
 import json
 import os
 import re
 import sys
 from base64 import urlsafe_b64decode, urlsafe_b64encode
+from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import wraps
@@ -16,7 +18,13 @@ from pydantic import VERSION as PYDANTIC_LIB_VERSION
 from pydantic import BaseModel, Field, ValidationError
 from rodi import Container, inject
 
-from blacksheep import HTTPException, JSONContent, Request, Response, TextContent
+from blacksheep import (
+    HTTPException,
+    JSONContent,
+    Request,
+    Response,
+    TextContent,
+)
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import InternalServerError
 from blacksheep.server.application import Application, ApplicationSyncEvent
@@ -42,6 +50,7 @@ from blacksheep.server.resources import get_resource_file_path
 from blacksheep.server.responses import status_code, text
 from blacksheep.server.routing import Router, SharedRouterError
 from blacksheep.server.security.hsts import HSTSMiddleware
+from blacksheep.server.sse import ServerSentEvent, TextServerSentEvent
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
@@ -4137,3 +4146,77 @@ async def test_refs_characters_handling():
         ), "$ref values must match /^[a-zA-Z0-9-_.]+$/"
         assert f'"$ref": "#/components/schemas/{key}"' in json_docs
         assert f"$ref: '#/components/schemas/{key}'" in yaml_docs
+
+
+async def test_application_sse():
+    app = FakeApplication(show_error_details=True, router=Router())
+    get = app.router.get
+
+    @get("/events")
+    async def events_handler() -> AsyncIterable[ServerSentEvent]:
+        for i in range(3):
+            yield ServerSentEvent({"message": f"Hello World {i}"})
+            await asyncio.sleep(0.05)
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/events", [])
+    mock_send = MockSend()
+
+    await app(scope, MockReceive(), mock_send)
+
+    # Assert response status
+    response = app.response
+    assert response is not None
+    assert response.status == 200
+
+    # Assert Content-Type header
+    assert response.headers.get_first(b"content-type") == b"text/event-stream"
+
+    # Assert streamed events
+    streamed_data = b"".join(
+        [msg["body"] for msg in mock_send.messages if "body" in msg]
+    )
+    expected_events = (
+        'data: {"message":"Hello World 0"}\r\n\r\n'
+        'data: {"message":"Hello World 1"}\r\n\r\n'
+        'data: {"message":"Hello World 2"}\r\n\r\n'
+    )
+    assert streamed_data.decode("utf-8") == expected_events
+
+
+async def test_application_sse_plain_text():
+    app = FakeApplication(show_error_details=True, router=Router())
+    get = app.router.get
+
+    @get("/events")
+    async def events_handler() -> AsyncIterable[ServerSentEvent]:
+        for i in range(3):
+            yield TextServerSentEvent(f"Hello World {i}")
+            await asyncio.sleep(0.05)
+
+    await app.start()
+
+    scope = get_example_scope("GET", "/events", [])
+    mock_send = MockSend()
+
+    await app(scope, MockReceive(), mock_send)
+
+    # Assert response status
+    response = app.response
+    assert response is not None
+    assert response.status == 200
+
+    # Assert Content-Type header
+    assert response.headers.get_first(b"content-type") == b"text/event-stream"
+
+    # Assert streamed events
+    streamed_data = b"".join(
+        [msg["body"] for msg in mock_send.messages if "body" in msg]
+    )
+    expected_events = (
+        "data: Hello World 0\r\n\r\n"
+        "data: Hello World 1\r\n\r\n"
+        "data: Hello World 2\r\n\r\n"
+    )
+    assert streamed_data.decode("utf-8") == expected_events

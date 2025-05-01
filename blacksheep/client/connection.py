@@ -59,17 +59,23 @@ class IncomingContent(Content):
         self._chunk.set()
 
     async def stream(self):
-        while True:
+        completed = False
+        while not completed:
             await self._chunk.wait()
             self._chunk.clear()
 
             if not self._body:
                 break
 
-            yield bytes(self._body)
+            buf = bytes(self._body)  # create a copy of the buffer
             self._body.clear()
+            completed = (
+                self.complete.is_set()
+            )  # we must check for EOD before yielding, or it will race
 
-            if self.complete.is_set():
+            yield bytes(buf)  # use the copy
+
+            if completed:
                 break
 
             if self._exc:

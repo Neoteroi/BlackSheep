@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.1] - 2025-??-??
 
+- Fix [#498](https://github.com/Neoteroi/BlackSheep/issues/498): Buffer reuse
+  and race condition in `client.IncomingContent.stream()`, by @ohait.
 - Fix [#365](https://github.com/Neoteroi/BlackSheep/issues/365), adding support for
   Pydantic's `@validate_call` and `@validate_arguments` and other wrappers applied to
   functions before they are configured as request handlers.
   Contribution by @aldem, who reported the issue and provided the solution.
-- To better support `@validate_call`, automatically configures a default
+- To better support `@validate_call`, configure automatically a default
   exception handler for `pydantic.ValidationError` when Pydantic is installed.
 - Fix [#550](https://github.com/Neoteroi/BlackSheep/issues/550). Ensure that
   all generated `$ref` values contain only [allowed characters](https://swagger.io/docs/specification/v3_0/using-ref/).

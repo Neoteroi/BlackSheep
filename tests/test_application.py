@@ -1,16 +1,18 @@
 import json
 import os
+import re
 import sys
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import wraps
-from typing import Annotated, Any, Dict, List, Optional, TypeVar
+from typing import Annotated, Any, Dict, Generic, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pytest
 from guardpost import AuthenticationHandler, Identity, User
 from openapidocs.v3 import Info
+from pydantic import VERSION as PYDANTIC_LIB_VERSION
 from pydantic import BaseModel, Field, ValidationError
 from rodi import Container, inject
 
@@ -4051,8 +4053,6 @@ async def test_application_sub_router_normalization():
 
 
 async def test_pydantic_validate_call_scenario():
-    from pydantic import VERSION as PYDANTIC_LIB_VERSION
-
     app = FakeApplication(show_error_details=True, router=Router())
     get = app.router.get
 
@@ -4090,3 +4090,50 @@ async def test_pydantic_validate_call_scenario():
 
             if int(PYDANTIC_LIB_VERSION[0]) > 1:
                 assert response_text in (await response.text())
+
+
+@pytest.mark.skipif(
+    int(PYDANTIC_LIB_VERSION[0]) < 2, reason="Run this test only with Pydantic v2"
+)
+async def test_refs_characters_handling():
+    app = FakeApplication(show_error_details=True, router=Router())
+    get = app.router.get
+
+    # TODO: when support for Python < 3.12 is dropped,
+    # the following can be rewritten without TypeVar, like:
+    #
+    # class Response[DataT](BaseModel):
+    #
+
+    DataT = TypeVar("DataT")
+
+    class Response(BaseModel, Generic[DataT]):
+        data: DataT
+
+    class Cat(BaseModel):
+        id: int
+        name: str
+        creation_time: datetime
+
+    docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
+    docs.bind_app(app)
+
+    @get("/cat")
+    def generic_example() -> Response[Cat]: ...
+
+    @get("/cats")
+    def generic_list_example() -> list[Response[Cat]]: ...
+
+    await app.start()
+
+    json_docs = docs._json_docs.decode("utf8")
+    yaml_docs = docs._yaml_docs.decode("utf8")
+    spec = json.loads(json_docs)
+
+    # "$ref": "#/components/schemas/Cat"
+    for key in spec["components"]["schemas"].keys():
+        assert re.match(
+            "^[a-zA-Z0-9-_.]+$", key
+        ), "$ref values must match /^[a-zA-Z0-9-_.]+$/"
+        assert f'"$ref": "#/components/schemas/{key}"' in json_docs
+        assert f"$ref: '#/components/schemas/{key}'" in yaml_docs

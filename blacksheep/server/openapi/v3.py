@@ -369,7 +369,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             yaml_spec_path=yaml_spec_path,
             preferred_format=preferred_format,
             anonymous_access=anonymous_access,
-            serializer=serializer or Serializer(),
+            serializer=serializer,
         )
         self.info = info
         self._tags = tags

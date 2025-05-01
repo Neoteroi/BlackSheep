@@ -8,6 +8,7 @@ potentially in the future v4, if it will be so different from v3.
 """
 
 import json
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -172,6 +173,81 @@ class OpenAPIEvents:
         self.on_operation_created = OpenAPIEvent(context)
         self.on_docs_created = OpenAPIEvent(context)
         self.on_paths_created = OpenAPIEvent(context)
+
+
+class DefaultSerializer(Serializer):
+    """
+    Default OAD serializer used by BlackSheep.
+    BlackSheep generates OpenAPI Specification files containing
+    reusable schemas for handled types and references to them.
+    It only supports local references (references to schemas
+    defined in the same specification document).
+    This serializer ensures that $refs contain only allowed characters.
+    """
+
+    def to_obj(self, item: Any) -> Any:
+        data = super().to_obj(item)
+        self.sanitize_refs(data)
+        self.sanitize_components_names(data)
+        return data
+
+    def sanitize_name(self, value: str) -> str:
+        """
+        Returns a sanitized name for a schema, replacing
+        characters that are not allowed for $ref.
+
+        https://swagger.io/docs/specification/v3_0/using-ref/
+        """
+        if "[" in value:
+            value = self.get_type_name_for_generic(value)
+        beginning, sep, name = value.rpartition("/")
+        name = name.replace("~", "~0").replace("/", "~1")
+        name = re.sub("[^a-zA-Z0-9-_]", "_", name)
+        return beginning + sep + name
+
+    def sanitize_components_names(self, data):
+        try:
+            schemas = data["components"]["schemas"]
+        except KeyError:
+            pass
+        else:
+            to_correct: list[str] = [
+                key for key in schemas.keys() if not re.match("^[a-zA-Z0-9-_.]+$", key)
+            ]
+            for key in to_correct:
+                schemas[self.sanitize_name(key)] = schemas[key]
+                del schemas[key]
+
+    def sanitize_refs(self, data):
+        for key, value in data.items():
+            if isinstance(value, dict):
+                self.sanitize_refs(value)
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, dict):
+                        self.sanitize_refs(item)
+            elif isinstance(key, str) and key == "$ref":
+                assert isinstance(value, str)
+                to_replace = None
+                if not re.match("^[a-zA-Z0-9-_.]+$", value):
+                    to_replace = self.sanitize_name(value)
+                if to_replace:
+                    data["$ref"] = to_replace
+
+    def get_type_name_for_generic(self, name: str) -> str:
+        """
+        This method returns a type name for a generic type.
+        The following is more for backward compatibility in BlackSheep.
+        """
+        # Note: by default returns a string respectful of this requirement:
+        # $ref values must be RFC3986-compliant percent-encoded URIs
+        # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
+        # and C# or TypeScript Example<Foo, Bar>
+        # Becomes here represented as: ExampleOfFooAndBar
+        if "[" not in name:
+            return name
+        name = name.replace("[", "Of").replace("]", "")
+        return re.sub(r",\s?", "And", name)
 
 
 class APIDocsHandler(Generic[OpenAPIRootType], ABC):
@@ -437,7 +513,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     async def build_docs(self, app: Application) -> None:
         docs = self.generate_documentation(app)
         self.on_docs_generated(docs)
-        serializer = self._serializer or Serializer()
+        serializer = self._serializer or DefaultSerializer()
 
         ui_options = UIOptions(
             spec_url=self.get_spec_path(), page_title=self.get_ui_page_title()

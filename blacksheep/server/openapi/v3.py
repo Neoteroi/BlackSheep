@@ -369,7 +369,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             yaml_spec_path=yaml_spec_path,
             preferred_format=preferred_format,
             anonymous_access=anonymous_access,
-            serializer=serializer or Serializer(),
+            serializer=serializer,
         )
         self.info = info
         self._tags = tags
@@ -447,36 +447,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         return own_paths
 
-    def get_type_name_for_generic(
-        self,
-        object_type: GenericAlias,
-        context_type_args: Optional[Dict[Any, Type]] = None,
-    ) -> str:
-        """
-        This method returns a type name for a generic type.
-        """
-        assert isinstance(object_type, GenericAlias), "This method requires a generic"
-        # Note: by default returns a string respectful of this requirement:
-        # $ref values must be RFC3986-compliant percent-encoded URIs
-        # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
-        # and C# or TypeScript Example<Foo, Bar>
-        # Becomes here represented as: ExampleOfFooAndBar
-        origin = get_origin(object_type)
-        args = object_type.__args__
-        args_repr = "And".join(
-            self.get_type_name(arg, context_type_args) for arg in args
-        )
-        return f"{self.get_type_name(origin)}Of{args_repr}"
-
     def get_type_name(
         self, object_type, context_type_args: Optional[Dict[Any, Type]] = None
     ) -> str:
         if context_type_args and object_type in context_type_args:
             object_type = context_type_args.get(object_type)
-        if isinstance(object_type, GenericAlias):
-            return self.get_type_name_for_generic(object_type, context_type_args)
         if hasattr(object_type, "__name__"):
-            return object_type.__name__
+            return object_type.__name__  # type: ignore
         if object_type is Union:
             # Python 3.9 and 3.8 would fall here, Union type has a "_name" property but
             # no "__name__"

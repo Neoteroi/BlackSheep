@@ -35,6 +35,7 @@ from blacksheep.server.bindings import FromForm
 from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
+    DefaultSerializer,
     EndpointDocs,
     OpenAPIEndpointException,
     ResponseInfo,
@@ -3744,3 +3745,17 @@ components:
 
     for fragment in expected_fragments:
         assert fragment.strip() in yaml
+
+
+@pytest.mark.parametrize(
+    "name,result",
+    [
+        ("Example[Cat]", "ExampleOfCat"),
+        ("Union[A, B, C]", "UnionOfAAndBAndC"),
+        ("List[Union[A, B, C]]", "ListOfUnionOfAAndBAndC"),
+        ("Dict[str, int]", "DictOfstrAndint"),
+    ],
+)
+def test_default_serializer_sanitize_name(name, result):
+    serializer = DefaultSerializer()
+    assert serializer.get_type_name_for_generic(name) == result

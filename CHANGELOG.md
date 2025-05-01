@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Contribution by @aldem, who reported the issue and provided the solution.
 - To better support `@validate_call`, automatically configures a default
   exception handler for `pydantic.ValidationError` when Pydantic is installed.
+- Fix [#550](https://github.com/Neoteroi/BlackSheep/issues/550). Ensure that
+  all generated `$ref` values contain only [allowed characters](https://swagger.io/docs/specification/v3_0/using-ref/).
 
 ## [2.2.0] - 2025-04-28 🎉
 

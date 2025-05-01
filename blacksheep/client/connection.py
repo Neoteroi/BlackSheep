@@ -75,6 +75,9 @@ class IncomingContent(Content):
 
             yield bytes(buf)  # use the copy
 
+            if completed:
+                break
+
             if self._exc:
                 raise self._exc
 

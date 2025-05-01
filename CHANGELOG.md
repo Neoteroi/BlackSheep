@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exception handler for `pydantic.ValidationError` when Pydantic is installed.
 - Fix [#550](https://github.com/Neoteroi/BlackSheep/issues/550). Ensure that
   all generated `$ref` values contain only [allowed characters](https://swagger.io/docs/specification/v3_0/using-ref/).
+- Modify the `is_stopping` function to emit a warning instead of raising a
+  `RuntimeError` if the env variable `APP_SIGNAL_HANDLER` is not set to a
+  truthy value.
 
 ## [2.2.0] - 2025-04-28 🎉
 

@@ -6,7 +6,7 @@ from base64 import urlsafe_b64decode, urlsafe_b64encode
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import wraps
-from typing import Annotated, Any, Dict, List, Optional, TypeVar
+from typing import Annotated, Any, Dict, Generic, List, Optional, TypeVar
 from uuid import UUID, uuid4
 
 import pytest
@@ -4099,7 +4099,15 @@ async def test_refs_characters_handling():
     app = FakeApplication(show_error_details=True, router=Router())
     get = app.router.get
 
-    class Response[DataT](BaseModel):
+    # TODO: when support for Python < 3.12 is dropped,
+    # the following can be rewritten without TypeVar, like:
+    #
+    # class Response[DataT](BaseModel):
+    #
+
+    DataT = TypeVar("DataT")
+
+    class Response(BaseModel, Generic[DataT]):
         data: DataT
 
     class Cat(BaseModel):

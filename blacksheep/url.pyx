@@ -10,8 +10,10 @@ from . cimport url_cparser as uparser
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from cpython.unicode cimport PyUnicode_FromStringAndSize
 from libc.string cimport memcpy
+
 cdef extern from "Python.h":
     const char* PyUnicode_AsUTF8AndSize(object, Py_ssize_t*)
+
 
 cdef inline bint is_valid_schema(const char* s, Py_ssize_t n):
     if n == 4:
@@ -21,6 +23,7 @@ cdef inline bint is_valid_schema(const char* s, Py_ssize_t n):
                 s[3]==112 and s[4]==115)
     return 0
 
+
 cdef inline void validate_schema(const char* s, Py_ssize_t n):
     cdef bytes msg
     cdef bint is_valid = is_valid_schema(s,n)
@@ -28,9 +31,11 @@ cdef inline void validate_schema(const char* s, Py_ssize_t n):
         msg = PyBytes_FromStringAndSize(s, n)
         raise InvalidURL(f"Expected 'http' or 'https'; got '{msg.decode()}'")
 
+
 cdef class InvalidURL(Exception):
     """Raised on invalid URL or wrong schema."""
     pass
+
 
 cdef class URL:
     # All cdef readonly attrs (value, schema, host, port,
@@ -168,186 +173,183 @@ cdef class URL:
             return self.value == other.value
         return NotImplemented
 
+
 cpdef URL build_absolute_url(
-            bytes scheme,
-            bytes host,
-            bytes base_path,
-            bytes path
-        ):
+    bytes scheme,
+    bytes host,
+    bytes base_path,
+    bytes path
+):
+    cdef const char *schemab
+    cdef const char *hostb
+    cdef const char *bp
+    cdef const char *pb
+    cdef Py_ssize_t sl, hl, bpl, pl
+    cdef Py_ssize_t off_bp_start, off_bp_end, len_base_clean
+    cdef Py_ssize_t off_p_start, off_p_end, len_path_clean
+    cdef bint has_base, has_path
+    cdef Py_ssize_t tot_length, pos
+    cdef char *buf
+    cdef bytes url_bytes
 
-            cdef const char *schemab
-            cdef const char *hostb 
-            cdef const char *bp
-            cdef const char *pb
-            cdef Py_ssize_t sl, hl, bpl, pl
-            cdef Py_ssize_t off_bp_start, off_bp_end, len_base_clean
-            cdef Py_ssize_t off_p_start, off_p_end, len_path_clean
-            cdef bint has_base, has_path
-            cdef Py_ssize_t tot_length, pos
-            cdef char *buf
-            cdef bytes url_bytes
+    # Obtain raw buffers & lengths
+    schemab = <char*>PyBytes_AS_STRING(scheme)
+    sl      = PyBytes_GET_SIZE(scheme)
+    hostb   = <char*>PyBytes_AS_STRING(host)
+    hl      = PyBytes_GET_SIZE(host)
+    bp      = <char*>PyBytes_AS_STRING(base_path)
+    bpl     = PyBytes_GET_SIZE(base_path)
+    pb      = <char*>PyBytes_AS_STRING(path)
+    pl      = PyBytes_GET_SIZE(path)
 
-            # Obtain raw buffers & lengths
-            schemab = <char*>PyBytes_AS_STRING(scheme)
-            sl      = PyBytes_GET_SIZE(scheme)
-            hostb   = <char*>PyBytes_AS_STRING(host)
-            hl      = PyBytes_GET_SIZE(host)
-            bp      = <char*>PyBytes_AS_STRING(base_path)
-            bpl     = PyBytes_GET_SIZE(base_path)
-            pb      = <char*>PyBytes_AS_STRING(path)
-            pl      = PyBytes_GET_SIZE(path)
+    # Validate scheme
+    validate_schema(schemab, sl)
 
-            # Validate scheme
-            validate_schema(schemab, sl)
+    # Clean base_path (strip leading/trailing '/')
+    if bpl == 0:
+        off_bp_start = off_bp_end = 0
+        has_base     = False
+    else:
+        off_bp_start = 0
+        while off_bp_start < bpl and bp[off_bp_start] == <char>47:
+            off_bp_start += 1
+        off_bp_end = bpl
+        while off_bp_end > off_bp_start and bp[off_bp_end-1] == <char>47:
+            off_bp_end -= 1
+        len_base_clean = off_bp_end - off_bp_start
+        has_base       = (len_base_clean > 0)
 
-            # Clean base_path (strip leading/trailing '/')
-            if bpl == 0:
-                off_bp_start = off_bp_end = 0
-                has_base     = False
-            else:
-                off_bp_start = 0
-                while off_bp_start < bpl and bp[off_bp_start] == <char>47:
-                    off_bp_start += 1
-                off_bp_end = bpl
-                while off_bp_end > off_bp_start and bp[off_bp_end-1] == <char>47:
-                    off_bp_end -= 1
-                len_base_clean = off_bp_end - off_bp_start
-                has_base       = (len_base_clean > 0)
+    # Clean path (strip leading/trailing '/')
+    if pl == 0:
+        off_p_start = off_p_end = 0
+        has_path    = False
+    else:
+        off_p_start = 0
+        while off_p_start < pl and pb[off_p_start] == <char>47:
+            off_p_start += 1
+        off_p_end = pl
+        while off_p_end > off_p_start and pb[off_p_end-1] == <char>47:
+            off_p_end -= 1
+        len_path_clean = off_p_end - off_p_start
+        has_path       = (len_path_clean > 0)
 
-            # Clean path (strip leading/trailing '/')
-            if pl == 0:
-                off_p_start = off_p_end = 0
-                has_path    = False
-            else:
-                off_p_start = 0
-                while off_p_start < pl and pb[off_p_start] == <char>47:
-                    off_p_start += 1
-                off_p_end = pl
-                while off_p_end > off_p_start and pb[off_p_end-1] == <char>47:
-                    off_p_end -= 1
-                len_path_clean = off_p_end - off_p_start
-                has_path       = (len_path_clean > 0)
+    # Calculate total length: scheme + "://" + host + ["/"+base] + ["/"+path]
+    tot_length = sl + 3 + hl
+    if has_base:
+        tot_length += 1 + len_base_clean
+    if has_path:
+        tot_length += 1 + len_path_clean
 
-            # Calculate total length: scheme + "://" + host + ["/"+base] + ["/"+path]
-            tot_length = sl + 3 + hl
-            if has_base:
-                tot_length += 1 + len_base_clean
-            if has_path:
-                tot_length += 1 + len_path_clean
+    # Allocate buffer
+    buf = <char*>PyMem_Malloc(tot_length)
+    pos = 0
 
-            # Allocate buffer
-            buf = <char*>PyMem_Malloc(tot_length)
-            pos = 0
+    # scheme
+    memcpy(buf + pos, schemab, sl)
+    pos += sl
+    buf[pos] = <char>58   # ':' == 58
+    pos += 1
+    buf[pos] = <char>47   # '/' == 47
+    pos += 1
+    buf[pos] = <char>47   # '/' == 47
+    pos += 1
 
-            # scheme
-            memcpy(buf + pos, schemab, sl)
-            pos += sl
-            buf[pos] = <char>58   # ':' == 58
-            pos += 1
-            buf[pos] = <char>47   # '/' == 47
-            pos += 1
-            buf[pos] = <char>47   # '/' == 47
-            pos += 1
+    # host
+    memcpy(buf + pos, hostb, hl)
+    pos += hl
 
-            # host
-            memcpy(buf + pos, hostb, hl)
-            pos += hl
+    # base_path
+    if has_base:
+        buf[pos] = <char>47
+        pos += 1
+        memcpy(buf + pos, bp + off_bp_start, len_base_clean)
+        pos += len_base_clean
 
-            # base_path
-            if has_base:
-                buf[pos] = <char>47
-                pos += 1
-                memcpy(buf + pos, bp + off_bp_start, len_base_clean)
-                pos += len_base_clean
+    # path
+    if has_path:
+        buf[pos] = <char>47
+        pos += 1
+        memcpy(buf + pos, pb + off_p_start, len_path_clean)
+        pos += len_path_clean
 
-            # path
-            if has_path:
-                buf[pos] = <char>47
-                pos += 1
-                memcpy(buf + pos, pb + off_p_start, len_path_clean)
-                pos += len_path_clean
-
-            # Form Python bytes and wrap in URL
-            url_bytes = PyBytes_FromStringAndSize(buf, tot_length)
-            PyMem_Free(buf)
-            return URL(url_bytes)
-
-
-
+    # Form Python bytes and wrap in URL
+    url_bytes = PyBytes_FromStringAndSize(buf, tot_length)
+    PyMem_Free(buf)
+    return URL(url_bytes)
 
 
 cpdef str join_prefix(str prefix, str path):
-        """
-        Cython-optimized join_prefix working on UTF-8 char* buffers.
-        No .strip(), no .endswith().
-        """
-        cdef const char *p_buf
-        cdef Py_ssize_t p_len
-        cdef const char *pa_buf
-        cdef Py_ssize_t pa_len
-        cdef Py_ssize_t p_end, pa_start, pa_end, pc_len, res_len
-        cdef bint trailing
-        cdef char *res_buf
-        cdef str result
+    """
+    Cython-optimized join_prefix working on UTF-8 char* buffers.
+    No .strip(), no .endswith().
+    """
+    cdef const char *p_buf
+    cdef Py_ssize_t p_len
+    cdef const char *pa_buf
+    cdef Py_ssize_t pa_len
+    cdef Py_ssize_t p_end, pa_start, pa_end, pc_len, res_len
+    cdef bint trailing
+    cdef char *res_buf
+    cdef str result
 
-        # Get raw UTF-8 pointers & lengths
-        p_buf  = PyUnicode_AsUTF8AndSize(prefix, &p_len)
-        pa_buf = PyUnicode_AsUTF8AndSize(path,   &pa_len)
+    # Get raw UTF-8 pointers & lengths
+    p_buf  = PyUnicode_AsUTF8AndSize(prefix, &p_len)
+    pa_buf = PyUnicode_AsUTF8AndSize(path,   &pa_len)
 
-        # Compute prefix_clean length (p_end)
-        if p_len == 1 and p_buf[0] == <char>47:  # '/'
-            p_end = 0
-        else:
-            p_end = p_len
-            while p_end > 0 and p_buf[p_end-1] == <char>47:
-                p_end -= 1
+    # Compute prefix_clean length (p_end)
+    if p_len == 1 and p_buf[0] == <char>47:  # '/'
+        p_end = 0
+    else:
+        p_end = p_len
+        while p_end > 0 and p_buf[p_end-1] == <char>47:
+            p_end -= 1
 
-        # Compute path_clean start/end and trailing flag
-        if pa_len == 1 and pa_buf[0] == <char>47:
-            pa_start = 0
-            pa_end   = 0
-            trailing = True
-        else:
-            trailing = (pa_len > 0 and pa_buf[pa_len-1] == <char>47)
-            pa_start = 0
-            while pa_start < pa_len and pa_buf[pa_start] == <char>47:
-                pa_start += 1
-            pa_end = pa_len
-            while pa_end > pa_start and pa_buf[pa_end-1] == <char>47:
-                pa_end -= 1
+    # Compute path_clean start/end and trailing flag
+    if pa_len == 1 and pa_buf[0] == <char>47:
+        pa_start = 0
+        pa_end   = 0
+        trailing = True
+    else:
+        trailing = (pa_len > 0 and pa_buf[pa_len-1] == <char>47)
+        pa_start = 0
+        while pa_start < pa_len and pa_buf[pa_start] == <char>47:
+            pa_start += 1
+        pa_end = pa_len
+        while pa_end > pa_start and pa_buf[pa_end-1] == <char>47:
+            pa_end -= 1
 
-        pc_len = pa_end - pa_start
+    pc_len = pa_end - pa_start
 
-        # Case 1: both empty → "/"
-        if p_end == 0 and pc_len == 0:
-            return "/"
+    # Case 1: both empty → "/"
+    if p_end == 0 and pc_len == 0:
+        return "/"
 
-        # Case 2: only path → "/" + path_clean (+ trailing "/")
-        if p_end == 0:
-            res_len = 1 + pc_len + (1 if trailing and pc_len > 0 else 0)
-            res_buf = <char*>PyMem_Malloc(res_len)
-            res_buf[0] = <char>47
-            if pc_len > 0:
-                memcpy(res_buf + 1, pa_buf + pa_start, pc_len)
-                if trailing:
-                    res_buf[1 + pc_len] = <char>47
-            result = PyUnicode_FromStringAndSize(res_buf, res_len)
-            PyMem_Free(res_buf)
-            return result
-
-        # Case 3: only prefix → prefix_clean
-        if pc_len == 0:
-            result = PyUnicode_FromStringAndSize(p_buf, p_end)
-            return result
-
-        # Case 4: both present → prefix_clean + "/" + path_clean (+ trailing "/")
-        res_len = p_end + 1 + pc_len + (1 if trailing else 0)
+    # Case 2: only path → "/" + path_clean (+ trailing "/")
+    if p_end == 0:
+        res_len = 1 + pc_len + (1 if trailing and pc_len > 0 else 0)
         res_buf = <char*>PyMem_Malloc(res_len)
-        memcpy(res_buf, p_buf, p_end)
-        res_buf[p_end] = <char>47
-        memcpy(res_buf + p_end + 1, pa_buf + pa_start, pc_len)
-        if trailing:
-            res_buf[p_end + 1 + pc_len] = <char>47
+        res_buf[0] = <char>47
+        if pc_len > 0:
+            memcpy(res_buf + 1, pa_buf + pa_start, pc_len)
+            if trailing:
+                res_buf[1 + pc_len] = <char>47
         result = PyUnicode_FromStringAndSize(res_buf, res_len)
         PyMem_Free(res_buf)
         return result
+
+    # Case 3: only prefix → prefix_clean
+    if pc_len == 0:
+        result = PyUnicode_FromStringAndSize(p_buf, p_end)
+        return result
+
+    # Case 4: both present → prefix_clean + "/" + path_clean (+ trailing "/")
+    res_len = p_end + 1 + pc_len + (1 if trailing else 0)
+    res_buf = <char*>PyMem_Malloc(res_len)
+    memcpy(res_buf, p_buf, p_end)
+    res_buf[p_end] = <char>47
+    memcpy(res_buf + p_end + 1, pa_buf + pa_start, pc_len)
+    if trailing:
+        res_buf[p_end + 1 + pc_len] = <char>47
+    result = PyUnicode_FromStringAndSize(res_buf, res_len)
+    PyMem_Free(res_buf)
+    return result

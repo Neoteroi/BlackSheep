@@ -1,3 +1,4 @@
+import gc
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -26,7 +27,12 @@ def timer():
 
 async def async_benchmark(func, iterations: int) -> BenchmarkResult:
     # warmup
-    await func()
+    warmup_iterations = max(1, min(100, iterations // 10))
+    for _ in range(warmup_iterations):
+        await func()
+
+    # Collect garbage to ensure fair comparison
+    gc.collect()
 
     # actual timing
     with timer() as result:
@@ -42,7 +48,12 @@ async def async_benchmark(func, iterations: int) -> BenchmarkResult:
 
 def sync_benchmark(func, iterations: int) -> BenchmarkResult:
     # warmup
-    func()
+    warmup_iterations = max(1, min(100, iterations // 10))
+    for _ in range(warmup_iterations):
+        func()
+
+    # Collect garbage to ensure fair comparison
+    gc.collect()
 
     # actual timing
     with timer() as result:

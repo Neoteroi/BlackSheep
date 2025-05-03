@@ -109,7 +109,7 @@ def get_system_info():
     }
 
 
-async def run_all_benchmarks(iterations=1000, key=""):
+async def run_all_benchmarks(iterations: int, key: str):
     results = {
         "timestamp": datetime.now().isoformat(),
         "git_info": get_git_info(),
@@ -164,7 +164,7 @@ def save_results(results, output_dir="./benchmark_results"):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="BlackSheep Performance Benchmarking")
     parser.add_argument(
-        "--iterations", type=int, default=1000, help="Number of iterations"
+        "--iterations", type=int, default=100000, help="Number of iterations"
     )
     parser.add_argument(
         "--output-dir", type=str, default="./benchmark_results", help="Output directory"

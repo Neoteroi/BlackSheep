@@ -1,13 +1,14 @@
 from setuptools import Extension, setup
 
 COMPILE_ARGS = ["-O2"]
-
+http_parser_dir = "blacksheep/vendor/http-parser"
 
 setup(
     ext_modules=[
         Extension(
             "blacksheep.url",
-            ["blacksheep/url.c"],
+            ["blacksheep/url.c", f"{http_parser_dir}/http_parser.c"],
+            include_dirs=[http_parser_dir],
             extra_compile_args=COMPILE_ARGS,
         ),
         Extension(

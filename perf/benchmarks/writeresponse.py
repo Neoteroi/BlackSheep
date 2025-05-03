@@ -1,3 +1,7 @@
+"""
+Benchmarks testing functions used to write response bytes.
+"""
+
 from pathlib import Path
 
 from blacksheep.contents import TextContent
@@ -6,6 +10,8 @@ from blacksheep.scribe import write_response
 
 from perf.benchmarks import async_benchmark, main_run
 
+
+ITERATIONS = 10000
 
 LOREM_IPSUM = (Path(__file__).parent / "res" / "lorem.txt").read_text(encoding="utf-8")
 RESPONSE_HEADERS = [
@@ -31,10 +37,6 @@ async def test_write_text_response():
     return data
 
 
-async def benchmark_write_text_response(iterations=1000):
-    return await async_benchmark(test_write_text_response, iterations)
-
-
 async def test_write_small_response():
     response = Response(404, RESPONSE_HEADERS).with_content(TextContent("Not Found"))
     data = bytearray()
@@ -43,13 +45,17 @@ async def test_write_small_response():
     return data
 
 
-async def benchmark_write_small_response(iterations=1000):
+async def benchmark_write_small_response(iterations=ITERATIONS):
     return await async_benchmark(test_write_small_response, iterations)
 
 
+async def benchmark_write_text_response(iterations=ITERATIONS):
+    return await async_benchmark(test_write_text_response, iterations)
+
+
 async def main():
-    await benchmark_write_text_response(1000)
-    await benchmark_write_small_response(1000)
+    await benchmark_write_text_response(ITERATIONS)
+    await benchmark_write_small_response(ITERATIONS)
 
 
 if __name__ == "__main__":

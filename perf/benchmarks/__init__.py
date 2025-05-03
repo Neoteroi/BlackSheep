@@ -1,4 +1,3 @@
-import asyncio
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -31,9 +30,24 @@ async def async_benchmark(func, iterations: int) -> BenchmarkResult:
 
     # actual timing
     with timer() as result:
-        # await asyncio.gather(*(func() for _ in range(iterations)))
         for _ in range(iterations):
             await func()
+
+    return {
+        "total_time": result.elapsed_time,
+        "avg_time": result.elapsed_time / iterations,
+        "iterations": iterations,
+    }
+
+
+def sync_benchmark(func, iterations: int) -> BenchmarkResult:
+    # warmup
+    func()
+
+    # actual timing
+    with timer() as result:
+        for _ in range(iterations):
+            func()
 
     return {
         "total_time": result.elapsed_time,

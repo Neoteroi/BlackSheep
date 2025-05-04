@@ -122,7 +122,7 @@ def copy_results(source_dir, dest_dir):
 def main():
     parser = argparse.ArgumentParser(description="BlackSheep Performance Benchmarking")
     parser.add_argument(
-        "--iterations", type=int, default=100000, help="Number of iterations"
+        "--iterations", type=int, default=1000000, help="Number of iterations"
     )
     parser.add_argument(
         "--times", type=int, default=5, help="How many runs for each commit"

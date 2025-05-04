@@ -18,12 +18,15 @@ cdef bytes write_header(tuple header):
 
 cdef bytes write_headers(list headers):
     cdef tuple header
-    cdef bytearray value
+    cdef bytes key
+    cdef bytes value
+    cdef bytearray result = bytearray()
 
-    value = bytearray()
     for header in headers:
-        value.extend(write_header(header))
-    return bytes(value)
+        key = header[0]
+        value = header[1]
+        result.extend(key + b': ' + value + b'\r\n')
+    return bytes(result)
 
 
 cdef void extend_data_with_headers(list headers, bytearray data):

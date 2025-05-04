@@ -109,7 +109,7 @@ def main():
         with gitcontext():
             for commit in args.commits:
                 subprocess.check_output(
-                    ["git", "checkout", commit], universal_newlines=True
+                    ["git", "checkout", "-f", commit], universal_newlines=True
                 )
                 logger.info("Checked out commit: %s", commit)
                 make_compile()

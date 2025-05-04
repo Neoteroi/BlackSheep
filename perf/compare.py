@@ -147,8 +147,9 @@ def _set_conditional_formatting(df, worksheet, max_row):
         )
 
 
-def _add_charts(workbook, time_cols, df, worksheet, max_row):
-    # Create a chart object.
+def _add_ms_chart(workbook, df, worksheet, max_row):
+    time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
+
     chart = workbook.add_chart({"type": "line"})  # type: ignore
 
     for col in time_cols:
@@ -178,7 +179,47 @@ def _add_charts(workbook, time_cols, df, worksheet, max_row):
     chart.set_size({"width": 1024, "height": 600})
 
     # Insert the chart into the worksheet.
-    worksheet.insert_chart(f"A{max_row+3}", chart)
+    worksheet.insert_chart(f"A{max_row + 3}", chart)
+
+
+def _add_mem_chart(workbook, df, worksheet, max_row):
+    mem_cols = [col for col in df.columns if col.endswith("_peak_mb")]
+
+    chart = workbook.add_chart({"type": "line"})  # type: ignore
+
+    for col in mem_cols:
+        col_index = df.columns.get_loc(col)  # Get the column index for the series
+        chart.add_series(
+            {
+                "name": col,
+                "categories": f"=results!$B$2:$C${(max_row + 1)}",
+                "values": [
+                    "results",
+                    1,
+                    col_index,
+                    max_row,
+                    col_index,
+                ],
+                "marker": {"type": "circle"},
+            }
+        )
+
+    # Add a chart title and some axis labels.
+    chart.set_title({"name": "Mem usage comparison"})
+    chart.set_x_axis({"name": "commit"})
+    chart.set_y_axis({"name": "peak MB"})
+
+    # Set an Excel chart style. Colors with white outline and shadow.
+    chart.set_style(10)
+    chart.set_size({"width": 1024, "height": 600})
+
+    # Insert the chart into the worksheet.
+    worksheet.insert_chart(f"A{max_row + 35}", chart)
+
+
+def _add_charts(workbook, df, worksheet, max_row):
+    _add_ms_chart(workbook, df, worksheet, max_row)
+    _add_mem_chart(workbook, df, worksheet, max_row)
 
 
 def write_excel(df):
@@ -196,9 +237,8 @@ def write_excel(df):
 
     # Configure the first series.
     # Plot time metrics
-    time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
 
-    _add_charts(workbook, time_cols, df, worksheet, max_row)
+    _add_charts(workbook, df, worksheet, max_row)
     _set_conditional_formatting(df, worksheet, max_row)
 
     # Close the Pandas Excel writer and output the Excel file.

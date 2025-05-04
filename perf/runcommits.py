@@ -38,6 +38,25 @@ def copy_perf_code(temp_dir):
     return dest_dir
 
 
+def restore_perf_code(temp_dir):
+    logger.info("Replacing the local 'perf' folder with the backup...")
+
+    # Path to the local 'perf' folder
+    local_perf_dir = os.path.abspath("perf")
+
+    # Delete the local 'perf' folder if it exists
+    if os.path.exists(local_perf_dir):
+        logger.info("Deleting the local 'perf' folder: %s", local_perf_dir)
+        shutil.rmtree(local_perf_dir)
+
+    # Path to the backup 'perf' folder in the temporary directory
+    source_dir = os.path.join(temp_dir, "perf")
+
+    # Copy the backup 'perf' folder to the current directory
+    shutil.copytree(source_dir, local_perf_dir)
+    logger.info("Restored 'perf' folder from backup: %s", source_dir)
+
+
 @contextmanager
 def gitcontext():
     branch = subprocess.check_output(
@@ -83,10 +102,8 @@ def main():
         print("No commits provided.")
         sys.exit(1)
 
-    with tempfile.TemporaryDirectory() as dest_folder:
-        copy_perf_code(dest_folder)
-
-        # Delete the local perf folder and replace it with the backup one
+    with tempfile.TemporaryDirectory() as temp_dir:
+        copy_perf_code(temp_dir)
 
         with gitcontext():
             for commit in args.commits:
@@ -95,6 +112,8 @@ def main():
                 )
                 logger.info("Checked out commit: %s", commit)
                 make_compile()
+                restore_perf_code(temp_dir)
+                run_tests()
 
 
 if __name__ == "__main__":

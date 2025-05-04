@@ -68,10 +68,9 @@ def gitcontext():
         yield branch
     except:
         # go back to the original branch
-        logger.info("Returning to the original branch")
-        subprocess.check_output(
-            ["git", "checkout", "-f", branch], universal_newlines=True
-        )
+        pass
+    logger.info("Returning to the original branch")
+    subprocess.check_output(["git", "checkout", "-f", branch], universal_newlines=True)
 
 
 def make_compile():

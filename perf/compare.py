@@ -1,4 +1,6 @@
-"""Compare benchmark results across commits"""
+"""
+Generate an Excel report to compare benchmark results across commits.
+"""
 
 import argparse
 import glob
@@ -83,6 +85,9 @@ def _aggregate(df: pd.DataFrame, by: str):
         [col for col in df.columns if col in aggregated_df.columns]
     ]
 
+    # Sort by the 'date' column
+    aggregated_df = aggregated_df.sort_values(by="date")
+
     return aggregated_df
 
 
@@ -118,25 +123,34 @@ def plot_performance_trends(df, output_file="performance_trends.png"):
     print(f"Plot saved to {output_file}")
 
 
-def write_excel(df):
-    # Export to Excel for further analysis
-    excel_file = "performance_comparison.xlsx"
-    writer = pd.ExcelWriter(excel_file, engine="xlsxwriter")
-    df.to_excel(writer, index=False, sheet_name="results")
+def _set_conditional_formatting(df, worksheet, max_row):
+    all_cols = [
+        col for col in df.columns if col.endswith("_avg_ms") or col.endswith("_peak_mb")
+    ]
+    for col in all_cols:
+        col_index = df.columns.get_loc(col)  # Get the column index
+        col_letter = chr(
+            65 + col_index
+        )  # Convert column index to Excel letter (A, B, C, etc.)
+        worksheet.conditional_format(
+            f"{col_letter}2:{col_letter}{max_row + 1}",
+            {
+                "type": "3_color_scale",
+                "min_type": "min",  # Minimum value
+                "min_color": "#63BE7B",  # Green for lower values
+                "mid_type": "percentile",  # Midpoint as 50th percentile
+                "mid_value": 50,
+                "mid_color": "#FFEB84",  # Yellow for midpoint
+                "max_type": "max",  # Maximum value
+                "max_color": "#F8696B",  # Red for higher values
+            },
+        )
 
-    # Get the xlsxwriter workbook and worksheet objects.
-    workbook = writer.book
-    worksheet = writer.sheets["results"]
 
+def _add_charts(workbook, time_cols, df, worksheet, max_row):
     # Create a chart object.
     chart = workbook.add_chart({"type": "line"})  # type: ignore
 
-    # Get the dimensions of the dataframe.
-    (max_row, _) = df.shape
-
-    # Configure the first series.
-    # Plot time metrics
-    time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
     for col in time_cols:
         col_index = df.columns.get_loc(col)  # Get the column index for the series
         chart.add_series(
@@ -165,6 +179,27 @@ def write_excel(df):
 
     # Insert the chart into the worksheet.
     worksheet.insert_chart(f"A{max_row+3}", chart)
+
+
+def write_excel(df):
+    # Export to Excel for further analysis
+    excel_file = "performance_comparison.xlsx"
+    writer = pd.ExcelWriter(excel_file, engine="xlsxwriter")
+    df.to_excel(writer, index=False, sheet_name="results")
+
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook = writer.book
+    worksheet = writer.sheets["results"]
+
+    # Get the dimensions of the dataframe.
+    (max_row, _) = df.shape
+
+    # Configure the first series.
+    # Plot time metrics
+    time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
+
+    _add_charts(workbook, time_cols, df, worksheet, max_row)
+    _set_conditional_formatting(df, worksheet, max_row)
 
     # Close the Pandas Excel writer and output the Excel file.
     worksheet.autofit()

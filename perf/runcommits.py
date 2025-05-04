@@ -125,7 +125,7 @@ def main():
         "--iterations", type=int, default=100000, help="Number of iterations"
     )
     parser.add_argument(
-        "--times", type=int, default=4, help="How many runs for each commit"
+        "--times", type=int, default=5, help="How many runs for each commit"
     )
     parser.add_argument(
         "--output-dir",

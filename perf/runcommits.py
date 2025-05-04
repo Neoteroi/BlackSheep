@@ -4,7 +4,7 @@ versions of BlackSheep. It creates a temporary copy of the perf folder
 to ensure that the same tests are executed at various points of the
 Git history.
 
-python perf/runcommits.py --commits 935754 eb1564 9e4246
+python perf/runcommits.py --commits 935754 eb1564 b0f93281 9e4246
 """
 
 import argparse

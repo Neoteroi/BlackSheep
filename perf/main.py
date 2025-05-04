@@ -18,7 +18,6 @@ from datetime import datetime
 from pathlib import Path
 
 import psutil
-from memory_profiler import memory_usage
 
 from blacksheep import __version__ as blacksheep_version
 
@@ -54,30 +53,39 @@ def collect_benchmark_functions(package_name: str):
     return benchmark_functions
 
 
-# Memory profiling wrapper
-def get_memory_usage(func, *args, **kwargs):
-    def wrapper():
-        if asyncio.iscoroutinefunction(func):
-            # Check if an event loop is already running
-            try:
-                loop = asyncio.get_running_loop()
-                return loop.create_task(func(*args, **kwargs))
-            except RuntimeError:
-                # If no loop is running, use `asyncio.run`
-                return asyncio.run(func(*args, **kwargs))
-        else:
-            return func(*args, **kwargs)
+def get_memory_usage(func):
+    script = f"""
+import asyncio
+import gc
+import json
+from memory_profiler import memory_usage
 
-    # Force garbage collection before measuring
-    gc.collect()
-    mem_usage = memory_usage(wrapper, interval=0.01, timeout=30)
+from perf.{func.__module__} import {func.__name__} as func
 
-    return {
-        "peak": max(mem_usage),
-        "avg": statistics.mean(mem_usage),
-        "min": min(mem_usage),
-        "samples": len(mem_usage),
-    }
+gc.collect()
+
+def wrapper():
+    if asyncio.iscoroutinefunction(func):
+        asyncio.run(func())
+    else:
+        return func()
+
+mem_usage = memory_usage(wrapper, interval=0.01, timeout=30)
+print(json.dumps({{
+    "peak": max(mem_usage),
+    "avg": sum(mem_usage) / len(mem_usage),
+    "min": min(mem_usage),
+    "samples": len(mem_usage),
+}}))
+"""
+    # A subprocess is necessary to obtain correct memory usage
+    result = subprocess.run(
+        ["python", "-c", script],
+        capture_output=True,
+        text=True,
+    )
+    result.check_returncode()  # raise if something went wrong
+    return json.loads(result.stdout)
 
 
 def get_git_info():
@@ -142,7 +150,7 @@ async def run_all_benchmarks(iterations: int, key: str):
             continue
         gc.collect()
         print(f"Running memory benchmark: {name}...")
-        results["memory_benchmarks"][name] = get_memory_usage(func, iterations)
+        results["memory_benchmarks"][name] = get_memory_usage(func)
 
     return results
 

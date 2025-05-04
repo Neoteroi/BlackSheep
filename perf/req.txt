@@ -4,3 +4,4 @@ memory_profiler
 pandas
 psutil
 line_profiler
+XlsxWriter==3.2.3

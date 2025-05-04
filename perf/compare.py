@@ -54,6 +54,38 @@ def create_comparison_table(results):
     return pd.DataFrame(rows)
 
 
+def _aggregate(df: pd.DataFrame, by: str):
+    if not by:
+        return df
+
+    # Aggregate results by the specified property
+    aggregation_functions = {
+        col: "mean"
+        for col in df.columns
+        if col.endswith("_avg_ms") or col.endswith("_peak_mb")
+    }
+    aggregation_functions.update(
+        {
+            "timestamp": "first",
+            "commit": "first",
+            "date": "first",
+            "branch": "first",
+            "python_version": "first",
+            "platform": "first",
+        }
+    )
+
+    # Perform the aggregation
+    aggregated_df = df.groupby(by, as_index=False).agg(aggregation_functions)
+
+    # Reorder columns to match the original DataFrame
+    aggregated_df = aggregated_df[
+        [col for col in df.columns if col in aggregated_df.columns]
+    ]
+
+    return aggregated_df
+
+
 def plot_performance_trends(df, output_file="performance_trends.png"):
     """Create a plot showing performance trends"""
     plt.figure(figsize=(12, 8))
@@ -86,6 +118,60 @@ def plot_performance_trends(df, output_file="performance_trends.png"):
     print(f"Plot saved to {output_file}")
 
 
+def write_excel(df):
+    # Export to Excel for further analysis
+    excel_file = "performance_comparison.xlsx"
+    writer = pd.ExcelWriter(excel_file, engine="xlsxwriter")
+    df.to_excel(writer, index=False, sheet_name="results")
+
+    # Get the xlsxwriter workbook and worksheet objects.
+    workbook = writer.book
+    worksheet = writer.sheets["results"]
+
+    # Create a chart object.
+    chart = workbook.add_chart({"type": "line"})  # type: ignore
+
+    # Get the dimensions of the dataframe.
+    (max_row, _) = df.shape
+
+    # Configure the first series.
+    # Plot time metrics
+    time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
+    for col in time_cols:
+        col_index = df.columns.get_loc(col)  # Get the column index for the series
+        chart.add_series(
+            {
+                "name": col,
+                "categories": f"=results!$B$2:$C${(max_row + 1)}",
+                "values": [
+                    "results",
+                    1,
+                    col_index,
+                    max_row,
+                    col_index,
+                ],
+                "marker": {"type": "circle"},
+            }
+        )
+
+    # Add a chart title and some axis labels.
+    chart.set_title({"name": "Performance comparison"})
+    chart.set_x_axis({"name": "commit"})
+    chart.set_y_axis({"name": "avg ms"})
+
+    # Set an Excel chart style. Colors with white outline and shadow.
+    chart.set_style(10)
+    chart.set_size({"width": 1024, "height": 600})
+
+    # Insert the chart into the worksheet.
+    worksheet.insert_chart(f"A{max_row+3}", chart)
+
+    # Close the Pandas Excel writer and output the Excel file.
+    worksheet.autofit()
+    writer.close()
+    print(f"XLSX saved to {excel_file}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compare BlackSheep benchmark results")
     parser.add_argument(
@@ -108,12 +194,5 @@ if __name__ == "__main__":
         exit(1)
 
     df = create_comparison_table(results)
-    print("Performance comparison:")
-    print(df.to_string())
-
-    plot_performance_trends(df, args.output)
-
-    # Export to CSV for further analysis
-    csv_file = "performance_comparison.csv"
-    df.to_csv(csv_file, index=False)
-    print(f"CSV export saved to {csv_file}")
+    df = _aggregate(df, "commit")
+    write_excel(df)

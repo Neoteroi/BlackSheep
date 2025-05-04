@@ -7,9 +7,7 @@ from pathlib import Path
 from blacksheep.contents import TextContent
 from blacksheep.messages import Response
 from blacksheep.scribe import write_response
-
 from perf.benchmarks import async_benchmark, main_run
-
 
 ITERATIONS = 10000
 

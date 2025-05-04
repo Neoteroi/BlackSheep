@@ -20,6 +20,8 @@ from pathlib import Path
 import psutil
 from memory_profiler import memory_usage
 
+from blacksheep import __version__ as blacksheep_version
+
 
 def collect_benchmark_functions(package_name: str):
     """
@@ -105,6 +107,7 @@ def get_system_info():
         "cpu_count": os.cpu_count(),
         "memory_total": psutil.virtual_memory().total,
         "python_version": sys.version.split()[0],
+        "blacksheep_version": blacksheep_version,
         "platform": platform.platform(),
     }
 

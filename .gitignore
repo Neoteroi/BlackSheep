@@ -129,5 +129,7 @@ venv*
 
 benchmark_results/
 performance_comparison.csv
+performance_comparison.xlsx
 performance_trends.png
 .local
+.~lock.*

@@ -11,7 +11,9 @@ cdef int MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 
 
 cdef bytes write_header(tuple header):
-    return header[0] + b': ' + header[1] + b'\r\n'
+    cdef bytes key = header[0]
+    cdef bytes value = header[1]
+    return key + b': ' + value + b'\r\n'
 
 
 cdef bytes write_headers(list headers):
@@ -25,9 +27,10 @@ cdef bytes write_headers(list headers):
 
 
 cdef void extend_data_with_headers(list headers, bytearray data):
+    cdef Py_ssize_t i, n = len(headers)
     cdef tuple header
-
-    for header in headers:
+    for i in range(n):
+        header = headers[i]
         data.extend(write_header(header))
 
 
@@ -73,7 +76,7 @@ cdef bint should_use_chunked_encoding(Content content):
 cdef void set_headers_for_response_content(Response message):
     cdef Content content = message.content
 
-    if not content:
+    if content is None:
         message._add_header(b'content-length', b'0')
         return
 
@@ -88,7 +91,7 @@ cdef void set_headers_for_response_content(Response message):
 cdef void set_headers_for_content(Message message):
     cdef Content content = message.content
 
-    if not content:
+    if content is None:
         message._add_header_if_missing(b'content-length', b'0')
         return
 
@@ -116,7 +119,7 @@ async def write_chunks(Content http_content):
 
 cdef bint is_small_response(Response response):
     cdef Content content = response.content
-    if not content:
+    if content is None:
         return True
     if (
         content.length > 0
@@ -129,7 +132,7 @@ cdef bint is_small_response(Response response):
 
 cpdef bint is_small_request(Request request):
     cdef Content content = request.content
-    if not content:
+    if content is None:
         return True
     if (
         content.length > 0
@@ -142,7 +145,7 @@ cpdef bint is_small_request(Request request):
 
 cpdef bint request_has_body(Request request):
     cdef Content content = request.content
-    if not content or content.length == 0:
+    if content is None or content.length == 0:
         return False
     # NB: if we use chunked encoding, we don't know the content.length;
     # and it is set to -1 (in contents.pyx), therefore it is handled properly

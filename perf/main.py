@@ -137,7 +137,7 @@ async def run_all_benchmarks(iterations: int, key: str):
     for name, func in benchmark_functions.items():
         if key and key not in name:
             continue
-
+        gc.collect()
         print(f"Running memory benchmark: {name}...")
         results["memory_benchmarks"][name] = get_memory_usage(func, iterations)
 

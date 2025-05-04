@@ -71,6 +71,7 @@ def gitcontext():
 
 
 def make_compile():
+    logger.info("Compiling BlackSheep extensions")
     # TODO: use other commands to support Windows
     subprocess.check_output(["make", "compile"], universal_newlines=True)
 

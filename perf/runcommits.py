@@ -125,6 +125,9 @@ def main():
         "--iterations", type=int, default=100000, help="Number of iterations"
     )
     parser.add_argument(
+        "--times", type=int, default=4, help="How many runs for each commit"
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default="../benchmark_results",
@@ -156,7 +159,9 @@ def main():
                 logger.info("Checked out commit: %s", commit)
                 make_compile()
                 restore_perf_code(temp_dir)
-                run_tests(args.iterations, args.output_dir)
+
+                for _ in range(args.times):
+                    run_tests(args.iterations, args.output_dir)
 
         # Copy the results from output_dir to ./benchmark_results
         copy_results(args.output_dir, "./benchmark_results")

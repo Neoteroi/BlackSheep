@@ -1,6 +1,8 @@
 """
 This script allows to execute the same performance tests on multiple
-versions of BlackSheep.
+versions of BlackSheep. It creates a temporary copy of the perf folder
+to ensure that the same tests are executed at various points of the
+Git history.
 
 python perf/runcommits.py --commits 935754 eb1564 9e4246
 """
@@ -67,7 +69,9 @@ def gitcontext():
     except:
         # go back to the original branch
         logger.info("Returning to the original branch")
-        subprocess.check_output(["git", "checkout", branch], universal_newlines=True)
+        subprocess.check_output(
+            ["git", "checkout", "-f", branch], universal_newlines=True
+        )
 
 
 def make_compile():
@@ -76,8 +80,44 @@ def make_compile():
     subprocess.check_output(["make", "compile"], universal_newlines=True)
 
 
-def run_tests():
-    subprocess.check_output(["python", "perf/main.py"], universal_newlines=True)
+def run_tests(iterations: int, output_dir: str):
+    subprocess.check_output(
+        [
+            "python",
+            "perf/main.py",
+            "--iterations",
+            f"{iterations}",
+            "--output-dir",
+            output_dir,
+        ],
+        universal_newlines=True,
+    )
+
+
+def copy_results(source_dir, dest_dir):
+    """
+    Copies all files from the source directory to the destination directory.
+    If the destination directory does not exist, it is created.
+    """
+    if not os.path.exists(source_dir):
+        logger.error("Source directory '%s' does not exist.", source_dir)
+        sys.exit(1)
+
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+        logger.info("Created destination directory: %s", dest_dir)
+
+    # Copy all files and subdirectories
+    for item in os.listdir(source_dir):
+        source_path = os.path.join(source_dir, item)
+        dest_path = os.path.join(dest_dir, item)
+
+        if os.path.isdir(source_path):
+            shutil.copytree(source_path, dest_path)
+        else:
+            shutil.copy2(source_path, dest_path)
+
+    logger.info("Copied all files from '%s' to '%s'", source_dir, dest_dir)
 
 
 def main():
@@ -86,7 +126,10 @@ def main():
         "--iterations", type=int, default=100000, help="Number of iterations"
     )
     parser.add_argument(
-        "--output-dir", type=str, default="./benchmark_results", help="Output directory"
+        "--output-dir",
+        type=str,
+        default="../benchmark_results",
+        help="Output directory",
     )
     parser.add_argument(
         "--commits",
@@ -114,7 +157,10 @@ def main():
                 logger.info("Checked out commit: %s", commit)
                 make_compile()
                 restore_perf_code(temp_dir)
-                run_tests()
+                run_tests(args.iterations, args.output_dir)
+
+        # Copy the results from output_dir to ./benchmark_results
+        copy_results(args.output_dir, "./benchmark_results")
 
 
 if __name__ == "__main__":

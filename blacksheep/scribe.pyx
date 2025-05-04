@@ -178,13 +178,14 @@ cpdef bytes write_small_request(Request request):
 
 
 cdef bytes write_small_response(Response response):
+    cdef Content content = response.content
     cdef bytearray data = bytearray()
     data.extend(STATUS_LINES[response.status])
     set_headers_for_content(response)
     extend_data_with_headers(response._raw_headers, data)
     data.extend(b'\r\n')
-    if response.content:
-        data.extend(response.content.body)
+    if content is not None:
+        data.extend(content.body)
     return bytes(data)
 
 

@@ -59,7 +59,6 @@ from blacksheep.server.process import use_shutdown_handler
 from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import (
     MountRegistry,
-    RegisteredRoute,
     RouteMethod,
     Router,
     RoutesRegistry,

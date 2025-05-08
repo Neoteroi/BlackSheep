@@ -44,6 +44,9 @@ from blacksheep.server.routing import (
     RegisteredRoute,
     RouteFilter,
     Router,
+)
+from blacksheep.server.routing import RoutesRegistry as RoutesRegistry  # noqa
+from blacksheep.server.routing import (
     controllers_routes,
     normalize_filters,
 )

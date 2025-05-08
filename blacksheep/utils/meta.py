@@ -1,3 +1,4 @@
+import copy
 import glob
 import inspect
 import os
@@ -28,3 +29,30 @@ def import_child_modules(root_path: Path):
     stripped_path = os.path.relpath(path).replace("/", ".").replace("\\", ".")
     for module in modules:
         __import__(stripped_path + "." + module)
+
+
+def clonefunc(func):
+    """
+    Clone a function, preserving its name and docstring.
+    """
+    new_func = func.__class__(
+        func.__code__,
+        func.__globals__,
+        func.__name__,
+        func.__defaults__,
+        func.__closure__,
+    )
+    new_func.__doc__ = func.__doc__
+    new_func.__dict__ = copy.deepcopy(func.__dict__)
+    return new_func
+
+
+def all_subclasses(cls):
+    """
+    Return all subclasses of a class, including those defined in other modules.
+    """
+    subclasses = set()
+    for subclass in cls.__subclasses__():
+        subclasses.add(subclass)
+        subclasses.update(all_subclasses(subclass))
+    return subclasses

@@ -13,6 +13,7 @@ from blacksheep.server.controllers import (
     APIController,
     Controller,
     RoutesRegistry,
+    abstract,
     filters,
 )
 from blacksheep.server.di import register_http_context
@@ -1021,3 +1022,66 @@ async def test_controller_pydantic_validate_call_scenario(app):
             assert response.status == status
             if int(PYDANTIC_LIB_VERSION[0]) > 1:
                 assert response_text in (await response.text())
+
+
+async def test_controllers_inheritance(app):
+    get = app.router.controllers_routes.get
+
+    @abstract()
+    class BaseController(Controller):
+        @get("/hello-world")
+        def index(self):
+            # Note: the route /hello-world itself will not be registered in the router,
+            # because this class is decorated with @abstract()
+            return self.text(f"Hello, World! {self.__class__.__name__}")
+
+    class ControllerOne(BaseController):
+        route = "/one"
+
+        # /one/hello-world
+
+    class ControllerTwo(BaseController):
+        route = "/two"
+
+        # /two/hello-world
+
+        @get("/specific-route")  # /two/specific-route
+        def specific_route(self):
+            return self.text(f"This is a specific route in {self.__class__.__name__}")
+
+    class ControllerTwoBis(ControllerTwo):
+        route = "/two-bis"
+
+        # /two-bis/hello-world
+
+        # /two-bis/specific-route
+
+        @get("/specific-route-2")  # /two-bis/specific-route-2
+        def specific_route(self):
+            return self.text(f"This is another route in {self.__class__.__name__}")
+
+    await app.start()
+
+    routes = app.router.routes[b"GET"]
+    assert len(routes) == 6
+
+    expected_endpoints = [
+        ("/one/hello-world", "Hello, World! ControllerOne"),
+        ("/two/hello-world", "Hello, World! ControllerTwo"),
+        ("/two-bis/hello-world", "Hello, World! ControllerTwoBis"),
+        ("/two/specific-route", "This is a specific route in ControllerTwo"),
+        ("/two-bis/specific-route", "This is a specific route in ControllerTwoBis"),
+        ("/two-bis/specific-route-2", "This is another route in ControllerTwoBis"),
+    ]
+
+    for endpoint, result in expected_endpoints:
+        await app(
+            get_example_scope("GET", endpoint),
+            MockReceive(),
+            MockSend(),
+        )
+        response = app.response
+        assert response is not None
+        assert response.status == 200
+        text = await response.text()
+        assert text == result

@@ -5,14 +5,16 @@ from typing import (
     AsyncIterable,
     Callable,
     ClassVar,
+    List,
     Optional,
     Sequence,
     Type,
     Union,
 )
 
-from blacksheep import Request, Response
 from blacksheep.common.types import HeadersType, ParamsType
+from blacksheep.messages import Request, Response
+from blacksheep.server.bindings import ControllerParameter
 from blacksheep.server.responses import (
     ContentDispositionType,
     MessageType,
@@ -38,10 +40,18 @@ from blacksheep.server.responses import (
     view,
     view_async,
 )
-from blacksheep.server.routing import RouteFilter
+from blacksheep.server.routing import (
+    RegisteredRoute,
+    RouteFilter,
+    Router,
+)
 from blacksheep.server.routing import RoutesRegistry as RoutesRegistry  # noqa
-from blacksheep.server.routing import controllers_routes, normalize_filters
-from blacksheep.utils import AnyStr, join_fragments
+from blacksheep.server.routing import (
+    controllers_routes,
+    normalize_filters,
+)
+from blacksheep.utils import AnyStr, ensure_bytes, join_fragments
+from blacksheep.utils.meta import all_subclasses, clonefunc
 
 # singleton router used to store initial configuration,
 # before the application starts
@@ -61,6 +71,62 @@ options = router.options
 connect = router.connect
 route = router.route
 ws = router.ws
+
+
+class _BaseControllerRegistry:
+    """
+    Internal class to support skipping the registration of routes defined in base
+    controllers. This is used to support defining routes that should be applied only
+    in subclasses, combining route prefixes of subclasses.
+    """
+
+    _registry = set()
+
+    @classmethod
+    def register(cls, controller):
+        cls._registry.add(controller)
+
+    @classmethod
+    def get_registry(cls):
+        """Returns the registry of all controllers marked as base controllers."""
+        return cls._registry
+
+    @classmethod
+    def is_base_controller(cls, controller):
+        """Returns True if the controller is marked as base controller."""
+        return controller in cls._registry
+
+
+def abstract():
+    """
+    Decorator to mark a controller class as base and indicate that its routes should not
+    be registered directly. If applied to a controller class, its routes will be applied
+    only in subclasses.
+
+    In the following example, only `/one/hello-world` and `/two/hello-world` routes will
+    be applied in the final router (excluding `/hello-world` itself):
+    ```python
+    @abstract()
+    class AppController(Controller):
+        @get("/hello-world")
+        def index(self):
+            return self.text("Hello, World!")
+
+    class ControllerOne(AppController):
+        route = "/one"
+        # /one/hello-world
+
+    class ControllerTwo(AppController):
+        route = "/two"
+        # /two/hello-world
+    ```
+    """
+
+    def class_deco(cls):
+        _BaseControllerRegistry.register(cls)
+        return cls
+
+    return class_deco
 
 
 def filters(
@@ -427,3 +493,104 @@ class APIController(Controller):
         if cls_version and cls_name.endswith(cls_version.lower()):
             cls_name = cls_name[: -len(cls_version)]
         return join_fragments("api", cls_version, cls_name)
+
+
+class ControllersManager:
+    """
+    This class is used to apply the routes defined in the controllers, and support
+    inheritance of routes.
+    """
+
+    def prepare_controllers(self, router: Router) -> List[Type]:
+        self._unify_controllers(router.controllers_routes)
+        controller_types = []
+        for route in router.controllers_routes:
+            handler = route.handler
+            controller_type = getattr(handler, "controller_type")
+
+            sub_classes = [
+                sub
+                for sub in all_subclasses(controller_type)
+                if issubclass(sub, Controller)
+            ]
+            for sub in sub_classes:
+                controller_types.append(sub)
+
+            controller_types.append(controller_type)
+
+            handler.__annotations__["self"] = ControllerParameter[controller_type]
+            router.add(
+                route.method,
+                self.get_controller_handler_pattern(controller_type, route),
+                handler,
+                controller_type._filters_,
+            )
+        return controller_types
+
+    def get_controller_handler_pattern(
+        self, controller_type: Type, route: RegisteredRoute
+    ) -> bytes:
+        """
+        Returns the full pattern to be used for a route handler,
+        defined as controller method.
+        """
+        base_route = getattr(controller_type, "route", None)
+
+        if base_route is not None:
+            if callable(base_route):
+                value = base_route()
+            elif isinstance(base_route, (str, bytes)):
+                value = base_route
+            else:
+                raise RuntimeError(
+                    f"Invalid controller `route` attribute. "
+                    f"Controller `{controller_type.__name__}` "
+                    f"has an invalid route attribute: it should "
+                    f"be callable, or str, or bytes."
+                )
+
+            if value:
+                return ensure_bytes(join_fragments(value, route.pattern))
+        return ensure_bytes(route.pattern)
+
+    def _handle_controller_subclasses(self, route, handler, controller_type: Type):
+        # we need to discover subclasses because the user configures requests handlers
+        # on base types and they can be inherited
+        sub_classes = [
+            sub
+            for sub in all_subclasses(controller_type)
+            if issubclass(sub, Controller)
+        ]
+        for sub_class in sub_classes:
+            handler_clone = clonefunc(handler)
+            handler_clone.controller_type = sub_class
+            yield RegisteredRoute(
+                method=route.method,
+                pattern=route.pattern,
+                handler=handler_clone,
+            )
+
+    def _unify_controllers(self, controllers_router):
+        """
+        Unifies the routes of the controllers, to support controllers inheritance.
+        This must happen at application start because at this stage all controller types
+        are loaded in memory and the routes are registered in the router.
+        """
+        routes_to_add = []
+        routes_to_remove = []
+        for route in controllers_router:
+            handler = route.handler
+            controller_type = getattr(handler, "controller_type")
+            # We support skipping the registration of routes defined in base controllers
+            if _BaseControllerRegistry.is_base_controller(controller_type):
+                routes_to_remove.append(route)
+
+            routes_to_add.extend(
+                self._handle_controller_subclasses(route, handler, controller_type)
+            )
+
+        for route in routes_to_add:
+            controllers_router.routes.append(route)
+
+        for route in routes_to_remove:
+            controllers_router.routes.remove(route)

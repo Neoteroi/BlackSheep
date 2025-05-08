@@ -1,15 +1,15 @@
 from blacksheep import Application
-from blacksheep.server.controllers import Controller, get
-
+from blacksheep.server.controllers import Controller, abstract, get
 
 app = Application()
 
 
+@abstract()
 class BaseController(Controller):
     @get("/hello-world")
     def index(self):
-        # This route must only be set by final subclasses, since this class has
-        # controllers subclasses.
+        # Note: the route /hello-world itself will not be registered in the router,
+        # because this class is decorated with @abstract()
         print(self)
         return self.text("Hello, World!")
 
@@ -48,15 +48,9 @@ class ControllerTwoBis(ControllerTwo):
 
 @app.after_start
 async def after_start():
-    if len(app.router.routes[b"GET"]) < 7:
+    if len(app.router.routes[b"GET"]) != 6:
         print("Routes not registered correctly")
     print(app.router.routes)
-
-
-"""
-Quando valuto ogni route:
-1. Devo registrare una route simile per ogni sottoclasse!
-"""
 
 
 if __name__ == "__main__":

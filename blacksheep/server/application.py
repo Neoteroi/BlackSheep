@@ -48,8 +48,7 @@ from blacksheep.server.authorization import (
     handle_forbidden,
     handle_unauthorized,
 )
-from blacksheep.server.bindings import ControllerParameter
-from blacksheep.server.controllers import Controller
+from blacksheep.server.controllers import ControllersManager
 from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
@@ -73,13 +72,8 @@ from blacksheep.server.routing import (
 from blacksheep.server.websocket import WebSocket, format_reason
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.settings.di import di_settings
-from blacksheep.utils import ensure_bytes, join_fragments
-from blacksheep.utils.meta import (
-    clonefunc,
-    get_parent_file,
-    import_child_modules,
-    all_subclasses,
-)
+from blacksheep.utils import join_fragments
+from blacksheep.utils.meta import get_parent_file, import_child_modules
 
 
 def get_default_headers_middleware(
@@ -219,7 +213,6 @@ class Application(BaseApplication):
         self._session_middleware: Optional[SessionMiddleware] = None
         self.base_path: str = ""  # TODO: deprecate
         self._mount_registry = mount
-
         validate_router(self)
         parent_file = get_parent_file()
 
@@ -570,98 +563,12 @@ class Application(BaseApplication):
         ]
 
     def use_controllers(self):
-        # This sophisticated approach, using metaclassing, dynamic
-        # attributes, and calling handlers dynamically
-        # with activated instances of controllers; still supports custom
-        # and generic decorators (*args, **kwargs);
-        # as long as `functools.wraps` decorator is used in those decorators.
-        self.register_controllers(self.prepare_controllers())
-
-    def get_controller_handler_pattern(
-        self, controller_type: Type, route: RegisteredRoute
-    ) -> bytes:
         """
-        Returns the full pattern to be used for a route handler,
-        defined as controller method.
+        Configures controllers in the application. This method is called automatically
+        when the application starts.
         """
-        base_route = getattr(controller_type, "route", None)
-
-        if base_route is not None:
-            if callable(base_route):
-                value = base_route()
-            elif isinstance(base_route, (str, bytes)):
-                value = base_route
-            else:
-                raise RuntimeError(
-                    f"Invalid controller `route` attribute. "
-                    f"Controller `{controller_type.__name__}` "
-                    f"has an invalid route attribute: it should "
-                    f"be callable, or str, or bytes."
-                )
-
-            if value:
-                return ensure_bytes(join_fragments(value, route.pattern))
-        return ensure_bytes(route.pattern)
-
-    def _handle_controller_subclasses(self, route, handler, controller_type: Type):
-        # we need to discover subclasses because the user configures requests handlers
-        # on base types and they can be inherited
-        sub_classes = [
-            sub
-            for sub in all_subclasses(controller_type)
-            if issubclass(sub, Controller)
-        ]
-        for sub_class in sub_classes:
-            handler_clone = clonefunc(handler)
-            handler_clone.controller_type = sub_class
-            yield RegisteredRoute(
-                method=route.method,
-                pattern=route.pattern,
-                handler=handler_clone,
-            )
-
-    def _unify_controllers(self):
-        """
-        Unifies the routes of the controllers, to support controllers inheritance.
-        This must happen at application start because at this stage all controller types
-        are loaded in memory and the routes are registered in the router.
-        """
-        routes_to_add = []
-        for route in self.controllers_router:
-            handler = route.handler
-            controller_type = getattr(handler, "controller_type")
-            routes_to_add.extend(
-                self._handle_controller_subclasses(route, handler, controller_type)
-            )
-
-        for route in routes_to_add:
-            self.controllers_router.routes.append(route)
-
-    def prepare_controllers(self) -> List[Type]:
-        self._unify_controllers()
-        controller_types = []
-        for route in self.controllers_router:
-            handler = route.handler
-            controller_type = getattr(handler, "controller_type")
-            # Does the controller_type has any subclasses?
-            # if so, the route must be set for each subclass but not this
-            # controller class!
-            sub_classes = [
-                sub
-                for sub in all_subclasses(controller_type)
-                if issubclass(sub, Controller)
-            ]
-            for sub in sub_classes:
-                controller_types.append(sub)
-            controller_types.append(controller_type)
-            handler.__annotations__["self"] = ControllerParameter[controller_type]
-            self.router.add(
-                route.method,
-                self.get_controller_handler_pattern(controller_type, route),
-                handler,
-                controller_type._filters_,
-            )
-        return controller_types
+        controllers_manager = ControllersManager()
+        self.register_controllers(controllers_manager.prepare_controllers(self.router))
 
     def register_controllers(self, controller_types: List[Type]):
         """

@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.1] - 2025-??-??
 
+- Fix [#511](https://github.com/Neoteroi/BlackSheep/issues/511). Add support for
+  inheriting endpoints from parent controller classes, when subclassing controllers.
+  An important feature that was missing so far in the web framework. Example:
+
+```python
+from blacksheep import Application
+from blacksheep.server.controllers import Controller, abstract, get
+
+app = Application()
+
+
+@abstract()
+class BaseController(Controller):
+    @get("/hello-world")
+    def index(self):
+        # Note: the route /hello-world itself will not be registered in the router,
+        # because this class is decorated with @abstract()
+        return self.text(f"Hello, World! {self.__class__.__name__}")
+
+
+class ControllerOne(BaseController):
+    route = "/one"
+
+    # /one/hello-world
+
+
+class ControllerTwo(BaseController):
+    route = "/two"
+
+    # /two/hello-world
+
+    @get("/specific-route")  # /two/specific-route
+    def specific_route(self):
+        return self.text("This is a specific route in ControllerTwo")
+```
+
+- Add a new `@abstract()` decorator that can be applied to controller classes to skip
+  routes defined on them (only inherited classes will have the routes, prefixed by a
+  route).
 - Fix [#498](https://github.com/Neoteroi/BlackSheep/issues/498): Buffer reuse
   and race condition in `client.IncomingContent.stream()`, by @ohait.
 - Fix [#365](https://github.com/Neoteroi/BlackSheep/issues/365), adding support for

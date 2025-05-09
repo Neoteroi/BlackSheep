@@ -338,4 +338,5 @@ cdef class TextServerSentEvent(ServerSentEvent):
         super().__init__(data, event, id, retry, comment)
 
     cpdef str write_data(self):
-        return self.data
+        # Escape \r\n to avoid issues with data containing EOL
+        return self.data.replace("\r", "\\r").replace("\n", "\\n")

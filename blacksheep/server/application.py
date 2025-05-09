@@ -659,6 +659,7 @@ class Application(BaseApplication):
         if self.started:
             return
 
+        self.router.build_routes()
         self.started = True
         if self.on_start:
             await self.on_start.fire()

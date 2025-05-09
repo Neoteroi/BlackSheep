@@ -46,6 +46,8 @@ class ControllerTwo(BaseController):
 - Add a new `@abstract()` decorator that can be applied to controller classes to skip
   routes defined on them (only inherited classes will have the routes, prefixed by a
   route).
+- **BREAKING CHANGE**. Refactor the `Application` code to encapsulate in a
+  dedicated class functions that prepare controllers' routes.
 - Fix [#498](https://github.com/Neoteroi/BlackSheep/issues/498): Buffer reuse
   and race condition in `client.IncomingContent.stream()`, by @ohait.
 - Fix [#365](https://github.com/Neoteroi/BlackSheep/issues/365), adding support for
@@ -63,6 +65,9 @@ class ControllerTwo(BaseController):
 - Modify the `is_stopping` function to emit a warning instead of raising a
   `RuntimeError` if the env variable `APP_SIGNAL_HANDLER` is not set to a
   truthy value.
+- Improve the error message of the `RouteDuplicate` class.
+- Fix [#38](https://github.com/Neoteroi/BlackSheep/issues/38) for notations that
+  are available since Python 3.9 (e.g. `list[str]`, `set[str]`, `tuple[str]`).
 
 ## [2.2.0] - 2025-04-28 🎉
 

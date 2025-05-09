@@ -519,12 +519,12 @@ class ControllersManager:
             controller_types.append(controller_type)
 
             handler.__annotations__["self"] = ControllerParameter[controller_type]
-            router.add(
-                route.method,
+            new_route = router.create_route(
                 self.get_controller_handler_pattern(controller_type, route),
                 handler,
                 controller_type._filters_,
             )
+            router.add_route(route.method, new_route)
         return controller_types
 
     def get_controller_handler_pattern(

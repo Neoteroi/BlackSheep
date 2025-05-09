@@ -495,11 +495,11 @@ async def test_controllers_with_duplicate_routes_throw(
         app.use_controllers()
 
     error = context.value
-    assert "Cannot register route pattern `" + ensure_str(
+    assert "Cannot register the route GET " + ensure_str(
         first_pattern
-    ) + "` for `GET` more than once." in str(error)
+    ) + " more than once." in str(error)
     assert (
-        "This pattern is already registered for handler "
+        "This route is already registered for "
         "test_controllers_with_duplicate_routes_throw.<locals>.A.index." in str(error)
     )
 

@@ -127,21 +127,24 @@ cdef class BaseApplication:
         return await self.handle_exception(request, exc)
 
     cpdef object get_http_exception_handler(self, HTTPException http_exception):
-        handler_by_type = self.get_exception_handler(http_exception)
-        if handler_by_type:
-            return handler_by_type
-        return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
+        # Try getting HTTP exception handler by exact type first
+        if http_exception.__class__ in self.exceptions_handlers:
+            return self.exceptions_handlers[http_exception.__class__]
+        # Try getting HTTP exception handler by HTTP error status code
+        return self.exceptions_handlers.get(
+            http_exception.status, common_http_exception_handler
+        )
 
     cdef bint is_handled_exception(self, Exception exception):
-        for current_class_in_hierarchy in get_class_instance_hierarchy(exception):
-            if current_class_in_hierarchy in self.exceptions_handlers:
+        for class_type in get_class_instance_hierarchy(exception):
+            if class_type in self.exceptions_handlers:
                 return True
         return False
 
     cdef object get_exception_handler(self, Exception exception):
-        for current_class_in_hierarchy in get_class_instance_hierarchy(exception):
-            if current_class_in_hierarchy in self.exceptions_handlers:
-                return self.exceptions_handlers[current_class_in_hierarchy]
+        for class_type in get_class_instance_hierarchy(exception):
+            if class_type in self.exceptions_handlers:
+                return self.exceptions_handlers[class_type]
 
         return None
 

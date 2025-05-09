@@ -46,7 +46,6 @@ async def test_x_forwarded_headers_middleware(
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != forwarded_host
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     last_request = app.request
@@ -86,7 +85,6 @@ async def test_x_forwarded_headers_middleware_multiple_proxies(app: FakeApplicat
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     last_request = app.request
@@ -149,7 +147,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host(app: FakeAppli
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -170,7 +167,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host(app: FakeAppli
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -200,7 +196,6 @@ async def test_x_forwarded_headers_middleware_without_forwarded_for(
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -229,7 +224,6 @@ async def test_x_forwarded_headers_middleware_without_forwarded_proto(
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -258,7 +252,6 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forwards(
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -292,7 +285,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_host_hea
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -323,7 +315,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_he
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -353,7 +344,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_proto_va
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -385,7 +375,6 @@ async def test_x_forwarded_headers_middleware_blocks_multiple_forwarded_for_head
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -417,7 +406,6 @@ async def test_x_forwarded_headers_middleware_blocks_too_many_forward_values(
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -449,7 +437,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_host_not_forwarded(
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -484,7 +471,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -506,7 +492,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id(
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -544,7 +529,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -566,7 +550,6 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network
     assert scope["scheme"] == "http"
     assert dict(scope["headers"])[b"host"] != b"neoteroi.dev"
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.request is not None
@@ -599,7 +582,6 @@ async def test_forwarded_header_middleware(app: FakeApplication):
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -633,7 +615,6 @@ async def test_forwarded_header_middleware_by_invalid(app: FakeApplication):
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -662,7 +643,6 @@ async def test_forwarded_header_middleware_by_hidden(app: FakeApplication):
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -698,7 +678,6 @@ async def test_forwarded_header_middleware_blocks_requests_with_too_many_forward
         ],
     )
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -787,7 +766,6 @@ async def test_trusted_hosts_middleware_blocks_invalid_host(app: FakeApplication
 
     scope = get_example_scope("GET", "/", server=("ugly-domain.dev", 80))
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None
@@ -797,7 +775,6 @@ async def test_trusted_hosts_middleware_blocks_invalid_host(app: FakeApplication
 
     scope = get_example_scope("GET", "/", server=("neoteroi.dev", 80))
 
-    app.prepare()
     await app(scope, MockReceive(), MockSend())
 
     assert app.response is not None

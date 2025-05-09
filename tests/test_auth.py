@@ -133,7 +133,6 @@ async def test_authentication_sets_identity_in_request(app):
         identity = request.user
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 204
@@ -153,7 +152,6 @@ async def test_authorization_forbidden_error_1(app):
     async def home():
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 403
@@ -171,7 +169,6 @@ async def test_authorization_policy_success(app):
     async def home():
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 204
@@ -189,7 +186,6 @@ async def test_authorization_forbidden_error_2(app):
     async def home():
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 403
@@ -204,7 +200,6 @@ async def test_authorization_default_allows_anonymous(app):
     async def home():
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 204
@@ -221,7 +216,6 @@ async def test_authorization_supports_default_require_authenticated(app):
     async def home():
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
@@ -337,7 +331,6 @@ async def test_authorization_supports_allow_anonymous(app):
     async def home():
         return text("Hi There!")
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -354,7 +347,6 @@ async def test_authentication_challenge_response(app):
     async def home():
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
@@ -371,7 +363,7 @@ async def test_authorization_strategy_without_authentication_raises(app):
     app.use_authorization()
 
     with raises(AuthorizationWithoutAuthenticationError):
-        app.prepare()
+        await app.start()
 
 
 @pytest.mark.parametrize(
@@ -438,7 +430,6 @@ async def test_authorization_default_requires_authenticated_user(app):
     async def admin():
         return None
 
-    app.prepare()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 

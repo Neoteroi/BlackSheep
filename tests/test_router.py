@@ -244,7 +244,7 @@ def test_route_handler_can_be_anything():
 def test_router_add_method(method, pattern, url):
     router = Router()
     router.add(method, pattern, mock_handler)
-
+    router.apply_routes()
     match = router.get_match_by_method_and_path(method, url)
 
     assert match is not None
@@ -279,6 +279,7 @@ def test_router_add_shortcuts(method, pattern, url):
 
     fn(pattern, home)
 
+    router.apply_routes()
     route = router.get_match_by_method_and_path(method.upper(), url)
 
     assert route is not None
@@ -301,6 +302,7 @@ def test_router_decorator(decorator, pattern, url):
     def home():
         return "Hello, World"
 
+    router.apply_routes()
     route = router.get_match_by_method_and_path(decorator.upper(), url)
 
     assert route is not None
@@ -323,6 +325,7 @@ def test_router_match_any_by_extension():
     router.add_get("/a/*.js", a)
     router.add_get("/b/*.css", b)
 
+    router.apply_routes()
     m = router.get_match_by_method_and_path(RouteMethod.GET, b"/a/anything/really")
     assert m is None
 
@@ -352,6 +355,8 @@ def test_router_match_any_below():
     router.add_get("/b/*", b)
     router.add_get("/c/*", c)
     router.add_get("/d/*", d)
+
+    router.apply_routes()
 
     m = router.get_match_by_method_and_path(RouteMethod.GET, b"/a")
     assert m is not None
@@ -427,6 +432,7 @@ def test_router_match_among_many():
     router.add_delete("/foo", delete_foo)
     router.add_ws("/ws", ws)
 
+    router.apply_routes()
     m = router.get_match_by_method_and_path(RouteMethod.GET, b"/")
     assert m is not None
     assert m.handler is home
@@ -477,6 +483,7 @@ def test_router_match_ws_get_sharing_path():
     router.add_get("/", home)
     router.add_ws("/", ws)
 
+    router.apply_routes()
     m = router.get_match_by_method_and_path(RouteMethod.GET, b"/")
     assert m is not None
     assert m.handler is home
@@ -513,6 +520,7 @@ def test_router_match_among_many_decorators():
     @router.delete("/foo")
     def delete_foo(): ...
 
+    router.apply_routes()
     m = router.get_match_by_method_and_path(RouteMethod.GET, b"/")
     assert m is not None
     assert m.handler is home
@@ -559,6 +567,7 @@ def test_router_match_with_trailing_slash():
     router.add_get("/foo", get_foo)
     router.add_post("/foo", create_foo)
 
+    router.apply_routes()
     m = router.get_match_by_method_and_path(RouteMethod.GET, b"/foo/")
 
     assert m is not None
@@ -638,9 +647,10 @@ def test_duplicate_pattern_raises(first_route, second_route):
     def another(): ...
 
     router.add_get(first_route, home)
+    router.add_get(second_route, another)
 
     with pytest.raises(RouteDuplicate):
-        router.add_get(second_route, another)
+        router.apply_routes()
 
 
 def test_duplicate_pattern_star_raises():
@@ -651,9 +661,10 @@ def test_duplicate_pattern_star_raises():
     def another(): ...
 
     router.add_get("*", home)
+    router.add_get("*", another)
 
     with pytest.raises(RouteDuplicate):
-        router.add_get("*", another)
+        router.apply_routes()
 
 
 def test_more_than_one_star_raises():
@@ -674,6 +685,7 @@ def test_automatic_pattern_with_ellipsis():
     @router.get(...)
     def another(): ...
 
+    router.apply_routes()
     match = router.get_match_by_method_and_path("GET", "/")
     assert match is None
 
@@ -694,6 +706,7 @@ def test_automatic_pattern_with_ellipsis_name_normalization():
     @router.get(...)
     def hello_world(): ...
 
+    router.apply_routes()
     match = router.get_match_by_method_and_path("GET", "/hello_world")
 
     assert match is None
@@ -710,6 +723,7 @@ def test_automatic_pattern_with_ellipsis_index_name():
     @router.get(...)
     def index(): ...
 
+    router.apply_routes()
     match = router.get_match_by_method_and_path("GET", "/")
 
     assert match is not None
@@ -728,6 +742,7 @@ def test_router_iterable():
     @router.options("/")
     def home_options(): ...
 
+    router.apply_routes()
     routes = list(router)
     assert len(routes) == 3
 
@@ -837,6 +852,7 @@ def test_route_filter_headers_1():
     @router.get("/")
     def home(): ...
 
+    router.apply_routes()
     match = router.get_match(Request("GET", b"/", []))
 
     assert match is None
@@ -875,6 +891,8 @@ def test_route_filter_headers_2():
     @test_router.get("/")
     def test_home(): ...
 
+    router.apply_routes()
+
     match = router.get_match(Request("GET", b"/", []))
 
     assert match is not None
@@ -892,6 +910,7 @@ def test_route_filter_params_1():
     @router.get("/")
     def home(): ...
 
+    router.apply_routes()
     match = router.get_match(Request("GET", b"/", []))
 
     assert match is None
@@ -911,6 +930,7 @@ def test_route_filter_host():
     @router.get("/")
     def test_home(): ...
 
+    router.apply_routes()
     match = router.get_match(Request("GET", b"/", [(b"host", b"localhost")]))
 
     assert match is None
@@ -936,6 +956,8 @@ def test_route_custom_filter():
 
     @router.get("/")
     def test_home(): ...
+
+    router.apply_routes()
 
     for i in range(5):
         match = router.get_match(Request("GET", b"/", []))
@@ -981,6 +1003,7 @@ def test_sub_routers_iter():
     @test_router.post("/cats")
     def post_cat(): ...
 
+    router.apply_routes()
     routes = list(router)
     assert len(routes) == 4
     handlers = [route.handler for route in routes]
@@ -1003,6 +1026,7 @@ def test_sub_routers_sort():
     @test_router.post("/cats")
     def post_cat(): ...
 
+    router.apply_routes()
     router.sort_routes()
 
     routes = list(router)
@@ -1031,17 +1055,19 @@ def test_routes_with_filters_can_have_duplicates():
     @test_router.post("/cats")
     def post_cat(): ...
 
+    router.apply_routes()
     routes = list(router)
     assert len(routes) == 4
     handlers = [route.handler for route in routes]
     assert set(handlers) == {home, post_foo, test_home, post_cat}
 
 
-def _router_prefix_scenario_1(router, prefix):
+def _router_prefix_scenario_1(router: Router, prefix):
     @router.get("/")
     def home():
         return "Hello, World"
 
+    router.apply_routes()
     match = router.get_match(Request("GET", prefix.encode(), []))
     assert match is not None
     assert match.handler() == "Hello, World"

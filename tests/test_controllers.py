@@ -66,7 +66,6 @@ async def test_handler_through_controller(app):
             assert isinstance(self, Home)
             return text("foo")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -95,7 +94,6 @@ async def test_ws_handler_through_controller(app):
             assert isinstance(websocket, WebSocket)
             await websocket.accept()
 
-    app.setup_controllers()
     await app(
         {"type": "websocket", "path": "/web-socket", "query_string": "", "headers": []},
         MockReceive([{"type": "websocket.connect"}]),
@@ -201,7 +199,6 @@ async def test_handler_catch_all_through_controller(path_one, path_two, app):
             assert isinstance(self, Home)
             return text("foo")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/hello.js"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -249,7 +246,6 @@ async def test_handler_through_controller_owned_text_method(app):
             assert isinstance(self, Home)
             return self.text("foo")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -278,7 +274,6 @@ async def test_handler_through_controller_owned_html_method(app):
                 """
             )
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -314,8 +309,6 @@ async def test_controller_supports_on_request(app):
         async def foo(self):
             assert isinstance(self, Home)
             return text("foo")
-
-    app.setup_controllers()
 
     for j in range(1, 10):
         await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
@@ -358,8 +351,6 @@ async def test_controller_supports_on_response(app):
             assert isinstance(self, Home)
             return text("foo")
 
-    app.setup_controllers()
-
     for j in range(1, 10):
         await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
         assert app.response.status == 200
@@ -385,7 +376,6 @@ async def test_handler_through_controller_supports_generic_decorator(app):
             assert isinstance(self, Home)
             return text(self.greet())
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
@@ -417,7 +407,6 @@ async def test_controller_with_dependency(value, app: Application):
 
     app.services.add_instance(Settings(value))
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
@@ -453,7 +442,6 @@ async def test_many_controllers(value, app):
 
     app.services.add_instance(Settings(value))
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
@@ -518,8 +506,6 @@ async def test_controller_on_request_setting_identity(app):
             assert isinstance(request.user, User)
             return text(request.user["name"])
 
-    app.setup_controllers()
-
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     body = await app.response.text()
     assert body == "Charlie Brown"
@@ -541,7 +527,6 @@ async def test_controller_with_base_route_as_string_attribute(app):
             assert isinstance(self, Home)
             return text(self.greet())
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 404
 
@@ -572,7 +557,7 @@ async def test_application_raises_for_invalid_route_class_attribute(app):
             return text(self.greet())
 
     with pytest.raises(RuntimeError):
-        app.setup_controllers()
+        await app.start()
 
 
 async def test_controller_with_base_route_as_class_method(app):
@@ -598,7 +583,6 @@ async def test_controller_with_base_route_as_class_method(app):
         def alive(self):
             return text("Good")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/home"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
@@ -634,7 +618,6 @@ async def test_controller_with_base_route_as_class_method_fragments(app):
         def alive(self):
             return text("Good")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/api/home"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
@@ -686,7 +669,7 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
     # and another handler
 
     class A(Controller):
-        route = "home"
+        route = "home"  # type: ignore
 
         @get(first_pattern)
         async def index(self, request: Request): ...
@@ -695,7 +678,7 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
     async def home(): ...
 
     with pytest.raises(RouteDuplicate):
-        app.use_controllers()
+        await app.start()
 
 
 async def test_api_controller_without_version(app):
@@ -721,8 +704,6 @@ async def test_api_controller_without_version(app):
         @delete(":cat_id")
         def delete_cat(self):
             return text("4")
-
-    app.setup_controllers()
 
     expected_result = {
         ("GET", "/api/cat/100"): "1",
@@ -767,8 +748,6 @@ async def test_api_controller_with_version(app):
         @delete(":cat_id")
         def delete_cat(self):
             return text("4")
-
-    app.setup_controllers()
 
     expected_result = {
         ("GET", "/api/v1/cat/100"): "1",
@@ -835,8 +814,6 @@ async def test_api_controller_with_version_2(app):
         def delete_cat(self):
             return text("8")
 
-    app.setup_controllers()
-
     expected_result = {
         ("GET", "/api/v1/cat/100"): "1",
         ("PATCH", "/api/v1/cat"): "2",
@@ -874,7 +851,6 @@ async def test_controller_parameter_name_match(app):
             assert isinstance(example, str)
             return text(example)
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 400
@@ -898,8 +874,6 @@ async def test_controller_return_file(app):
         @get("/")
         async def home(self):
             return self.file(file_path, "text/plain; charset=utf-8")
-
-    app.setup_controllers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -933,7 +907,6 @@ async def test_handler_through_controller_default_type(app):
         async def index(self) -> Foo:
             return Foo("Hello", 5.5)
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -950,7 +923,6 @@ async def test_handler_through_controller_default_str(app):
         async def index(self) -> str:
             return "Hello World"
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -968,7 +940,6 @@ async def test_controller_filters(app):
         async def index(self) -> str:
             return "Hello World"
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 404

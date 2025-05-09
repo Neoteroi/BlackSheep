@@ -4,7 +4,18 @@ import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, AnyStr, Callable, Dict, List, Optional, Sequence, Set, Union
+from typing import (
+    Any,
+    AnyStr,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 from urllib.parse import unquote
 
 from blacksheep.common import extend
@@ -698,6 +709,10 @@ class Router(RouterBase):
         if self._sub_routers:
             extend(self, MultiRouterMixin)
 
+    @property
+    def registered_routes(self) -> List[Tuple[str, Route]]:
+        return self._registered_routes
+
     def reset(self):
         """Resets this router to its initial state."""
         self._map = {}
@@ -731,6 +746,11 @@ class Router(RouterBase):
                 yield route
         if self._fallback:
             yield self._fallback
+
+    def iter_all(self):
+        yield from self
+        for _, route in self._registered_routes:
+            yield route
 
     def iter_with_methods(self):
         """
@@ -825,9 +845,18 @@ class Router(RouterBase):
             else Route(self._get_pattern(pattern), handler)
         )
 
-    def build_routes(self) -> None:
+    def apply_routes(self) -> None:
+        """
+        Applies routes to this router. This is necessary to offer a good user
+        experience and support partial routes that are validated at application start.
+        """
         method: str
-        for method, route in self._registered_routes:
+        while True:
+            try:
+                method, route = self._registered_routes.pop(0)
+            except IndexError:
+                break
+
             handler = route.handler
             controller_type = getattr(handler, "controller_type", None)
             if controller_type:
@@ -835,16 +864,21 @@ class Router(RouterBase):
                     method, route.pattern.decode("utf8"), handler
                 )
             else:
-                if not isinstance(route, FilterRoute):
-                    self._check_duplicate(method.encode(), route)
                 self.add_route(method.encode(), route)
+
+        if self._sub_routers:
+            for sub_router in self._sub_routers:
+                sub_router.apply_routes()
 
     def remove(self, method: AnyStr, route: Route):
         self.routes[ensure_bytes(method)].remove(route)
         del self._map[ensure_bytes(method)][route.full_pattern]
 
     def add_route(self, method: AnyStr, route: Route):
-        self.routes[ensure_bytes(method)].append(route)
+        method_bytes = ensure_bytes(method)
+        if not isinstance(route, FilterRoute):
+            self._check_duplicate(method_bytes, route)
+        self.routes[method_bytes].append(route)
 
     def sort_routes(self):
         """

@@ -847,10 +847,12 @@ class Router(RouterBase):
 
     def apply_routes(self) -> None:
         """
-        Applies routes to this router. This is necessary to offer a good user
+        Apply routes to this router. This is necessary to offer a good user
         experience and support partial routes that are validated at application start.
         """
         method: str
+        self._check_controllers_registry()
+
         while True:
             try:
                 method, route = self._registered_routes.pop(0)
@@ -869,6 +871,23 @@ class Router(RouterBase):
         if self._sub_routers:
             for sub_router in self._sub_routers:
                 sub_router.apply_routes()
+
+    def _check_controllers_registry(self):
+        """
+        If the user used the controllers_registry to define request handlers that are
+        not bound to a controller class, this method corrects the situation to the
+        desired internal state.
+        """
+        function_routes = [
+            item
+            for item in self.controllers_routes
+            if getattr(item.handler, "controller_type", None) is None
+        ]
+        for route in function_routes:
+            self._registered_routes.append(
+                (route.method, self.create_route(route.pattern, route.handler))
+            )
+            self.controllers_routes.remove(route)
 
     def remove(self, method: AnyStr, route: Route):
         self.routes[ensure_bytes(method)].remove(route)
@@ -989,6 +1008,9 @@ class RoutesRegistry(RouterBase):
     ):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
+
+    def remove(self, route: RegisteredRoute):
+        self.routes.remove(route)
 
 
 class MountRegistry:

@@ -34,12 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > While breaking changes may cause inconvenience for some users, I believe the
 > new features in this release represent a significant step forward.
-> Now Controllers support routes inheritance!
+> Now Controllers support routes inheritance! This is an important feature that
+> was missing so far in the web framework.
 
 - Fix [#511](https://github.com/Neoteroi/BlackSheep/issues/511). Add support
   for inheriting endpoints from parent controller classes, when subclassing
-  controllers. An important feature that was missing so far in the web
-  framework. Example:
+  controllers. Example:
 
 ```python
 from blacksheep import Application

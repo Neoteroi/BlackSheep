@@ -7,7 +7,7 @@ from guardpost import AuthenticationHandler, User
 from pydantic import Field
 from rodi import inject
 
-from blacksheep import Request, Response
+from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
 from blacksheep.server.controllers import (
     APIController,
@@ -995,8 +995,11 @@ async def test_controller_pydantic_validate_call_scenario(app):
                 assert response_text in (await response.text())
 
 
-async def test_controllers_inheritance(app):
-    get = app.router.controllers_routes.get
+@pytest.mark.parametrize("method", [1, 2])
+async def test_controllers_inheritance(app, method):
+    # Verify that the user can use interchangeably both router.get and
+    # router.controllers_routes.get
+    get = app.router.controllers_routes.get if method == 1 else app.router.get
 
     @abstract()
     class BaseController(Controller):
@@ -1043,6 +1046,45 @@ async def test_controllers_inheritance(app):
         ("/two/specific-route", "This is a specific route in ControllerTwo"),
         ("/two-bis/specific-route", "This is a specific route in ControllerTwoBis"),
         ("/two-bis/specific-route-2", "This is another route in ControllerTwoBis"),
+    ]
+
+    for endpoint, result in expected_endpoints:
+        await app(
+            get_example_scope("GET", endpoint),
+            MockReceive(),
+            MockSend(),
+        )
+        response = app.response
+        assert response is not None
+        assert response.status == 200
+        text = await response.text()
+        assert text == result
+
+
+@pytest.mark.parametrize("method", [1, 2])
+async def test_decorators_interchangeability(app, method):
+    # Verify that the user can use interchangeably both router.get and
+    # router.controllers_routes.get
+    get = app.router.controllers_routes.get if method == 1 else app.router.get
+
+    @get("/one")
+    async def one():
+        return "one"
+
+    class Home(Controller):
+        @get("/two")
+        async def two(self):
+            assert isinstance(self, Home)
+            return "two"
+
+    await app.start()
+
+    routes = app.router.routes[b"GET"]
+    assert len(routes) == 2
+
+    expected_endpoints = [
+        ("/one", "one"),
+        ("/two", "two"),
     ]
 
     for endpoint, result in expected_endpoints:

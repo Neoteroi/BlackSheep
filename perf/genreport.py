@@ -30,7 +30,6 @@ def load_results(
     """Load all benchmark results from the directory"""
     results = []
     for filename in glob.glob(f"{results_dir}/blacksheep_perf_*.json"):
-        print(filename)
         with open(filename, "r") as f:
             data = json.load(f)
             if not _match_filter(data, python_filter, platform_filter):
@@ -189,7 +188,7 @@ def _add_ms_chart(workbook, df, worksheet, max_row):
 
     # Add a chart title and some axis labels.
     chart.set_title({"name": "Performance comparison (lower is better)"})
-    chart.set_x_axis({"name": "commit"})
+    chart.set_x_axis({"name": ""})
     chart.set_y_axis({"name": "avg ms"})
 
     # Set an Excel chart style. Colors with white outline and shadow.
@@ -240,6 +239,18 @@ def _add_charts(workbook, df, worksheet, max_row):
     _add_mem_chart(workbook, df, worksheet, max_row)
 
 
+def _set_number_format(workbook, worksheet, df):
+    # Set number format for columns with "avg_ms" or "peak_mb" in their header
+    number_format = workbook.add_format(
+        {"num_format": "0.00000000", "align": "left"}
+    )  # 8 decimal points
+    for col in df.columns:
+        if "avg_ms" in col or "peak_mb" in col:
+            col_index = df.columns.get_loc(col)  # Get the column index
+            col_letter = chr(65 + col_index)  # Convert column index to Excel letter
+            worksheet.set_column(f"{col_letter}:{col_letter}", None, number_format)
+
+
 def write_excel(df, output_file_name: str):
     if not output_file_name.endswith(".xlsx"):
         output_file_name = output_file_name + ".xlsx"
@@ -256,10 +267,19 @@ def write_excel(df, output_file_name: str):
     # Get the xlsxwriter workbook and worksheet objects.
     workbook = writer.book
     worksheet = writer.sheets["results"]
+    _set_number_format(workbook, worksheet, df)
 
     # Get the dimensions of the dataframe.
-    (max_row, _) = df.shape
+    (max_row, max_col) = df.shape
 
+    # Add a table to the worksheet
+    worksheet.add_table(
+        f"A1:{chr(65 + max_col - 1)}{max_row + 1}",
+        {
+            "columns": [{"header": col} for col in df.columns],
+            "style": "Table Style Medium 9",
+        },
+    )
     # Configure the first series.
     # Plot time metrics
 
@@ -309,7 +329,7 @@ if __name__ == "__main__":
     results = load_results(args.results_dir, args.python, args.platform)
     if not results:
         print(f"No benchmark results found in {args.results_dir}")
-        exit(1)
+        exit(0)
 
     df = create_comparison_table(results)
     df = _aggregate(df, args.group_by)

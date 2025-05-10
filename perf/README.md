@@ -2,9 +2,16 @@
 
 This folder contains scripts to benchmark the performance of the library. The
 purpose of these benchmarks is to measure how changes in code affect
-performance, across Git commits.
+performance, across Git commits, Python versions, and operating system.
 
 Benchmarks measure execution time and memory utilization.
+
+> [!TIP]
+>
+> Download the results from the GitHub Workflow.
+> The `benchmark-reports` artifacts include Excel files with tables and charts.
+>
+>  [![Build](https://github.com/Neoteroi/BlackSheep/workflows/Benchmark/badge.svg)](https://github.com/Neoteroi/BlackSheep/actions/workflows/perf.yml)
 
 The code can both collect information and compare it depending on the Git
 commit SHA.

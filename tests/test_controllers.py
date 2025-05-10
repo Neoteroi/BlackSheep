@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import wraps
-from typing import Annotated, Generic, Optional, TypeVar
+from typing import Annotated, ClassVar, Generic, List, Optional, Tuple, TypeVar
 
 import pytest
 from guardpost import AuthenticationHandler, User
@@ -24,6 +24,7 @@ from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils import ensure_str
 from tests.test_files_serving import get_file_path
+from tests.utils.application import FakeApplication
 
 try:
     # v2
@@ -46,6 +47,22 @@ def example():
         return wrapper
 
     return example_decorator
+
+
+async def assert_expected_text(
+    app: FakeApplication, expected_results: List[Tuple[str, str]]
+):
+    for endpoint, result in expected_results:
+        await app(
+            get_example_scope("GET", endpoint),
+            MockReceive(),
+            MockSend(),
+        )
+        response = app.response
+        assert response is not None
+        assert response.status == 200
+        text = await response.text()
+        assert text == result
 
 
 async def test_handler_through_controller(app):
@@ -1039,26 +1056,17 @@ async def test_controllers_inheritance(app, method):
     routes = app.router.routes[b"GET"]
     assert len(routes) == 6
 
-    expected_endpoints = [
-        ("/one/hello-world", "Hello, World! ControllerOne"),
-        ("/two/hello-world", "Hello, World! ControllerTwo"),
-        ("/two-bis/hello-world", "Hello, World! ControllerTwoBis"),
-        ("/two/specific-route", "This is a specific route in ControllerTwo"),
-        ("/two-bis/specific-route", "This is a specific route in ControllerTwoBis"),
-        ("/two-bis/specific-route-2", "This is another route in ControllerTwoBis"),
-    ]
-
-    for endpoint, result in expected_endpoints:
-        await app(
-            get_example_scope("GET", endpoint),
-            MockReceive(),
-            MockSend(),
-        )
-        response = app.response
-        assert response is not None
-        assert response.status == 200
-        text = await response.text()
-        assert text == result
+    await assert_expected_text(
+        app,
+        [
+            ("/one/hello-world", "Hello, World! ControllerOne"),
+            ("/two/hello-world", "Hello, World! ControllerTwo"),
+            ("/two-bis/hello-world", "Hello, World! ControllerTwoBis"),
+            ("/two/specific-route", "This is a specific route in ControllerTwo"),
+            ("/two-bis/specific-route", "This is a specific route in ControllerTwoBis"),
+            ("/two-bis/specific-route-2", "This is another route in ControllerTwoBis"),
+        ],
+    )
 
 
 @pytest.mark.parametrize("method", [1, 2])
@@ -1082,22 +1090,13 @@ async def test_decorators_interchangeability(app, method):
     routes = app.router.routes[b"GET"]
     assert len(routes) == 2
 
-    expected_endpoints = [
-        ("/one", "one"),
-        ("/two", "two"),
-    ]
-
-    for endpoint, result in expected_endpoints:
-        await app(
-            get_example_scope("GET", endpoint),
-            MockReceive(),
-            MockSend(),
-        )
-        response = app.response
-        assert response is not None
-        assert response.status == 200
-        text = await response.text()
-        assert text == result
+    await assert_expected_text(
+        app,
+        [
+            ("/one", "one"),
+            ("/two", "two"),
+        ],
+    )
 
 
 async def test_controllers_inheritance_di_resolution(app):
@@ -1156,19 +1155,55 @@ async def test_controllers_inheritance_di_resolution(app):
     routes = app.router.routes[b"GET"]
     assert len(routes) == 2
 
-    expected_endpoints = [
-        ("/one/hello-world", "Hello, World! ControllerOne. Dependency: OneRepository"),
-        ("/two/hello-world", "Hello, World! ControllerTwo. Dependency: TwoRepository"),
-    ]
+    await assert_expected_text(
+        app,
+        [
+            (
+                "/one/hello-world",
+                "Hello, World! ControllerOne. Dependency: OneRepository",
+            ),
+            (
+                "/two/hello-world",
+                "Hello, World! ControllerTwo. Dependency: TwoRepository",
+            ),
+        ],
+    )
 
-    for endpoint, result in expected_endpoints:
-        await app(
-            get_example_scope("GET", endpoint),
-            MockReceive(),
-            MockSend(),
-        )
-        response = app.response
-        assert response is not None
-        assert response.status == 200
-        text = await response.text()
-        assert text == result
+
+async def test_issue_511(app):
+    """
+    Test support for more complex logic to define paths, like described in
+    https://github.com/Neoteroi/BlackSheep/issues/511
+    """
+    # Verify that the user can use interchangeably both router.get and
+    # router.controllers_routes.get
+    get = app.router.controllers_routes.get
+
+    class BaseController(Controller):
+        path: ClassVar[str] = "base"
+
+        @classmethod
+        def route(cls) -> Optional[str]:
+            return f"/api/{cls.path}"
+
+        @get("/foo")
+        def foo(self):
+            return self.ok(self.__class__.__name__)
+
+    class Derived(BaseController):
+        path = "derived"
+
+        # /one/hello-world
+
+    await app.start()
+
+    routes = app.router.routes[b"GET"]
+    assert len(routes) == 2
+
+    await assert_expected_text(
+        app,
+        [
+            ("/api/base/foo", "BaseController"),
+            ("/api/derived/foo", "Derived"),
+        ],
+    )

@@ -97,7 +97,7 @@ class ControllerTwo(BaseController):
   `RuntimeError` if the env variable `APP_SIGNAL_HANDLER` is not set to a
   truthy value.
 - Improve the error message of the `RouteDuplicate` class.
-- Fix [#38](https://github.com/Neoteroi/BlackSheep/issues/38) for notations that
+- Fix [#38](https://github.com/Neoteroi/BlackSheep-Docs/issues/38) for notations that
   are available since Python 3.9 (e.g. `list[str]`, `set[str]`, `tuple[str]`).
 - Fix [a regression](https://github.com/Neoteroi/BlackSheep/issues/538#issuecomment-2867564293)
   introduced in `2.2.0` that would prevent custom `HTTPException`handlers from

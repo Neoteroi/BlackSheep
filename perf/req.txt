@@ -1,0 +1,6 @@
+matplotlib==3.10.1
+memory-profiler==0.61.0
+pandas==2.2.3
+psutil==7.0.0
+line_profiler==4.2.0
+XlsxWriter==3.2.3

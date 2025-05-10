@@ -1,0 +1,57 @@
+name: Benchmark
+
+on:
+  workflow_dispatch
+
+jobs:
+  perf-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 9
+          submodules: false
+
+      - name: Use Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Compile Cython extensions
+        run: |
+          cython blacksheep/url.pyx
+          cython blacksheep/exceptions.pyx
+          cython blacksheep/headers.pyx
+          cython blacksheep/cookies.pyx
+          cython blacksheep/contents.pyx
+          cython blacksheep/messages.pyx
+          cython blacksheep/scribe.pyx
+          cython blacksheep/baseapp.pyx
+          python setup.py build_ext --inplace
+
+      - name: Install dependencies for benchmark
+        run: |
+          cd perf
+          pip install -r req.txt
+
+      - name: Run benchmark
+        run: |
+          export PYTHONPATH="."
+          python perf/main.py --times 5
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark_results
+          path: benchmark_results

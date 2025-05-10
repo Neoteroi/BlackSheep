@@ -128,3 +128,6 @@ nice-cat.jpg
 venv*
 
 .local/*
+benchmark_results/
+performance_comparison.xlsx
+.~lock*

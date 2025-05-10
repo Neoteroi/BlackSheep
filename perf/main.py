@@ -13,6 +13,7 @@ import os
 import platform
 import subprocess
 import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -160,9 +161,9 @@ def save_results(results, output_dir="./benchmark_results"):
     # Generate a filename with git hash and timestamp
     git_hash = results["git_info"].get("commit_hash", "no-git")[:8]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # TODO: filename should also depend on the python version
-    # and the platform (e.g., linux, windows, macos)
-    filename = f"{output_dir}/blacksheep_perf_{git_hash}_{timestamp}.json"
+    unique_id = uuid.uuid4().hex[:8]  # Generate a short UUID
+
+    filename = f"{output_dir}/blacksheep_perf_{git_hash}_{timestamp}_{unique_id}.json"
 
     with open(filename, "w") as f:
         json.dump(results, f, indent=2)

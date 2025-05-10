@@ -2,6 +2,7 @@
 Generate an Excel report to compare benchmark results across commits.
 """
 
+from pathlib import Path
 import argparse
 import glob
 import json
@@ -11,12 +12,28 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def load_results(results_dir="./benchmark_results"):
+def _match_filter(data, python_filter: str, platform_filter: str):
+    if python_filter or platform_filter:
+        system_info = data["system_info"]
+        if python_filter and python_filter not in system_info["python_version"]:
+            return False
+        if platform_filter and platform_filter not in system_info["platform"]:
+            return False
+    return True
+
+
+def load_results(
+    results_dir="./benchmark_results",
+    python_filter: str = "",
+    platform_filter: str = "",
+):
     """Load all benchmark results from the directory"""
     results = []
     for filename in glob.glob(f"{results_dir}/blacksheep_perf_*.json"):
         with open(filename, "r") as f:
             data = json.load(f)
+            if not _match_filter(data, python_filter, platform_filter):
+                continue
             data["filename"] = os.path.basename(filename)
             results.append(data)
 
@@ -36,11 +53,11 @@ def create_comparison_table(results):
             "timestamp": result.get("timestamp", "unknown"),
             "commit": commit,
             "date": date,
-            "branch": result.get("git_info", {}).get("branch", "unknown"),
             "python_version": result.get("system_info", {}).get(
                 "python_version", "unknown"
             ),
             "platform": result.get("system_info", {}).get("platform", "unknown"),
+            "branch": result.get("git_info", {}).get("branch", "unknown"),
         }
 
         # Add benchmark results
@@ -78,7 +95,7 @@ def _aggregate(df: pd.DataFrame, by: str):
     )
 
     # Perform the aggregation
-    aggregated_df = df.groupby(by, as_index=False).agg(aggregation_functions)
+    aggregated_df = df.groupby(by.split(), as_index=False).agg(aggregation_functions)
 
     # Reorder columns to match the original DataFrame
     aggregated_df = aggregated_df[
@@ -86,7 +103,7 @@ def _aggregate(df: pd.DataFrame, by: str):
     ]
 
     # Sort by the 'date' column
-    aggregated_df = aggregated_df.sort_values(by="date")
+    aggregated_df = aggregated_df.sort_values(by=["date", "python_version", "platform"])
 
     return aggregated_df
 
@@ -157,7 +174,7 @@ def _add_ms_chart(workbook, df, worksheet, max_row):
         chart.add_series(
             {
                 "name": col,
-                "categories": f"=results!$B$2:$C${(max_row + 1)}",
+                "categories": f"=results!$B$2:$E${(max_row + 1)}",
                 "values": [
                     "results",
                     1,
@@ -170,7 +187,7 @@ def _add_ms_chart(workbook, df, worksheet, max_row):
         )
 
     # Add a chart title and some axis labels.
-    chart.set_title({"name": "Performance comparison"})
+    chart.set_title({"name": "Performance comparison (lower is better)"})
     chart.set_x_axis({"name": "commit"})
     chart.set_y_axis({"name": "avg ms"})
 
@@ -192,7 +209,7 @@ def _add_mem_chart(workbook, df, worksheet, max_row):
         chart.add_series(
             {
                 "name": col,
-                "categories": f"=results!$B$2:$C${(max_row + 1)}",
+                "categories": f"=results!$B$2:$E${(max_row + 1)}",
                 "values": [
                     "results",
                     1,
@@ -205,7 +222,7 @@ def _add_mem_chart(workbook, df, worksheet, max_row):
         )
 
     # Add a chart title and some axis labels.
-    chart.set_title({"name": "Mem usage comparison"})
+    chart.set_title({"name": "Mem usage comparison (lower is better)"})
     chart.set_x_axis({"name": "commit"})
     chart.set_y_axis({"name": "peak MB"})
 
@@ -222,10 +239,17 @@ def _add_charts(workbook, df, worksheet, max_row):
     _add_mem_chart(workbook, df, worksheet, max_row)
 
 
-def write_excel(df):
+def write_excel(df, output_file_name: str):
+    if not output_file_name.endswith(".xlsx"):
+        output_file_name = output_file_name + ".xlsx"
+    k = 0
+    orig_name = output_file_name
+    while Path(output_file_name).exists():
+        k += 1
+        output_file_name = orig_name.replace(".xlsx", f"-{k}.xlsx")
+
     # Export to Excel for further analysis
-    excel_file = "performance_comparison.xlsx"
-    writer = pd.ExcelWriter(excel_file, engine="xlsxwriter")
+    writer = pd.ExcelWriter(output_file_name, engine="xlsxwriter")
     df.to_excel(writer, index=False, sheet_name="results")
 
     # Get the xlsxwriter workbook and worksheet objects.
@@ -244,7 +268,7 @@ def write_excel(df):
     # Close the Pandas Excel writer and output the Excel file.
     worksheet.autofit()
     writer.close()
-    print(f"XLSX saved to {excel_file}")
+    print(f"XLSX saved to {output_file_name}")
 
 
 if __name__ == "__main__":
@@ -255,20 +279,37 @@ if __name__ == "__main__":
         default="./benchmark_results",
         help="Directory containing benchmark results",
     )
-    parser.add_argument("--group-by", type=str, default="commit", help="Group by")
+    parser.add_argument(
+        "--group-by",
+        type=str,
+        default="commit python_version platform",
+        help="Group by",
+    )
+    parser.add_argument(
+        "--python",
+        type=str,
+        default="",
+        help="Filter by Python version",
+    )
+    parser.add_argument(
+        "--platform",
+        type=str,
+        default="",
+        help="Filter by platform",
+    )
     parser.add_argument(
         "--output",
         type=str,
-        default="performance_trends.png",
-        help="Output file for performance trends plot",
+        default="performance-comparison.xlsx",
+        help="Output file name",
     )
     args = parser.parse_args()
 
-    results = load_results(args.results_dir)
+    results = load_results(args.results_dir, args.python, args.platform)
     if not results:
         print(f"No benchmark results found in {args.results_dir}")
         exit(1)
 
     df = create_comparison_table(results)
     df = _aggregate(df, args.group_by)
-    write_excel(df)
+    write_excel(df, args.output)

@@ -1,3 +1,8 @@
+###
+# Runs benchmarks for BlackSheep source code for various versions of Python
+# and Operating System and publishes the results.
+# See the perf folder for more information.
+###
 name: Benchmark
 
 on:
@@ -10,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -57,3 +62,43 @@ jobs:
         with:
           name: benchmark-results-${{ matrix.os }}-${{ matrix.python-version }}
           path: benchmark_results
+
+  genreport:
+    runs-on: ubuntu-latest
+    needs: [perf-tests]
+    steps:
+      - name: Download a distribution artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: benchmark-results-*
+          merge-multiple: true
+          path: benchmark_results
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 9
+          submodules: false
+
+      - name: Use Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          cd perf
+          pip install -r req.txt
+
+      - name: Generate report
+        shell: bash
+        run: |
+          export PYTHONPATH="."
+          python perf/genreport.py
+          python perf/genreport.py --output windows-results.xlsx --platform Windows
+          python perf/genreport.py --output linux-results.xlsx --platform Linux
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports
+          path: "**/*.xlsx"  # Upload all .xlsx files

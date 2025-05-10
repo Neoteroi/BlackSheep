@@ -1,7 +1,8 @@
 name: Benchmark
 
 on:
-  workflow_dispatch
+  push:
+  workflow_dispatch:
 
 jobs:
   perf-tests:

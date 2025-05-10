@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import wraps
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Generic, TypeVar
 
 import pytest
 from guardpost import AuthenticationHandler, User
@@ -1043,6 +1043,80 @@ async def test_controllers_inheritance(app):
         ("/two/specific-route", "This is a specific route in ControllerTwo"),
         ("/two-bis/specific-route", "This is a specific route in ControllerTwoBis"),
         ("/two-bis/specific-route-2", "This is another route in ControllerTwoBis"),
+    ]
+
+    for endpoint, result in expected_endpoints:
+        await app(
+            get_example_scope("GET", endpoint),
+            MockReceive(),
+            MockSend(),
+        )
+        response = app.response
+        assert response is not None
+        assert response.status == 200
+        text = await response.text()
+        assert text == result
+
+
+async def test_controllers_inheritance_di_resolution(app):
+    get = app.router.controllers_routes.get
+
+    T = TypeVar("T")
+
+    class Repository(Generic[T]):
+        def get_item(self, id: int) -> T: ...
+
+    class One:
+        pass
+
+    class Two:
+        pass
+
+    class OneRepository(Repository[One]):
+        pass
+
+    class TwoRepository(Repository[Two]):
+        pass
+
+    # Dependencies ↓↓↓
+    app.services.register(OneRepository)
+    app.services.register(TwoRepository)
+
+    @abstract()
+    class BaseController(Controller):
+
+        repository: Repository
+
+        @get("/hello-world")
+        def index(self):
+            return self.text(
+                f"Hello, World! {self.__class__.__name__}. "
+                f"Dependency: {self.repository.__class__.__name__}"
+            )
+
+    class ControllerOne(BaseController):
+
+        route = "/one"
+
+        repository: OneRepository
+        # /one/hello-world
+
+    class ControllerTwo(BaseController):
+
+        route = "/two"
+
+        repository: TwoRepository
+
+        # /two/hello-world
+
+    await app.start()
+
+    routes = app.router.routes[b"GET"]
+    assert len(routes) == 2
+
+    expected_endpoints = [
+        ("/one/hello-world", "Hello, World! ControllerOne. Dependency: OneRepository"),
+        ("/two/hello-world", "Hello, World! ControllerTwo. Dependency: TwoRepository"),
     ]
 
     for endpoint, result in expected_endpoints:

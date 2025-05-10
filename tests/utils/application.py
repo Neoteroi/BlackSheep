@@ -1,5 +1,6 @@
-import warnings
 from typing import Optional
+
+from essentials.meta import deprecated
 
 from blacksheep.messages import Request, Response
 from blacksheep.server import Application
@@ -14,7 +15,7 @@ class FakeApplication(Application):
         self.request: Optional[Request] = None
         self.response: Optional[Response] = None
 
-    @warnings.deprecated(
+    @deprecated(
         "This function is not needed anymore, and will be removed. Rely instead on "
         "await app.start() or the automatic start happening on await app(...)."
     )

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.0] - 2025-??-??
 
-> [!IMPORTANT] Important note.
+> [!IMPORTANT]
 >
 > This release, like the previous one, includes some breaking changes to the
 > public code API of certain classes, hence the bump in version from `2.2.0` to

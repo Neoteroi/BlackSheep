@@ -74,7 +74,7 @@ jobs:
           merge-multiple: true
           path: benchmark_results
 
-      - name: Debug: List benchmark results
+      - name: List benchmark results
         run: ls -R benchmark_results && tree
 
       - uses: actions/checkout@v4

@@ -97,9 +97,9 @@ jobs:
 
           export PYTHONPATH="."
           python perf/genreport.py
-          python perf/genreport.py --output windows-results.xlsx --platform Windows
-          python perf/genreport.py --output linux-results.xlsx --platform Linux
-          python perf/genreport.py --output macos-results.xlsx --platform macOS
+          # python perf/genreport.py --output windows-results.xlsx --platform Windows
+          # python perf/genreport.py --output linux-results.xlsx --platform Linux
+          # python perf/genreport.py --output macos-results.xlsx --platform macOS
 
       - name: Upload reports
         uses: actions/upload-artifact@v4

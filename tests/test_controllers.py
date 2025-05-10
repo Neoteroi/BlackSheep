@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import wraps
-from typing import Annotated, Optional, Generic, TypeVar
+from typing import Annotated, Generic, Optional, TypeVar
 
 import pytest
 from guardpost import AuthenticationHandler, User

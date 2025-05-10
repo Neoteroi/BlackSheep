@@ -26,7 +26,7 @@ from blacksheep import (
     TextContent,
 )
 from blacksheep.contents import FormPart
-from blacksheep.exceptions import InternalServerError, NotFound
+from blacksheep.exceptions import Conflict, InternalServerError, NotFound
 from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.bindings import (
     ClientInfo,
@@ -206,7 +206,6 @@ async def test_application_post_multipart_formdata(app):
             boundary + b"--",
         ]
     )
-    await app.start()
     await app(
         get_example_scope(
             "POST",
@@ -3042,8 +3041,6 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature():
 
         return text("OK")
 
-    await app.start()
-
     for _ in range(2):
         scope = get_example_scope("GET", "/", [])
         await app(
@@ -3072,8 +3069,6 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
     async def home(a: OperationContext, b: OperationContext):
         assert a is not b
         return text("OK")
-
-    await app.start()
 
     for _ in range(2):
         scope = get_example_scope("GET", "/", [])
@@ -3212,8 +3207,6 @@ async def test_user_binding(app):
         assert user.authentication_mode == "TEST"
         return text(f"User name: {user.claims['name']}")
 
-    await app.start()
-
     claims = {"id": "001", "name": "Charlie Brown", "role": "user"}
 
     for path in ["/example-1", "/example-2", "/example-3"]:
@@ -3239,8 +3232,6 @@ async def test_request_binding(app):
         assert isinstance(req, Request)
         return "Foo"
 
-    await app.start()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -3264,7 +3255,6 @@ async def test_use_auth_raises_if_app_is_already_started(app):
             return context.user
 
     await app.start()
-
     with pytest.raises(RuntimeError):
         app.use_authentication()
 
@@ -3280,8 +3270,6 @@ async def test_default_headers(app):
     @app.router.route("/")
     async def home():
         return text("Hello World")
-
-    await app.start()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -3581,7 +3569,6 @@ async def test_start_runs_once(app):
     assert on_start_count == 1
 
     await app.start()
-    await app.start()
 
     assert on_start_count == 1
 
@@ -3662,8 +3649,6 @@ async def test_response_normalization_wrapped(app):
     async def home():
         return "Hello, World"
 
-    await app.start()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -3684,8 +3669,6 @@ async def test_response_normalization_with_cors(app):
     @app.router.get("/")
     async def home():
         return "Hello, World"
-
-    await app.start()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -3747,7 +3730,6 @@ async def test_custom_handler_for_404_not_found(app, param):
     async def home():
         raise NotFound()
 
-    await app.start()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
@@ -3756,6 +3738,80 @@ async def test_custom_handler_for_404_not_found(app, param):
     assert response
     actual_response_text = await response.text()
     assert actual_response_text == "Called"
+
+
+@pytest.mark.parametrize("param", [404, NotFound])
+async def test_http_exception_handler_type_resolution(app, param):
+    # https://github.com/Neoteroi/BlackSheep/issues/538#issuecomment-2867564293
+
+    # THIS IS NOT RECOMMENDED! IT IS NOT RECOMMENDED TO USE A CATCH-ALL EXCEPTION
+    # HANDLER LIKE THE ONE BELOW. BLACKSHEEP AUTOMATICALLY HANDLES NON-HANDLED
+    # EXCEPTIONS USING THE DIAGNOSTIC PAGES IF SHOW_ERROR_DETAILS IS ENABLED, AND USING
+    # THE INTERNAL SERVER ERROR HANDLER OTHERWISE!
+    # USE INSTEAD:
+    # @app.exception_handler(500) or @app.exception_handler(InternalServerError)
+    @app.exception_handler(Exception)
+    async def catch_all(self: FakeApplication, request: Request, exc: NotFound):
+        return Response(500, content=TextContent("Oh, No!"))
+
+    @app.exception_handler(param)
+    async def not_found_handler(
+        self: FakeApplication, request: Request, exc: NotFound
+    ) -> Response:
+        return Response(200, content=TextContent("Called"))
+
+    @app.router.get("/")
+    async def home():
+        raise NotFound()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response
+    actual_response_text = await response.text()
+    assert actual_response_text == "Called"
+
+
+@pytest.mark.parametrize("param", [Conflict, 409])
+async def test_http_exception_handler_type_resolution_inheritance(app, param):
+    # https://github.com/Neoteroi/BlackSheep/issues/538#issuecomment-2867564293
+
+    @app.exception_handler(param)
+    async def catch_conflicts(self: FakeApplication, request: Request, exc: Conflict):
+        return Response(
+            409, content=TextContent(f"Custom {type(exc).__name__} Handler!")
+        )
+
+    class FooConflict(Conflict):
+        pass
+
+    class UfoConflict(Conflict):
+        pass
+
+    @app.router.get("/foo")
+    async def foo():
+        raise FooConflict()
+
+    @app.router.get("/ufo")
+    async def ufo():
+        raise UfoConflict()
+
+    expectations = {
+        "/foo": "Custom FooConflict Handler!",
+        "/ufo": "Custom UfoConflict Handler!",
+    }
+
+    for key, value in expectations.items():
+        await app(get_example_scope("GET", key), MockReceive(), MockSend())
+
+        assert app.response is not None
+        response: Response = app.response
+
+        assert response
+        actual_response_text = await response.text()
+        assert actual_response_text == value
 
 
 @pytest.mark.parametrize("param", [500, InternalServerError])
@@ -3775,7 +3831,6 @@ async def test_custom_handler_for_500_internal_server_error(app, param):
     async def home():
         raise TypeError()
 
-    await app.start()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
@@ -3811,7 +3866,6 @@ async def test_application_pydantic_json_error(app):
 
     expected_error = get_pydantic_error(CreateCatInput, {"foo": "not valid"})
 
-    await app.start()
     await app(
         get_example_scope(
             "POST",
@@ -3836,7 +3890,6 @@ async def test_app_fallback_route(app):
 
     app.router.fallback = not_found_handler
 
-    await app.start()
     await app(
         get_example_scope("GET", "/not-registered", []), MockReceive(), MockSend()
     )
@@ -3853,7 +3906,6 @@ async def test_hsts_middleware(app):
 
     app.middlewares.append(HSTSMiddleware())
 
-    await app.start()
     await app(get_example_scope("GET", "/", []), MockReceive(), MockSend())
 
     response = app.response
@@ -3889,7 +3941,6 @@ async def test_pep_593(app):
     docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
     docs.bind_app(app)
 
-    await app.start()
     await app(get_example_scope("GET", "/pets", []), MockReceive(), MockSend())
 
     response = app.response
@@ -3951,7 +4002,6 @@ async def test_application_sub_router_normalization():
 
     content = b'{"id": 1, "name": "Charlie Brown"}'
 
-    await app.start()
     await app(
         get_example_scope(
             "POST",
@@ -3985,8 +4035,6 @@ async def test_pydantic_validate_call_scenario():
         i: Annotated[int, Field(ge=1, le=10)] = 1,
     ) -> Response:
         return text(f"i={i}")
-
-    await app.start()
 
     expectations = [
         ("", 200, "i=1"),
@@ -4067,8 +4115,6 @@ async def test_application_sse():
             yield ServerSentEvent({"message": f"Hello World {i}"})
             await asyncio.sleep(0.05)
 
-    await app.start()
-
     scope = get_example_scope("GET", "/events", [])
     mock_send = MockSend()
 
@@ -4103,8 +4149,6 @@ async def test_application_sse_plain_text():
         for i in range(3):
             yield TextServerSentEvent(f"Hello World {i}")
             await asyncio.sleep(0.05)
-
-    await app.start()
 
     scope = get_example_scope("GET", "/events", [])
     mock_send = MockSend()

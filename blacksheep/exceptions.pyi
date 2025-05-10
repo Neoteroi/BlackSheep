@@ -22,6 +22,10 @@ class Forbidden(HTTPException):
     def __init__(self, message: str = "Forbidden"):
         super().__init__(403, message)
 
+class Conflict(HTTPException):
+    def __init__(self, message: str = "Conflict"):
+        super().__init__(409, message)
+
 class BadRequestFormat(BadRequest):
     def __init__(self, message: str, inner_exception: object = None):
         super().__init__(message)

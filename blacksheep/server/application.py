@@ -459,14 +459,14 @@ class Application(BaseApplication):
         return strategy
 
     def exception_handler(
-        self, exception: Union[int, Type[Exception]]
+        self, exception_type: Union[int, Type[Exception]]
     ) -> Callable[..., Any]:
         """
         Registers an exception handler function in the application exception handler.
         """
 
         def decorator(f):
-            self.exceptions_handlers[exception] = f
+            self.exceptions_handlers[exception_type] = f
             return f
 
         return decorator

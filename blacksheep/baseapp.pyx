@@ -127,9 +127,11 @@ cdef class BaseApplication:
         return await self.handle_exception(request, exc)
 
     cpdef object get_http_exception_handler(self, HTTPException http_exception):
-        # Try getting HTTP exception handler by exact type first
-        if http_exception.__class__ in self.exceptions_handlers:
-            return self.exceptions_handlers[http_exception.__class__]
+        # Try getting HTTP exception handler by type first, supporting
+        # base classes up to a certain point (HTTPException)
+        handler = self.get_exception_handler(http_exception, stop_at=HTTPException)
+        if handler:
+            return handler
         # Try getting HTTP exception handler by HTTP error status code
         return self.exceptions_handlers.get(
             http_exception.status, common_http_exception_handler
@@ -141,8 +143,10 @@ cdef class BaseApplication:
                 return True
         return False
 
-    cdef object get_exception_handler(self, Exception exception):
+    cdef object get_exception_handler(self, Exception exception, type stop_at):
         for class_type in get_class_instance_hierarchy(exception):
+            if stop_at is not None and stop_at is class_type:
+                return None
             if class_type in self.exceptions_handlers:
                 return self.exceptions_handlers[class_type]
 
@@ -184,7 +188,7 @@ cdef class BaseApplication:
         return await self.handle_exception(request, http_exception)
 
     async def handle_exception(self, request, exc):
-        exception_handler = self.get_exception_handler(exc)
+        exception_handler = self.get_exception_handler(exc, None)
         if exception_handler:
             return await self._apply_exception_handler(request, exc, exception_handler)
 

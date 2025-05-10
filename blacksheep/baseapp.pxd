@@ -14,5 +14,5 @@ cdef class BaseApplication:
     cdef readonly object logger
     cdef public dict exceptions_handlers
     cpdef object get_http_exception_handler(self, HTTPException http_exception)
-    cdef object get_exception_handler(self, Exception exception)
+    cdef object get_exception_handler(self, Exception exception, type stop_at)
     cdef bint is_handled_exception(self, Exception exception)

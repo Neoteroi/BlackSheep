@@ -67,6 +67,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [perf-tests]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 9
+          submodules: false
+
       - name: Download a distribution artifact
         uses: actions/download-artifact@v4
         with:
@@ -76,11 +81,6 @@ jobs:
 
       - name: List benchmark results
         run: ls -R benchmark_results && tree
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 9
-          submodules: false
 
       - name: Use Python 3.13
         uses: actions/setup-python@v5

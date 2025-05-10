@@ -190,7 +190,7 @@ class CORSStrategy:
             if not policy_object:
                 raise CORSPolicyNotConfiguredError(policy)
 
-            for route in self.router:
+            for route in self.router.iter_all():
                 if route.handler is fn:
                     self._policies_by_route[route] = policy_object
                     is_match = True

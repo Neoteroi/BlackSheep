@@ -4,7 +4,18 @@ import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, AnyStr, Callable, Dict, List, Optional, Sequence, Set, Union
+from typing import (
+    Any,
+    AnyStr,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 from urllib.parse import unquote
 
 from blacksheep.common import extend
@@ -53,10 +64,8 @@ class RouteDuplicate(RouteException):
         method = ensure_str(method)
         pattern = ensure_str(pattern)
         super().__init__(
-            f"Cannot register route pattern `{pattern}` for "
-            f"`{method}` more than once. "
-            f"This pattern is already registered for handler "
-            f"{current_handler.__qualname__}."
+            f"Cannot register the route {method} {pattern} more than once. "
+            f"This route is already registered for {current_handler.__qualname__}."
         )
         self.method = method
         self.pattern = pattern
@@ -664,6 +673,7 @@ class Router(RouterBase):
         "_sub_routers",
         "_filters",
         "_prefix",
+        "_registered_routes",
     )
 
     def __init__(
@@ -688,15 +698,20 @@ class Router(RouterBase):
         self._prefix: bytes = self._normalize_prefix(
             _combine_with_global_prefix(prefix)
         )
-        self.routes: Dict[bytes, List[Route]] = defaultdict(list)
-        self.controllers_routes = RoutesRegistry()
+        self.routes: Dict[bytes, List[Route]] = defaultdict(list)  # final routes
+        self.controllers_routes = RoutesRegistry()  # used during controllers setup
         self._sub_routers = sub_routers
+        self._registered_routes = []  # used during setup
 
         if self._filters:
             extend(self, RouterFiltersMixin)
 
         if self._sub_routers:
             extend(self, MultiRouterMixin)
+
+    @property
+    def registered_routes(self) -> List[Tuple[str, Route]]:
+        return self._registered_routes
 
     def reset(self):
         """Resets this router to its initial state."""
@@ -731,6 +746,11 @@ class Router(RouterBase):
                 yield route
         if self._fallback:
             yield self._fallback
+
+    def iter_all(self):
+        yield from self
+        for _, route in self._registered_routes:
+            yield route
 
     def iter_with_methods(self):
         """
@@ -804,26 +824,80 @@ class Router(RouterBase):
         handler: Any,
         filters: Optional[List[RouteFilter]] = None,
     ):
+        new_route = self.create_route(pattern, handler, filters)
+        self._registered_routes.append((method, new_route))
+
+    def create_route(
+        self,
+        pattern: AnyStr,
+        handler: Any,
+        filters: Optional[List[RouteFilter]] = None,
+    ) -> Route:
         if filters and not isinstance(self, RouterFiltersMixin):
             extend(self, RouterFiltersMixin)
 
         route_filters = filters or self._filters
 
         self.mark_handler(handler)
-        method_name = ensure_bytes(method)
-        new_route = (
+        return (
             FilterRoute(self._get_pattern(pattern), handler, route_filters)
             if route_filters
             else Route(self._get_pattern(pattern), handler)
         )
 
-        if not route_filters:
-            self._check_duplicate(method_name, new_route)
+    def apply_routes(self) -> None:
+        """
+        Apply routes to this router. This is necessary to offer a good user
+        experience and support partial routes that are validated at application start.
+        """
+        method: str
+        self._check_controllers_registry()
 
-        self.add_route(method_name, new_route)
+        while True:
+            try:
+                method, route = self._registered_routes.pop(0)
+            except IndexError:
+                break
+
+            handler = route.handler
+            controller_type = getattr(handler, "controller_type", None)
+            if controller_type:
+                self.controllers_routes.add(
+                    method, route.pattern.decode("utf8"), handler
+                )
+            else:
+                self.add_route(method.encode(), route)
+
+        if self._sub_routers:
+            for sub_router in self._sub_routers:
+                sub_router.apply_routes()
+
+    def _check_controllers_registry(self):
+        """
+        If the user used the controllers_registry to define request handlers that are
+        not bound to a controller class, this method corrects the situation to the
+        desired internal state.
+        """
+        function_routes = [
+            item
+            for item in self.controllers_routes
+            if getattr(item.handler, "controller_type", None) is None
+        ]
+        for route in function_routes:
+            self._registered_routes.append(
+                (route.method, self.create_route(route.pattern, route.handler))
+            )
+            self.controllers_routes.remove(route)
+
+    def remove(self, method: AnyStr, route: Route):
+        self.routes[ensure_bytes(method)].remove(route)
+        del self._map[ensure_bytes(method)][route.full_pattern]
 
     def add_route(self, method: AnyStr, route: Route):
-        self.routes[ensure_bytes(method)].append(route)
+        method_bytes = ensure_bytes(method)
+        if not isinstance(route, FilterRoute):
+            self._check_duplicate(method_bytes, route)
+        self.routes[method_bytes].append(route)
 
     def sort_routes(self):
         """
@@ -934,6 +1008,9 @@ class RoutesRegistry(RouterBase):
     ):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
+
+    def remove(self, route: RegisteredRoute):
+        self.routes.remove(route)
 
 
 class MountRegistry:

@@ -26,7 +26,7 @@ from blacksheep import (
     TextContent,
 )
 from blacksheep.contents import FormPart
-from blacksheep.exceptions import InternalServerError
+from blacksheep.exceptions import Conflict, InternalServerError, NotFound
 from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.bindings import (
     ClientInfo,
@@ -206,7 +206,6 @@ async def test_application_post_multipart_formdata(app):
             boundary + b"--",
         ]
     )
-
     await app(
         get_example_scope(
             "POST",
@@ -385,7 +384,6 @@ async def test_application_middlewares_one(app):
 
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
-    app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
@@ -423,7 +421,6 @@ async def test_application_middlewares_as_classes(app):
 
     app.middlewares.append(MiddlewareExample(calls, 0))
     app.middlewares.append(MiddlewareExample(calls, 2))
-    app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
 
@@ -460,8 +457,6 @@ async def test_application_middlewares_are_applied_only_once(app):
     app.middlewares.append(middleware)
 
     for method, _ in {("GET", 1), ("GET", 2), ("HEAD", 1), ("HEAD", 2)}:
-        app.configure_middlewares()
-
         await app(get_example_scope(method, "/"), MockReceive([]), MockSend())
 
         assert app.response is not None
@@ -507,7 +502,6 @@ async def test_application_middlewares_two(app):
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
     app.middlewares.append(middleware_three)
-    app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
 
@@ -550,7 +544,6 @@ async def test_application_middlewares_skip_handler(app):
     app.middlewares.append(middleware_one)
     app.middlewares.append(middleware_two)
     app.middlewares.append(middleware_three)
-    app.configure_middlewares()
 
     await app(get_example_scope("GET", "/"), MockReceive([]), MockSend())
 
@@ -822,8 +815,6 @@ async def test_handler_route_value_binding_single(parameter, expected_value, app
         called = True
         assert value == expected_value
 
-    app.normalize_handlers()
-
     await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
     assert app.response.status == 204
@@ -843,7 +834,6 @@ async def test_handler_route_value_binding_two(parameter, expected_a, expected_b
         assert a == expected_a
         assert b == expected_b
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -860,8 +850,6 @@ async def test_handler_route_value_binding_single_int(parameter, expected_value,
         called = True
         assert value == expected_value
 
-    app.normalize_handlers()
-
     await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
     assert app.response.status == 204
@@ -875,8 +863,6 @@ async def test_handler_route_value_binding_single_int_invalid(parameter, app):
     async def home(request, value: int):
         nonlocal called
         called = True
-
-    app.normalize_handlers()
 
     await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
@@ -892,8 +878,6 @@ async def test_handler_route_value_binding_single_float_invalid(parameter, app):
     async def home(request, value: float):
         nonlocal called
         called = True
-
-    app.normalize_handlers()
 
     await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
@@ -912,8 +896,6 @@ async def test_handler_route_value_binding_single_float(parameter, expected_valu
         nonlocal called
         called = True
         assert value == expected_value
-
-    app.normalize_handlers()
 
     await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
 
@@ -937,7 +919,6 @@ async def test_handler_route_value_binding_mixed_types(
         assert b == expected_b
         assert c == expected_c
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/" + parameter), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -955,8 +936,6 @@ async def test_handler_query_value_binding_single(query, expected_value, app):
     async def home(request, a):
         assert a == expected_value
 
-    app.normalize_handlers()
-
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
 
     assert app.response.status == 204
@@ -970,7 +949,6 @@ async def test_handler_query_value_binding_optional_int(query, expected_value, a
     async def home(request, a: Optional[int]):
         assert a == expected_value
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -990,7 +968,6 @@ async def test_handler_query_value_binding_optional_float(query, expected_value,
     async def home(request, a: Optional[float]):
         assert a == expected_value
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1011,7 +988,6 @@ async def test_handler_query_value_binding_optional_list(query, expected_value, 
     async def home(request, a: Optional[List[float]]):
         assert a == expected_value
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1033,7 +1009,6 @@ async def test_handler_query_value_binding_mixed_types(
         assert b == expected_b
         assert c == expected_c
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1052,7 +1027,6 @@ async def test_handler_query_value_binding_list(query, expected_value, app):
     async def home(request, a):
         assert a == expected_value
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1066,7 +1040,6 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_value, a
     async def home(request, a: List[int]):
         assert a == expected_value
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1084,7 +1057,6 @@ async def test_handler_query_value_binding_list_of_floats(query, expected_value,
     async def home(a: List[float]):
         assert a == expected_value
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1094,7 +1066,6 @@ async def test_handler_normalize_sync_method(app):
     def home(request):
         pass
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1104,7 +1075,6 @@ async def test_handler_normalize_sync_method_from_header(app):
     def home(request, xx: FromHeader[str]):
         assert xx.value == "Hello World"
 
-    app.normalize_handlers()
     await app(
         get_example_scope("GET", "/", [(b"XX", b"Hello World")]),
         MockReceive(),
@@ -1122,7 +1092,6 @@ async def test_handler_normalize_sync_method_from_header_name_compatible(app):
     def home(accept_language: AcceptLanguageHeader):
         assert accept_language.value == "en-US,en;q=0.9,it-IT;q=0.8,it;q=0.7"
 
-    app.normalize_handlers()
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -1136,7 +1105,6 @@ async def test_handler_normalize_sync_method_from_query(app):
     def home(xx: FromQuery[int]):
         assert xx.value == 20
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=b"xx=20"), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1150,7 +1118,6 @@ async def test_handler_normalize_sync_method_from_query_implicit_default(app):
     ):
         return text(f"Page: {page}; size: {size}; search: {search}")
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     response = app.response
@@ -1200,8 +1167,6 @@ async def test_handler_normalize_sync_method_from_query_default(app):
         search: FromQuery[str] = FromQuery(""),
     ):
         return text(f"Page: {page.value}; size: {size.value}; search: {search.value}")
-
-    app.normalize_handlers()
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
@@ -1253,7 +1218,6 @@ async def test_handler_normalize_list_sync_method_from_query_default(app):
     ):
         return text(f"A: {a.value}; B: {b.value}; C: {c.value}")
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     response = app.response
@@ -1300,7 +1264,6 @@ async def test_handler_normalize_sync_method_without_arguments(app):
     def home():
         return
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1311,7 +1274,6 @@ async def test_handler_normalize_sync_method_from_query_optional(app):
         assert xx.value is None
         assert yy.value == 20
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=b"yy=20"), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1332,7 +1294,6 @@ async def test_handler_normalize_optional_binder(app):
         assert xx is not None
         assert xx.value == 10
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/1", query=b"yy=20"), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1349,7 +1310,6 @@ async def test_handler_normalize_sync_method_from_query_optional_list(app):
         assert xx.value is None
         assert yy.value == [20, 55, 64]
 
-    app.normalize_handlers()
     await app(
         get_example_scope("GET", "/", query=b"yy=20&yy=55&yy=64"),
         MockReceive(),
@@ -1373,7 +1333,6 @@ async def test_handler_normalize_sync_method_from_query_default_type(
     def home(request, xx: FromQuery):
         assert xx.value == expected_values
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1383,7 +1342,6 @@ async def test_handler_normalize_method_without_input(app):
     async def home():
         pass
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1397,7 +1355,6 @@ async def test_handler_from_route(value, expected_value, app):
     async def home(request, area: FromRoute[str]):
         assert area.value == expected_value
 
-    app.normalize_handlers()
     await app(get_example_scope("GET", "/" + value), MockReceive(), MockSend())
     assert app.response.status == 204
 
@@ -1421,7 +1378,6 @@ async def test_handler_two_routes_parameters(
         assert culture_code.value == expected_value_one
         assert area.value == expected_value_two
 
-    app.normalize_handlers()
     await app(
         get_example_scope("GET", "/" + value_one + "/" + value_two),
         MockReceive(),
@@ -1449,7 +1405,6 @@ async def test_handler_two_routes_parameters_implicit(
         assert culture_code == expected_value_one
         assert area == expected_value_two
 
-    app.normalize_handlers()
     await app(
         get_example_scope("GET", "/" + value_one + "/" + value_two),
         MockReceive(),
@@ -1467,7 +1422,6 @@ async def test_handler_from_json_parameter(app):
         assert value.b == "World"
         assert value.c == 10
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1489,7 +1443,6 @@ async def test_handler_from_json_annotated_parameter(app):
         assert value.b == "World"
         assert value.c == 10
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1510,7 +1463,6 @@ async def test_handler_from_json_without_annotation(app):
         value = item.value
         assert value == {"a": "Hello", "b": "World", "c": 10}
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1531,7 +1483,6 @@ async def test_handler_from_json_parameter_dict(app):
         value = item.value
         assert value == {"a": "Hello", "b": "World", "c": 10}
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1552,7 +1503,6 @@ async def test_handler_from_json_parameter_dict_unannotated(app):
         value = item.value
         assert value == {"a": "Hello", "b": "World", "c": 10}
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1573,7 +1523,6 @@ async def test_handler_from_json_parameter_dict_annotated(app):
         value = item.value
         assert value == {"a": "Hello", "b": "World", "c": 10}
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1599,7 +1548,6 @@ async def test_handler_from_text_parameter(value: str, app):
     async def home(text: FromText):
         assert text.value == value
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1628,7 +1576,6 @@ async def test_handler_from_bytes_parameter(value: bytes, app):
     async def home(text: FromBytes):
         assert text.value == value
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1671,7 +1618,6 @@ async def test_handler_from_files(app):
         assert file4.file_name == b"binary"
         assert file4.data == b"a\xcf\x89b"
 
-    app.normalize_handlers()
     boundary = b"---------------------0000000000000000000000001"
 
     content = b"\r\n".join(
@@ -1727,7 +1673,6 @@ async def test_handler_from_files(app):
 
 
 async def _multipart_mix_scenario(app):
-    app.normalize_handlers()
 
     content = read_multipart_mix_dat()
 
@@ -1883,8 +1828,6 @@ async def test_handler_from_files_handles_empty_body(app):
     async def home(files: FromFiles):
         assert files.value == []
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope(
             "POST",
@@ -1903,7 +1846,6 @@ async def test_handler_from_json_parameter_missing_property(app):
 
     # Note: the following example missing one of the properties
     # required by the constructor
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -1928,7 +1870,6 @@ async def test_handler_json_response_implicit(app):
 
     # Note: the following example missing one of the properties
     # required by the constructor
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "GET",
@@ -1950,7 +1891,6 @@ async def test_handler_json_response_implicit_no_annotation(app):
 
     # Note: the following example missing one of the properties
     # required by the constructor
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "GET",
@@ -1972,7 +1912,6 @@ async def test_handler_text_response_implicit(app):
 
     # Note: the following example missing one of the properties
     # required by the constructor
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "GET",
@@ -1994,7 +1933,6 @@ async def test_handler_from_json_parameter_missing_property_complex_type(app):
 
     # Note: the following example missing one of the properties
     # required by the constructor
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2018,7 +1956,6 @@ async def test_handler_from_json_parameter_missing_property_array(app):
 
     # Note: the following example missing one of the properties
     # required by the constructor
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2040,7 +1977,6 @@ async def test_handler_from_json_parameter_handles_request_without_body(app):
     async def home(item: FromJSON[Item]):
         return Response(200)
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2070,7 +2006,6 @@ async def test_handler_from_json_list_of_objects(app):
         assert item_two.b == "ipsum"
         assert item_two.c == 55
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2158,7 +2093,6 @@ async def test_handler_from_json_list_of_primitives(
         value = item.value
         assert value == expected_result
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2188,7 +2122,6 @@ async def test_handler_from_json_dataclass(app):
         assert value.foo == "Hello"
         assert value.ufo is True
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2210,7 +2143,6 @@ async def test_handler_from_json_parameter_default(app):
         assert value.b == "Two"
         assert value.c == 3
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2233,7 +2165,6 @@ async def test_handler_from_json_parameter_default_override(app):
         assert value.b == "World"
         assert value.c == 10
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2254,7 +2185,6 @@ async def test_handler_from_json_parameter_implicit(app):
         assert item.b == "World"
         assert item.c == 10
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2275,7 +2205,6 @@ async def test_handler_from_json_parameter_implicit_default(app):
         assert item.b == 2
         assert item.c == 3
 
-    app.normalize_handlers()
     await app(
         get_example_scope(
             "POST",
@@ -2292,8 +2221,6 @@ async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(ap
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(item: FromJSON[Optional[Item]]):
         assert item.value is None
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope(
@@ -2312,8 +2239,6 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
     async def home(request, item: FromJSON[Item]):
         assert item.value is None
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope(
@@ -2368,8 +2293,6 @@ async def test_valid_query_parameter_parse(
         assert foo.value == expected_value
         return status_code(200)
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter}".encode()),
         MockReceive(),
@@ -2416,8 +2339,6 @@ async def test_valid_cookie_parameter_parse(
         assert foo.value == expected_value
         return status_code(200)
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", [(b"cookie", f"foo={parameter}".encode())]),
         MockReceive(),
@@ -2459,8 +2380,6 @@ async def test_valid_query_parameter_list_parse(
         assert foo.value == expected_value
         return status_code(200)
 
-    app.normalize_handlers()
-
     query = "&".join(f"foo={parameter}" for parameter in parameters)
 
     await app(
@@ -2488,8 +2407,6 @@ async def test_invalid_query_parameter_400(parameter_type, parameter, app):
     @app.router.get("/")
     async def home(foo: FromQuery[parameter_type]):
         return status_code(200)
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter}".encode()),
@@ -2533,8 +2450,6 @@ async def test_valid_route_parameter_parse(
     async def home(foo: FromRoute[parameter_type]):
         assert foo.value == expected_value
         return status_code(200)
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/" + parameter, []),
@@ -2582,8 +2497,6 @@ async def test_valid_header_parameter_parse(
         assert x_foo.value == expected_value
         return status_code(200)
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", [(b"X-Foo", parameter.encode())]),
         MockReceive(),
@@ -2616,8 +2529,6 @@ async def test_valid_query_parameter(parameter_type, parameter_one, parameter_tw
         if isinstance(foo.value, bytes):
             return text(f"Got: {foo.value.decode('utf8')}")
         return text(f"Got: {foo.value}")
-
-    app.normalize_handlers()
 
     # f strings handle bytes creating string representations:
     if isinstance(parameter_one, bytes):
@@ -2671,8 +2582,6 @@ async def test_valid_query_parameter_implicit(
         assert isinstance(foo, parameter_type)
         return text(f"Got: {foo}")
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", [], query=f"foo={parameter_one}".encode()),
         MockReceive(),
@@ -2704,8 +2613,6 @@ async def test_valid_query_parameter_list_of_int(app):
     async def home(foo: FromQuery[List[int]]):
         return text(f"Got: {foo.value}")
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", [], query=b"foo=1349"),
         MockReceive(),
@@ -2730,8 +2637,6 @@ async def test_valid_query_parameter_list_of_int(app):
 async def test_invalid_query_parameter_int(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[int]): ...
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope(
@@ -2778,8 +2683,6 @@ async def test_invalid_query_parameter_float(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[float]): ...
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope(
             "GET",
@@ -2824,8 +2727,6 @@ async def test_invalid_query_parameter_float(app):
 async def test_invalid_query_parameter_bool(app):
     @app.router.get("/")
     async def home(request, foo: FromQuery[bool]): ...
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope(
@@ -2875,8 +2776,6 @@ async def test_invalid_query_parameter_uuid(app):
 
     value_1 = "99cb720c-26f2-43dd-89ea-"
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", [], query=b"foo=" + str(value_1).encode()),
         MockReceive(),
@@ -2898,8 +2797,6 @@ async def test_valid_route_parameter_uuid(app):
 
     value_1 = uuid4()
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/" + str(value_1), []),
         MockReceive(),
@@ -2919,8 +2816,6 @@ async def test_valid_route_parameter_uuid_2(app):
     value_1 = uuid4()
     value_2 = uuid4()
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", f"/{value_1}/{value_2}", []),
         MockReceive(),
@@ -2939,8 +2834,6 @@ async def test_valid_header_parameter_uuid_list(app):
 
     value_1 = uuid4()
     value_2 = uuid4()
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope(
@@ -2964,8 +2857,6 @@ async def test_invalid_route_parameter_uuid(app):
 
     value_1 = "abc"
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/" + str(value_1), []),
         MockReceive(),
@@ -2986,8 +2877,6 @@ async def test_valid_route_parameter_uuid_implicit(app):
         return text(f"Got: {foo}")
 
     value_1 = uuid4()
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/" + str(value_1), []),
@@ -3016,8 +2905,6 @@ async def test_route_resolution_order(app):
     @app.router.get("/:foo/exact")
     async def example_d():
         return text("D")
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/exact", []),
@@ -3065,7 +2952,6 @@ async def test_client_server_info_bindings(app):
     async def home(client: ClientInfo, server: ServerInfo):
         return text(f"Client: {client.value}; Server: {server.value}")
 
-    app.normalize_handlers()
     scope = get_example_scope("GET", "/", [])
     await app(
         scope,
@@ -3115,8 +3001,6 @@ async def test_service_bindings():
         assert a.dep.foo == "foo"
         return text("OK")
 
-    app.normalize_handlers()
-
     for path in {"/explicit", "/implicit"}:
         scope = get_example_scope("GET", path, [])
         await app(
@@ -3157,8 +3041,6 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature():
 
         return text("OK")
 
-    await app.start()
-
     for _ in range(2):
         scope = get_example_scope("GET", "/", [])
         await app(
@@ -3187,8 +3069,6 @@ async def test_without_di_middleware_no_support_for_scoped_svcs_in_handler_signa
     async def home(a: OperationContext, b: OperationContext):
         assert a is not b
         return text("OK")
-
-    await app.start()
 
     for _ in range(2):
         scope = get_example_scope("GET", "/", [])
@@ -3233,8 +3113,6 @@ async def test_service_bindings_default():
         assert isinstance(a.dep, B)
         assert a.dep.foo == "foo"
         return text("OK")
-
-    app.normalize_handlers()
 
     for path in {"/explicit", "/implicit"}:
         scope = get_example_scope("GET", path, [])
@@ -3285,8 +3163,6 @@ async def test_service_bindings_default_override():
         assert a.dep.foo == "ufo"
         return text("OK")
 
-    app.normalize_handlers()
-
     for path in {"/explicit", "/implicit"}:
         scope = get_example_scope("GET", path, [])
         await app(
@@ -3331,8 +3207,6 @@ async def test_user_binding(app):
         assert user.authentication_mode == "TEST"
         return text(f"User name: {user.claims['name']}")
 
-    await app.start()
-
     claims = {"id": "001", "name": "Charlie Brown", "role": "user"}
 
     for path in ["/example-1", "/example-2", "/example-3"]:
@@ -3358,8 +3232,6 @@ async def test_request_binding(app):
         assert isinstance(req, Request)
         return "Foo"
 
-    await app.start()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -3383,7 +3255,6 @@ async def test_use_auth_raises_if_app_is_already_started(app):
             return context.user
 
     await app.start()
-
     with pytest.raises(RuntimeError):
         app.use_authentication()
 
@@ -3399,8 +3270,6 @@ async def test_default_headers(app):
     @app.router.route("/")
     async def home():
         return text("Hello World")
-
-    await app.start()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -3700,7 +3569,6 @@ async def test_start_runs_once(app):
     assert on_start_count == 1
 
     await app.start()
-    await app.start()
 
     assert on_start_count == 1
 
@@ -3711,6 +3579,7 @@ async def test_handles_on_start_error_asgi_lifespan(app):
 
     app.on_start += before_start
     mock_send = MockSend()
+    app.auto_start = False
 
     await app(
         {"type": "lifespan", "message": "lifespan.startup"},
@@ -3780,8 +3649,6 @@ async def test_response_normalization_wrapped(app):
     async def home():
         return "Hello, World"
 
-    await app.start()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -3802,8 +3669,6 @@ async def test_response_normalization_with_cors(app):
     @app.router.get("/")
     async def home():
         return "Hello, World"
-
-    await app.start()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -3849,6 +3714,106 @@ def test_mounting_self_raises(app):
         app.mount("/nope", app)
 
 
+@pytest.mark.parametrize("param", [404, NotFound])
+async def test_custom_handler_for_404_not_found(app, param):
+    # Issue #538
+    @app.exception_handler(param)
+    async def not_found_handler(
+        self: FakeApplication, request: Request, exc: NotFound
+    ) -> Response:
+        nonlocal app
+        assert self is app
+        assert isinstance(exc, NotFound)
+        return Response(200, content=TextContent("Called"))
+
+    @app.router.get("/")
+    async def home():
+        raise NotFound()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response
+    actual_response_text = await response.text()
+    assert actual_response_text == "Called"
+
+
+@pytest.mark.parametrize("param", [404, NotFound])
+async def test_http_exception_handler_type_resolution(app, param):
+    # https://github.com/Neoteroi/BlackSheep/issues/538#issuecomment-2867564293
+
+    # THIS IS NOT RECOMMENDED! IT IS NOT RECOMMENDED TO USE A CATCH-ALL EXCEPTION
+    # HANDLER LIKE THE ONE BELOW. BLACKSHEEP AUTOMATICALLY HANDLES NON-HANDLED
+    # EXCEPTIONS USING THE DIAGNOSTIC PAGES IF SHOW_ERROR_DETAILS IS ENABLED, AND USING
+    # THE INTERNAL SERVER ERROR HANDLER OTHERWISE!
+    # USE INSTEAD:
+    # @app.exception_handler(500) or @app.exception_handler(InternalServerError)
+    @app.exception_handler(Exception)
+    async def catch_all(self: FakeApplication, request: Request, exc: NotFound):
+        return Response(500, content=TextContent("Oh, No!"))
+
+    @app.exception_handler(param)
+    async def not_found_handler(
+        self: FakeApplication, request: Request, exc: NotFound
+    ) -> Response:
+        return Response(200, content=TextContent("Called"))
+
+    @app.router.get("/")
+    async def home():
+        raise NotFound()
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response
+    actual_response_text = await response.text()
+    assert actual_response_text == "Called"
+
+
+@pytest.mark.parametrize("param", [Conflict, 409])
+async def test_http_exception_handler_type_resolution_inheritance(app, param):
+    # https://github.com/Neoteroi/BlackSheep/issues/538#issuecomment-2867564293
+
+    @app.exception_handler(param)
+    async def catch_conflicts(self: FakeApplication, request: Request, exc: Conflict):
+        return Response(
+            409, content=TextContent(f"Custom {type(exc).__name__} Handler!")
+        )
+
+    class FooConflict(Conflict):
+        pass
+
+    class UfoConflict(Conflict):
+        pass
+
+    @app.router.get("/foo")
+    async def foo():
+        raise FooConflict()
+
+    @app.router.get("/ufo")
+    async def ufo():
+        raise UfoConflict()
+
+    expectations = {
+        "/foo": "Custom FooConflict Handler!",
+        "/ufo": "Custom UfoConflict Handler!",
+    }
+
+    for key, value in expectations.items():
+        await app(get_example_scope("GET", key), MockReceive(), MockSend())
+
+        assert app.response is not None
+        response: Response = app.response
+
+        assert response
+        actual_response_text = await response.text()
+        assert actual_response_text == value
+
+
 @pytest.mark.parametrize("param", [500, InternalServerError])
 async def test_custom_handler_for_500_internal_server_error(app, param):
     # Issue #538
@@ -3866,7 +3831,6 @@ async def test_custom_handler_for_500_internal_server_error(app, param):
     async def home():
         raise TypeError()
 
-    await app.start()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
@@ -3902,7 +3866,6 @@ async def test_application_pydantic_json_error(app):
 
     expected_error = get_pydantic_error(CreateCatInput, {"foo": "not valid"})
 
-    await app.start()
     await app(
         get_example_scope(
             "POST",
@@ -3927,7 +3890,6 @@ async def test_app_fallback_route(app):
 
     app.router.fallback = not_found_handler
 
-    await app.start()
     await app(
         get_example_scope("GET", "/not-registered", []), MockReceive(), MockSend()
     )
@@ -3944,7 +3906,6 @@ async def test_hsts_middleware(app):
 
     app.middlewares.append(HSTSMiddleware())
 
-    await app.start()
     await app(get_example_scope("GET", "/", []), MockReceive(), MockSend())
 
     response = app.response
@@ -3980,7 +3941,6 @@ async def test_pep_593(app):
     docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
     docs.bind_app(app)
 
-    await app.start()
     await app(get_example_scope("GET", "/pets", []), MockReceive(), MockSend())
 
     response = app.response
@@ -4042,7 +4002,6 @@ async def test_application_sub_router_normalization():
 
     content = b'{"id": 1, "name": "Charlie Brown"}'
 
-    await app.start()
     await app(
         get_example_scope(
             "POST",
@@ -4076,8 +4035,6 @@ async def test_pydantic_validate_call_scenario():
         i: Annotated[int, Field(ge=1, le=10)] = 1,
     ) -> Response:
         return text(f"i={i}")
-
-    await app.start()
 
     expectations = [
         ("", 200, "i=1"),
@@ -4158,8 +4115,6 @@ async def test_application_sse():
             yield ServerSentEvent({"message": f"Hello World {i}"})
             await asyncio.sleep(0.05)
 
-    await app.start()
-
     scope = get_example_scope("GET", "/events", [])
     mock_send = MockSend()
 
@@ -4194,8 +4149,6 @@ async def test_application_sse_plain_text():
         for i in range(3):
             yield TextServerSentEvent(f"Hello World {i}")
             await asyncio.sleep(0.05)
-
-    await app.start()
 
     scope = get_example_scope("GET", "/events", [])
     mock_send = MockSend()

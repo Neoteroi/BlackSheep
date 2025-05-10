@@ -52,6 +52,12 @@ cdef class Forbidden(HTTPException):
         super().__init__(403, message or "Forbidden")
 
 
+cdef class Conflict(HTTPException):
+
+    def __init__(self, message=None):
+        super().__init__(409, message or "Conflict")
+
+
 cdef class RangeNotSatisfiable(HTTPException):
 
     def __init__(self):

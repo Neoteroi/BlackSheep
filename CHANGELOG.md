@@ -5,11 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.0] - 2025-??-??
+## [2.3.0] - 2025-05-10 :sun_behind_small_cloud:
 
-- Fix [#511](https://github.com/Neoteroi/BlackSheep/issues/511). Add support for
-  inheriting endpoints from parent controller classes, when subclassing controllers.
-  An important feature that was missing so far in the web framework. Example:
+> [!IMPORTANT]
+>
+> This release, like the previous one, includes some breaking changes to the
+> public code API of certain classes, hence the bump in version from `2.2.0` to
+> `2.3.0`. The breaking changes aim to improve the user experience (UX) when
+> using `Controllers` and registering routes. In particular, they address
+> issues [#511](https://github.com/Neoteroi/BlackSheep/issues/511) and
+> [#540](https://github.com/Neoteroi/BlackSheep/issues/540).The scope of the
+> breaking changes is relatively minor, as they affect built-in features that
+> are *likely* not commonly modified: removes the `prepare_controllers` and the
+> `get_controller_handler_pattern` from the `Application` class, transferring
+> them to a dedicated `ControllersManager` class. Additionally, the `Router`
+> class has been refactored to work consistently for request handlers defined
+> as _functions_ and those defined as _Controllers' methods_.
+>
+> The _Router_ now allows registering all request handlers without evaluating
+> them immediately, postponing duplicate checks, and introduces an
+> `apply_routes` method to make routes effective upon application startup.
+> This change is necessary to support using the same functions for both
+> _functions_ and _methods_, addressing issue [#540](https://github.com/Neoteroi/BlackSheep/issues/540),
+> improving UX, and eliminating potential confusion caused by having two
+> sets of decorators (`get, post, put, etc.`) that behave differently. While
+> the two sets of decorators are still maintained to minimize the impact of
+> breaking changes, the framework now supports using them interchangeably.
+>
+> While breaking changes may cause inconvenience for some users, I believe the
+> new features in this release represent a significant step forward.
+> Now Controllers support routes inheritance! This is an important feature that
+> was missing so far in the web framework.
+
+- Fix [#511](https://github.com/Neoteroi/BlackSheep/issues/511). Add support
+  for inheriting endpoints from parent controller classes, when subclassing
+  controllers. Example:
 
 ```python
 from blacksheep import Application
@@ -29,13 +59,11 @@ class BaseController(Controller):
 
 class ControllerOne(BaseController):
     route = "/one"
-
     # /one/hello-world
 
 
 class ControllerTwo(BaseController):
     route = "/two"
-
     # /two/hello-world
 
     @get("/specific-route")  # /two/specific-route
@@ -44,13 +72,18 @@ class ControllerTwo(BaseController):
 ```
 
 - Add a new `@abstract()` decorator that can be applied to controller classes to skip
-  routes defined on them (only inherited classes will have the routes, prefixed by a
-  route).
+  routes defined in them; so that only their subclasses will have the routes
+  registered, prefixed by their own prefix).
+- **BREAKING CHANGE**. Refactor the `Application` code to encapsulate in a
+  dedicated class functions that prepare controllers' routes.
+- **BREAKING CHANGE**. Refactor the `Router` class to handle consistently
+  request handlers defined using _functions_ and controllers' class _methods_
+  (refer to the note above for more information).
 - Fix [#498](https://github.com/Neoteroi/BlackSheep/issues/498): Buffer reuse
   and race condition in `client.IncomingContent.stream()`, by @ohait.
-- Fix [#365](https://github.com/Neoteroi/BlackSheep/issues/365), adding support for
-  Pydantic's `@validate_call` and `@validate_arguments` and other wrappers applied to
-  functions before they are configured as request handlers.
+- Fix [#365](https://github.com/Neoteroi/BlackSheep/issues/365), adding support
+  for Pydantic's `@validate_call` and `@validate_arguments` and other wrappers
+  applied to functions before they are configured as request handlers.
   Contribution by @aldem, who reported the issue and provided the solution.
 - To better support `@validate_call`, configure automatically a default
   exception handler for `pydantic.ValidationError` when Pydantic is installed.
@@ -59,10 +92,21 @@ class ControllerTwo(BaseController):
 - Fix [#484](https://github.com/Neoteroi/BlackSheep/issues/484). Improve the
   implementation of Server-Sent Events (SSE) to support sending data in any
   shape, and not only as JSON. Add a `TextServerSentEvent` class to send plain
-  text to the client.
+  text to the client (this still escapes new lines!).
 - Modify the `is_stopping` function to emit a warning instead of raising a
   `RuntimeError` if the env variable `APP_SIGNAL_HANDLER` is not set to a
   truthy value.
+- Improve the error message of the `RouteDuplicate` class.
+- Fix [#38](https://github.com/Neoteroi/BlackSheep-Docs/issues/38) for notations that
+  are available since Python 3.9 (e.g. `list[str]`, `set[str]`, `tuple[str]`).
+- Fix [a regression](https://github.com/Neoteroi/BlackSheep/issues/538#issuecomment-2867564293)
+  introduced in `2.2.0` that would prevent custom `HTTPException`handlers from
+  being used when the user configured a catch-all `Exception` handler
+  (**this practice is not recommended; let the framework handle unhandled exceptions
+  using `InternalServerError` exception handler**).
+- Add a `Conflict` `HTTPException` to `blacksheep.exceptions` for `409`
+  [response code](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/409).
+- Improve the test code to make it less verbose.
 
 ## [2.2.0] - 2025-04-28 🎉
 

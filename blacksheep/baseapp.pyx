@@ -127,21 +127,28 @@ cdef class BaseApplication:
         return await self.handle_exception(request, exc)
 
     cpdef object get_http_exception_handler(self, HTTPException http_exception):
-        handler_by_type = self.get_exception_handler(http_exception)
-        if handler_by_type:
-            return handler_by_type
-        return self.exceptions_handlers.get(http_exception.status, common_http_exception_handler)
+        # Try getting HTTP exception handler by type first, supporting
+        # base classes up to a certain point (HTTPException)
+        handler = self.get_exception_handler(http_exception, stop_at=HTTPException)
+        if handler:
+            return handler
+        # Try getting HTTP exception handler by HTTP error status code
+        return self.exceptions_handlers.get(
+            http_exception.status, common_http_exception_handler
+        )
 
     cdef bint is_handled_exception(self, Exception exception):
-        for current_class_in_hierarchy in get_class_instance_hierarchy(exception):
-            if current_class_in_hierarchy in self.exceptions_handlers:
+        for class_type in get_class_instance_hierarchy(exception):
+            if class_type in self.exceptions_handlers:
                 return True
         return False
 
-    cdef object get_exception_handler(self, Exception exception):
-        for current_class_in_hierarchy in get_class_instance_hierarchy(exception):
-            if current_class_in_hierarchy in self.exceptions_handlers:
-                return self.exceptions_handlers[current_class_in_hierarchy]
+    cdef object get_exception_handler(self, Exception exception, type stop_at):
+        for class_type in get_class_instance_hierarchy(exception):
+            if stop_at is not None and stop_at is class_type:
+                return None
+            if class_type in self.exceptions_handlers:
+                return self.exceptions_handlers[class_type]
 
         return None
 
@@ -181,7 +188,7 @@ cdef class BaseApplication:
         return await self.handle_exception(request, http_exception)
 
     async def handle_exception(self, request, exc):
-        exception_handler = self.get_exception_handler(exc)
+        exception_handler = self.get_exception_handler(exc, None)
         if exception_handler:
             return await self._apply_exception_handler(request, exc, exception_handler)
 

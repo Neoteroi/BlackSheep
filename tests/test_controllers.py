@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from functools import wraps
-from typing import Annotated, Optional
+from typing import Annotated, ClassVar, Generic, List, Optional, Tuple, TypeVar
 
 import pytest
 from guardpost import AuthenticationHandler, User
 from pydantic import Field
 from rodi import inject
 
-from blacksheep import Request, Response
+from blacksheep.messages import Request, Response
 from blacksheep.server.application import Application
 from blacksheep.server.controllers import (
     APIController,
@@ -24,6 +24,7 @@ from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils import ensure_str
 from tests.test_files_serving import get_file_path
+from tests.utils.application import FakeApplication
 
 try:
     # v2
@@ -48,6 +49,22 @@ def example():
     return example_decorator
 
 
+async def assert_expected_text(
+    app: FakeApplication, expected_results: List[Tuple[str, str]]
+):
+    for endpoint, result in expected_results:
+        await app(
+            get_example_scope("GET", endpoint),
+            MockReceive(),
+            MockSend(),
+        )
+        response = app.response
+        assert response is not None
+        assert response.status == 200
+        text = await response.text()
+        assert text == result
+
+
 async def test_handler_through_controller(app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
@@ -66,7 +83,6 @@ async def test_handler_through_controller(app):
             assert isinstance(self, Home)
             return text("foo")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -95,7 +111,6 @@ async def test_ws_handler_through_controller(app):
             assert isinstance(websocket, WebSocket)
             await websocket.accept()
 
-    app.setup_controllers()
     await app(
         {"type": "websocket", "path": "/web-socket", "query_string": "", "headers": []},
         MockReceive([{"type": "websocket.connect"}]),
@@ -201,7 +216,6 @@ async def test_handler_catch_all_through_controller(path_one, path_two, app):
             assert isinstance(self, Home)
             return text("foo")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/hello.js"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -249,7 +263,6 @@ async def test_handler_through_controller_owned_text_method(app):
             assert isinstance(self, Home)
             return self.text("foo")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -278,7 +291,6 @@ async def test_handler_through_controller_owned_html_method(app):
                 """
             )
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -314,8 +326,6 @@ async def test_controller_supports_on_request(app):
         async def foo(self):
             assert isinstance(self, Home)
             return text("foo")
-
-    app.setup_controllers()
 
     for j in range(1, 10):
         await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
@@ -358,8 +368,6 @@ async def test_controller_supports_on_response(app):
             assert isinstance(self, Home)
             return text("foo")
 
-    app.setup_controllers()
-
     for j in range(1, 10):
         await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
         assert app.response.status == 200
@@ -385,7 +393,6 @@ async def test_handler_through_controller_supports_generic_decorator(app):
             assert isinstance(self, Home)
             return text(self.greet())
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
@@ -417,7 +424,6 @@ async def test_controller_with_dependency(value, app: Application):
 
     app.services.add_instance(Settings(value))
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
@@ -453,7 +459,6 @@ async def test_many_controllers(value, app):
 
     app.services.add_instance(Settings(value))
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     body = await app.response.text()
@@ -495,11 +500,11 @@ async def test_controllers_with_duplicate_routes_throw(
         app.use_controllers()
 
     error = context.value
-    assert "Cannot register route pattern `" + ensure_str(
+    assert "Cannot register the route GET " + ensure_str(
         first_pattern
-    ) + "` for `GET` more than once." in str(error)
+    ) + " more than once." in str(error)
     assert (
-        "This pattern is already registered for handler "
+        "This route is already registered for "
         "test_controllers_with_duplicate_routes_throw.<locals>.A.index." in str(error)
     )
 
@@ -517,8 +522,6 @@ async def test_controller_on_request_setting_identity(app):
             assert hasattr(request, "identity")
             assert isinstance(request.user, User)
             return text(request.user["name"])
-
-    app.setup_controllers()
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     body = await app.response.text()
@@ -541,7 +544,6 @@ async def test_controller_with_base_route_as_string_attribute(app):
             assert isinstance(self, Home)
             return text(self.greet())
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
     assert app.response.status == 404
 
@@ -572,7 +574,7 @@ async def test_application_raises_for_invalid_route_class_attribute(app):
             return text(self.greet())
 
     with pytest.raises(RuntimeError):
-        app.setup_controllers()
+        await app.start()
 
 
 async def test_controller_with_base_route_as_class_method(app):
@@ -598,7 +600,6 @@ async def test_controller_with_base_route_as_class_method(app):
         def alive(self):
             return text("Good")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/home"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
@@ -634,7 +635,6 @@ async def test_controller_with_base_route_as_class_method_fragments(app):
         def alive(self):
             return text("Good")
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/api/home"), MockReceive(), MockSend())
     assert app.response.status == 200
     body = await app.response.text()
@@ -686,7 +686,7 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
     # and another handler
 
     class A(Controller):
-        route = "home"
+        route = "home"  # type: ignore
 
         @get(first_pattern)
         async def index(self, request: Request): ...
@@ -695,7 +695,7 @@ async def test_controller_with_duplicate_route_with_base_route_throw(
     async def home(): ...
 
     with pytest.raises(RouteDuplicate):
-        app.use_controllers()
+        await app.start()
 
 
 async def test_api_controller_without_version(app):
@@ -721,8 +721,6 @@ async def test_api_controller_without_version(app):
         @delete(":cat_id")
         def delete_cat(self):
             return text("4")
-
-    app.setup_controllers()
 
     expected_result = {
         ("GET", "/api/cat/100"): "1",
@@ -767,8 +765,6 @@ async def test_api_controller_with_version(app):
         @delete(":cat_id")
         def delete_cat(self):
             return text("4")
-
-    app.setup_controllers()
 
     expected_result = {
         ("GET", "/api/v1/cat/100"): "1",
@@ -835,8 +831,6 @@ async def test_api_controller_with_version_2(app):
         def delete_cat(self):
             return text("8")
 
-    app.setup_controllers()
-
     expected_result = {
         ("GET", "/api/v1/cat/100"): "1",
         ("PATCH", "/api/v1/cat"): "2",
@@ -874,7 +868,6 @@ async def test_controller_parameter_name_match(app):
             assert isinstance(example, str)
             return text(example)
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 400
@@ -898,8 +891,6 @@ async def test_controller_return_file(app):
         @get("/")
         async def home(self):
             return self.file(file_path, "text/plain; charset=utf-8")
-
-    app.setup_controllers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -933,7 +924,6 @@ async def test_handler_through_controller_default_type(app):
         async def index(self) -> Foo:
             return Foo("Hello", 5.5)
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -950,7 +940,6 @@ async def test_handler_through_controller_default_str(app):
         async def index(self) -> str:
             return "Hello World"
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 200
@@ -968,7 +957,6 @@ async def test_controller_filters(app):
         async def index(self) -> str:
             return "Hello World"
 
-    app.setup_controllers()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 404
@@ -1024,8 +1012,11 @@ async def test_controller_pydantic_validate_call_scenario(app):
                 assert response_text in (await response.text())
 
 
-async def test_controllers_inheritance(app):
-    get = app.router.controllers_routes.get
+@pytest.mark.parametrize("method", [1, 2])
+async def test_controllers_inheritance(app, method):
+    # Verify that the user can use interchangeably both router.get and
+    # router.controllers_routes.get
+    get = app.router.controllers_routes.get if method == 1 else app.router.get
 
     @abstract()
     class BaseController(Controller):
@@ -1065,23 +1056,154 @@ async def test_controllers_inheritance(app):
     routes = app.router.routes[b"GET"]
     assert len(routes) == 6
 
-    expected_endpoints = [
-        ("/one/hello-world", "Hello, World! ControllerOne"),
-        ("/two/hello-world", "Hello, World! ControllerTwo"),
-        ("/two-bis/hello-world", "Hello, World! ControllerTwoBis"),
-        ("/two/specific-route", "This is a specific route in ControllerTwo"),
-        ("/two-bis/specific-route", "This is a specific route in ControllerTwoBis"),
-        ("/two-bis/specific-route-2", "This is another route in ControllerTwoBis"),
-    ]
+    await assert_expected_text(
+        app,
+        [
+            ("/one/hello-world", "Hello, World! ControllerOne"),
+            ("/two/hello-world", "Hello, World! ControllerTwo"),
+            ("/two-bis/hello-world", "Hello, World! ControllerTwoBis"),
+            ("/two/specific-route", "This is a specific route in ControllerTwo"),
+            ("/two-bis/specific-route", "This is a specific route in ControllerTwoBis"),
+            ("/two-bis/specific-route-2", "This is another route in ControllerTwoBis"),
+        ],
+    )
 
-    for endpoint, result in expected_endpoints:
-        await app(
-            get_example_scope("GET", endpoint),
-            MockReceive(),
-            MockSend(),
-        )
-        response = app.response
-        assert response is not None
-        assert response.status == 200
-        text = await response.text()
-        assert text == result
+
+@pytest.mark.parametrize("method", [1, 2])
+async def test_decorators_interchangeability(app, method):
+    # Verify that the user can use interchangeably both router.get and
+    # router.controllers_routes.get
+    get = app.router.controllers_routes.get if method == 1 else app.router.get
+
+    @get("/one")
+    async def one():
+        return "one"
+
+    class Home(Controller):
+        @get("/two")
+        async def two(self):
+            assert isinstance(self, Home)
+            return "two"
+
+    await app.start()
+
+    routes = app.router.routes[b"GET"]
+    assert len(routes) == 2
+
+    await assert_expected_text(
+        app,
+        [
+            ("/one", "one"),
+            ("/two", "two"),
+        ],
+    )
+
+
+async def test_controllers_inheritance_di_resolution(app):
+    get = app.router.controllers_routes.get
+
+    T = TypeVar("T")
+
+    class Repository(Generic[T]):
+        def get_item(self, id: int) -> T: ...
+
+    class One:
+        pass
+
+    class Two:
+        pass
+
+    class OneRepository(Repository[One]):
+        pass
+
+    class TwoRepository(Repository[Two]):
+        pass
+
+    # Dependencies ↓↓↓
+    app.services.register(OneRepository)
+    app.services.register(TwoRepository)
+
+    @abstract()
+    class BaseController(Controller):
+
+        repository: Repository
+
+        @get("/hello-world")
+        def index(self):
+            return self.text(
+                f"Hello, World! {self.__class__.__name__}. "
+                f"Dependency: {self.repository.__class__.__name__}"
+            )
+
+    class ControllerOne(BaseController):
+
+        route = "/one"
+
+        repository: OneRepository
+        # /one/hello-world
+
+    class ControllerTwo(BaseController):
+
+        route = "/two"
+
+        repository: TwoRepository
+
+        # /two/hello-world
+
+    await app.start()
+
+    routes = app.router.routes[b"GET"]
+    assert len(routes) == 2
+
+    await assert_expected_text(
+        app,
+        [
+            (
+                "/one/hello-world",
+                "Hello, World! ControllerOne. Dependency: OneRepository",
+            ),
+            (
+                "/two/hello-world",
+                "Hello, World! ControllerTwo. Dependency: TwoRepository",
+            ),
+        ],
+    )
+
+
+async def test_issue_511(app):
+    """
+    Test support for more complex logic to define paths, like described in
+    https://github.com/Neoteroi/BlackSheep/issues/511
+    """
+    # Verify that the user can use interchangeably both router.get and
+    # router.controllers_routes.get
+    get = app.router.controllers_routes.get
+
+    class BaseController(Controller):
+        path: ClassVar[str] = "base"
+
+        @classmethod
+        def route(cls) -> Optional[str]:
+            return f"/api/{cls.path}"
+
+        @get("/foo")
+        def foo(self):
+            return self.ok(self.__class__.__name__)
+
+    class Derived(BaseController):
+        path = "derived"
+
+        # /one/hello-world
+
+    await app.start()
+
+    routes = app.router.routes[b"GET"]
+    assert len(routes) == 2
+
+    await assert_expected_text(
+        app,
+        [
+            ("/api/base/foo", "BaseController"),
+            ("/api/derived/foo", "Derived"),
+        ],
+    )

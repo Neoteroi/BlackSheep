@@ -204,8 +204,6 @@ async def test_redirect_method(method, expected_status, app):
     async def home():
         return method("https://foo.org/somewhere")
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -233,8 +231,6 @@ async def test_redirect_method_bytes_location(method, expected_status, app):
     async def home():
         return method(b"https://foo.org/somewhere")
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -253,8 +249,6 @@ async def test_no_body_method(method, expected_status, app):
     async def home():
         return method()
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -271,8 +265,6 @@ async def test_status_method_response(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method("Everything's good")
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -291,8 +283,6 @@ async def test_status_method_response_empty_body(method, expected_status, app):
     async def home():
         return method()
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -309,8 +299,6 @@ async def test_status_method_response_with_object(method, expected_status, app):
     @app.router.get("/")
     async def home():
         return method(Foo(uuid4(), "foo", True))
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -330,8 +318,6 @@ async def test_status_code_response_with_text(status: int, app):
     async def home():
         return status_code(status, "Everything's good")
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -348,8 +334,6 @@ async def test_status_code_response_with_empty_body(status: int, app):
     @app.router.get("/")
     async def home():
         return status_code(status)
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -368,8 +352,6 @@ async def test_status_code_response_with_object(status: int, app):
     async def home():
         return status_code(status, Foo(uuid4(), "foo", True))
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -386,8 +368,6 @@ async def test_created_response_with_empty_body(app):
     @app.router.get("/")
     async def home():
         return created(location="https://foo.org/foo/001")
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -409,8 +389,6 @@ async def test_created_response_with_value(app):
             location="https://foo.org/foo/726807b3-5a82-4a59-8bed-65639d3529ba",
         )
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -431,8 +409,6 @@ async def test_text_response_default_status(app):
     @app.router.get("/")
     async def home():
         return text("Hello World")
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -464,8 +440,6 @@ async def test_text_response_with_status(content, status, app):
     async def home():
         return text(content, status)
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -486,8 +460,6 @@ async def test_html_response_default_status(app):
     @app.router.get("/")
     async def home():
         return html(EXAMPLE_HTML)
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -519,8 +491,6 @@ async def test_html_response_with_status(content, status, app):
     async def home():
         return html(content, status)
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -542,8 +512,6 @@ async def test_json_response(obj: Any, values: Dict[str, Any], app):
     @app.router.get("/")
     async def home():
         return json(obj)
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -574,8 +542,6 @@ async def test_pretty_json_response(obj: Any, values: Dict[str, Any], app):
     async def home():
         return pretty_json(obj)
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -605,8 +571,6 @@ async def test_file_response_from_fs(app):
     async def home():
         return file(file_path, "text/plain; charset=utf-8")
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -630,8 +594,6 @@ async def test_file_response_from_fs_with_filename(app):
     @app.router.get("/")
     async def home():
         return file(file_path, "text/plain; charset=utf-8", file_name="foo.xml")
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -668,8 +630,6 @@ async def test_file_response_from_generator(app):
     async def home():
         return file(get_example_css, "text/css")
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -694,8 +654,6 @@ async def test_file_response_from_bytes_io(app):
         bytes_io = BytesIO()
         bytes_io.write("Żywią i bronią".encode("utf-8"))
         return file(bytes_io, "text/plain; charset=utf-8", file_name="foo.txt")
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -724,8 +682,6 @@ async def test_file_response_from_generator_inline(app):
             content_disposition=ContentDispositionType.INLINE,
         )
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -750,8 +706,6 @@ async def test_file_response_from_bytes(app):
             file_name="home.css",
             content_disposition=ContentDispositionType.INLINE,
         )
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),
@@ -787,8 +741,6 @@ async def test_file_response_from_byte_array(app):
             content_disposition=ContentDispositionType.INLINE,
         )
 
-    app.normalize_handlers()
-
     await app(
         get_example_scope("GET", "/", []),
         MockReceive(),
@@ -816,8 +768,6 @@ async def test_file_response_from_generator_inline_with_name(app):
             file_name="home.css",
             content_disposition=ContentDispositionType.INLINE,
         )
-
-    app.normalize_handlers()
 
     await app(
         get_example_scope("GET", "/", []),

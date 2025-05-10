@@ -126,7 +126,6 @@ nomodel_text = """<!DOCTYPE html>
 
 
 async def _home_scenario(app: FakeApplication, url="/", expected_text=None):
-    app.normalize_handlers()
     await app(get_example_scope("GET", url), MockReceive(), MockSend())
     text = await app.response.text()
 
@@ -148,7 +147,6 @@ async def _home_scenario(app: FakeApplication, url="/", expected_text=None):
 
 
 async def _view_scenario(app: FakeApplication, expected_text, url="/"):
-    app.normalize_handlers()
     await app(get_example_scope("GET", url), MockReceive(), MockSend())
     text = await app.response.text()
     assert text == expected_text
@@ -185,8 +183,6 @@ async def test_controller_conventional_view_name(home_model):
         def index(self):
             return self.view(model=home_model)
 
-    app.setup_controllers()
-
     await _home_scenario(app)
 
 
@@ -200,7 +196,6 @@ async def test_controller_conventional_view_name_async(home_model, async_jinja_e
         async def index(self):
             return await self.view_async(model=home_model)
 
-    app.setup_controllers()
     await _home_scenario(app)
 
 
@@ -213,8 +208,6 @@ async def test_controller_specific_view_name(home_model, specific_text):
         @get()
         def index(self):
             return self.view("specific", home_model)
-
-    app.setup_controllers()
 
     await _home_scenario(app, expected_text=specific_text)
 
@@ -231,7 +224,6 @@ async def test_controller_specific_view_name_async(
         async def index(self):
             return await self.view_async("specific", model=home_model)
 
-    app.setup_controllers()
     await _home_scenario(app, expected_text=specific_text)
 
 
@@ -245,7 +237,6 @@ async def test_controller_specific_view_name_async_no_model(async_jinja_env):
         async def index(self):
             return await self.view_async("nomodel")
 
-    app.setup_controllers()
     await _home_scenario(app, expected_text=nomodel_text)
 
 
@@ -258,8 +249,6 @@ async def test_controller_conventional_view_name_no_model(home_model):
         @get(...)
         def nomodel(self):
             return self.view()
-
-    app.setup_controllers()
 
     await _home_scenario(app, "/nomodel", expected_text=nomodel_text)
 
@@ -279,8 +268,6 @@ async def test_controller_conventional_view_name_sub_function(home_model):
         @get()
         def index(self):
             return self.ufo(home_model)
-
-    app.setup_controllers()
 
     await _home_scenario(app)
 
@@ -303,8 +290,6 @@ async def test_controller_conventional_view_name_extraneous_function(home_model)
         @get()
         def index(self):
             return self.ufo(home_model)
-
-    app.setup_controllers()
 
     await _home_scenario(app)
 
@@ -338,8 +323,6 @@ async def test_controller_model_interop(model_fixture):
         @get()
         def index(self):
             return self.view("hello", model_fixture())
-
-    app.setup_controllers()
 
     await _view_scenario(
         app,

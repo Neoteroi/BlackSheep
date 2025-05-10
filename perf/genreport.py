@@ -23,7 +23,7 @@ def _match_filter(data, python_filter: str, platform_filter: str):
 
 
 def load_results(
-    results_dir="./benchmark_results",
+    results_dir="benchmark_results",
     python_filter: str = "",
     platform_filter: str = "",
 ):

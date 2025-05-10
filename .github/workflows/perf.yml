@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        python-version: ["3.11"] #, "3.12", "3.13"
+        os: [ubuntu-latest] # , macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -74,6 +74,9 @@ jobs:
           merge-multiple: true
           path: benchmark_results
 
+      - name: Debug: List benchmark results
+        run: ls -R benchmark_results && tree
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 9
@@ -96,6 +99,7 @@ jobs:
           python perf/genreport.py
           python perf/genreport.py --output windows-results.xlsx --platform Windows
           python perf/genreport.py --output linux-results.xlsx --platform Linux
+          python perf/genreport.py --output macos-results.xlsx --platform macOS
 
       - name: Upload reports
         uses: actions/upload-artifact@v4

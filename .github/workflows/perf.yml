@@ -93,7 +93,6 @@ jobs:
         shell: bash
         run: |
           ls -R benchmark_results
-          tree
           chmod -R 755 benchmark_results
 
           export PYTHONPATH="."

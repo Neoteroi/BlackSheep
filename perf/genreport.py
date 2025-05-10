@@ -30,6 +30,7 @@ def load_results(
     """Load all benchmark results from the directory"""
     results = []
     for filename in glob.glob(f"{results_dir}/blacksheep_perf_*.json"):
+        print(filename)
         with open(filename, "r") as f:
             data = json.load(f)
             if not _match_filter(data, python_filter, platform_filter):

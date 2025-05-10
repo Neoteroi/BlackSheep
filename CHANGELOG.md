@@ -11,30 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > This release, like the previous one, includes some breaking changes to the
 > public code API of certain classes, hence the bump in version from `2.2.0` to
-> `2.3.0`. The breaking changes are to improve the UX when using `Controllers`
-> and when registering routes. In particular, in relations to the issues
-> [#511](https://github.com/Neoteroi/BlackSheep/issues/511) and
-> [#540](https://github.com/Neoteroi/BlackSheep/issues/540). The entity of the
-> breaking changes should be relatively minor as they interfere with built-in
-> features that *probably* are not commonly modified: removes the
-> `prepare_controllers` and the `get_controller_handler_pattern` from the
-> `Application` class, transferring them to a dedicated class
-> `ControllersManager`; and modifies how the `Router` class works internally,
-> to work consistently for request handlers defined using _functions_ and
-> request handlers defined using _Controllers' methods_. The _Router_ now
-> allows to register all request handlers without evaluating them immediately
-> and without checking for duplicates, and features an `apply_routes` method
-> that makes them effective upon application start. This is necessary to
-> support using the same functions for _functions_ and _methods_ and fix
-> [#540](https://github.com/Neoteroi/BlackSheep/issues/540), improving the UX
-> and removing possible confusion caused by having two sets of decorators
-> (`get, post, put, etc.`) that behave differently. The two sets of decorators
-> is still maintained, to keep the entity of breaking changes at a minimum,
-> but the framework automatically handles the situation when they are used
-> interchangeably.
-> Despite the possible annoyance that breaking changes can cause for certain
-> users, I hope you will like the new features of
-> this release, as I personally consider them a great step forward.
+> `2.3.0`. The breaking changes aim to improve the user experience (UX) when
+> using `Controllers` and registering routes. In particular, they address
+> issues [#511](https://github.com/Neoteroi/BlackSheep/issues/511) and
+> [#540](https://github.com/Neoteroi/BlackSheep/issues/540).The scope of the
+> breaking changes is relatively minor, as they affect built-in features that
+> are *likely* not commonly modified: removes the `prepare_controllers` and the
+> `get_controller_handler_pattern` from the `Application` class, transferring
+> them to a dedicated `ControllersManager` class. Additionally, the `Router`
+> class has been refactored to work consistently for request handlers defined
+> as _functions_ and those defined as _Controllers' methods_.
+>
+> The _Router_ now allows registering all request handlers without evaluating
+> them immediately, postponing duplicate checks, and introduces an
+> `apply_routes` method to make routes effective upon application startup.
+> This change is necessary to support using the same functions for both
+> _functions_ and _methods_, addressing issue [#540](https://github.com/Neoteroi/BlackSheep/issues/540),
+> improving UX, and eliminating potential confusion caused by having two
+> sets of decorators (`get, post, put, etc.`) that behave differently. While
+> the two sets of decorators are still maintained to minimize the impact of
+> breaking changes, the framework now supports using them interchangeably.
+>
+> While breaking changes may cause inconvenience for some users, I believe the
+> new features in this release represent a significant step forward.
+> Now Controllers support routes inheritance!
 
 - Fix [#511](https://github.com/Neoteroi/BlackSheep/issues/511). Add support
   for inheriting endpoints from parent controller classes, when subclassing

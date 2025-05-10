@@ -1,0 +1,110 @@
+####################################################################################
+# Runs benchmarks for BlackSheep source code for various versions of Python
+# and Operating System and publishes the results.
+# See the perf folder for more information.
+####################################################################################
+name: Benchmark
+
+on:
+  push:
+    paths:
+      - 'perf/**'
+  workflow_dispatch:
+
+jobs:
+  perf-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 9
+          submodules: false
+
+      - name: Use Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Compile Cython extensions
+        run: |
+          cython blacksheep/url.pyx
+          cython blacksheep/exceptions.pyx
+          cython blacksheep/headers.pyx
+          cython blacksheep/cookies.pyx
+          cython blacksheep/contents.pyx
+          cython blacksheep/messages.pyx
+          cython blacksheep/scribe.pyx
+          cython blacksheep/baseapp.pyx
+          python setup.py build_ext --inplace
+
+      - name: Install dependencies for benchmark
+        run: |
+          cd perf
+          pip install -r req.txt
+
+      - name: Run benchmark
+        shell: bash
+        run: |
+          export PYTHONPATH="."
+          python perf/main.py --times 5
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.os }}-${{ matrix.python-version }}
+          path: benchmark_results
+
+  genreport:
+    runs-on: ubuntu-latest
+    needs: [perf-tests]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 9
+          submodules: false
+
+      - name: Download a distribution artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: benchmark-results-*
+          merge-multiple: true
+          path: benchmark_results
+
+      - name: Use Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          cd perf
+          pip install -r req.txt
+
+      - name: Generate report
+        shell: bash
+        run: |
+          ls -R benchmark_results
+          chmod -R 755 benchmark_results
+
+          export PYTHONPATH="."
+          python perf/genreport.py
+          python perf/genreport.py --output windows-results.xlsx --platform Windows
+          python perf/genreport.py --output linux-results.xlsx --platform Linux
+          python perf/genreport.py --output macos-results.xlsx --platform macOS
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports
+          path: "**/*.xlsx"  # Upload all .xlsx files

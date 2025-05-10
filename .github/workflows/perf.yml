@@ -94,7 +94,8 @@ jobs:
         run: |
           ls -R benchmark_results
           tree
-          cd ../
+          chmod -R 755 benchmark_results
+
           export PYTHONPATH="."
           python perf/genreport.py
           python perf/genreport.py --output windows-results.xlsx --platform Windows

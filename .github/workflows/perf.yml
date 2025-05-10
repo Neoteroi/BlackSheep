@@ -79,9 +79,6 @@ jobs:
           merge-multiple: true
           path: benchmark_results
 
-      - name: List benchmark results
-        run: ls -R benchmark_results && tree
-
       - name: Use Python 3.13
         uses: actions/setup-python@v5
         with:
@@ -95,6 +92,9 @@ jobs:
       - name: Generate report
         shell: bash
         run: |
+          ls -R benchmark_results
+          tree
+          cd ../
           export PYTHONPATH="."
           python perf/genreport.py
           python perf/genreport.py --output windows-results.xlsx --platform Windows

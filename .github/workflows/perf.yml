@@ -47,6 +47,7 @@ jobs:
           pip install -r req.txt
 
       - name: Run benchmark
+        shell: bash
         run: |
           export PYTHONPATH="."
           python perf/main.py --times 5
@@ -54,5 +55,5 @@ jobs:
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark_results
+          name: benchmark-results-${{ matrix.os }}-${{ matrix.python-version }}
           path: benchmark_results

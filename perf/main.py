@@ -75,7 +75,7 @@ def wrapper():
     else:
         return func()
 
-mem_usage = memory_usage(wrapper, interval=0.01, timeout=30, backend='psutil_uss')
+mem_usage = memory_usage(wrapper, interval=0.01, timeout=30)
 print(json.dumps({{
     "peak": max(mem_usage),
     "avg": sum(mem_usage) / len(mem_usage),

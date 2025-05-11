@@ -57,6 +57,7 @@ jobs:
         shell: bash
         run: |
           export PYTHONPATH="."
+          export PYTHONOPTIMIZE="1"
           python perf/main.py --times 5
 
       - name: Upload results

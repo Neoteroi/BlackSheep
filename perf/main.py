@@ -55,6 +55,10 @@ def collect_benchmark_functions(package_name: str):
 
 def get_memory_usage(func):
     # A subprocess is necessary to obtain correct memory usage
+    #
+    # See also, regarding backend='psutil_uss':
+    # https://github.com/Neoteroi/BlackSheep/pull/558#issuecomment-2869864428
+    #
     script = f"""
 import asyncio
 import gc
@@ -71,7 +75,7 @@ def wrapper():
     else:
         return func()
 
-mem_usage = memory_usage(wrapper, interval=0.01, timeout=30)
+mem_usage = memory_usage(wrapper, interval=0.01, timeout=30, backend='psutil_uss')
 print(json.dumps({{
     "peak": max(mem_usage),
     "avg": sum(mem_usage) / len(mem_usage),

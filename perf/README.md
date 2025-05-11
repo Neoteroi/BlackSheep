@@ -25,6 +25,7 @@ From the root folder:
 ```bash
 # Run the benchmark suite
 export PYTHONPATH="."
+export PYTHONOPTIMIZE=1
 
 python perf/main.py
 

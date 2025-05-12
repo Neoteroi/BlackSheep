@@ -132,7 +132,7 @@ def get_system_info():
     }
 
 
-async def run_all_benchmarks(iterations: int, key: str):
+async def run_all_benchmarks(iterations: int, key: str, no_memory: bool):
     results = {
         "timestamp": datetime.now().isoformat(),
         "git_info": get_git_info(),
@@ -156,11 +156,13 @@ async def run_all_benchmarks(iterations: int, key: str):
         else:
             results["benchmarks"][name] = func(iterations)
 
+    if no_memory:
+        return results
+
     # Memory benchmarks
     for name, func in benchmark_functions.items():
         if key and key not in name:
             continue
-        gc.collect()
         print(f"Running memory benchmark: {name}...")
         results["memory_benchmarks"][name] = get_memory_usage(func)
 
@@ -202,8 +204,15 @@ if __name__ == "__main__":
         default="",
         help="Optional filter to run specific benchmarks",
     )
+    parser.add_argument(
+        "--no-memory",
+        action="store_true",
+        help="If set, skips memory benchmarks",
+    )
     args = parser.parse_args()
 
     for _ in range(args.times):
-        results = asyncio.run(run_all_benchmarks(args.iterations, args.filter))
+        results = asyncio.run(
+            run_all_benchmarks(args.iterations, args.filter, args.no_memory)
+        )
         save_results(results, args.output_dir)

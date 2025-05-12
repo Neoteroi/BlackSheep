@@ -8,6 +8,9 @@ python perf/historyrun.py --commits 82ed065 1237b1e
 
 # To use tags:
 python perf/historyrun.py --commits v2.0.1 v2.1.0 v2.2.0 v2.3.0
+
+---
+See also the perfhistory.yml GitHub Workflow.
 """
 
 import argparse

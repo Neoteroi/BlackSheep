@@ -12,6 +12,7 @@ name: HistoryBenchmark
 on:
   push:
     paths:
+      - '.github/**'
       - 'perf/**'
   workflow_dispatch:
     inputs:

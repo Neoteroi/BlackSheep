@@ -88,11 +88,22 @@ print(json.dumps({{
     return json.loads(result.stdout)
 
 
+def _try_get_git_tag(commit_hash):
+    try:
+        return subprocess.check_output(
+            ["git", "describe", "--tags", "--exact-match", commit_hash],
+            universal_newlines=True,
+        ).strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
 def get_git_info():
     try:
         commit_hash = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], universal_newlines=True
         ).strip()
+        commit_tag = _try_get_git_tag(commit_hash)
         commit_date = subprocess.check_output(
             ["git", "show", "-s", "--format=%ci", commit_hash], universal_newlines=True
         ).strip()
@@ -103,6 +114,7 @@ def get_git_info():
         return {
             "commit_hash": commit_hash,
             "commit_date": commit_date,
+            "tag": commit_tag,
             "branch": branch,
         }
     except subprocess.CalledProcessError:

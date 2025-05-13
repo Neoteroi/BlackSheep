@@ -1,9 +1,13 @@
 ####################################################################################
-# Runs benchmarks for BlackSheep source code for various versions of Python
-# and Operating System and publishes the results.
-# See the perf folder for more information.
+# Runs benchmarks for BlackSheep source code at various points of the commit history,
+# on Ubuntu and Windows for a single version of Python.
+#
+# This workflow supports both manual and automatic triggers.
+# If triggered manually, it is possible to select commits hashes or tags to checkout.
+#
+# The minimum supported BlackSheep version by the benchmarks is v2.0.1!
 ####################################################################################
-name: Benchmark
+name: HistoryBenchmark
 
 on:
 #  push:
@@ -11,20 +15,33 @@ on:
 #      - '.github/**'
 #      - 'perf/**'
   workflow_dispatch:
+    inputs:
+      commits:
+        description: "List of commits or tags to benchmark (space-separated)"
+        required: true
+        default: "v2.0.1 v2.2.0 v2.3.0 current"
+      memory:
+        description: "Include memory benchmark (Y|N). Time consuming."
+        required: true
+        default: "N"
+
+env:
+  DEFAULT_MEMORY: "N"
+  DEFAULT_COMMITS: "v2.0.1 v2.2.0 v2.3.0 current"
 
 jobs:
   perf-tests:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.13"]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 9
+          fetch-depth: 0
           submodules: false
 
       - name: Use Python ${{ matrix.python-version }}
@@ -35,30 +52,26 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install flake8
-
-      - name: Compile Cython extensions
-        run: |
-          cython blacksheep/url.pyx
-          cython blacksheep/exceptions.pyx
-          cython blacksheep/headers.pyx
-          cython blacksheep/cookies.pyx
-          cython blacksheep/contents.pyx
-          cython blacksheep/messages.pyx
-          cython blacksheep/scribe.pyx
-          cython blacksheep/baseapp.pyx
-          python setup.py build_ext --inplace
-
-      - name: Install dependencies for benchmark
-        run: |
           cd perf
           pip install -r req.txt
 
       - name: Run benchmark
         shell: bash
+        env:
+          MEMORY: ${{ github.event.inputs.memory || env.DEFAULT_MEMORY }}
+          COMMITS: ${{ github.event.inputs.commits || env.DEFAULT_COMMITS }}
         run: |
+
+          echo "Running benchmarks for commits: $COMMITS"
           export PYTHONPATH="."
-          python perf/main.py --times 5
+
+          if [ $MEMORY == "Y" ]; then
+            echo "➔ Including memory benchmarks 🟢"
+            python perf/historyrun.py --commits $COMMITS --times 3 --memory
+          else
+            echo "➔ Excluding memory benchmarks 🔴"
+            python perf/historyrun.py --commits $COMMITS --times 3 --no-memory
+          fi
 
       - name: Upload results
         uses: actions/upload-artifact@v4
@@ -72,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 9
+          fetch-depth: 0
           submodules: false
 
       - name: Download a distribution artifact
@@ -102,7 +115,6 @@ jobs:
           python perf/genreport.py
           python perf/genreport.py --output windows-results.xlsx --platform Windows
           python perf/genreport.py --output linux-results.xlsx --platform Linux
-          python perf/genreport.py --output macos-results.xlsx --platform macOS
 
       - name: Upload reports
         uses: actions/upload-artifact@v4

@@ -61,7 +61,9 @@ try:
     from pydantic import validate_call
 except ImportError:
     # v1
-    from pydantic import validate_arguments as validate_call
+    # v1 validate_arguments is not supported
+    # https://github.com/Neoteroi/BlackSheep/issues/559
+    validate_call = None
 
 
 class Item:
@@ -4020,6 +4022,9 @@ async def test_application_sub_router_normalization():
     assert response.status == 200
 
 
+@pytest.mark.skipif(
+    validate_call is None, reason="Pydantic v1 validate_arguments is not supported"
+)
 async def test_pydantic_validate_call_scenario():
     app = FakeApplication(show_error_details=True, router=Router())
     get = app.router.get

@@ -677,11 +677,7 @@ def _get_async_wrapper_for_output(
 ) -> Callable[[Request], Awaitable[Response]]:
     @wraps(method)
     async def handler(request: Request) -> Response:
-        response = await method(request)
-        # Handle consequences of an async decorator
-        if inspect.isawaitable(response):
-            response = await response
-        return ensure_response(response)
+        return ensure_response(await method(request))
 
     return handler
 

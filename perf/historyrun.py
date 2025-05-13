@@ -5,6 +5,15 @@ to ensure that the same tests are executed at various points of the
 Git history.
 
 python perf/historyrun.py --commits 82ed065 1237b1e
+
+# To use tags:
+python perf/historyrun.py --commits v2.0.1 v2.1.0 v2.2.0 v2.3.0
+
+# To skip compilation step (valid only when comparing commits whose Cython code is
+# equivalent)
+python perf/historyrun.py --commits current --no-memory --no-compile
+---
+See also the perfhistory.yml GitHub Workflow.
 """
 
 import argparse
@@ -16,6 +25,8 @@ import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+
+from perf.utils.md5 import md5_cython_files
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -42,14 +53,14 @@ def copy_perf_code(temp_dir):
 
 
 def restore_perf_code(temp_dir):
-    logger.info("Replacing the local 'perf' folder with the backup...")
+    logger.debug("Replacing the local 'perf' folder with the backup...")
 
     # Path to the local 'perf' folder
     local_perf_dir = os.path.abspath("perf")
 
     # Delete the local 'perf' folder if it exists
     if os.path.exists(local_perf_dir):
-        logger.info("Deleting the local 'perf' folder: %s", local_perf_dir)
+        logger.debug("Deleting the local 'perf' folder: %s", local_perf_dir)
         shutil.rmtree(local_perf_dir)
 
     # Path to the backup 'perf' folder in the temporary directory
@@ -57,7 +68,7 @@ def restore_perf_code(temp_dir):
 
     # Copy the backup 'perf' folder to the current directory
     shutil.copytree(source_dir, local_perf_dir)
-    logger.info("Restored 'perf' folder from backup: %s", source_dir)
+    logger.debug("Restored 'perf' folder from backup: %s", source_dir)
 
 
 @contextmanager
@@ -67,21 +78,23 @@ def gitcontext():
     ).strip()
     try:
         yield branch
+    except KeyboardInterrupt:
+        logger.info("User interrupted")
     except:
+        logger.exception("Performance test failed.")
         # go back to the original branch
-        pass
     logger.info("Returning to the original branch")
     subprocess.check_output(["git", "checkout", "-f", branch], universal_newlines=True)
 
 
 def make_compile():
     logger.info("Compiling BlackSheep extensions")
-    # TODO: use other commands to support Windows
     subprocess.check_output(["make", "compile"], universal_newlines=True)
 
 
-def run_tests(iterations: int, output_dir: str, times: int):
-    subprocess.check_output(
+def run_tests(iterations: int, output_dir: str, times: int, memory: bool):
+    logger.info("Running performance tests...")
+    subprocess.run(
         [
             "python",
             "perf/main.py",
@@ -91,8 +104,9 @@ def run_tests(iterations: int, output_dir: str, times: int):
             output_dir,
             "--times",
             str(times),
+            "--memory" if memory else "--no-memory",
         ],
-        universal_newlines=True,
+        check=True,
     )
 
 
@@ -122,10 +136,32 @@ def copy_results(source_dir, dest_dir):
     logger.info("Copied all files from '%s' to '%s'", source_dir, dest_dir)
 
 
+class CythonHash:
+    """
+    This is to read and store the MD5 hash of the Cython code, from the last
+    compilation. This is to save time when repeating history runs, and when Cython code
+    is not modified.
+    """
+
+    filename = ".cython-hash"
+
+    @staticmethod
+    def read_from_file() -> str:
+        file = Path(CythonHash.filename)
+        if file.exists():
+            return file.read_text()
+        return ""
+
+    @staticmethod
+    def store_in_file(value: str) -> None:
+        file = Path(CythonHash.filename)
+        file.write_text(value)
+
+
 def main():
     parser = argparse.ArgumentParser(description="BlackSheep Performance Benchmarking")
     parser.add_argument(
-        "--iterations", type=int, default=1000000, help="Number of iterations"
+        "--iterations", type=int, default=100000, help="Number of iterations"
     )
     parser.add_argument(
         "--times", type=int, default=5, help="How many runs for each commit"
@@ -136,31 +172,69 @@ def main():
         nargs="+",  # Accept one or more commit SHAs
         help="List of Git commit SHAs to benchmark",
     )
+    parser.add_argument(
+        "--memory",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Includes or skips memory benchmarks (included by default)",
+    )
+    parser.add_argument(
+        "--compile",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Includes or skips the compilation step (included by default)",
+    )
     args = parser.parse_args()
 
-    # Example usage of the commits argument
     if args.commits:
-        print(f"Commits to benchmark: {args.commits}")
+        logger.info(f"Commits to benchmark: {args.commits}")
     else:
-        print("No commits provided.")
+        logger.info("No commits provided.")
         sys.exit(1)
+
+    compiled_hash = CythonHash.read_from_file()
+    current_hash = md5_cython_files()
+    if current_hash == compiled_hash:
+        logger.info("Restored the Cython files hash from the last compilation...")
+    else:
+        # The Cython code was modified since it was compiled for the last history run.
+        # Discard it.
+        compiled_hash = ""
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_dir = Path(temp_dir) / "results"
         copy_perf_code(temp_dir)
 
-        with gitcontext():
+        with gitcontext() as current_branch:
             for commit in args.commits:
+                if commit.lower() in {"current", "last", "head"}:
+                    commit = current_branch
                 subprocess.check_output(
                     ["git", "checkout", "-f", commit], universal_newlines=True
                 )
+
                 logger.info("Checked out commit: %s", commit)
-                make_compile()
+                if args.compile:
+                    current_hash = md5_cython_files()
+                    if compiled_hash == current_hash:
+                        logger.info(
+                            "Compilation is not needed, the Cython code is current. 🏇 ✨"
+                        )
+                    else:
+                        make_compile()
+                        compiled_hash = current_hash
+                        CythonHash.store_in_file(current_hash)  # Store in file
+                else:
+                    logger.info(
+                        "Compilation skipped. This is OK only to compare commits when "
+                        "Cython code is not modified. ⚠️"
+                    )
                 restore_perf_code(temp_dir)
-                run_tests(args.iterations, str(output_dir), args.times)
+                run_tests(args.iterations, str(output_dir), args.times, args.memory)
 
         # Copy the results from output_dir to ./benchmark_results
         copy_results(str(output_dir), "./benchmark_results")
+        logger.info("All done! ✨ 🍰 ✨")
 
 
 if __name__ == "__main__":

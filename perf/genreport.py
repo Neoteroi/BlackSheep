@@ -7,6 +7,7 @@ import argparse
 import glob
 import json
 import os
+import subprocess
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -42,6 +43,21 @@ def load_results(
     return results
 
 
+def _try_get_git_tag(commit_hash):
+    """
+    If a tag is associated with the given commit hash, returns it, as it is more
+    readable than the hash. Otherwise it returns the same hash.
+    """
+    try:
+        return subprocess.check_output(
+            ["git", "describe", "--tags", "--exact-match", commit_hash],
+            universal_newlines=True,
+            stderr=subprocess.DEVNULL,  # Suppress error output
+        ).strip()
+    except subprocess.CalledProcessError:
+        return commit_hash
+
+
 def create_comparison_table(results):
     """Create a pandas DataFrame for comparison"""
     rows = []
@@ -51,7 +67,7 @@ def create_comparison_table(results):
 
         row = {
             "timestamp": result.get("timestamp", "unknown"),
-            "commit": commit,
+            "commit": _try_get_git_tag(commit),
             "date": date,
             "python_version": result.get("system_info", {}).get(
                 "python_version", "unknown"
@@ -167,6 +183,11 @@ def _set_conditional_formatting(df, worksheet, max_row):
 def _add_ms_chart(workbook, df, worksheet, max_row):
     time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
 
+    if not time_cols:
+        # This should never happen, unless in the future support for running
+        # only memory benchmarks is added.
+        return
+
     chart = workbook.add_chart({"type": "line"})  # type: ignore
 
     for col in time_cols:
@@ -201,6 +222,10 @@ def _add_ms_chart(workbook, df, worksheet, max_row):
 
 def _add_mem_chart(workbook, df, worksheet, max_row):
     mem_cols = [col for col in df.columns if col.endswith("_peak_mb")]
+
+    if not mem_cols:
+        # This happens if memory benchmarks are disabled (--no-memory)
+        return
 
     chart = workbook.add_chart({"type": "line"})  # type: ignore
 

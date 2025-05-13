@@ -88,11 +88,23 @@ print(json.dumps({{
     return json.loads(result.stdout)
 
 
+def _try_get_git_tag(commit_hash):
+    try:
+        return subprocess.check_output(
+            ["git", "describe", "--tags", "--exact-match", commit_hash],
+            universal_newlines=True,
+            stderr=subprocess.DEVNULL,  # Suppress error output
+        ).strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
 def get_git_info():
     try:
         commit_hash = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], universal_newlines=True
         ).strip()
+        commit_tag = _try_get_git_tag(commit_hash)
         commit_date = subprocess.check_output(
             ["git", "show", "-s", "--format=%ci", commit_hash], universal_newlines=True
         ).strip()
@@ -103,6 +115,7 @@ def get_git_info():
         return {
             "commit_hash": commit_hash,
             "commit_date": commit_date,
+            "tag": commit_tag,
             "branch": branch,
         }
     except subprocess.CalledProcessError:
@@ -120,7 +133,7 @@ def get_system_info():
     }
 
 
-async def run_all_benchmarks(iterations: int, key: str):
+async def run_all_benchmarks(iterations: int, key: str, memory: bool):
     results = {
         "timestamp": datetime.now().isoformat(),
         "git_info": get_git_info(),
@@ -144,11 +157,13 @@ async def run_all_benchmarks(iterations: int, key: str):
         else:
             results["benchmarks"][name] = func(iterations)
 
+    if memory is False:
+        return results
+
     # Memory benchmarks
     for name, func in benchmark_functions.items():
         if key and key not in name:
             continue
-        gc.collect()
         print(f"Running memory benchmark: {name}...")
         results["memory_benchmarks"][name] = get_memory_usage(func)
 
@@ -190,8 +205,16 @@ if __name__ == "__main__":
         default="",
         help="Optional filter to run specific benchmarks",
     )
+    parser.add_argument(
+        "--memory",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Includes or skips memory benchmarks (included by default)",
+    )
     args = parser.parse_args()
 
     for _ in range(args.times):
-        results = asyncio.run(run_all_benchmarks(args.iterations, args.filter))
+        results = asyncio.run(
+            run_all_benchmarks(args.iterations, args.filter, args.memory)
+        )
         save_results(results, args.output_dir)

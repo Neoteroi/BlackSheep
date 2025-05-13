@@ -192,7 +192,9 @@ def main():
 
     compiled_hash = CythonHash.read_from_file()
     current_hash = md5_cython_files()
-    if current_hash != compiled_hash:
+    if current_hash == compiled_hash:
+        logger.info("Restored the Cython files hash from the last compilation...")
+    else:
         # The Cython code was modified since it was compiled for the last history run.
         # Discard it.
         compiled_hash = ""

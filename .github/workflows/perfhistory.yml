@@ -52,22 +52,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install flake8
-
-      - name: Compile Cython extensions
-        run: |
-          cython blacksheep/url.pyx
-          cython blacksheep/exceptions.pyx
-          cython blacksheep/headers.pyx
-          cython blacksheep/cookies.pyx
-          cython blacksheep/contents.pyx
-          cython blacksheep/messages.pyx
-          cython blacksheep/scribe.pyx
-          cython blacksheep/baseapp.pyx
-          python setup.py build_ext --inplace
-
-      - name: Install dependencies for benchmark
-        run: |
           cd perf
           pip install -r req.txt
 

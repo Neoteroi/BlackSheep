@@ -52,6 +52,7 @@ def _try_get_git_tag(commit_hash):
         return subprocess.check_output(
             ["git", "describe", "--tags", "--exact-match", commit_hash],
             universal_newlines=True,
+            stderr=subprocess.DEVNULL,  # Suppress error output
         ).strip()
     except subprocess.CalledProcessError:
         return commit_hash
@@ -182,6 +183,11 @@ def _set_conditional_formatting(df, worksheet, max_row):
 def _add_ms_chart(workbook, df, worksheet, max_row):
     time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
 
+    if not time_cols:
+        # This should never happen, unless in the future support for running
+        # only memory benchmarks is added.
+        return
+
     chart = workbook.add_chart({"type": "line"})  # type: ignore
 
     for col in time_cols:
@@ -216,6 +222,10 @@ def _add_ms_chart(workbook, df, worksheet, max_row):
 
 def _add_mem_chart(workbook, df, worksheet, max_row):
     mem_cols = [col for col in df.columns if col.endswith("_peak_mb")]
+
+    if not mem_cols:
+        # This happens if memory benchmarks are disabled (--no-memory)
+        return
 
     chart = workbook.add_chart({"type": "line"})  # type: ignore
 

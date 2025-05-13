@@ -179,9 +179,7 @@ def main():
                 if commit.lower() in {"current", "last", "head"}:
                     commit = current_branch
                 subprocess.check_output(
-                    ["git", "checkout", "-f", commit],
-                    universal_newlines=True,
-                    stderr=subprocess.DEVNULL,  # Suppress error output
+                    ["git", "checkout", "-f", commit], universal_newlines=True
                 )
 
                 logger.info("Checked out commit: %s", commit)

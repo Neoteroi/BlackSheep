@@ -93,6 +93,7 @@ def _try_get_git_tag(commit_hash):
         return subprocess.check_output(
             ["git", "describe", "--tags", "--exact-match", commit_hash],
             universal_newlines=True,
+            stderr=subprocess.DEVNULL,  # Suppress error output
         ).strip()
     except subprocess.CalledProcessError:
         return None

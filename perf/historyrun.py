@@ -26,6 +26,8 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
+from perf.utils.md5 import md5_cython_files
+
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.DEBUG)
@@ -89,7 +91,7 @@ def make_compile():
 
 
 def run_tests(iterations: int, output_dir: str, times: int, memory: bool):
-    print("Running performance tests...")
+    logger.info("Running performance tests...")
     subprocess.run(
         [
             "python",
@@ -160,12 +162,13 @@ def main():
     )
     args = parser.parse_args()
 
-    # Example usage of the commits argument
     if args.commits:
-        print(f"Commits to benchmark: {args.commits}")
+        logger.info(f"Commits to benchmark: {args.commits}")
     else:
-        print("No commits provided.")
+        logger.info("No commits provided.")
         sys.exit(1)
+
+    compiled_hash = None
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_dir = Path(temp_dir) / "results"
@@ -180,11 +183,19 @@ def main():
                     universal_newlines=True,
                     stderr=subprocess.DEVNULL,  # Suppress error output
                 )
+
                 logger.info("Checked out commit: %s", commit)
                 if args.compile:
-                    make_compile()
+                    current_hash = md5_cython_files()
+                    if compiled_hash == current_hash:
+                        logger.info(
+                            "Compilation is not needed, the Cython code is current."
+                        )
+                    else:
+                        make_compile()
+                        compiled_hash = current_hash
                 else:
-                    print(
+                    logger.info(
                         "Compilation skipped. This is OK to compare commits when "
                         "Cython code is not modified."
                     )

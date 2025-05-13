@@ -79,8 +79,8 @@ def gitcontext():
     try:
         yield branch
     except:
+        logger.exception("Performance test failed.")
         # go back to the original branch
-        pass
     logger.info("Returning to the original branch")
     subprocess.check_output(["git", "checkout", "-f", branch], universal_newlines=True)
 

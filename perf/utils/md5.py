@@ -23,7 +23,7 @@ def md5_cython_files() -> str:
     """
     _hash = hashlib.md5()
     for file in iter_cython_files():
-        hash.update(file.encode())
+        _hash.update(file.encode())
         md5_update_from_file(file, _hash)
     return _hash.hexdigest()
 

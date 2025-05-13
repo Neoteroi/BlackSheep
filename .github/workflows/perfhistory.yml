@@ -10,10 +10,10 @@
 name: HistoryBenchmark
 
 on:
-  push:
-    paths:
-      - '.github/**'
-      - 'perf/**'
+#  push:
+#    paths:
+#      - '.github/**'
+#      - 'perf/**'
   workflow_dispatch:
     inputs:
       commits:
@@ -113,6 +113,8 @@ jobs:
 
           export PYTHONPATH="."
           python perf/genreport.py
+          python perf/genreport.py --output windows-results.xlsx --platform Windows
+          python perf/genreport.py --output linux-results.xlsx --platform Linux
 
       - name: Upload reports
         uses: actions/upload-artifact@v4

@@ -6,6 +6,10 @@
 name: Benchmark
 
 on:
+#  push:
+#    paths:
+#      - '.github/**'
+#      - 'perf/**'
   workflow_dispatch:
 
 jobs:

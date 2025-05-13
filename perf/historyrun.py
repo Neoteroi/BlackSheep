@@ -134,6 +134,28 @@ def copy_results(source_dir, dest_dir):
     logger.info("Copied all files from '%s' to '%s'", source_dir, dest_dir)
 
 
+class CythonHash:
+    """
+    This is to read and store the MD5 hash of the Cython code, from the last
+    compilation. This is to save time when repeating history runs, and when Cython code
+    is not modified.
+    """
+
+    filename = ".cython-hash"
+
+    @staticmethod
+    def read_from_file() -> str:
+        file = Path(CythonHash.filename)
+        if file.exists():
+            return file.read_text()
+        return ""
+
+    @staticmethod
+    def store_in_file(value: str) -> None:
+        file = Path(CythonHash.filename)
+        file.write_text(value)
+
+
 def main():
     parser = argparse.ArgumentParser(description="BlackSheep Performance Benchmarking")
     parser.add_argument(
@@ -168,7 +190,12 @@ def main():
         logger.info("No commits provided.")
         sys.exit(1)
 
-    compiled_hash = None
+    compiled_hash = CythonHash.read_from_file()
+    current_hash = md5_cython_files()
+    if current_hash != compiled_hash:
+        # The Cython code was modified since it was compiled for the last history run.
+        # Discard it.
+        compiled_hash = ""
 
     with tempfile.TemporaryDirectory() as temp_dir:
         output_dir = Path(temp_dir) / "results"
@@ -192,6 +219,7 @@ def main():
                     else:
                         make_compile()
                         compiled_hash = current_hash
+                        CythonHash.store_in_file(current_hash)  # Store in file
                 else:
                     logger.info(
                         "Compilation skipped. This is OK to compare commits when "

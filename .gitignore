@@ -131,3 +131,4 @@ venv*
 benchmark_results/
 *.xlsx
 .~lock*
+.cython-hash

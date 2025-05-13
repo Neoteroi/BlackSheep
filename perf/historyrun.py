@@ -86,7 +86,7 @@ def make_compile():
     subprocess.check_output(["make", "compile"], universal_newlines=True)
 
 
-def run_tests(iterations: int, output_dir: str, times: int):
+def run_tests(iterations: int, output_dir: str, times: int, memory: bool):
     subprocess.check_output(
         [
             "python",
@@ -97,6 +97,7 @@ def run_tests(iterations: int, output_dir: str, times: int):
             output_dir,
             "--times",
             str(times),
+            "--memory" if memory else "--no-memory",
         ],
         universal_newlines=True,
     )
@@ -142,6 +143,12 @@ def main():
         nargs="+",  # Accept one or more commit SHAs
         help="List of Git commit SHAs to benchmark",
     )
+    parser.add_argument(
+        "--memory",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Includes or skips memory benchmarks (included by default)",
+    )
     args = parser.parse_args()
 
     # Example usage of the commits argument
@@ -155,15 +162,17 @@ def main():
         output_dir = Path(temp_dir) / "results"
         copy_perf_code(temp_dir)
 
-        with gitcontext():
+        with gitcontext() as current_branch:
             for commit in args.commits:
+                if commit.lower() in {"current", "last", "head"}:
+                    commit = current_branch
                 subprocess.check_output(
                     ["git", "checkout", "-f", commit], universal_newlines=True
                 )
                 logger.info("Checked out commit: %s", commit)
                 make_compile()
                 restore_perf_code(temp_dir)
-                run_tests(args.iterations, str(output_dir), args.times)
+                run_tests(args.iterations, str(output_dir), args.times, args.memory)
 
         # Copy the results from output_dir to ./benchmark_results
         copy_results(str(output_dir), "./benchmark_results")

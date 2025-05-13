@@ -19,10 +19,15 @@ on:
       commits:
         description: "List of commits or tags to benchmark (space-separated)"
         required: true
-        default: "v2.0.1 v2.2.0 v2.3.0"
+        default: "v2.0.1 v2.2.0 v2.3.0 current"
+      memory:
+        description: "Include memory benchmark (Y|N). Time consuming."
+        required: true
+        default: "N"
 
 env:
-  DEFAULT_COMMITS: "v2.0.1 v2.2.0 v2.3.0"
+  DEFAULT_MEMORY: "N"
+  DEFAULT_COMMITS: "v2.0.1 v2.2.0 v2.3.0 current"
 
 jobs:
   perf-tests:
@@ -69,11 +74,20 @@ jobs:
       - name: Run benchmark
         shell: bash
         env:
+          MEMORY: ${{ github.event.inputs.memory || env.DEFAULT_MEMORY }}
           COMMITS: ${{ github.event.inputs.commits || env.DEFAULT_COMMITS }}
         run: |
+
           echo "Running benchmarks for commits: $COMMITS"
           export PYTHONPATH="."
-          python perf/historyrun.py --commits $COMMITS --times 3
+
+          if [ $MEMORY == "Y" ]; then
+            echo "➔ Including memory benchmarks 🟢"
+            python perf/historyrun.py --commits $COMMITS --times 3 --memory
+          else
+            echo "➔ Excluding memory benchmarks 🔴"
+            python perf/historyrun.py --commits $COMMITS --times 3 --no-memory
+          fi
 
       - name: Upload results
         uses: actions/upload-artifact@v4

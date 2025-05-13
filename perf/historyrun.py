@@ -9,6 +9,9 @@ python perf/historyrun.py --commits 82ed065 1237b1e
 # To use tags:
 python perf/historyrun.py --commits v2.0.1 v2.1.0 v2.2.0 v2.3.0
 
+# To skip compilation step (valid only when comparing commits whose Cython code is
+# equivalent)
+python perf/historyrun.py --commits current --no-memory --no-compile
 ---
 See also the perfhistory.yml GitHub Workflow.
 """
@@ -82,12 +85,12 @@ def gitcontext():
 
 def make_compile():
     logger.info("Compiling BlackSheep extensions")
-    # TODO: use other commands to support Windows
     subprocess.check_output(["make", "compile"], universal_newlines=True)
 
 
 def run_tests(iterations: int, output_dir: str, times: int, memory: bool):
-    subprocess.check_output(
+    print("Running performance tests...")
+    subprocess.run(
         [
             "python",
             "perf/main.py",
@@ -99,7 +102,7 @@ def run_tests(iterations: int, output_dir: str, times: int, memory: bool):
             str(times),
             "--memory" if memory else "--no-memory",
         ],
-        universal_newlines=True,
+        check=True,
     )
 
 
@@ -132,7 +135,7 @@ def copy_results(source_dir, dest_dir):
 def main():
     parser = argparse.ArgumentParser(description="BlackSheep Performance Benchmarking")
     parser.add_argument(
-        "--iterations", type=int, default=1000000, help="Number of iterations"
+        "--iterations", type=int, default=100000, help="Number of iterations"
     )
     parser.add_argument(
         "--times", type=int, default=5, help="How many runs for each commit"
@@ -148,6 +151,12 @@ def main():
         default=True,
         action=argparse.BooleanOptionalAction,
         help="Includes or skips memory benchmarks (included by default)",
+    )
+    parser.add_argument(
+        "--compile",
+        default=True,
+        action=argparse.BooleanOptionalAction,
+        help="Includes or skips the compilation step (included by default)",
     )
     args = parser.parse_args()
 
@@ -170,7 +179,13 @@ def main():
                     ["git", "checkout", "-f", commit], universal_newlines=True
                 )
                 logger.info("Checked out commit: %s", commit)
-                make_compile()
+                if args.compile:
+                    make_compile()
+                else:
+                    print(
+                        "Compilation skipped. This is OK to compare commits when "
+                        "Cython code is not modified."
+                    )
                 restore_perf_code(temp_dir)
                 run_tests(args.iterations, str(output_dir), args.times, args.memory)
 

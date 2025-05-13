@@ -53,14 +53,14 @@ def copy_perf_code(temp_dir):
 
 
 def restore_perf_code(temp_dir):
-    logger.info("Replacing the local 'perf' folder with the backup...")
+    logger.debug("Replacing the local 'perf' folder with the backup...")
 
     # Path to the local 'perf' folder
     local_perf_dir = os.path.abspath("perf")
 
     # Delete the local 'perf' folder if it exists
     if os.path.exists(local_perf_dir):
-        logger.info("Deleting the local 'perf' folder: %s", local_perf_dir)
+        logger.debug("Deleting the local 'perf' folder: %s", local_perf_dir)
         shutil.rmtree(local_perf_dir)
 
     # Path to the backup 'perf' folder in the temporary directory
@@ -68,7 +68,7 @@ def restore_perf_code(temp_dir):
 
     # Copy the backup 'perf' folder to the current directory
     shutil.copytree(source_dir, local_perf_dir)
-    logger.info("Restored 'perf' folder from backup: %s", source_dir)
+    logger.debug("Restored 'perf' folder from backup: %s", source_dir)
 
 
 @contextmanager
@@ -78,6 +78,8 @@ def gitcontext():
     ).strip()
     try:
         yield branch
+    except KeyboardInterrupt:
+        logger.info("User interrupted")
     except:
         logger.exception("Performance test failed.")
         # go back to the original branch

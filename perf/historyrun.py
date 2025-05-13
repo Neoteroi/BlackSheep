@@ -216,7 +216,7 @@ def main():
                     current_hash = md5_cython_files()
                     if compiled_hash == current_hash:
                         logger.info(
-                            "Compilation is not needed, the Cython code is current."
+                            "Compilation is not needed, the Cython code is current. 🏇 ✨"
                         )
                     else:
                         make_compile()
@@ -224,14 +224,15 @@ def main():
                         CythonHash.store_in_file(current_hash)  # Store in file
                 else:
                     logger.info(
-                        "Compilation skipped. This is OK to compare commits when "
-                        "Cython code is not modified."
+                        "Compilation skipped. This is OK only to compare commits when "
+                        "Cython code is not modified. ⚠️"
                     )
                 restore_perf_code(temp_dir)
                 run_tests(args.iterations, str(output_dir), args.times, args.memory)
 
         # Copy the results from output_dir to ./benchmark_results
         copy_results(str(output_dir), "./benchmark_results")
+        logger.info("All done! ✨ 🍰 ✨")
 
 
 if __name__ == "__main__":

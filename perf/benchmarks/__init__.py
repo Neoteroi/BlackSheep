@@ -3,6 +3,9 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TypedDict
+import cProfile
+import pstats
+import io
 
 
 class BenchmarkResult(TypedDict):
@@ -65,6 +68,22 @@ def sync_benchmark(func, iterations: int) -> BenchmarkResult:
         "avg_time": result.elapsed_time / iterations,
         "iterations": iterations,
     }
+
+
+async def profile_benchmark(func, iterations, is_async, top=20):
+    pr = cProfile.Profile()
+    if is_async:
+        pr.enable()
+        await func()
+        pr.disable()
+    else:
+        pr.enable()
+        func(iterations)
+        pr.disable()
+    s = io.StringIO()
+    ps = pstats.Stats(pr, stream=s).sort_stats("cumulative")
+    ps.print_stats(top)
+    return s.getvalue()
 
 
 def main_run(func):

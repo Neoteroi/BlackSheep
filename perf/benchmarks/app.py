@@ -2,18 +2,21 @@
 Benchmarks testing end-2-end handling of HTTP requests, mocking ASGI scopes.
 """
 
+import asyncio
+import inspect
 from functools import partial
 from pathlib import Path
 
 from blacksheep import Application, Response, Router
 from blacksheep.contents import TextContent
+from blacksheep.messages import Request
 from blacksheep.server.controllers import Controller
 from blacksheep.server.responses import text
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from perf.benchmarks import async_benchmark, main_run
 
-ITERATIONS = 10000
+ITERATIONS = 100000
 LOREM_IPSUM = (Path(__file__).parent / "res" / "lorem.txt").read_text(encoding="utf-8")
 REQUEST_HEADERS = [
     (b"Connection", b"keep-alive"),
@@ -82,7 +85,26 @@ async def test_app_handle_text_response(application: Application):
 
 async def benchmark_app_handle_small_response(iterations=ITERATIONS):
     application = Application(router=Router())
-    application.router.add_get("/test", lambda _: "Hello, World!")
+
+    @application.router.get("/test")
+    async def handler(request: Request) -> Response:
+        return text("Hello, World!")
+
+    await application.start()
+    return await async_benchmark(
+        partial(test_app_handle_small_response, application), iterations
+    )
+
+
+async def benchmark_app_handle_small_response_no_annotation(iterations=ITERATIONS):
+    # This has a worst performance because BlackSheep needs to convert the text into
+    # an instance of Response.
+    application = Application(router=Router())
+
+    @application.router.get("/test")
+    async def handler():
+        return "Hello, World!"
+
     await application.start()
     return await async_benchmark(
         partial(test_app_handle_small_response, application), iterations
@@ -157,5 +179,22 @@ async def benchmark_app_handle_text_response_controller(iterations=ITERATIONS):
     )
 
 
+def get_benchmark_functions():
+    return {
+        name: obj
+        for name, obj in globals().items()
+        if name.startswith("benchmark_")
+        and (inspect.isfunction(obj) or inspect.iscoroutinefunction(obj))
+    }
+
+
+async def main():
+    benchmarks = get_benchmark_functions()
+    print("Found benchmarks:", list(benchmarks.keys()))
+
+    for func in benchmarks.values():
+        await func()
+
+
 if __name__ == "__main__":
-    main_run(benchmark_app_handle_small_response_with_qs)
+    asyncio.run(main())

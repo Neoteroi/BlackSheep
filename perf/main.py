@@ -5,7 +5,6 @@ Refer to the README for details.
 
 import argparse
 import asyncio
-import gc
 import importlib
 import inspect
 import json
@@ -20,6 +19,7 @@ from pathlib import Path
 import psutil
 
 from blacksheep import __version__ as blacksheep_version
+from perf.benchmarks import profile_benchmark
 
 
 def collect_benchmark_functions(package_name: str):
@@ -140,6 +140,7 @@ async def run_all_benchmarks(iterations: int, key: str, memory: bool):
         "system_info": get_system_info(),
         "benchmarks": {},
         "memory_benchmarks": {},
+        "profiles": {},
     }
 
     # Collect all benchmark functions
@@ -150,12 +151,18 @@ async def run_all_benchmarks(iterations: int, key: str, memory: bool):
     for name, func in benchmark_functions.items():
         if key and key not in name:
             continue
+        is_async = asyncio.iscoroutinefunction(func)
 
         print(f"Running benchmark: {name}...")
-        if asyncio.iscoroutinefunction(func):
+        if is_async:
             results["benchmarks"][name] = await func(iterations)
         else:
             results["benchmarks"][name] = func(iterations)
+
+        # Collect cProfile data
+        print(f"Profiling benchmark: {name}...")
+        profile_data = profile_benchmark(func, iterations, is_async=is_async, top=30)
+        results["profiles"][name] = profile_data
 
     if memory is False:
         return results

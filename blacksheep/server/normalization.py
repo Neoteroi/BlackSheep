@@ -118,10 +118,8 @@ def _get_method_annotations_base(method, signature: Optional[Signature] = None):
 def ensure_response(result) -> Response:
     """
     When a request handler returns a result that is not an instance of Response,
-    this method normalizes the output of the method to be either `None`. or an instance
-    of `blacksheep.messages.Response` class.
-
-    Use this method in custom decorators for request handlers.
+    this method normalizes the output of the method to be an instance
+    of `Response`.
     """
     if result is None:
         # 204 No Content

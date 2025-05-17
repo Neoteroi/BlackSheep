@@ -5,12 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.1] - 2025-??-?? :horse_racing:
+## [2.3.1] - 2025-??-??
 
+- Add support for [PyPy](https://pypy.org/), including a pure-Python fallback
+  for all Cython modules.
+- Remove `httptools` as hard dependency, to support `PyPy`.
 - Fix [#559](https://github.com/Neoteroi/BlackSheep/issues/559), which is a
   performance regression introduced in `2.3.0`. Remove support for Pydantic v1
-  `validate_arguments` decorator (added in 2.3.0). Pydantic's v2
-  `validate_call` supports async and does not require specific code.
+  `validate_arguments` decorator (added in 2.3.0), which caused the regression.
+  Pydantic's v2 `validate_call` supports async and does not require specific code.
 
 ## [2.3.0] - 2025-05-10 :sun_behind_small_cloud:
 

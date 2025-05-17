@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.1] - 2025-??-??
 
-- Add support for [PyPy](https://pypy.org/), including a pure-Python fallback
+- Add support for [`PyPy`](https://pypy.org/), including a pure-Python fallback
   for all Cython modules.
 - Remove `httptools` as hard dependency, to support `PyPy`.
 - Fix [#559](https://github.com/Neoteroi/BlackSheep/issues/559), which is a

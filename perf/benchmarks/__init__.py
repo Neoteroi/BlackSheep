@@ -70,7 +70,7 @@ def sync_benchmark(func, iterations: int) -> BenchmarkResult:
     }
 
 
-async def profile_benchmark(func, iterations, is_async, top=20):
+async def profile_benchmark(func, iterations, is_async, top=50):
     pr = cProfile.Profile()
     if is_async:
         pr.enable()
@@ -81,9 +81,34 @@ async def profile_benchmark(func, iterations, is_async, top=20):
         func(iterations)
         pr.disable()
     s = io.StringIO()
-    ps = pstats.Stats(pr, stream=s).sort_stats("cumulative")
-    ps.print_stats(top)
-    return s.getvalue()
+    ps = pstats.Stats(pr, stream=s)
+    # Sort stats by cumulative time (ct) descending
+    sorted_stats = sorted(
+        ps.stats.items(),  # type: ignore
+        key=lambda item: item[1][3],  # item[1][3] is cumtime
+        reverse=True,
+    )
+
+    stats_list = []
+    for i, (func_tuple, stat) in enumerate(sorted_stats):
+        if i == top:
+            break
+        i += 1
+        filename, lineno, funcname = func_tuple
+        cc, nc, tt, ct, callers = stat
+        stats_list.append(
+            {
+                "filename": filename,
+                "lineno": lineno,
+                "function": funcname,
+                "callcount": cc,
+                "reccallcount": nc,
+                "tottime": tt,
+                "cumtime": ct,
+                "callers": list(callers),
+            }
+        )
+    return stats_list
 
 
 def main_run(func):

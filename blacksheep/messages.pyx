@@ -685,3 +685,32 @@ cpdef URL get_absolute_url_to_path(Request request, str path):
         ensure_bytes(request.base_path),
         ensure_bytes(path)
     )
+
+
+cpdef Response ensure_response(object value):
+    """
+    When a request handler returns a result that is not an instance of Response,
+    this method normalizes the output of the method to be an instance
+    of `Response`.
+    """
+    if value is None:
+        # 204 No Content
+        return Response(204)
+
+    if isinstance(value, Response):
+        return value
+
+    # default to a plain text or JSON response
+    if isinstance(value, str):
+        return Response(
+            200, None, Content(b"text/plain; charset=utf-8", value.encode("utf8"))
+        )
+
+    return Response(
+        200,
+        None,
+        Content(
+            b"application/json",
+            json_settings.dumps(value).encode("utf8"),
+        ),
+    )

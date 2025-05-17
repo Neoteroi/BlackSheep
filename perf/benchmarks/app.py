@@ -58,26 +58,19 @@ RESPONSE_HEADERS = [
 ]
 
 
-async def test_app_handle_small_response(application: Application):
-    scope = get_example_scope(
-        "GET", "/test", extra_headers=REQUEST_HEADERS, query=b"q=1&x=2"
-    )
+async def test_app_handle_small_response(application: Application, scope):
     mock_send = MockSend()
     await application(scope, MockReceive(), mock_send)
     assert mock_send.messages[1]["body"] == b"Hello, World!"
 
 
-async def test_app_handle_small_response_with_qs(application: Application):
-    scope = get_example_scope(
-        "GET", "/test", extra_headers=REQUEST_HEADERS, query=b"name=World"
-    )
+async def test_app_handle_small_response_with_qs(application: Application, scope):
     mock_send = MockSend()
     await application(scope, MockReceive(), mock_send)
     assert mock_send.messages[1]["body"] == b"Hello, World"
 
 
-async def test_app_handle_text_response(application: Application):
-    scope = get_example_scope("GET", "/test", extra_headers=REQUEST_HEADERS)
+async def test_app_handle_text_response(application: Application, scope):
     mock_send = MockSend()
     await application(scope, MockReceive(), mock_send)
     assert len(mock_send.messages) == 2
@@ -86,13 +79,17 @@ async def test_app_handle_text_response(application: Application):
 async def benchmark_app_handle_small_response(iterations=ITERATIONS):
     application = Application(router=Router())
 
+    scope = get_example_scope(
+        "GET", "/test", extra_headers=REQUEST_HEADERS, query=b"q=1&x=2"
+    )
+
     @application.router.get("/test")
     async def handler(request: Request) -> Response:
         return text("Hello, World!")
 
     await application.start()
     return await async_benchmark(
-        partial(test_app_handle_small_response, application), iterations
+        partial(test_app_handle_small_response, application, scope), iterations
     )
 
 
@@ -101,18 +98,26 @@ async def benchmark_app_handle_small_response_no_annotation(iterations=ITERATION
     # an instance of Response.
     application = Application(router=Router())
 
+    scope = get_example_scope(
+        "GET", "/test", extra_headers=REQUEST_HEADERS, query=b"q=1&x=2"
+    )
+
     @application.router.get("/test")
     async def handler():
         return "Hello, World!"
 
     await application.start()
     return await async_benchmark(
-        partial(test_app_handle_small_response, application), iterations
+        partial(test_app_handle_small_response, application, scope), iterations
     )
 
 
 async def benchmark_app_handle_small_response_with_qs(iterations=ITERATIONS):
     application = Application(router=Router())
+
+    scope = get_example_scope(
+        "GET", "/test", extra_headers=REQUEST_HEADERS, query=b"name=World"
+    )
 
     @application.router.get("/test")
     def handle(name: str) -> Response:
@@ -120,12 +125,14 @@ async def benchmark_app_handle_small_response_with_qs(iterations=ITERATIONS):
 
     await application.start()
     return await async_benchmark(
-        partial(test_app_handle_small_response_with_qs, application), iterations
+        partial(test_app_handle_small_response_with_qs, application, scope), iterations
     )
 
 
 async def benchmark_app_handle_text_response(iterations=ITERATIONS):
     application = Application(router=Router())
+
+    scope = get_example_scope("GET", "/test", extra_headers=REQUEST_HEADERS)
 
     @application.router.get("/test")
     async def test_handler() -> Response:
@@ -133,12 +140,16 @@ async def benchmark_app_handle_text_response(iterations=ITERATIONS):
 
     await application.start()
     return await async_benchmark(
-        partial(test_app_handle_text_response, application), iterations
+        partial(test_app_handle_text_response, application, scope), iterations
     )
 
 
 async def benchmark_app_handle_small_response_controller(iterations=ITERATIONS):
     application = Application(router=Router())
+
+    scope = get_example_scope(
+        "GET", "/test", extra_headers=REQUEST_HEADERS, query=b"q=1&x=2"
+    )
 
     class TestController(Controller):
         @application.router.controllers_routes.get("/test")
@@ -147,12 +158,16 @@ async def benchmark_app_handle_small_response_controller(iterations=ITERATIONS):
 
     await application.start()
     return await async_benchmark(
-        partial(test_app_handle_small_response, application), iterations
+        partial(test_app_handle_small_response, application, scope), iterations
     )
 
 
 async def benchmark_app_handle_small_response_controller_with_qs(iterations=ITERATIONS):
     application = Application(router=Router())
+
+    scope = get_example_scope(
+        "GET", "/test", extra_headers=REQUEST_HEADERS, query=b"name=World"
+    )
 
     class TestController(Controller):
         @application.router.controllers_routes.get("/test")
@@ -161,12 +176,14 @@ async def benchmark_app_handle_small_response_controller_with_qs(iterations=ITER
 
     await application.start()
     return await async_benchmark(
-        partial(test_app_handle_small_response_with_qs, application), iterations
+        partial(test_app_handle_small_response_with_qs, application, scope), iterations
     )
 
 
 async def benchmark_app_handle_text_response_controller(iterations=ITERATIONS):
     application = Application(router=Router())
+
+    scope = get_example_scope("GET", "/test", extra_headers=REQUEST_HEADERS)
 
     class TestController(Controller):
         @application.router.controllers_routes.get("/test")
@@ -175,7 +192,7 @@ async def benchmark_app_handle_text_response_controller(iterations=ITERATIONS):
 
     await application.start()
     return await async_benchmark(
-        partial(test_app_handle_text_response, application), iterations
+        partial(test_app_handle_text_response, application, scope), iterations
     )
 
 

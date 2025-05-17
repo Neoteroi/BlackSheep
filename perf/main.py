@@ -133,7 +133,7 @@ def get_system_info():
     }
 
 
-async def run_all_benchmarks(iterations: int, key: str, memory: bool):
+async def run_all_benchmarks(iterations: int, key: str, memory: bool, cprofile: bool):
     results = {
         "timestamp": datetime.now().isoformat(),
         "git_info": get_git_info(),
@@ -160,9 +160,12 @@ async def run_all_benchmarks(iterations: int, key: str, memory: bool):
             results["benchmarks"][name] = func(iterations)
 
         # Collect cProfile data
-        print(f"Profiling benchmark: {name}...")
-        profile_data = profile_benchmark(func, iterations, is_async=is_async, top=30)
-        results["profiles"][name] = profile_data
+        if cprofile:
+            print(f"Profiling benchmark: {name}...")
+            profile_data = await profile_benchmark(
+                func, iterations, is_async=is_async, top=50
+            )
+            results["profiles"][name] = profile_data
 
     if memory is False:
         return results
@@ -218,10 +221,16 @@ if __name__ == "__main__":
         action=argparse.BooleanOptionalAction,
         help="Includes or skips memory benchmarks (included by default)",
     )
+    parser.add_argument(
+        "--cprofile",
+        default=False,
+        action=argparse.BooleanOptionalAction,
+        help="Includes or skips cProfile step (not included by default)",
+    )
     args = parser.parse_args()
 
     for _ in range(args.times):
         results = asyncio.run(
-            run_all_benchmarks(args.iterations, args.filter, args.memory)
+            run_all_benchmarks(args.iterations, args.filter, args.memory, args.cprofile)
         )
         save_results(results, args.output_dir)

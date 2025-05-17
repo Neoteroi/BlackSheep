@@ -74,3 +74,5 @@ cpdef URL get_request_absolute_url(Request request)
 cpdef URL get_absolute_url_to_path(Request request, str path)
 
 cdef bytes ensure_bytes(value)
+
+cpdef Response ensure_response(object value)

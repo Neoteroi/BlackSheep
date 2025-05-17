@@ -22,7 +22,7 @@ from uuid import UUID
 from guardpost import Identity
 from rodi import ContainerProtocol
 
-from blacksheep.messages import Request, Response
+from blacksheep.messages import Request, Response, ensure_response
 from blacksheep.normalization import copy_special_attributes
 from blacksheep.server import responses
 from blacksheep.server.routing import Route
@@ -113,25 +113,6 @@ def _get_method_annotations_base(method, signature: Optional[Signature] = None):
 
 
 # endregion
-
-
-def ensure_response(result) -> Response:
-    """
-    When a request handler returns a result that is not an instance of Response,
-    this method normalizes the output of the method to be an instance
-    of `Response`.
-    """
-    if result is None:
-        # 204 No Content
-        return Response(204)
-
-    if not isinstance(result, Response):
-        # default to a plain text or JSON response
-        if isinstance(result, str):
-            return responses.text(result)
-        return responses.json(result)
-
-    return result
 
 
 class NormalizationError(Exception): ...

@@ -158,7 +158,9 @@ def plot_performance_trends(df, output_file="performance_trends.png"):
 
 def _set_conditional_formatting(df, worksheet, max_row):
     all_cols = [
-        col for col in df.columns if col.endswith("_avg_ms") or col.endswith("_peak_mb")
+        col
+        for col in df.columns
+        if col.endswith("_avg_ms") or col.endswith("_peak_mb") or col.endswith("time")
     ]
     for col in all_cols:
         col_index = df.columns.get_loc(col)  # Get the column index
@@ -270,13 +272,68 @@ def _set_number_format(workbook, worksheet, df):
         {"num_format": "0.00000000", "align": "left"}
     )  # 8 decimal points
     for col in df.columns:
-        if "avg_ms" in col or "peak_mb" in col:
+        if "avg_ms" in col or "peak_mb" in col or "time" in col:
             col_index = df.columns.get_loc(col)  # Get the column index
             col_letter = chr(65 + col_index)  # Convert column index to Excel letter
             worksheet.set_column(f"{col_letter}:{col_letter}", None, number_format)
 
 
-def write_excel(df, output_file_name: str):
+def add_profiles_worksheet(writer, results):
+    """Add a worksheet with cProfile data for all benchmarks."""
+    profile_rows = []
+    for result in results:
+        commit = result.get("git_info", {}).get("commit_hash", "unknown")[:8]
+        date = result.get("git_info", {}).get("commit_date", "unknown")
+        python_version = result.get("system_info", {}).get("python_version", "unknown")
+        platform = result.get("system_info", {}).get("platform", "unknown")
+        branch = result.get("git_info", {}).get("branch", "unknown")
+        tag = result.get("git_info", {}).get("tag", None)
+        commit_display = tag or commit
+
+        profiles = result.get("profiles", {})
+        for benchmark_name, profile_entries in profiles.items():
+            for entry in profile_entries:
+                row = {
+                    "commit": commit_display,
+                    "date": date,
+                    "python_version": python_version,
+                    "platform": platform,
+                    "branch": branch,
+                    "benchmark": benchmark_name,
+                    "filename": entry.get("filename"),
+                    "lineno": entry.get("lineno"),
+                    "function": entry.get("function"),
+                    "callcount": entry.get("callcount"),
+                    "reccallcount": entry.get("reccallcount"),
+                    "tottime": entry.get("tottime"),
+                    "cumtime": entry.get("cumtime"),
+                }
+                profile_rows.append(row)
+    if not profile_rows:
+        print("No profile data found.")
+        return
+
+    df = pd.DataFrame(profile_rows)
+    df.sort_values(by=["benchmark", "cumtime"], ascending=[True, False], inplace=True)
+    df.to_excel(writer, sheet_name="profiles", index=False)
+
+    worksheet = writer.sheets["profiles"]
+    _set_number_format(writer.book, worksheet, df)
+    (max_row, max_col) = df.shape
+
+    worksheet.add_table(
+        f"A1:{chr(65 + max_col - 1)}{max_row + 1}",
+        {
+            "columns": [{"header": col} for col in df.columns],
+            "style": "Table Style Medium 9",
+        },
+    )
+
+    _set_conditional_formatting(df, worksheet, max_row)
+    worksheet.autofit()
+
+
+def write_excel(df, output_file_name: str, results=None):
     if not output_file_name.endswith(".xlsx"):
         output_file_name = output_file_name + ".xlsx"
     k = 0
@@ -288,6 +345,10 @@ def write_excel(df, output_file_name: str):
     # Export to Excel for further analysis
     writer = pd.ExcelWriter(output_file_name, engine="xlsxwriter")
     df.to_excel(writer, index=False, sheet_name="results")
+
+    # Add the profiles worksheet if results are provided
+    if results is not None:
+        add_profiles_worksheet(writer, results)
 
     # Get the xlsxwriter workbook and worksheet objects.
     workbook = writer.book
@@ -358,4 +419,4 @@ if __name__ == "__main__":
 
     df = create_comparison_table(results)
     df = _aggregate(df, args.group_by)
-    write_excel(df, args.output)
+    write_excel(df, args.output, results)

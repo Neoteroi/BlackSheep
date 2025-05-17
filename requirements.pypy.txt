@@ -1,0 +1,8 @@
+certifi>=2022.9.24
+charset-normalizer~=3.4.0
+guardpost>=1.0.2
+rodi~=2.0.2
+essentials>=1.1.4,<2.0
+essentials-openapi>=1.2.0,<2.0
+python-dateutil~=2.9.0
+itsdangerous~=2.2.0

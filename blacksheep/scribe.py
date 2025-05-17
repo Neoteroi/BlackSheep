@@ -4,7 +4,6 @@ import re
 from .contents import Content, StreamedContent
 from .cookies import Cookie, write_cookie_for_response
 from .messages import Request, Response
-from .url import URL
 
 MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 

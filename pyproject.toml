@@ -23,7 +23,6 @@ classifiers = [
 ]
 keywords = ["blacksheep", "web framework", "asyncio"]
 dependencies = [
-    "httptools>=0.5",
     "certifi>=2022.9.24",
     "charset-normalizer~=3.4.0",
     "guardpost>=1.0.2",
@@ -49,6 +48,7 @@ full = [
     "websockets~=13.1",
     "Jinja2~=3.1.6",
 ]
+cython = ["httptools>=0.5"]
 
 [project.urls]
 "Homepage" = "https://github.com/Neoteroi/BlackSheep"

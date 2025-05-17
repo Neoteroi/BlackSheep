@@ -13,6 +13,8 @@ def valid_schema(schema):
 
 class URL:
     def __init__(self, value: bytes):
+        if not value:
+            raise InvalidURL("Input empty or null.")
         try:
             if value and value[0] == 46:  # ord('.') == 46
                 value = b"/" + value
@@ -23,12 +25,12 @@ class URL:
         schema = parsed.scheme
         valid_schema(schema)
         self.value = value or b""
-        self.schema = schema
-        self.host = parsed.host or ""
+        self.schema = schema.encode() if schema else None
+        self.host = parsed.host.encode() if parsed.host else None
         self.port = parsed.port or 0
-        self.path = parsed.path or ""
-        self.query = parsed.query_string.encode() if parsed.query_string else b""
-        self.fragment = parsed.fragment.encode() if parsed.fragment else b""
+        self.path = parsed.path.encode() or b""
+        self.query = parsed.query_string.encode() if parsed.query_string else None
+        self.fragment = parsed.fragment.encode() if parsed.fragment else None
         self.is_absolute = bool(parsed.scheme)
 
     def __repr__(self):
@@ -59,10 +61,10 @@ class URL:
             raise ValueError(
                 "This URL is relative. Cannot extract a base URL (without path)."
             )
-        base_url = f"{self.schema}://{self.host}"
+        base_url = f"{self.schema.decode()}://{self.host.decode()}"
         if self.port != 0:
-            if (self.schema == "http" and self.port != 80) or (
-                self.schema == "https" and self.port != 443
+            if (self.schema == b"http" and self.port != 80) or (
+                self.schema == b"https" and self.port != 443
             ):
                 base_url = f"{base_url}:{self.port}"
         return URL(base_url.encode())

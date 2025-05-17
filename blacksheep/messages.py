@@ -1,14 +1,14 @@
 import asyncio
 import http
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 from json.decoder import JSONDecodeError
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
 import charset_normalizer
 
 from blacksheep.multipart import parse_multipart
-from blacksheep.sessions import Session
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
 
@@ -23,7 +23,10 @@ from .exceptions import BadRequest, BadRequestFormat, FailedRequestError, Messag
 from .headers import Headers
 from .url import URL, build_absolute_url
 
-_charset_rx = re.compile(b"charset=([^;]+)\s", re.I)
+if TYPE_CHECKING:
+    from blacksheep.sessions import Session
+
+_charset_rx = re.compile(rb"charset=([^;]+)\s", re.I)
 
 
 def parse_charset(value: bytes):
@@ -262,6 +265,7 @@ class Request(Message):
             self._path = None
             self._raw_query = None
         self.scope = None
+        self.content: Optional[Content] = None
 
     @property
     def identity(self):
@@ -354,7 +358,7 @@ class Request(Message):
         return self._session
 
     @session.setter
-    def session(self, value: Session):
+    def session(self, value: "Session"):
         self._session = value
 
     @classmethod

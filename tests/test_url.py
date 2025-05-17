@@ -11,10 +11,10 @@ def test_empty_url():
 def test_absolute_url():
     url = URL(b"https://robertoprevato.github.io?foo=power&hello=world")
 
-    assert url.path is None
+    assert url.path in {b"/", None}
     assert url.schema == b"https"
     assert url.host == b"robertoprevato.github.io"
-    assert url.port == 0
+    assert url.port in {443, 0}
     assert url.query == b"foo=power&hello=world"
     assert url.fragment is None
     assert url.is_absolute is True

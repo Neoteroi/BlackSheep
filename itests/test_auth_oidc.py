@@ -48,8 +48,6 @@ from tests.test_auth import get_token
 from tests.test_auth_cookie import get_auth_cookie
 from tests.utils.application import FakeApplication
 
-from .client_fixtures import *  # NoQA
-
 MOCKED_AUTHORITY = "http://127.0.0.1:44777/oidc"
 
 

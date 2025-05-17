@@ -8,8 +8,6 @@ from blacksheep.utils.aio import (
     _try_parse_content_as_json,
 )
 
-from .client_fixtures import *  # NoQA
-
 
 async def test_http_handler_fetch_plain_text(server_url):
     http_handler = HTTPHandler()

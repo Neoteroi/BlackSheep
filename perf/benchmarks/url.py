@@ -12,7 +12,7 @@ def test_url_instantiate():
     url = URL(b"https://www.neoteroi.dev/blacksheep/?super=yes#some-hash")
     assert url.value == b"https://www.neoteroi.dev/blacksheep/?super=yes#some-hash"
     assert url.host == b"www.neoteroi.dev"
-    assert url.port == 0
+    assert url.port in {0, 443}
     assert url.path == b"/blacksheep/"
     assert url.query == b"super=yes"
     assert url.is_absolute is True

@@ -11,7 +11,15 @@ def test_empty_url():
 def test_absolute_url():
     url = URL(b"https://robertoprevato.github.io?foo=power&hello=world")
 
+    # The following assertion looks weird because of the behavior of different libraries
+    # as BlackSheep relies on other libraries to do the actual parsing:
     # YARL gives path "/", httptools None, urlli urlparse ""
+    #
+    # YARL in my opinion gives wrong results for path and port. Gives "443" which is
+    # the default for the scheme even though no port is specified in the URL (I would
+    # expect it to give 443 only if explicitly set such as in domain:443); and for the
+    # path it gives "/" when no path is specified (domain/ and domain are not exactly
+    # the same).
     assert url.path in {b"", b"/", None}
     assert url.schema == b"https"
     assert url.host == b"robertoprevato.github.io"

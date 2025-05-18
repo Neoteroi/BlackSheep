@@ -1,4 +1,4 @@
-from yarl import URL as YARL_URL
+from urllib.parse import urlparse
 
 
 class InvalidURL(Exception):
@@ -19,17 +19,17 @@ class URL:
             if value and value[0] == 46:  # ord('.') == 46
                 value = b"/" + value
             s = value.decode()
-            parsed = YARL_URL(s)
+            parsed = urlparse(s)
         except Exception:
             raise InvalidURL(f"The value cannot be parsed as URL ({value.decode()})")
         schema = parsed.scheme
         valid_schema(schema)
         self.value = value or b""
         self.schema = schema.encode() if schema else None
-        self.host = parsed.host.encode() if parsed.host else None
+        self.host = parsed.hostname.encode() if parsed.hostname else None
         self.port = parsed.port or 0
         self.path = parsed.path.encode() or b""
-        self.query = parsed.query_string.encode() if parsed.query_string else None
+        self.query = parsed.query.encode() if parsed.query else None
         self.fragment = parsed.fragment.encode() if parsed.fragment else None
         self.is_absolute = bool(parsed.scheme)
 
@@ -61,7 +61,7 @@ class URL:
             raise ValueError(
                 "This URL is relative. Cannot extract a base URL (without path)."
             )
-        base_url = f"{self.schema.decode()}://{self.host.decode()}"
+        base_url = f"{self.schema.decode()}://{self.host.decode()}"  # type: ignore
         if self.port != 0:
             if (self.schema == b"http" and self.port != 80) or (
                 self.schema == b"https" and self.port != 443

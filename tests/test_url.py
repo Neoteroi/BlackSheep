@@ -11,7 +11,8 @@ def test_empty_url():
 def test_absolute_url():
     url = URL(b"https://robertoprevato.github.io?foo=power&hello=world")
 
-    assert url.path in {b"/", None}
+    # YARL gives path "/", httptools None, urlli urlparse ""
+    assert url.path in {b"", b"/", None}
     assert url.schema == b"https"
     assert url.host == b"robertoprevato.github.io"
     assert url.port in {443, 0}

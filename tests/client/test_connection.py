@@ -3,7 +3,6 @@ from asyncio import TimeoutError
 from typing import AsyncIterable, List
 
 import pytest
-from httptools.parser.errors import HttpParserCallbackError, HttpParserError
 
 from blacksheep import JSONContent, Request, StreamedContent
 from blacksheep.client.connection import (
@@ -190,11 +189,11 @@ def test_upgraded_connection_does_not_return_to_pool(event_loop):
 def test_connection_gets_closed_on_callback_error(connection):
     class FakeParser:
         def feed_data(self, data: bytes):
-            raise HttpParserCallbackError()
+            raise RuntimeError()
 
     connection.parser = FakeParser()
 
-    with pytest.raises(HttpParserCallbackError):
+    with pytest.raises(InvalidResponseFromServer):
         connection.data_received(b"boom")
 
     assert connection.open is False
@@ -203,7 +202,7 @@ def test_connection_gets_closed_on_callback_error(connection):
 def test_connection_throws_invalid_response_from_server_on_parser_error(connection):
     class FakeParser:
         def feed_data(self, data: bytes):
-            raise HttpParserError()
+            raise RuntimeError()
 
     connection.parser = FakeParser()
 

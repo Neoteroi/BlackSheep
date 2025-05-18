@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for [`PyPy`](https://pypy.org/), including a pure-Python fallback
   for all Cython modules.
-- Remove `httptools` as hard dependency, to support `PyPy`.
+- Make `httptools` an optional dependency, to support `PyPy`.
+- Upgrade dependencies (see `pyproject.toml` for more information).
+- Include a pure-Python wheel in the distribution package.
 - Fix [#559](https://github.com/Neoteroi/BlackSheep/issues/559), which is a
   performance regression introduced in `2.3.0`. Remove support for Pydantic v1
   `validate_arguments` decorator (added in 2.3.0), which caused the regression.
   Pydantic's v2 `validate_call` supports async and does not require specific code.
+- **MINOR BREAKING CHANGE**. Since `httptools` is not installed by default, the
+  BlackSheep client requires either `httptools` or `h11` to be installed, as it
+  does not implement its own parsing logic for HTTP responses.
 
 ## [2.3.0] - 2025-05-10 :sun_behind_small_cloud:
 

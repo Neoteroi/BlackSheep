@@ -172,4 +172,4 @@ def get_well_known_jwks_configuration():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=44778, debug=True)
+    app.run(host="0.0.0.0", port=44777, debug=True)

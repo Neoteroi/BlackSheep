@@ -7,6 +7,7 @@ import json
 import re
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
+from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, urlencode
 
 import pytest
@@ -44,18 +45,12 @@ from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.url import URL
 from blacksheep.utils.aio import FailedRequestError
 from blacksheep.utils.time import utcnow
+from itests import client_fixtures  # noqa
 from tests.test_auth import get_token
 from tests.test_auth_cookie import get_auth_cookie
 from tests.utils.application import FakeApplication
 
 MOCKED_AUTHORITY = "http://127.0.0.1:44777/oidc"
-
-
-try:
-    from unittest.mock import AsyncMock
-except ImportError:
-    # Python 3.7
-    from mock import AsyncMock
 
 
 @pytest.fixture

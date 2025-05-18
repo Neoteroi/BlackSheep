@@ -16,7 +16,6 @@ from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import json
 from blacksheep.server.websocket import WebSocket
 from blacksheep.settings.json import default_json_dumps, json_settings
-
 from itests.utils import get_test_files_url
 
 SINGLE_PID = None

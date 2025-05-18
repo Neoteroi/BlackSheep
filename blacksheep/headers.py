@@ -107,7 +107,8 @@ class Headers:
                     instance.add(*value)
                 else:
                     raise ValueError(
-                        f"The sequence contains invalid elements: cannot add {str(value)} to {instance.__class__.__name__}"
+                        "The sequence contains invalid elements: cannot add "
+                        f"{str(value)} to {instance.__class__.__name__}"
                     )
             return instance
         return NotImplemented

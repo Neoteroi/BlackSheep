@@ -25,7 +25,8 @@ class FailedRequestError(HTTPException):
     def __init__(self, status: int, data: str) -> None:
         super().__init__(
             status,
-            f"The response status code does not indicate success: {status}. Response body: {data}",
+            f"The response status code does not indicate success: {status}. "
+            "Response body: {data}",
         )
         self.data = data
 

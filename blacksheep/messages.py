@@ -231,7 +231,7 @@ class Message:
                     f"the content cannot be parsed as JSON.",
                     decode_error,
                 )
-            raise BadRequestFormat(f"Cannot parse content as JSON", decode_error)
+            raise BadRequestFormat("Cannot parse content as JSON", decode_error)
 
     def has_body(self):
         content = getattr(self, "content", None)

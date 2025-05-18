@@ -10,7 +10,7 @@ import pytest
 import websockets
 import yaml
 from requests.exceptions import ReadTimeout
-from websockets.exceptions import ConnectionClosedError, InvalidStatusCode
+from websockets.exceptions import ConnectionClosedError, InvalidStatus
 
 from .client_fixtures import get_static_path
 from .server_fixtures import *  # NoQA
@@ -912,11 +912,11 @@ async def test_websocket(server_host, server_port_4, route, data):
 async def test_websocket_auth(server_host, server_port_2, route):
     uri = f"ws://{server_host}:{server_port_2}/{route}"
 
-    with pytest.raises(InvalidStatusCode) as error:
+    with pytest.raises(InvalidStatus) as error:
         async with websockets.connect(uri):
             pass
 
-    assert error.value.status_code == 403
+    assert "403" in str(error.value)
     assert "server rejected" in str(error.value)
 
 

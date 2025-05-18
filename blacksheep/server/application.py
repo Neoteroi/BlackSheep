@@ -717,12 +717,18 @@ class Application(BaseApplication):
             logging.exception("Exception while handling WebSocket")
             # If WebSocket connection accepted, close
             # the connection using WebSocket Internal error code.
-            if ws.accepted:
-                await ws.close(1011, reason=format_reason(str(exc)))
-            else:
-                # Otherwise, just close the connection, the ASGI server
-                # will anyway respond 403 to the client.
-                await ws.close()
+            try:
+                if ws.accepted:
+                    await ws.close(1011, reason=format_reason(str(exc)))
+                else:
+                    # Otherwise, just close the connection, the ASGI server
+                    # will anyway respond 403 to the client.
+                    await ws.close()
+            except RuntimeError:
+                logging.exception(
+                    "RuntimeError while closing WebSocket. "
+                    "This can happen when the socket is already closed."
+                )
 
     def instantiate_request(self, scope, receive) -> Request:
         request = Request.incoming(

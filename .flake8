@@ -6,8 +6,10 @@ per-file-ignores =
     blacksheep/__init__.py:F401
     blacksheep/client/__init__.py:F401
     blacksheep/server/__init__.py:F401
+    blacksheep/url.py:E501
     tests/*:E501
     itests/*:E501
+    itests/conftest.py:F401,F403
 
 exclude =
     env

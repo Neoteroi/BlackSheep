@@ -6,8 +6,8 @@ from time import sleep
 
 import pytest
 
-# from blacksheep.client import ClientSession
-# from blacksheep.client.pool import ConnectionPools
+from blacksheep.client import ClientSession
+from blacksheep.client.pool import ConnectionPools
 from itests.utils import get_sleep_time
 
 from .flask_app import app
@@ -41,7 +41,6 @@ def server_url(server_host, server_port):
     return f"http://{server_host}:{server_port}"
 
 
-"""
 @pytest.fixture(scope="module")
 def session(server_url, event_loop):
     # It is important to pass the instance of ConnectionPools,
@@ -63,17 +62,6 @@ def session_alt(event_loop):
     )
     yield session
     event_loop.run_until_complete(session.close())
-"""
-
-
-@pytest.fixture(scope="module")
-def session_alt(event_loop):
-    yield None
-
-
-@pytest.fixture(scope="module")
-def session(server_url, event_loop):
-    yield None
 
 
 def start_server():

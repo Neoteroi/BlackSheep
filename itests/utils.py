@@ -68,11 +68,9 @@ def get_file_bytes(file_path):
 
 
 def get_sleep_time():
-    # when starting a server process,
-    # a longer sleep time is necessary on Windows
-    if os.name == "nt":
-        return 1.5
-    return 0.5
+    # Return the number of seconds to wait for a test server process to start.
+    # 2 seconds is a wait time that works most times.
+    return 2
 
 
 def get_test_files_url(url: str):

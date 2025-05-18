@@ -36,14 +36,7 @@ def get_example_headers():
     ]
 
 
-@pytest.fixture(scope="module")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def pool(event_loop):
     pool = ConnectionPool(event_loop, b"http", b"foo.com", 80, None, max_size=2)
     yield pool

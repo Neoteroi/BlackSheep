@@ -928,5 +928,5 @@ async def test_websocket_server_error(server_host, server_port_2):
             async for _message in ws:
                 pass
 
-    assert error.value.code == 1011
-    assert error.value.reason == "Server error"
+    assert error.value.rcvd.code == 1011  # type: ignore
+    assert error.value.rcvd.reason == "Server error"  # type: ignore

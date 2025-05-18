@@ -1,10 +1,23 @@
+"""
+This file is used to specify Python extensions, which are used when using Cython.
+Extensions are used only if the current runtime is CPython and only if there is not an
+environment variable: `BLACKSHEEP_NO_EXTENSIONS=1`.
+The logic is to support PyPy. See:
+https://github.com/Neoteroi/BlackSheep/issues/539#issuecomment-2888631226
+"""
+
+import os
 from setuptools import Extension, setup
+import platform
 
 COMPILE_ARGS = ["-O2"]
 
+# Check for environment variable to skip extensions
+skip_ext = os.environ.get("BLACKSHEEP_NO_EXTENSIONS", "0") == "1"
 
-setup(
-    ext_modules=[
+
+if platform.python_implementation() == "CPython" and not skip_ext:
+    ext_modules = [
         Extension(
             "blacksheep.url",
             ["blacksheep/url.c"],
@@ -46,4 +59,7 @@ setup(
             extra_compile_args=COMPILE_ARGS,
         ),
     ]
-)
+else:
+    ext_modules = []
+
+setup(ext_modules=ext_modules)

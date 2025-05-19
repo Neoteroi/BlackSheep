@@ -97,7 +97,12 @@ jobs:
 
       - name: Run tests for Pure-Python Code
         run: |
-          pytest
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
 
       - name: Compile Cython extensions
         run: |
@@ -238,6 +243,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.pypy.txt
+
+      - name: Run tests with PyPy
+        run: |
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
 
       - name: Install build dependencies
         run: |

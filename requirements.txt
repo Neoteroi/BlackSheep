@@ -15,6 +15,7 @@ websockets~=15.0.1
 httptools==0.6.4
 # For tests:
 Cython==3.0.12
+setuptools==80.7.1
 Flask[async]==3.1.1
 Hypercorn==0.17.3
 requests==2.32.3

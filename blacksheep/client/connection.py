@@ -6,6 +6,7 @@ from typing import Optional, Protocol
 import certifi
 
 from blacksheep import Content, Request, Response
+from blacksheep.client.parser import get_default_parser
 from blacksheep.scribe import (
     is_small_request,
     request_has_body,
@@ -14,7 +15,6 @@ from blacksheep.scribe import (
     write_request_without_body,
     write_small_request,
 )
-from blacksheep.client.parser import get_default_parser
 
 SECURE_SSLCONTEXT = ssl.create_default_context(
     ssl.Purpose.SERVER_AUTH, cafile=certifi.where()
@@ -204,7 +204,7 @@ class ClientConnection(asyncio.Protocol):
         # Reset parser implementation if possible, else re-instantiate
         try:
             self.parser.reset()
-        except:
+        except Exception:
             # TODO: raise exception if a different type was provided
             self.parser = get_default_parser(self)
         self._connection_lost = False

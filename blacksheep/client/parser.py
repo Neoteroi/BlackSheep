@@ -24,7 +24,7 @@ if httptools is not None:
             return self._parser.get_status_code()
 
         def reset(self) -> None:
-            self._parser = httptools.HttpResponseParser(connection)
+            self._parser = httptools.HttpResponseParser(self.connection)
 
 
 if h11 is not None:

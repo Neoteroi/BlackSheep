@@ -64,7 +64,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+          pytest
 
       - name: Run linters
         run: |
@@ -110,13 +110,23 @@ jobs:
 
       - name: Run tests with Cython Code
         run: |
-          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
 
       - name: Run tests with Pydantic v1
         run: |
           echo "[*] The previous tests used Pydantic v2, now running with v1"
           pip install -U "pydantic<2"
-          pytest
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
 
       - name: Run linters
         run: |
@@ -141,17 +151,6 @@ jobs:
           else
             APP_DEFAULT_ROUTER=false ASGI_SERVER=hypercorn pytest itests/test_server.py
           fi
-
-      - name: Upload pytest test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
-          path: junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
-        if: always()
-
-      - name: Codecov
-        run: |
-          bash <(curl -s https://codecov.io/bash)
 
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel

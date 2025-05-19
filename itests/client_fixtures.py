@@ -13,7 +13,6 @@ from itests.utils import get_sleep_time
 
 from .flask_app import app
 
-
 multiprocessing.set_start_method("spawn", force=True)
 
 

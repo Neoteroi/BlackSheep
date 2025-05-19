@@ -272,7 +272,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    needs: [build, build-cython-wheels, build-pypy-wheels]
+    needs: [build, build-cpython-wheels, build-pypy-wheels]
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_artifacts == 'Y')
     steps:
       - name: Download a distribution artifact

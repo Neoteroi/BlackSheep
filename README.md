@@ -57,7 +57,8 @@ same sources supported by `Cookiecutter`.
 Before version `2.3.1`, BlackSheep only supported running with `CPython` and
 always depended on `httptools`. Starting with version `2.3.1`, the framework
 supports running on [`PyPy`](https://pypy.org/) and makes `httptools` an
-optional dependency.
+optional dependency. The BlackSheep HTTP Client requires either `httptools`
+(for CPython) or `h11` (for PyPy).
 
 For slightly better performance in `URL` parsing when running on `CPython`,
 it is recommended to install `httptools`.

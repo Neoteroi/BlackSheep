@@ -1,5 +1,4 @@
-import httptools
-from httptools.parser import errors
+from urllib.parse import urlparse
 
 
 cdef class InvalidURL(Exception):
@@ -7,7 +6,7 @@ cdef class InvalidURL(Exception):
         super().__init__(message)
 
 
-def valid_schema(schema):
+cdef inline valid_schema(bytes schema):
     if schema and schema != b'https' and schema != b'http':
         raise InvalidURL(f'Expected http or https schema; got instead {schema.decode()}')
 
@@ -15,29 +14,25 @@ def valid_schema(schema):
 cdef class URL:
 
     def __init__(self, bytes value):
+        if not value:
+            raise InvalidURL("Input empty or null.")
         cdef bytes schema
         cdef object port
-
         try:
-            # if the value starts with a dot, prepend a slash;
-            # urllib.parse urlparse handles those, while httptools raises
-            # an exception
-            if value and value[0] == 46:
-                value = b"/" + value
-            parsed = httptools.parse_url(value)
-        except errors.HttpParserInvalidURLError:
-            raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()})')
-        schema = parsed.schema
+            # urllib.parse.urlparse expects str, not bytes
+            parsed = urlparse(value.decode())
+        except Exception as exc:
+            raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()}): {exc}')
+        schema = parsed.scheme.encode() if parsed.scheme else None
         valid_schema(schema)
-
-        self.value = value or b''
+        self.value = value or b""
         self.schema = schema
-        self.host = parsed.host
+        self.host = parsed.hostname.encode() if parsed.hostname else None
         self.port = parsed.port or 0
-        self.path = parsed.path
-        self.query = parsed.query
-        self.fragment = parsed.fragment
-        self.is_absolute = parsed.schema is not None
+        self.path = parsed.path.encode() or b""
+        self.query = parsed.query.encode() if parsed.query else None
+        self.fragment = parsed.fragment.encode() if parsed.fragment else None
+        self.is_absolute = bool(schema)
 
     def __repr__(self):
         return f'<URL {self.value}>'

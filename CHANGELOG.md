@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for all `Cython` modules.
 - Fix [#539](https://github.com/Neoteroi/BlackSheep/issues/539). Make
   `httptools` an optional dependency, to support [`PyPy`](https://pypy.org/).
+- Modify `url.pyx` to remove the dependency on `httptools`.
 - Modify the HTTP Client implementation in BlackSheep to
   not be tightly coupled with `httptools` for the response parsing logic, and
   include built-in support for `h11`.

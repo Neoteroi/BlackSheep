@@ -5,7 +5,6 @@ Refer to the README for details.
 
 import argparse
 import asyncio
-import gc
 import importlib
 import inspect
 import json
@@ -128,6 +127,7 @@ def get_system_info():
         "cpu_count": os.cpu_count(),
         "memory_total": psutil.virtual_memory().total,
         "python_version": sys.version.split()[0],
+        "python_implementation": platform.python_implementation(),
         "blacksheep_version": blacksheep_version,
         "platform": platform.platform(),
     }

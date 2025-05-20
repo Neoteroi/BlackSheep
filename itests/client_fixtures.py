@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import os
 import pathlib
 from multiprocessing import Process
@@ -12,18 +13,12 @@ from itests.utils import get_sleep_time
 
 from .flask_app import app
 
+multiprocessing.set_start_method("spawn", force=True)
+
 
 def get_static_path(file_name):
     static_folder_path = pathlib.Path(__file__).parent.absolute() / "static"
     return os.path.join(str(static_folder_path), file_name.lstrip("/"))
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for all test cases."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="module")
@@ -41,7 +36,7 @@ def server_url(server_host, server_port):
     return f"http://{server_host}:{server_port}"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def session(server_url, event_loop):
     # It is important to pass the instance of ConnectionPools,
     # to ensure that the connections are reused and closed
@@ -54,7 +49,7 @@ def session(server_url, event_loop):
     asyncio.run(session.close())
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def session_alt(event_loop):
     session = ClientSession(
         loop=event_loop,

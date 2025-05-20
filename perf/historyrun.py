@@ -18,6 +18,7 @@ See also the perfhistory.yml GitHub Workflow.
 
 import argparse
 import logging
+import platform
 import os
 import shutil
 import subprocess
@@ -88,6 +89,14 @@ def gitcontext():
 
 
 def make_compile():
+    python_implementation = platform.python_implementation()
+    if python_implementation != "CPython":
+        logger.info(
+            "Skipping compilation because the command is not running for CPython. "
+            "Implementat: %s",
+            python_implementation,
+        )
+        return
     logger.info("Compiling BlackSheep extensions")
     subprocess.check_output(["make", "compile"], universal_newlines=True)
 

@@ -1,13 +1,12 @@
 import asyncio
 import ssl
 import weakref
-from typing import Optional
+from typing import Optional, Protocol
 
 import certifi
-import httptools
-from httptools import HttpParserCallbackError, HttpParserError
 
 from blacksheep import Content, Request, Response
+from blacksheep.client.parser import get_default_parser
 from blacksheep.scribe import (
     is_small_request,
     request_has_body,
@@ -25,6 +24,17 @@ SECURE_SSLCONTEXT.check_hostname = True
 INSECURE_SSLCONTEXT = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
 INSECURE_SSLCONTEXT.check_hostname = False
 INSECURE_SSLCONTEXT.verify_mode = ssl.CERT_NONE
+
+
+class HTTPResponseParserProtocol(Protocol):
+    """
+    Required protocol for classes that can parse HTTP Responses.
+    """
+
+    def __init__(self, connection) -> None: ...
+    def feed_data(self, data: bytes) -> None: ...
+    def get_status_code(self) -> int: ...
+    def reset(self) -> None: ...
 
 
 class IncomingContent(Content):
@@ -157,7 +167,9 @@ class ClientConnection(asyncio.Protocol):
         "_upgraded",
     )
 
-    def __init__(self, loop, pool) -> None:
+    def __init__(
+        self, loop, pool, parser_impl: Optional[HTTPResponseParserProtocol] = None
+    ) -> None:
         self.loop = loop
         self.pool = weakref.ref(pool)
         self.transport = None
@@ -171,7 +183,12 @@ class ClientConnection(asyncio.Protocol):
         self.request_timeout = 20
         self.headers = []
         self.response = None
-        self.parser = httptools.HttpResponseParser(self)  # type: ignore
+        # Use the provided parser implementation, default to a built-in implementation
+        # otherwise
+        if parser_impl is not None:
+            self.parser = parser_impl
+        else:
+            self.parser = get_default_parser(self)
         self._connection_lost = False
         self._pending_task = None
         self._can_release = False
@@ -184,7 +201,12 @@ class ClientConnection(asyncio.Protocol):
         self.writing_paused = False
         self.writable.set()
         self.expect_100_continue = False
-        self.parser = httptools.HttpResponseParser(self)  # type: ignore
+        # Reset parser implementation if possible, else re-instantiate
+        try:
+            self.parser.reset()
+        except Exception:
+            # TODO: raise exception if a different type was provided
+            self.parser = get_default_parser(self)
         self._connection_lost = False
         self._pending_task = None
         self._can_release = False
@@ -308,12 +330,9 @@ class ClientConnection(asyncio.Protocol):
     def data_received(self, data: bytes) -> None:
         try:
             self.parser.feed_data(data)
-        except HttpParserCallbackError:
+        except Exception as exc:
             self.close()
-            raise
-        except HttpParserError as pex:
-            self.close()
-            raise InvalidResponseFromServer(pex)
+            raise InvalidResponseFromServer(exc)
 
     def connection_lost(self, exc) -> None:
         self._connection_lost = True

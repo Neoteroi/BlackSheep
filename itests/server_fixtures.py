@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import os
 import socket
 from multiprocessing import Process
@@ -14,6 +15,8 @@ from .app_2 import app_2
 from .app_3 import app_3
 from .app_4 import app_4, configure_json_settings
 from .utils import ClientSession, get_sleep_time
+
+multiprocessing.set_start_method("spawn", force=True)
 
 
 @pytest.fixture(scope="module")

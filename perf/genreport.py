@@ -9,7 +9,6 @@ import json
 import os
 import subprocess
 
-import matplotlib.pyplot as plt
 import pandas as pd
 
 
@@ -64,14 +63,16 @@ def create_comparison_table(results):
     for result in results:
         commit = result.get("git_info", {}).get("commit_hash", "unknown")[:8]
         date = result.get("git_info", {}).get("commit_date", "unknown")
-
+        system_info = result["system_info"]
+        python_version = system_info["python_version"]
+        python_implementation = system_info.get("python_implementation", "")
+        if python_implementation:
+            python_version = python_version + " " + python_implementation
         row = {
             "timestamp": result.get("timestamp", "unknown"),
             "commit": _try_get_git_tag(commit),
             "date": date,
-            "python_version": result.get("system_info", {}).get(
-                "python_version", "unknown"
-            ),
+            "python_version": python_version,
             "platform": result.get("system_info", {}).get("platform", "unknown"),
             "branch": result.get("git_info", {}).get("branch", "unknown"),
         }
@@ -122,38 +123,6 @@ def _aggregate(df: pd.DataFrame, by: str):
     aggregated_df = aggregated_df.sort_values(by=["date", "python_version", "platform"])
 
     return aggregated_df
-
-
-def plot_performance_trends(df, output_file="performance_trends.png"):
-    """Create a plot showing performance trends"""
-    plt.figure(figsize=(12, 8))
-
-    # Plot time metrics
-    time_cols = [col for col in df.columns if col.endswith("_avg_ms")]
-    for col in time_cols:
-        plt.subplot(2, 1, 1)
-        plt.plot(df["date"], df[col], marker="o", label=col)
-
-    plt.title("Performance Trends Across Commits")
-    plt.ylabel("Time (ms)")
-    plt.xticks(rotation=45)
-    plt.legend()
-    plt.grid(True)
-
-    # Plot memory metrics
-    mem_cols = [col for col in df.columns if col.endswith("_peak_mb")]
-    for col in mem_cols:
-        plt.subplot(2, 1, 2)
-        plt.plot(df["date"], df[col], marker="s", label=col)
-
-    plt.ylabel("Memory (MB)")
-    plt.xticks(rotation=45)
-    plt.legend()
-    plt.grid(True)
-
-    plt.tight_layout()
-    plt.savefig(output_file)
-    print(f"Plot saved to {output_file}")
 
 
 def _set_conditional_formatting(df, worksheet, max_row):

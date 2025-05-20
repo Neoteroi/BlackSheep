@@ -1,7 +1,11 @@
 from blacksheep import URL
 
 
-class InvalidResponseException(Exception):
+class ClientException(Exception):
+    """Base class for BlackSheep Client Exceptions."""
+
+
+class InvalidResponseException(ClientException):
     def __init__(self, message, response):
         super().__init__(message)
         self.response = response
@@ -51,9 +55,9 @@ class MaximumRedirectsExceededError(InvalidResponseException):
         )
 
 
-class UnsupportedRedirect(Exception):
+class UnsupportedRedirect(ClientException):
     """
-    Exception risen when the client cannot handle a redirect;
+    Exception raised when the client cannot handle a redirect;
     for example if the redirect is to a URN (not a URL). In such case,
     we don't follow the redirect and return the response with location: the
     caller can handle it.

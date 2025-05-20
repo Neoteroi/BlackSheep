@@ -64,7 +64,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+          pytest
 
       - name: Run linters
         run: |
@@ -95,19 +95,38 @@ jobs:
           pip install -r requirements.txt
           pip install black==25.1.0 isort==6.0.1 flake8==7.2.0
 
+      - name: Run tests for Pure-Python Code
+        run: |
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
+
       - name: Compile Cython extensions
         run: |
           make compile
 
-      - name: Run tests
+      - name: Run tests with Cython Code
         run: |
-          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
 
       - name: Run tests with Pydantic v1
         run: |
           echo "[*] The previous tests used Pydantic v2, now running with v1"
           pip install -U "pydantic<2"
-          pytest
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
 
       - name: Run linters
         run: |
@@ -133,33 +152,22 @@ jobs:
             APP_DEFAULT_ROUTER=false ASGI_SERVER=hypercorn pytest itests/test_server.py
           fi
 
-      - name: Upload pytest test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-results-${{ matrix.os }}-${{ matrix.python-version }}
-          path: junit/pytest-results-${{ matrix.os }}-${{ matrix.python-version }}.xml
-        if: always()
-
-      - name: Codecov
-        run: |
-          bash <(curl -s https://codecov.io/bash)
-
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.11
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.12
 
       - name: Create distribution package
         run: python setup.py sdist
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.11
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.12
 
       - name: Upload distribution package
         uses: actions/upload-artifact@v4
         with:
           name: dist-ubuntu-no-wheels
           path: dist
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.11
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.12
 
-  build-wheels:
+  build-cpython-wheels:
     needs: build
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
@@ -215,9 +223,55 @@ jobs:
           name: dist-${{ matrix.os }}-${{ matrix.python-version }}
           path: dist
 
+  build-pypy-wheels:
+    needs: build
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["pypy-3.11"]
+        os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 9
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.pypy.txt
+
+      - name: Run tests with PyPy
+        run: |
+          echo "Running unit tests..."
+          pytest tests
+
+          echo "Running integration tests..."
+          export APP_DEFAULT_ROUTER=false
+          pytest itests
+
+      - name: Install build dependencies
+        run: |
+          pip install --upgrade build
+
+      - name: Build wheels
+        run: |
+          python -m build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}-${{ matrix.python-version }}
+          path: dist
+
   publish:
     runs-on: ubuntu-latest
-    needs: [build, build-wheels]
+    needs: [build, build-cpython-wheels, build-pypy-wheels]
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_artifacts == 'Y')
     steps:
       - name: Download a distribution artifact

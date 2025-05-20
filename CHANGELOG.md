@@ -5,23 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.1a1] - 2025-??-??
+## [2.3.1a1] - 2025-05-20 :racehorse:
+
+> [!NOTE]
+> This is an alpha release to test published wheels before publishing a normal
+> release.
 
 - Add support for [`PyPy`](https://pypy.org/), adding a pure-Python fallback
-  for all Cython modules.
-- Make `httptools` an optional dependency, to support `PyPy`.
+  for all `Cython` modules.
+- Fix [#539](https://github.com/Neoteroi/BlackSheep/issues/539). Make
+  `httptools` an optional dependency, to support [`PyPy`](https://pypy.org/).
 - Modify the HTTP Client implementation in BlackSheep to
-  not be tightly coupled with `httptools` for the response parsing logic, and include built-in support for `h11`.
+  not be tightly coupled with `httptools` for the response parsing logic, and
+  include built-in support for `h11`.
 - **MINOR BREAKING CHANGE**. Since `httptools` is not installed by default, the
-  BlackSheep client requires either `httptools` or `h11` to be installed, as it
-  does not implement its own parsing logic for HTTP responses.
+  BlackSheep **client** requires either `httptools` or `h11` to be installed, as it
+  does not implement its own parsing logic for HTTP responses. This affects
+  only the HTTP client.
 - Upgrade dependencies (see `pyproject.toml` for more information).
-- Include a pure-Python wheel in the distribution package.
+- Include a pure-Python wheel in the distribution package, and run tests
+  with **PyPy 3.11**.
 - Fix [#559](https://github.com/Neoteroi/BlackSheep/issues/559), which is a
   performance regression introduced in `2.3.0`. Remove support for Pydantic v1
   `validate_arguments` decorator (added in 2.3.0), which caused the regression.
   Pydantic's v2 `validate_call` supports async and does not require specific code.
-
 
 ## [2.3.0] - 2025-05-10 :sun_behind_small_cloud:
 

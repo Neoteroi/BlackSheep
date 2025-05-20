@@ -73,6 +73,6 @@ def get_default_parser(client_connection):
         return H11ResponseParser(client_connection)
 
     raise RuntimeError(
-        "Missing dependencies to provide a default HTTP Response parser. "
+        "Missing Python dependencies to provide a default HTTP Response parser. "
         "Install either h11 or httptools."
     )

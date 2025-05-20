@@ -52,6 +52,22 @@ using one of the supported templates.
 The CLI includes a help, and supports custom templates, using the
 same sources supported by `Cookiecutter`.
 
+## Dependencies
+
+Before version `2.3.1`, BlackSheep only supported running with `CPython` and
+always depended on `httptools`. Starting with version `2.3.1`, the framework
+supports running on [`PyPy`](https://pypy.org/) and makes `httptools` an
+optional dependency.
+
+For slightly better performance in `URL` parsing when running on `CPython`,
+it is recommended to install `httptools`.
+
+> [!TIP]
+>
+> The best performance can be achieved using `PyPy` and
+> [`Socketify`](https://docs.socketify.dev/cli.html) (see
+> [#539](https://github.com/Neoteroi/BlackSheep/issues/539) for more information).
+
 ## Getting started with the documentation
 
 The documentation offers getting started tutorials:
@@ -167,9 +183,11 @@ feature that provides a consistent and clean way to use dependencies in request
 handlers.
 
 ## Generation of OpenAPI Documentation
+
 [Generation of OpenAPI Documentation](https://www.neoteroi.dev/blacksheep/openapi/).
 
 ## Strategies to handle authentication and authorization
+
 BlackSheep implements strategies to handle authentication and authorization.
 These features are documented here:
 

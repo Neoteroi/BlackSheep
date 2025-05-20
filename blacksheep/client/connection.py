@@ -327,6 +327,8 @@ class ClientConnection(asyncio.Protocol):
             if self.transport:
                 self.transport.close()
 
+            self.parser = None
+
     def data_received(self, data: bytes) -> None:
         try:
             self.parser.feed_data(data)

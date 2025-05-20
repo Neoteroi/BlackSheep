@@ -66,11 +66,12 @@ if h11 is not None:
 
 
 def get_default_parser(client_connection):
-    if httptools is not None:
-        return HTTPToolsResponseParser(client_connection)
 
     if h11 is not None:
         return H11ResponseParser(client_connection)
+
+    if httptools is not None:
+        return HTTPToolsResponseParser(client_connection)
 
     raise RuntimeError(
         "Missing Python dependencies to provide a default HTTP Response parser. "

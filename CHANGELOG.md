@@ -5,16 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.1a1] - 2025-05-20 :racehorse:
-
-> [!NOTE]
-> This is an alpha release to test published wheels before publishing a normal
-> release.
+## [2.3.1] - 2025-05-20 :racehorse:
 
 - Add support for [`PyPy`](https://pypy.org/), adding a pure-Python fallback
   for all `Cython` modules.
 - Fix [#539](https://github.com/Neoteroi/BlackSheep/issues/539). Make
   `httptools` an optional dependency, to support [`PyPy`](https://pypy.org/).
+- Modify `url.pyx` to remove the dependency on `httptools`.
 - Modify the HTTP Client implementation in BlackSheep to
   not be tightly coupled with `httptools` for the response parsing logic, and
   include built-in support for `h11`.

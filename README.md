@@ -52,6 +52,23 @@ using one of the supported templates.
 The CLI includes a help, and supports custom templates, using the
 same sources supported by `Cookiecutter`.
 
+## Dependencies
+
+Before version `2.3.1`, BlackSheep only supported running with `CPython` and
+always depended on `httptools`. Starting with version `2.3.1`, the framework
+supports running on [`PyPy`](https://pypy.org/) and makes `httptools` an
+optional dependency. The BlackSheep HTTP Client requires either `httptools`
+(for CPython) or `h11` (for PyPy).
+
+For slightly better performance in `URL` parsing when running on `CPython`,
+it is recommended to install `httptools`.
+
+> [!TIP]
+>
+> The best performance can be achieved using `PyPy` and
+> [`Socketify`](https://docs.socketify.dev/cli.html) (see
+> [#539](https://github.com/Neoteroi/BlackSheep/issues/539) for more information).
+
 ## Getting started with the documentation
 
 The documentation offers getting started tutorials:
@@ -74,6 +91,10 @@ classifiers. The current list is:
 
 [![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/robertoprevato/blacksheep)
 
+> [!TIP]
+>
+> Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/), too (`PyPy 3.11`).
+> Previous versions of the framework supported only [CPython](https://github.com/python/cpython).
 
 BlackSheep belongs to the category of
 [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires
@@ -98,6 +119,7 @@ To run for production, refer to the documentation of the chosen ASGI server
 (i.e. for [uvicorn](https://www.uvicorn.org/#running-with-gunicorn)).
 
 ## Automatic bindings and dependency injection
+
 BlackSheep supports automatic binding of values for request handlers, by type
 annotation or by conventions. See [more
 here](https://www.neoteroi.dev/blacksheep/requests/).
@@ -162,9 +184,11 @@ feature that provides a consistent and clean way to use dependencies in request
 handlers.
 
 ## Generation of OpenAPI Documentation
+
 [Generation of OpenAPI Documentation](https://www.neoteroi.dev/blacksheep/openapi/).
 
 ## Strategies to handle authentication and authorization
+
 BlackSheep implements strategies to handle authentication and authorization.
 These features are documented here:
 
@@ -192,7 +216,7 @@ async def only_for_authenticated_users():
     ...
 ```
 
-Since version `1.2.1`, BlackSheep implements:
+BlackSheep provides:
 
 * [Built-in support for OpenID Connect authentication](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
 * [Built-in support for JWT Bearer authentication](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
@@ -243,7 +267,7 @@ for more details and examples.
 * [Strategy to handle CORS settings](https://www.neoteroi.dev/blacksheep/cors/)
 * [Sessions](https://www.neoteroi.dev/blacksheep/sessions/)
 * Support for automatic binding of `dataclasses` and
-  [`pydantic`](https://pydantic-docs.helpmanual.io) models to handle the
+  [`Pydantic`](https://pydantic-docs.helpmanual.io) models to handle the
   request body payload expected by request handlers
 * [`TestClient` class to simplify testing of applications](https://www.neoteroi.dev/blacksheep/testing/)
 * [Anti Forgery validation](https://www.neoteroi.dev/blacksheep/anti-request-forgery) to protect against Cross-Site Request Forgery (XSRF/CSRF) attacks
@@ -269,18 +293,30 @@ async def client_example():
 asyncio.run(client_example())
 ```
 
+> [!IMPORTANT]
+>
+> Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/),
+> too (`PyPy 3.11`). For this reason, using the client requires an additional
+> dependency: `httptools` if using CPython, `h11` if using `PyPy`. This affects
+> only the `blacksheep.client` namespace.
+
 ## Supported platforms and runtimes
-* Python: all versions included in the build matrix
-* Ubuntu
-* Windows 10
-* macOS
+
+* Python: all versions included in the [build matrix](.github/workflows/main.yml).
+* CPython and PyPy.
+* Ubuntu.
+* Windows 10.
+* macOS.
 
 ## Documentation
+
 Please refer to the [documentation website](https://www.neoteroi.dev/blacksheep/).
 
 ## Communication
+
 [BlackSheep community in Gitter](https://gitter.im/Neoteroi/BlackSheep).
 
 ## Branches
+
 The _main_ branch contains the currently developed version, which is version 2. The _v1_ branch contains version 1 of the web framework, for bugs fixes
 and maintenance.

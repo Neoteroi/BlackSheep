@@ -98,9 +98,10 @@ classifiers. The current list is:
 
 BlackSheep belongs to the category of
 [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires
-an ASGI HTTP server to run, such as [uvicorn](http://www.uvicorn.org/), or
-[hypercorn](https://pgjones.gitlab.io/hypercorn/). For example, to use it with
-uvicorn:
+an ASGI HTTP server to run, such as [uvicorn](https://www.uvicorn.org/),
+[hypercorn](https://pgjones.gitlab.io/hypercorn/) or
+[granian](https://github.com/emmett-framework/granian).
+For example, to use it with uvicorn:
 
 ```bash
 $ pip install uvicorn

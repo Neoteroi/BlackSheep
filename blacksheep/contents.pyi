@@ -36,6 +36,17 @@ class StreamedContent(Content):
 
     async def get_parts(self) -> AsyncIterable[bytes]: ...
 
+class FilepathContent(Content):
+    def __init__(
+        self,
+        content_type: bytes,
+        path: str,
+    ) -> None:
+        self.type = content_type
+        self.body = None
+        self.length = 0
+        self.path = path
+
 class ASGIContent(Content):
     def __init__(self, receive: Callable[[], Awaitable[dict]]):
         self.type = None

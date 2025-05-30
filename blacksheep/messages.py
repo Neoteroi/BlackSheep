@@ -470,6 +470,12 @@ class Request(Message):
             self._is_disconnected = True
         return self._is_disconnected
 
+    @property
+    def accept_pathsend(self):
+        if not isinstance(self.content, ASGIContent) or self.scope is None:
+            return False
+        return "http.response.pathsend" in self.scope.get("extensions", {})
+
 
 class Response(Message):
     def __init__(self, status: int, headers=None, content: Content = None):

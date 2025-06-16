@@ -1,6 +1,6 @@
 import pytest
 
-from blacksheep.contents import ServerSentEvent, TextServerSentEvent
+from blacksheep.contents import ServerSentEvent
 from blacksheep.server.sse import ServerSentEventsResponse
 
 

@@ -65,8 +65,8 @@ it is recommended to install `httptools`.
 
 > [!TIP]
 >
-> The best performance can be achieved using `PyPy` and
-> [`Socketify`](https://docs.socketify.dev/cli.html) (see
+> The best performance can be achieved using `PyPy` runtime, and
+> [`Socketify`](https://docs.socketify.dev/cli.html) or [`Granian`](https://github.com/emmett-framework/granian), (see
 > [#539](https://github.com/Neoteroi/BlackSheep/issues/539) for more information).
 
 ## Getting started with the documentation

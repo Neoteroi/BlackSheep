@@ -204,7 +204,7 @@ def use_open_telemetry(
         # Try calling shutdown() on app stop to flush all remaining spans.
         try:
             trace.get_tracer_provider().shutdown()
-        except TypeError:
+        except AttributeError:
             pass
 
 

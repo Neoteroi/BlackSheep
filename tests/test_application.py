@@ -4138,9 +4138,9 @@ async def test_application_sse():
         [msg["body"] for msg in mock_send.messages if "body" in msg]
     )
     expected_events = (
-        'data: {"message":"Hello World 0"}\r\n\r\n'
-        'data: {"message":"Hello World 1"}\r\n\r\n'
-        'data: {"message":"Hello World 2"}\r\n\r\n'
+        'data: {"message":"Hello World 0"}\n\n'
+        'data: {"message":"Hello World 1"}\n\n'
+        'data: {"message":"Hello World 2"}\n\n'
     )
     assert streamed_data.decode("utf-8") == expected_events
 
@@ -4173,8 +4173,6 @@ async def test_application_sse_plain_text():
         [msg["body"] for msg in mock_send.messages if "body" in msg]
     )
     expected_events = (
-        "data: Hello World 0\r\n\r\n"
-        "data: Hello World 1\r\n\r\n"
-        "data: Hello World 2\r\n\r\n"
+        "data: Hello World 0\n\n" "data: Hello World 1\n\n" "data: Hello World 2\n\n"
     )
     assert streamed_data.decode("utf-8") == expected_events

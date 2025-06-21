@@ -74,7 +74,8 @@ class EncodingsSettings:
 
         decode(value: bytes, decode_error: UnicodeDecodeError) -> str:
             Decodes the given bytes using the configured decoder. If decoding fails,
-            the provided UnicodeDecodeError is raised or handled according to the decoder.
+            the provided UnicodeDecodeError is raised or handled according to the
+            decoder.
     """
 
     def __init__(self) -> None:

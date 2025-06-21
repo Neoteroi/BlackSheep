@@ -11,7 +11,7 @@ class Decoder(ABC):
     Abstract base class for byte sequence decoders.
 
     Implementations of this class provide a strategy for decoding bytes into
-    strings, typically used when a UnicodeDecodeError occurs during standard
+    strings, used when a UnicodeDecodeError occurs during standard
     decoding. Subclasses must implement the `decode` method, which receives
     the bytes to decode and the original UnicodeDecodeError.
 

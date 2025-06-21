@@ -635,3 +635,19 @@ async def test_write_small_request_streamed_fixed_length():
         bytes(data)
         == b"POST / HTTP/1.1\r\ncontent-type: text/plain\r\ncontent-length: 10\r\n\r\nHelloWorld"
     )
+
+
+@pytest.mark.parametrize(
+    "content_type_header,expected_charset",
+    [
+        ("text/plain; charset=UTF-8", "UTF-8"),
+        ("application/json", "utf8"),  # default
+        ("application/json; charset=utf-8", "utf-8"),
+        ("application/json; charset=ISO-8859-1", "ISO-8859-1"),
+        ("text/html; charset=ISO-8859-1", "ISO-8859-1"),
+        ("application/xml; charset=utf-8", "utf-8"),
+    ],
+)
+def test_request_charset(content_type_header, expected_charset):
+    request = Request("POST", b"/", [(b"Content-Type", content_type_header.encode())])
+    assert request.charset == expected_charset

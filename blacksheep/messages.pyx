@@ -33,7 +33,7 @@ _charset_rx = re.compile(rb"charset=([\w\-]+)", re.I)
 cpdef str parse_charset(bytes value):
     m = _charset_rx.search(value)
     if m:
-        return m.group(1).decode("utf8")
+        return m.group(1).decode("ascii")
     return None
 
 

@@ -6,8 +6,6 @@ from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
-import charset_normalizer
-
 from blacksheep.multipart import parse_multipart
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
@@ -160,14 +158,7 @@ class Message:
         body = await self.read()
         if body is None:
             return ""
-        try:
-            return body.decode(self.charset)
-        except UnicodeDecodeError:
-            if self.charset != "ISO-8859-1":
-                try:
-                    return body.decode("ISO-8859-1")
-                except UnicodeDecodeError:
-                    return body.decode(charset_normalizer.detect(body)["encoding"])
+        return body.decode(self.charset)
 
     async def form(self):
         content_type_value = self.content_type()

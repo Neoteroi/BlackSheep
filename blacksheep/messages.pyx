@@ -5,8 +5,6 @@ from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
-import charset_normalizer
-
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
 from blacksheep.settings.json import json_settings
@@ -181,21 +179,9 @@ cdef class Message:
 
     async def text(self):
         body = await self.read()
-
         if body is None:
             return ""
-        try:
-            return body.decode(self.charset)
-        except UnicodeDecodeError:
-            # this can happen when the server returned a declared charset,
-            # but its content is not actually using the declared encoding
-            # a common encoding is 'ISO-8859-1', so before using chardet, we try with this
-            if self.charset != 'ISO-8859-1':
-                try:
-                    return body.decode('ISO-8859-1')
-                except UnicodeDecodeError:
-                    # fallback to trying to detect the encoding;
-                    return body.decode(charset_normalizer.detect(body)['encoding'])
+        return body.decode(self.charset)
 
     async def form(self):
         cdef str text

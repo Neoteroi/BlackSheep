@@ -7,6 +7,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
+from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
 
@@ -26,13 +27,13 @@ from .exceptions cimport (
 from .headers cimport Headers
 from .url cimport URL, build_absolute_url
 
-_charset_rx = re.compile(b'charset=([^;]+)\\s', re.I)
+_charset_rx = re.compile(rb"charset=([\w\-]+)", re.I)
 
 
 cpdef str parse_charset(bytes value):
-    m = _charset_rx.match(value)
+    m = _charset_rx.search(value)
     if m:
-        return m.group(1).decode('utf8')
+        return m.group(1).decode("utf8")
     return None
 
 
@@ -181,7 +182,10 @@ cdef class Message:
         body = await self.read()
         if body is None:
             return ""
-        return body.decode(self.charset)
+        try:
+            return body.decode(self.charset)
+        except UnicodeDecodeError as decode_error:
+            return encodings_settings.decode(body, decode_error)
 
     async def form(self):
         cdef str text

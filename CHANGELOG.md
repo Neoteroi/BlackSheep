@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.3] - 2025-06-??
+
+- Make `charset_normalizer` an **optional** dependency. This library is
+  optional and is only used when a `UnicodeDecodeError` exception occurs when
+  parsing the body of a web request. This can happen in two circumstances:
+  when the client sends a payload specifying the wrong encoding in the
+  `Content-Type` request header, or when the client sends a payload that is not
+  `UTF-8` encoded and without specifying the charset encoding.
+- Correct bug in the `parse_charset` function that prevented proper parsing and
+  optimal handling of input encodings different than `UTF8`. Parsing still
+  worked in this case because of the automatic fallback to `charset_normalizer`.
+- Correct the output of `request.charset` when the charset is obtained from
+  the 'Content-Type' request header.
+
 ## [2.3.2] - 2025-06-17 :telescope:
 
 - Add built-in features to enable `OpenTelemetry` logging for all web requests

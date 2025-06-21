@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from blacksheep.multipart import parse_multipart
+from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
 
@@ -24,11 +25,11 @@ from .url import URL, build_absolute_url
 if TYPE_CHECKING:
     from blacksheep.sessions import Session
 
-_charset_rx = re.compile(rb"charset=([^;]+)\s", re.I)
+_charset_rx = re.compile(rb"charset=([\w\-]+)", re.I)
 
 
 def parse_charset(value: bytes):
-    m = _charset_rx.match(value)
+    m = _charset_rx.search(value)
     if m:
         return m.group(1).decode("utf8")
     return None
@@ -158,7 +159,10 @@ class Message:
         body = await self.read()
         if body is None:
             return ""
-        return body.decode(self.charset)
+        try:
+            return body.decode(self.charset)
+        except UnicodeDecodeError as decode_error:
+            return encodings_settings.decode(body, decode_error)
 
     async def form(self):
         content_type_value = self.content_type()

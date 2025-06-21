@@ -326,6 +326,13 @@ class Binder(metaclass=BinderMeta):  # type: ignore
         """
         try:
             value = await self.get_value(request)
+        except UnicodeDecodeError as decode_error:
+            raise BadRequest(
+                f"Unicode decode error. "
+                f"Cannot decode the request content using: {decode_error.encoding}. "
+                "Ensure the request content is encoded using the encoding declared in "
+                "the Content-Type request header."
+            )
         except ValueError as value_error:
             raise BadRequest("Invalid parameter.") from value_error
 

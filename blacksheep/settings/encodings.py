@@ -1,10 +1,5 @@
 from abc import ABC, abstractmethod
 
-try:
-    import charset_normalizer
-except ImportError:
-    charset_normalizer = None
-
 
 class Decoder(ABC):
     """
@@ -23,22 +18,6 @@ class Decoder(ABC):
 
     @abstractmethod
     def decode(self, value: bytes, decode_error: UnicodeDecodeError) -> str: ...
-
-
-class DefaultDecoder(Decoder):
-    """
-    Decoder implementation that attempts to detect the encoding using charset_normalizer
-    if available. If charset_normalizer is not available, it raises again the
-    UnicodeDecodeError.
-    """
-
-    def decode(self, value: bytes, decode_error: UnicodeDecodeError) -> str:
-        if charset_normalizer is None:
-            raise decode_error
-        detected_encoding = charset_normalizer.detect(value)["encoding"]
-        if detected_encoding is None:
-            raise decode_error
-        return value.decode(detected_encoding)
 
 
 class NoopDecoder(Decoder):
@@ -65,8 +44,9 @@ class EncodingsSettings:
 
     EncodingsSettings allows configuring which Decoder implementation is used
     to decode bytes when a UnicodeDecodeError occurs. By default, it uses
-    DefaultDecoder, which attempts to detect the encoding using charset_normalizer
-    if available. The decoder can be replaced at runtime using the `use` method.
+    NoopDecoder, which does not attempt to detect the encoding and re-raises the
+    UnicodeDecodeError for further processing. The decoder can be replaced at runtime
+    using the `use` method.
 
     Methods:
         use(decoder: Decoder) -> None:
@@ -79,7 +59,7 @@ class EncodingsSettings:
     """
 
     def __init__(self) -> None:
-        self._decoder = DefaultDecoder()
+        self._decoder = NoopDecoder()
 
     def use(self, decoder: Decoder) -> None:
         self._decoder = decoder

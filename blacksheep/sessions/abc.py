@@ -17,8 +17,10 @@ class Session:
         modified (bool): Indicates whether the session data has been modified.
 
     Methods:
-        get(name, default=None): Retrieves a value by key, returning default if not found.
-        set(name, value): Sets a value for a given key and marks the session as modified.
+        get(name, default=None): Retrieves a value by key, returning default if not
+            found.
+        set(name, value): Sets a value for a given key and marks the session as
+            modified.
         update(values): Updates the session with multiple key-value pairs.
         clear(): Removes all items from the session and marks it as modified.
         to_dict(): Returns a shallow copy of the session data as a dictionary.

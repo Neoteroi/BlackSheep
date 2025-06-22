@@ -5,7 +5,10 @@ import pytest
 from blacksheep.cookies import parse_cookie
 from blacksheep.messages import Request
 from blacksheep.server.responses import text
-from blacksheep.sessions import JSONSerializer, Session, SessionMiddleware
+from blacksheep.sessions import Session
+from blacksheep.sessions.cookies import CookieSessionStore
+from blacksheep.sessions.json import JSONSerializer
+from blacksheep.sessions.memory import InMemorySessionStore
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 
@@ -181,7 +184,7 @@ def test_session_json_serializer(value, session):
 
 
 async def test_session_middleware_basics(app):
-    app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
+    app.use_sessions("LOREM_IPSUM")
 
     @app.router.get("/")
     def home(request: Request):
@@ -286,8 +289,64 @@ async def test_session_middleware_use_method(app):
     assert session_set_cookie is None
 
 
+async def test_session_middleware_in_memory_store(app):
+    """
+    Test the other way to configure sessions, using a specific SessionStore.
+    """
+    app.use_sessions(InMemorySessionStore())
+
+    @app.router.get("/")
+    def home(request: Request):
+        session = request.session
+
+        assert isinstance(session, Session)
+        session["foo"] = "Some value"
+
+        return text("Hello, World")
+
+    @app.router.get("/second")
+    def second(request: Request):
+        session = request.session
+
+        assert "foo" in session
+        assert session["foo"] == "Some value"
+
+        return text("Hello, World")
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_single(b"Set-Cookie")
+    assert session_set_cookie is not None
+
+    cookie = parse_cookie(session_set_cookie)
+
+    await app(
+        get_example_scope("GET", "/second", {"cookie": f"session={cookie.value}"}),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+
+    session_set_cookie = response.headers.get_first(b"Set-Cookie")
+    assert session_set_cookie is None
+
+
 async def test_session_middleware_handling_of_invalid_signature(app):
-    app.middlewares.append(SessionMiddleware("LOREM_IPSUM"))
+    app.use_sessions("LOREM_IPSUM")
 
     @app.router.get("/")
     def home(request: Request):
@@ -302,9 +361,9 @@ async def test_session_middleware_handling_of_invalid_signature(app):
     await app.start()
 
     # arrange invalid session cookie
-    impostor_middleware = SessionMiddleware("DOLOR_SIT_AMET")
+    impostor_middleware = CookieSessionStore("DOLOR_SIT_AMET")
 
-    forged_cookie = impostor_middleware.write_session(Session({"user_id": "hahaha"}))
+    forged_cookie = impostor_middleware._write_session(Session({"user_id": "hahaha"}))
 
     await app(
         get_example_scope("GET", "/", {"cookie": f"session={forged_cookie}"}),
@@ -317,7 +376,7 @@ async def test_session_middleware_handling_of_invalid_signature(app):
 
 
 async def test_session_middleware_handling_of_expired_signature(app):
-    app.middlewares.append(SessionMiddleware("LOREM_IPSUM", session_max_age=1))
+    app.use_sessions("LOREM_IPSUM", session_max_age=1)
 
     @app.router.get("/")
     def home(request: Request):
@@ -372,7 +431,7 @@ async def test_session_middleware_handling_of_expired_signature(app):
 
 def test_exception_for_invalid_max_age():
     with pytest.raises(ValueError):
-        SessionMiddleware("example", session_max_age=0)
+        CookieSessionStore("example", session_max_age=0)
 
     with pytest.raises(ValueError):
-        SessionMiddleware("example", session_max_age=-10)
+        CookieSessionStore("example", session_max_age=-10)

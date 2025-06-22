@@ -15,6 +15,7 @@ from jinja2.utils import pass_context
 
 from blacksheep.messages import Request
 from blacksheep.server.csrf import AntiForgeryHandler, MissingRequestContextError
+from blacksheep.utils import truthy
 
 from .abc import Renderer
 
@@ -103,8 +104,8 @@ class JinjaRenderer(Renderer):
                 os.environ.get("APP_JINJA_PACKAGE_PATH", "views"),
             ),
             autoescape=select_autoescape(["html", "xml", "jinja"]),
-            auto_reload=bool(os.environ.get("APP_JINJA_DEBUG", "")) or debug,
-            enable_async=bool(os.environ.get("APP_JINJA_ENABLE_ASYNC", ""))
+            auto_reload=truthy(os.environ.get("APP_JINJA_DEBUG", "")) or debug,
+            enable_async=truthy(os.environ.get("APP_JINJA_ENABLE_ASYNC", ""))
             or enable_async,
         )
 

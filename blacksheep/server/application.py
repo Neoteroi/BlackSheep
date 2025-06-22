@@ -70,6 +70,7 @@ from blacksheep.server.routing import (
 )
 from blacksheep.server.websocket import WebSocket, format_reason
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
+from blacksheep.sessions.abc import SessionStore
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import join_fragments
 from blacksheep.utils.meta import get_parent_file, import_child_modules
@@ -310,20 +311,49 @@ class Application(BaseApplication):
 
     def use_sessions(
         self,
-        secret_key: str,
+        store: Union[str, SessionStore],
         *,
         session_cookie: str = "session",
         serializer: Optional[SessionSerializer] = None,
         signer: Optional[Serializer] = None,
         session_max_age: Optional[int] = None,
     ) -> None:
-        self._session_middleware = SessionMiddleware(
-            secret_key=secret_key,
-            session_cookie=session_cookie,
-            serializer=serializer,
-            signer=signer,
-            session_max_age=session_max_age,
-        )
+        """
+        Configures session support for the application.
+
+        This method enables session management by adding a SessionMiddleware to the
+        application.
+        It can be used with either a secret key (to use cookie-based sessions) or a
+        custom SessionStore.
+
+        Args:
+            store (Union[str, SessionStore]): A secret key for cookie-based sessions,
+                or an instance of SessionStore for custom session storage.
+            session_cookie (str, optional): Name of the session cookie. Defaults to
+                session".
+            serializer (SessionSerializer, optional): Serializer for session data.
+            signer (Serializer, optional): Serializer used for signing session data.
+            session_max_age (int, optional): Maximum age of the session in seconds.
+
+        Usage:
+            app.use_sessions("my-secret-key")
+            # or
+            app.use_sessions(MyCustomSessionStore())
+        """
+        if isinstance(store, str):
+            from blacksheep.sessions.cookies import CookieSessionStore
+
+            self._session_middleware = SessionMiddleware(
+                CookieSessionStore(
+                    store,
+                    session_cookie=session_cookie,
+                    serializer=serializer,
+                    signer=signer,
+                    session_max_age=session_max_age,
+                )
+            )
+        elif isinstance(store, SessionStore):
+            self._session_middleware = SessionMiddleware(store)
 
     def use_cors(
         self,

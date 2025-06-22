@@ -40,7 +40,7 @@ async def test_application_encoding_error_1():
     assert response.status == 400
     # The response body contains useful information
     text = await response.text()
-    assert f"Cannot decode the request content using: utf-8." in text
+    assert "Cannot decode the request content using: utf-8." in text
 
 
 async def test_application_encoding_correct_1():

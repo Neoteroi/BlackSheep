@@ -1,3 +1,4 @@
+from enum import IntEnum, StrEnum
 from typing import Any, List, Optional, Sequence, Set, Tuple, Type
 from uuid import UUID
 
@@ -53,6 +54,18 @@ class ExampleThree:
     def __init__(self, a: str, b: List[str]):
         self.a = a
         self.b = b
+
+
+class ExampleStrEnum(StrEnum):
+    ONE = "one"
+    TWO = "two"
+    THREE = "three"
+
+
+class ExampleIntEnum(IntEnum):
+    ONE = 1
+    TWO = 2
+    THREE = 3
 
 
 async def test_from_body_json_binding():
@@ -146,6 +159,8 @@ async def test_from_body_json_binding_invalid_input():
         [float, b"1241.5", 1241.5],
         [bool, b"1", True],
         [bool, b"0", False],
+        [ExampleStrEnum, b"one", ExampleStrEnum.ONE],
+        [ExampleIntEnum, b"1", ExampleIntEnum.ONE],
     ],
 )
 async def test_from_header_binding(expected_type, header_value, expected_value):
@@ -197,6 +212,8 @@ async def test_from_header_binding_name_ci(expected_type, header_value, expected
         [float, b"1241.5", 1241.5],
         [bool, b"1", True],
         [bool, b"0", False],
+        [ExampleStrEnum, b"one", ExampleStrEnum.ONE],
+        [ExampleIntEnum, b"1", ExampleIntEnum.ONE],
     ],
 )
 async def test_from_query_binding(expected_type, query_value, expected_value):
@@ -227,6 +244,8 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
             "b0c1f822-b63c-475e-9f2e-b6406bafcc2b",
             UUID("b0c1f822-b63c-475e-9f2e-b6406bafcc2b"),
         ],
+        [ExampleStrEnum, "one", ExampleStrEnum.ONE],
+        [ExampleIntEnum, "1", ExampleIntEnum.ONE],
     ],
 )
 async def test_from_route_binding(expected_type, route_value, expected_value):

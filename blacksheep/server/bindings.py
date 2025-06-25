@@ -8,6 +8,7 @@ See:
     https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
 """
 
+import enum
 from abc import abstractmethod
 from base64 import urlsafe_b64decode
 from collections.abc import Iterable as IterableAbc
@@ -459,6 +460,13 @@ class BodyBinder(Binder):
         if expected_type is UUID:
             return lambda value: UUID(value)
 
+        # Add support for StrEnum and IntEnum
+        if isinstance(expected_type, type) and issubclass(expected_type, enum.StrEnum):
+            return lambda value: expected_type(unquote(value)) if value else None
+
+        if isinstance(expected_type, type) and issubclass(expected_type, enum.IntEnum):
+            return lambda value: expected_type(int(value)) if value else None
+
         return get_default_class_converter(expected_type)
 
     def _get_default_converter_for_iterable(self, expected_type):
@@ -625,6 +633,9 @@ class SyncBinder(Binder):
 
     _simple_types = {int, float, bool}
 
+    # Add this dictionary for extensibility
+    _default_converters = {}
+
     def __init__(
         self,
         expected_type: Any = List[str],
@@ -640,6 +651,10 @@ class SyncBinder(Binder):
             required=required,
             converter=converter or self._get_default_converter(expected_type),
         )
+
+    @classmethod
+    def register_converter(cls, typ, func):
+        cls._default_converters[typ] = func
 
     def _get_default_converter_single(self, expected_type):
         if expected_type is str or str(expected_type) == "~T":
@@ -667,6 +682,13 @@ class SyncBinder(Binder):
                 dateutil_parser(unquote(value)).date() if value else None
             )
 
+        # Add support for StrEnum and IntEnum
+        if isinstance(expected_type, type) and issubclass(expected_type, enum.StrEnum):
+            return lambda value: expected_type(unquote(value)) if value else None
+
+        if isinstance(expected_type, type) and issubclass(expected_type, enum.IntEnum):
+            return lambda value: expected_type(int(value)) if value else None
+
         raise MissingConverterError(expected_type, self.__class__)
 
     def _get_default_converter_for_iterable(self, expected_type):
@@ -676,6 +698,10 @@ class SyncBinder(Binder):
         return lambda values: generic_type(item_converter(value) for value in values)
 
     def _get_default_converter(self, expected_type):
+        # Check for a registered converter first
+        if expected_type in self._default_converters:
+            return self._default_converters[expected_type]
+
         if expected_type is str or str(expected_type) == "~T":
             return lambda value: unquote(value[0]) if value else None
 
@@ -705,6 +731,13 @@ class SyncBinder(Binder):
             return lambda value: (
                 dateutil_parser(unquote(value[0])).date() if value else None
             )
+
+        # Add support for StrEnum and IntEnum
+        if isinstance(expected_type, type) and issubclass(expected_type, enum.StrEnum):
+            return lambda value: expected_type(unquote(value[0])) if value else None
+
+        if isinstance(expected_type, type) and issubclass(expected_type, enum.IntEnum):
+            return lambda value: expected_type(int(value[0])) if value else None
 
         raise MissingConverterError(expected_type, self.__class__)
 
@@ -791,7 +824,7 @@ class RouteBinder(SyncBinder):
     def __init__(
         self,
         expected_type: T = str,
-        name: str = None,
+        name: Optional[str] = None,
         implicit: bool = False,
         required: bool = True,
         converter: Optional[Callable] = None,

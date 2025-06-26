@@ -160,7 +160,9 @@ async def test_from_body_json_binding_invalid_input():
         [bool, b"1", True],
         [bool, b"0", False],
         [ExampleStrEnum, b"one", ExampleStrEnum.ONE],
+        [ExampleStrEnum, b"ONE", ExampleStrEnum.ONE],
         [ExampleIntEnum, b"1", ExampleIntEnum.ONE],
+        [ExampleIntEnum, b"ONE", ExampleIntEnum.ONE],
     ],
 )
 async def test_from_header_binding(expected_type, header_value, expected_value):

@@ -13,6 +13,7 @@ from abc import abstractmethod
 from base64 import urlsafe_b64decode
 from collections.abc import Iterable as IterableAbc
 from datetime import date, datetime
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -40,6 +41,7 @@ from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
+from .converters import Converters
 
 T = TypeVar("T")
 TypeOrName = Union[Type, str]
@@ -631,11 +633,6 @@ class SyncBinder(Binder):
     with complete headers. Like route, query string and header parameters.
     """
 
-    _simple_types = {int, float, bool}
-
-    # Add this dictionary for extensibility
-    _default_converters = {}
-
     def __init__(
         self,
         expected_type: Any = List[str],
@@ -652,71 +649,7 @@ class SyncBinder(Binder):
             converter=converter or self._get_default_converter(expected_type),
         )
 
-    @classmethod
-    def register_converter(cls, typ, func):
-        cls._default_converters[typ] = func
-
-    def _get_default_converter_single(self, expected_type):
-        if expected_type is str or str(expected_type) == "~T":
-            return lambda value: unquote(value) if value else None
-
-        if expected_type is bool:
-            return _default_bool_converter
-
-        if expected_type is bytes:
-            # note: the code is optimized for strings here, not bytes
-            # since most of times the user will want to handle strings
-            return lambda value: value.encode("utf8") if value else None
-
-        if expected_type in self._simple_types:
-            return lambda value: expected_type(value) if value else None
-
-        if expected_type is UUID:
-            return lambda value: UUID(value)
-
-        if expected_type is datetime:
-            return lambda value: dateutil_parser(unquote(value)) if value else None
-
-        if expected_type is date:
-            return lambda value: (
-                dateutil_parser(unquote(value)).date() if value else None
-            )
-
-        # Add support for StrEnum and IntEnum
-        if isinstance(expected_type, type) and issubclass(expected_type, enum.StrEnum):
-            return lambda value: expected_type(unquote(value)) if value else None
-
-        if isinstance(expected_type, type) and issubclass(expected_type, enum.IntEnum):
-            return lambda value: expected_type(int(value)) if value else None
-
-        raise MissingConverterError(expected_type, self.__class__)
-
-    def _get_default_converter_for_iterable(self, expected_type):
-        generic_type = self.get_type_for_generic_iterable(expected_type)
-        item_type = self.generic_iterable_annotation_item_type(expected_type)
-        item_converter = self._get_default_converter_single(item_type)
-        return lambda values: generic_type(item_converter(value) for value in values)
-
     def _get_default_converter(self, expected_type):
-        # Check for a registered converter first
-        if expected_type in self._default_converters:
-            return self._default_converters[expected_type]
-
-        if expected_type is str or str(expected_type) == "~T":
-            return lambda value: unquote(value[0]) if value else None
-
-        if expected_type is bool:
-            return _default_bool_list_converter
-
-        if expected_type is bytes:
-            return lambda value: value[0].encode("utf8") if value else None
-
-        if expected_type in self._simple_types:
-            return lambda value: expected_type(value[0]) if value else None
-
-        if expected_type is UUID:
-            return lambda value: UUID(value[0]) if value else None
-
         if self.is_generic_iterable_annotation(expected_type) or expected_type in {
             list,
             set,
@@ -724,22 +657,23 @@ class SyncBinder(Binder):
         }:
             return self._get_default_converter_for_iterable(expected_type)
 
-        if expected_type is datetime:
-            return lambda value: dateutil_parser(unquote(value[0])) if value else None
-
-        if expected_type is date:
-            return lambda value: (
-                dateutil_parser(unquote(value[0])).date() if value else None
-            )
-
-        # Add support for StrEnum and IntEnum
-        if isinstance(expected_type, type) and issubclass(expected_type, enum.StrEnum):
-            return lambda value: expected_type(unquote(value[0])) if value else None
-
-        if isinstance(expected_type, type) and issubclass(expected_type, enum.IntEnum):
-            return lambda value: expected_type(int(value[0])) if value else None
+        for converter in Converters:
+            if converter.can_convert(expected_type):
+                return partial(converter.convert, expected_type=expected_type)
 
         raise MissingConverterError(expected_type, self.__class__)
+
+    def _get_default_converter_single(self, expected_type):
+        for converter in Converters:
+            if converter.can_convert(expected_type):
+                return partial(converter.convert, expected_type=expected_type)
+        raise MissingConverterError(expected_type, self.__class__)
+
+    def _get_default_converter_for_iterable(self, expected_type):
+        generic_type = self.get_type_for_generic_iterable(expected_type)
+        item_type = self.generic_iterable_annotation_item_type(expected_type)
+        item_converter = self._get_default_converter_single(item_type)
+        return lambda values: generic_type(item_converter(value) for value in values)
 
     @abstractmethod
     def get_raw_value(self, request: Request) -> Sequence[str]:

@@ -15,6 +15,10 @@ cdef class StreamedContent(Content):
     cdef readonly object generator
 
 
+cdef class FilepathContent(Content):
+    cdef readonly str path
+
+
 cdef class ASGIContent(Content):
     cdef readonly object receive
     cpdef void dispose(self)

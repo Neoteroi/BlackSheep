@@ -1,3 +1,14 @@
+"""
+This module provides a strategy and classes to convert optional string representations
+of values into expected types. This is used to offer a good user experience to
+developers: rather than parsing raw input values from requests manually, they can
+declare the expected types using Python type annotations, and the code tries to obtain
+objects of the exact type.
+
+The following code only offers default implementations that should work in most cases,
+the user can still define custom logic to parse input values.
+"""
+
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from enum import IntEnum, StrEnum
@@ -181,7 +192,7 @@ class LiteralConverter(TypeConverter):
         raise ValueError(f"{value!r} is not a valid {expected_type}")
 
 
-Converters: List[TypeConverter] = [
+converters: List[TypeConverter] = [
     BoolConverter(),
     BytesConverter(),
     DateConverter(),

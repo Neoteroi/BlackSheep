@@ -1,11 +1,11 @@
 """
 This module implements a feature inspired by "Model Binding" in ASP.NET web framework.
-It provides a strategy to have request parameters read an injected into request
+It provides a strategy to have request parameters read and injected into request
 handlers. This feature is also useful to generate OpenAPI Documentation (Swagger)
 automatically.
 
 See:
-    https://docs.microsoft.com/en-us/aspnet/core/mvc/models/model-binding?view=aspnetcore-2.2
+    https://www.neoteroi.dev/blacksheep/binders/
 """
 
 import enum
@@ -39,7 +39,7 @@ from rodi import CannotResolveTypeException, ContainerProtocol
 from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
-from blacksheep.server.bindings.converters import Converters
+from blacksheep.server.bindings.converters import converters
 from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
 
@@ -657,7 +657,7 @@ class SyncBinder(Binder):
         }:
             return self._get_converter_for_iterable(expected_type)
 
-        for converter in Converters:
+        for converter in converters:
             if converter.can_convert(expected_type):
                 return lambda values: converter.convert(
                     values[0] if values else None, expected_type
@@ -666,7 +666,7 @@ class SyncBinder(Binder):
         raise MissingConverterError(expected_type, self.__class__)
 
     def _get_converter_single(self, expected_type):
-        for converter in Converters:
+        for converter in converters:
             if converter.can_convert(expected_type):
                 return partial(converter.convert, expected_type=expected_type)
         raise MissingConverterError(expected_type, self.__class__)

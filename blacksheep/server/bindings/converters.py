@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
-from base64 import urlsafe_b64decode
-from collections.abc import Iterable
 from datetime import date, datetime
 from enum import IntEnum, StrEnum
-from typing import Any, List, Literal, Sequence, get_args
+from typing import Any, List, Literal, Optional, get_args
 from urllib.parse import unquote
 from uuid import UUID
 
 from dateutil.parser import parse as dateutil_parser
+
+from blacksheep.exceptions import BadRequest
+from blacksheep.utils import ensure_str
 
 
 class TypeConverter(ABC):
@@ -30,7 +31,7 @@ class StrConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is str or str(expected_type) == "~T"
 
-    def convert(self, value: str, expected_type) -> Any:
+    def convert(self, value: Optional[str], expected_type) -> Any:
         return unquote(value) if value else None
 
 
@@ -42,8 +43,8 @@ class InitTypeConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is self._handled_type
 
-    def convert(self, value: str, expected_type) -> Any:
-        return self._handled_type(value)
+    def convert(self, value: Optional[str], expected_type) -> Any:
+        return self._handled_type(value) if value is not None else None
 
 
 class BoolConverter(TypeConverter):
@@ -51,7 +52,9 @@ class BoolConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is bool
 
-    def convert(self, value: str, expected_type) -> Any:
+    def convert(self, value: Optional[str], expected_type) -> Any:
+        if value is None:
+            return None
         if value.lower() in ("true", "1"):
             return True
         elif value.lower() in ("false", "0"):
@@ -86,12 +89,8 @@ class BytesConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is bytes
 
-    def convert(self, value: str, expected_type) -> Any:
-        return (
-            urlsafe_b64decode(value.encode(self._encoding)).decode(self._encoding)
-            if value
-            else None
-        )
+    def convert(self, value: Optional[str], expected_type) -> Any:
+        return value.encode(self._encoding) if value else None
 
 
 class DateTimeConverter(TypeConverter):
@@ -99,7 +98,7 @@ class DateTimeConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is datetime
 
-    def convert(self, value: str, expected_type) -> Any:
+    def convert(self, value: Optional[str], expected_type) -> Any:
         return dateutil_parser(value) if value else None
 
 
@@ -108,44 +107,54 @@ class DateConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is date
 
-    def convert(self, value: str, expected_type) -> Any:
+    def convert(self, value: Optional[str], expected_type) -> Any:
         return dateutil_parser(value).date() if value else None
 
 
 class EnumConverter(TypeConverter):
 
-    def can_convert(self, expected_type) -> bool:
-        return isinstance(expected_type, type) and issubclass(
-            expected_type, (IntEnum, StrEnum)
-        )
+    @abstractmethod
+    def parse_by_value(self, value: Optional[str], expected_type) -> Any:
+        """Obtains an enum of the expected type by value."""
 
-    def convert(self, value: str, expected_type) -> Any:
+    @abstractmethod
+    def parse_by_key(self, value: Optional[str], expected_type) -> Any:
+        """Obtains an enum of the expected type by key."""
+
+    def convert(self, value: Optional[str], expected_type) -> Any:
+        if value is None:
+            return None
         try:
-            return expected_type(value)
+            return self.parse_by_value(value, expected_type)
         except ValueError:
             try:
-                return expected_type[value]
+                return self.parse_by_key(value, expected_type)
             except KeyError:
-                raise ValueError(f"{value} is not a valid {expected_type.__name__}")
+                raise BadRequest(f"{value} is not a valid {expected_type.__name__}")
 
 
-class IterableConverter(TypeConverter):
-
-    def _is_generic_iterable_annotation(self, param_type):
-        return hasattr(param_type, "__origin__") and (
-            param_type.__origin__ in {list, tuple, set}
-            or issubclass(param_type.__origin__, Iterable)
-        )
+class StrEnumConverter(EnumConverter):
 
     def can_convert(self, expected_type) -> bool:
-        return self._is_generic_iterable_annotation(expected_type) or expected_type in {
-            list,
-            set,
-            tuple,
-        }
+        return isinstance(expected_type, type) and issubclass(expected_type, StrEnum)
 
-    def convert(self, value: Sequence[str], expected_type) -> Any:
-        return super().convert(value, expected_type)
+    def parse_by_value(self, value: str, expected_type) -> Any:
+        return expected_type(value)
+
+    def parse_by_key(self, value: str, expected_type) -> Any:
+        return expected_type[value]
+
+
+class IntEnumConverter(EnumConverter):
+
+    def can_convert(self, expected_type) -> bool:
+        return isinstance(expected_type, type) and issubclass(expected_type, IntEnum)
+
+    def parse_by_value(self, value: str, expected_type) -> Any:
+        return expected_type(int(ensure_str(value)))
+
+    def parse_by_key(self, value: str, expected_type) -> Any:
+        return expected_type[value]
 
 
 class LiteralConverter(TypeConverter):
@@ -157,7 +166,9 @@ class LiteralConverter(TypeConverter):
             and expected_type.__origin__ is Literal
         )
 
-    def convert(self, value: str, expected_type) -> Any:
+    def convert(self, value: Optional[str], expected_type) -> Any:
+        if value is None:
+            return None
         allowed = get_args(expected_type)
         for allowed_value in allowed:
             if (
@@ -171,14 +182,15 @@ class LiteralConverter(TypeConverter):
 
 
 Converters: List[TypeConverter] = [
-    BytesConverter(),
     BoolConverter(),
+    BytesConverter(),
     DateConverter(),
     DateTimeConverter(),
-    EnumConverter(),
     IntConverter(),
+    IntEnumConverter(),
     FloatConverter(),
     LiteralConverter(),
     StrConverter(),
+    StrEnumConverter(),
     UUIDConverter(),
 ]

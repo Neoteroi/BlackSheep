@@ -39,9 +39,9 @@ from rodi import CannotResolveTypeException, ContainerProtocol
 from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
+from blacksheep.server.bindings.converters import Converters
 from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
-from .converters import Converters
 
 T = TypeVar("T")
 TypeOrName = Union[Type, str]
@@ -639,40 +639,44 @@ class SyncBinder(Binder):
         name: str = "",
         implicit: bool = False,
         required: bool = False,
-        converter: Optional[Callable] = None,
+        converter: Optional[Callable[[Sequence[str]], Any]] = None,
     ):
         super().__init__(
             expected_type,
             name=name,
             implicit=implicit,
             required=required,
-            converter=converter or self._get_default_converter(expected_type),
+            converter=converter or self._get_converter(expected_type),
         )
 
-    def _get_default_converter(self, expected_type):
+    def _get_converter(self, expected_type) -> Callable[[Sequence[str]], Any]:
         if self.is_generic_iterable_annotation(expected_type) or expected_type in {
             list,
             set,
             tuple,
         }:
-            return self._get_default_converter_for_iterable(expected_type)
+            return self._get_converter_for_iterable(expected_type)
 
         for converter in Converters:
             if converter.can_convert(expected_type):
-                return partial(converter.convert, expected_type=expected_type)
+                return lambda values: converter.convert(
+                    values[0] if values else None, expected_type
+                )
 
         raise MissingConverterError(expected_type, self.__class__)
 
-    def _get_default_converter_single(self, expected_type):
+    def _get_converter_single(self, expected_type):
         for converter in Converters:
             if converter.can_convert(expected_type):
                 return partial(converter.convert, expected_type=expected_type)
         raise MissingConverterError(expected_type, self.__class__)
 
-    def _get_default_converter_for_iterable(self, expected_type):
+    def _get_converter_for_iterable(
+        self, expected_type
+    ) -> Callable[[Sequence[str]], Any]:
         generic_type = self.get_type_for_generic_iterable(expected_type)
         item_type = self.generic_iterable_annotation_item_type(expected_type)
-        item_converter = self._get_default_converter_single(item_type)
+        item_converter = self._get_converter_single(item_type)
         return lambda values: generic_type(item_converter(value) for value in values)
 
     @abstractmethod
@@ -690,12 +694,10 @@ class SyncBinder(Binder):
         return value in self._empty_iterables
 
     async def get_value(self, request: Request) -> Optional[Any]:
-        # TODO: support get_raw_value returning None, to not instantiate lists
-        # when a parameter is not present
         raw_value = self.get_raw_value(request)
         try:
             value = self.converter(raw_value)
-        except (ValueError, BadRequest) as converter_error:
+        except ValueError as converter_error:
             raise BadRequest(
                 f"Invalid value {raw_value} for parameter `{self.parameter_name}`; "
                 f"expected a valid {self.expected_type.__name__}."

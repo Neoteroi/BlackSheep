@@ -170,11 +170,12 @@ class IntEnumConverter(EnumConverter):
 
 class LiteralConverter(TypeConverter):
 
+    def __init__(self, case_insensitive: bool = True) -> None:
+        self.case_insensitive = case_insensitive
+
     def can_convert(self, expected_type) -> bool:
         return (
-            isinstance(expected_type, type)
-            and hasattr(expected_type, "__origin__")
-            and expected_type.__origin__ is Literal
+            hasattr(expected_type, "__origin__") and expected_type.__origin__ is Literal
         )
 
     def convert(self, value: Optional[str], expected_type) -> Any:
@@ -182,12 +183,13 @@ class LiteralConverter(TypeConverter):
             return None
         allowed = get_args(expected_type)
         for allowed_value in allowed:
+            if str(allowed_value) == value:
+                return allowed_value
             if (
-                isinstance(allowed_value, str)
+                self.case_insensitive
+                and isinstance(allowed_value, str)
                 and allowed_value.lower() == value.lower()
             ):
-                return allowed_value
-            if allowed_value == value:
                 return allowed_value
         raise ValueError(f"{value!r} is not a valid {expected_type}")
 

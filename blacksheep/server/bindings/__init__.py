@@ -296,8 +296,15 @@ class Binder(metaclass=BinderMeta):  # type: ignore
     def is_generic_iterable_annotation(self, param_type):
         return hasattr(param_type, "__origin__") and (
             param_type.__origin__ in {list, tuple, set}
-            or issubclass(param_type.__origin__, IterableAbc)
+            or self._issubclass(param_type.__origin__, IterableAbc)
         )
+
+    @staticmethod
+    def _issubclass(clstype, class_or_tuple) -> bool:
+        try:
+            return issubclass(clstype, class_or_tuple)
+        except TypeError:
+            return False
 
     def generic_iterable_annotation_item_type(self, param_type):
         try:

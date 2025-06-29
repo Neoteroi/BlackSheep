@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.4.1] - 2025-??-??
 
+- Improve the code responsible of mapping input request parameters into
+  instances of desired types. Change the inner workings of
+  `blacksheep.server.bindings` to make the code more configurable and easier to
+  maintain.
 - Add support for `StrEnum` and `IntEnum` to binders for request handlers'
-  parameters. See #588.
+  parameters. See [#588](https://github.com/Neoteroi/BlackSheep/issues/588).
+  Enums can be mapped by key and by value. The class that matches `StrEnum`
+  make _case sensitive_ checks; override the `__missing__` method of your
+  user-defined enums to support case insensitive checks; or define a custom
+  `StrEnumConverter` class.
+- Add support for `Literal` to binders for request handlers'
+  parameters. See [#588](https://github.com/Neoteroi/BlackSheep/issues/588).
+  String literals are _case sensitive_ by default.
+- **Minor breaking change**. Remove the dependency on `python-dateutil`
+  ([#544](https://github.com/Neoteroi/BlackSheep/issues/544)), which was always
+  used to parse input `datetime` parameters. The datetime parsing logic is
+  replaced with a function that only supports the most common ISO formats:
+  `%Y-%m-%dT%H:%M:%S.%f`, `%Y-%m-%dT%H:%M:%S`, `%Y-%m-%d`, and is much more
+  performant for such formats. The new code API offers a simple way to keep
+  using `python-dateutil` for those who desire doing so.
 
 ## [2.4.0] - 2025-06-22
 

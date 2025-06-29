@@ -8,7 +8,6 @@ from typing import List, Optional, Set
 from uuid import UUID
 
 import uvicorn
-from dateutil.parser import parse as dateutil_parse
 from guardpost import AuthorizationContext, Identity
 from guardpost.common import AuthenticatedRequirement
 from openapidocs.v3 import Discriminator, Info, MediaType, Operation
@@ -28,6 +27,7 @@ from blacksheep.server.bindings import (
     FromQuery,
     FromServices,
 )
+from blacksheep.server.bindings.dates import parse_datetime
 from blacksheep.server.compression import use_gzip_compression
 from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
@@ -415,7 +415,7 @@ class Cats(APIController):
                                         name="Foo",
                                         active=True,
                                         type=CatType.EUROPEAN,
-                                        creation_time=dateutil_parse(
+                                        creation_time=parse_datetime(
                                             "2020-10-25T19:39:31.751652"
                                         ),
                                     ),
@@ -424,7 +424,7 @@ class Cats(APIController):
                                         name="Frufru",
                                         active=True,
                                         type=CatType.PERSIAN,
-                                        creation_time=dateutil_parse(
+                                        creation_time=parse_datetime(
                                             "2020-10-25T19:39:31.751652"
                                         ),
                                     ),
@@ -481,14 +481,14 @@ class Cats(APIController):
                     name="Foo",
                     active=True,
                     type=CatType.EUROPEAN,
-                    creation_time=dateutil_parse("2020-10-25T19:39:31.751652"),
+                    creation_time=parse_datetime("2020-10-25T19:39:31.751652"),
                 ),
                 Cat(
                     id=UUID("f212cabf-987c-48e6-8cad-71d1c041209a"),
                     name="Frufru",
                     active=True,
                     type=CatType.PERSIAN,
-                    creation_time=dateutil_parse("2020-10-25T19:39:31.751652"),
+                    creation_time=parse_datetime("2020-10-25T19:39:31.751652"),
                 ),
             ],
             1230,
@@ -602,7 +602,7 @@ class Cats(APIController):
                                     name="Foo",
                                     active=True,
                                     type=CatType.EUROPEAN,
-                                    creation_time=dateutil_parse(
+                                    creation_time=parse_datetime(
                                         "2020-10-25T19:39:31.751652"
                                     ),
                                 )

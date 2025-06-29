@@ -8,11 +8,9 @@ See:
     https://www.neoteroi.dev/blacksheep/binders/
 """
 
-import enum
 from abc import abstractmethod
 from base64 import urlsafe_b64decode
 from collections.abc import Iterable as IterableAbc
-from datetime import date, datetime
 from functools import partial
 from typing import (
     Any,
@@ -29,10 +27,7 @@ from typing import (
     TypeVar,
     Union,
 )
-from urllib.parse import unquote
-from uuid import UUID
 
-from dateutil.parser import parse as dateutil_parser
 from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol
 
@@ -149,9 +144,7 @@ class FromHeader(BoundValue[T]):
 
 
 class FromQuery(BoundValue[T]):
-    """
-    A parameter obtained from URL query parameters.
-    """
+    """A parameter obtained from URL query parameters."""
 
 
 class FromCookie(BoundValue[T]):
@@ -446,36 +439,16 @@ class BodyBinder(Binder):
         self.converter = converter
 
     def _get_default_converter_single(self, expected_type):
-        # this method converts an item that was already parsed to a supported type,
-        # for example in JSON can be int, float, bool
-        if expected_type in {str, int, float, bool} or str(expected_type) == "~T":
-            return lambda value: value
-
-        if expected_type is date:
-            return lambda value: dateutil_parser(value).date() if value else None
-
-        if expected_type is datetime:
-            return lambda value: dateutil_parser(value) if value else None
-
         if expected_type is bytes:
-            # note: the code is optimized for strings here, not bytes
-            # since most of times the user will want to handle strings
             return lambda value: (
                 urlsafe_b64decode(value.encode("utf8")).decode("utf8")
                 if value
                 else None
             )
 
-        if expected_type is UUID:
-            return lambda value: UUID(value)
-
-        # Add support for StrEnum and IntEnum
-        if isinstance(expected_type, type) and issubclass(expected_type, enum.StrEnum):
-            return lambda value: expected_type(unquote(value)) if value else None
-
-        if isinstance(expected_type, type) and issubclass(expected_type, enum.IntEnum):
-            return lambda value: expected_type(int(value)) if value else None
-
+        for converter in converters:
+            if converter.can_convert(expected_type):
+                return partial(converter.convert, expected_type=expected_type)
         return get_default_class_converter(expected_type)
 
     def _get_default_converter_for_iterable(self, expected_type):

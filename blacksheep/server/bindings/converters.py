@@ -12,13 +12,12 @@ the user can still define custom logic to parse input values.
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from enum import IntEnum, StrEnum
-from typing import Any, List, Literal, Optional, get_args
+from typing import Any, Callable, List, Literal, Optional, get_args
 from urllib.parse import unquote
 from uuid import UUID
 
-from dateutil.parser import parse as dateutil_parser
-
 from blacksheep.exceptions import BadRequest
+from blacksheep.server.bindings.dates import parse_datetime
 from blacksheep.utils import ensure_str
 
 
@@ -66,6 +65,8 @@ class BoolConverter(TypeConverter):
     def convert(self, value: Optional[str], expected_type) -> Any:
         if value is None:
             return None
+        if not isinstance(value, str):
+            return bool(value)
         if value.lower() in ("true", "1"):
             return True
         elif value.lower() in ("false", "0"):
@@ -106,20 +107,26 @@ class BytesConverter(TypeConverter):
 
 class DateTimeConverter(TypeConverter):
 
+    def __init__(self, parser_fn: Callable[[str], datetime] = parse_datetime) -> None:
+        self.parser_fn = parser_fn
+
     def can_convert(self, expected_type) -> bool:
         return expected_type is datetime
 
     def convert(self, value: Optional[str], expected_type) -> Any:
-        return dateutil_parser(value) if value else None
+        return self.parser_fn(value) if value else None
 
 
 class DateConverter(TypeConverter):
+
+    def __init__(self, parser_fn: Callable[[str], datetime] = parse_datetime) -> None:
+        self.parser_fn = parser_fn
 
     def can_convert(self, expected_type) -> bool:
         return expected_type is date
 
     def convert(self, value: Optional[str], expected_type) -> Any:
-        return dateutil_parser(value).date() if value else None
+        return self.parser_fn(value).date() if value else None
 
 
 class EnumConverter(TypeConverter):
@@ -170,7 +177,7 @@ class IntEnumConverter(EnumConverter):
 
 class LiteralConverter(TypeConverter):
 
-    def __init__(self, case_insensitive: bool = True) -> None:
+    def __init__(self, case_insensitive: bool = False) -> None:
         self.case_insensitive = case_insensitive
 
     def can_convert(self, expected_type) -> bool:

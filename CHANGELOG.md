@@ -27,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `%Y-%m-%dT%H:%M:%S.%f`, `%Y-%m-%dT%H:%M:%S`, `%Y-%m-%d`, and is much more
   performant for such formats. The new code API offers a simple way to keep
   using `python-dateutil` for those who desire doing so.
+- Fix erroneous assumption when parsing a request body declared as `bytes`.
+  When the declared requested input body is `bytes`, the framework has been
+  corrected to not require URL-safe base64 encoded data, and to read the input
+  body as-is.
+- Add support for defining `convert` functions in custom `BoundValue` classes
+  that are used to convert Python objects from parsed JSON into more specific
+  classes.
+- Correct bug that prevented request body input to be mapped properly to
+  a `list` using the default logic.
 
 ## [2.4.0] - 2025-06-22
 

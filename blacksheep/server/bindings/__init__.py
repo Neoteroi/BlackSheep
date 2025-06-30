@@ -9,7 +9,6 @@ See:
 """
 
 from abc import abstractmethod
-from base64 import urlsafe_b64decode
 from collections.abc import Iterable as IterableAbc
 from functools import partial
 from typing import (
@@ -409,7 +408,11 @@ def _try_get_type_name(expected_type) -> str:
 def get_default_class_converter(expected_type):
     def converter(data):
         try:
-            return expected_type(**data)
+            if isinstance(data, dict):
+                return expected_type(**data)
+            else:
+                # list, simple type
+                return expected_type(data)
         except TypeError as type_error:
             raise BadRequest(
                 "invalid parameter in request payload, "
@@ -439,13 +442,6 @@ class BodyBinder(Binder):
         self.converter = converter
 
     def _get_default_converter_single(self, expected_type):
-        if expected_type is bytes:
-            return lambda value: (
-                urlsafe_b64decode(value.encode("utf8")).decode("utf8")
-                if value
-                else None
-            )
-
         for converter in converters:
             if converter.can_convert(expected_type):
                 return partial(converter.convert, expected_type=expected_type)

@@ -12,7 +12,7 @@ the user can still define custom logic to parse input values.
 from abc import ABC, abstractmethod
 from datetime import date, datetime
 from enum import IntEnum, StrEnum
-from typing import Any, Callable, List, Literal, Optional, get_args
+from typing import Any, Callable, List, Literal, get_args
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -32,7 +32,7 @@ class TypeConverter(ABC):
         """Returns True if this converter can handle the expected type."""
 
     @abstractmethod
-    def convert(self, value: Any, expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         """Converts a str value into an object of the expected type."""
 
 
@@ -41,7 +41,7 @@ class StrConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is str or str(expected_type) == "~T"
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         return unquote(value) if value else None
 
 
@@ -53,7 +53,7 @@ class InitTypeConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is self._handled_type
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         return self._handled_type(value) if value is not None else None
 
 
@@ -62,7 +62,7 @@ class BoolConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is bool
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
         if not isinstance(value, str):
@@ -101,7 +101,7 @@ class BytesConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is bytes
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         return value.encode(self._encoding) if value else None
 
 
@@ -113,7 +113,7 @@ class DateTimeConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is datetime
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         return self.parser_fn(value) if value else None
 
 
@@ -125,21 +125,21 @@ class DateConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
         return expected_type is date
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         return self.parser_fn(value).date() if value else None
 
 
 class EnumConverter(TypeConverter):
 
     @abstractmethod
-    def parse_by_value(self, value: Optional[str], expected_type) -> Any:
+    def parse_by_value(self, value, expected_type) -> Any:
         """Obtains an enum of the expected type by value."""
 
     @abstractmethod
-    def parse_by_key(self, value: Optional[str], expected_type) -> Any:
+    def parse_by_key(self, value, expected_type) -> Any:
         """Obtains an enum of the expected type by key."""
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
         try:
@@ -185,7 +185,7 @@ class LiteralConverter(TypeConverter):
             hasattr(expected_type, "__origin__") and expected_type.__origin__ is Literal
         )
 
-    def convert(self, value: Optional[str], expected_type) -> Any:
+    def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
         allowed = get_args(expected_type)

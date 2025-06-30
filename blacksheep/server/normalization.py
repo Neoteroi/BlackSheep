@@ -456,8 +456,15 @@ def _get_binders_for_function(
         if not route and parameter_name in {"handler", "next_handler"}:
             binders.append(_next_handler_binder)
             continue
-
         binder = get_parameter_binder(parameter, services, route, method)
+
+        # Support defining a custom object converter in a convert static method on
+        # the type annotation for the return type
+        try:
+            binder.converter = parameter.annotation.convert
+        except AttributeError:
+            pass
+
         if isinstance(binder, BodyBinder):
             if body_binder is None:
                 body_binder = binder

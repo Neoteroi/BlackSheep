@@ -31,6 +31,11 @@ classifiers = [
 ]
 keywords = ["blacksheep", "web framework", "asyncio", "asgi"]
 dependencies = [
+    "certifi>=2025.4.26",
+    "charset-normalizer~=3.4.2",
+    "guardpost>=1.0.2",
+    "rodi~=2.0.8",
+    "essentials>=1.1.4,<2.0",
     "essentials-openapi>=1.2.0,<2.0",
     "python-dateutil~=2.9.0",
     "itsdangerous~=2.2.0",
@@ -45,7 +50,12 @@ exclude = ["tests*", "itests*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "blacksheep.__version__" }
+
+[project.optional-dependencies]
+jinja = ["Jinja2~=3.1.6"]
 full = [
+    "cryptography>=45.0.2,<46.0.0",
+    "PyJWT~=2.10.1",
     "websockets~=15.0.1",
     "Jinja2~=3.1.6",
 ]

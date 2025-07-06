@@ -1,5 +1,9 @@
 [build-system]
-requires = ["setuptools"]
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+    "cython>=3.0.0; platform_python_implementation != 'PyPy'",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,11 +22,15 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
     "Environment :: Web Environment",
     "Operating System :: OS Independent",
     "Framework :: AsyncIO",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-keywords = ["blacksheep", "web framework", "asyncio"]
+keywords = ["blacksheep", "web framework", "asyncio", "asgi"]
 dependencies = [
     "certifi>=2025.4.26",
     "guardpost>=1.0.4",
@@ -30,11 +38,14 @@ dependencies = [
     "essentials>=1.1.8,<2.0",
     "essentials-openapi>=1.2.0,<2.0",
     "itsdangerous~=2.2.0",
+    "h11==0.16.0; platform_python_implementation == 'PyPy'",
+    "httptools>=0.6.4; platform_python_implementation != 'PyPy'",
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["blacksheep*"]
+exclude = ["tests*", "itests*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "blacksheep.__version__" }
@@ -47,9 +58,83 @@ full = [
     "websockets~=15.0.1",
     "Jinja2~=3.1.6",
 ]
-cython = ["httptools>=0.6.4"]
-purepython = ["h11==0.16.0"]
+dev = [
+    "pytest==8.3.5",
+    "pytest-asyncio==0.26.0",
+    "pytest-cov==6.1.1",
+    "black>=25.0.0",
+    "isort>=6.0.0",
+    "flake8>=7.0.0",
+    "PyJWT==2.10.1",
+    "Cython==3.1.2",
+    "setuptools==80.7.1",
+    "build>=1.0.0",
+    "wheel>=0.40.0",
+    "twine>=5.0.0",
+    "cython-lint>=0.12.0",
+    "watchdog>=3.0.0",
+    "Jinja2~=3.1.6",
+    "Flask[async]==3.1.1",
+    "Hypercorn==0.17.3",
+    "requests==2.32.3",
+    "uvicorn==0.34.2",
+    "pydantic==2.11.4",
+    "pydantic_core==2.33.2",
+    "cryptography>=45.0.2,<46.0.0",
+    "websockets~=15.0.1",
+]
 
 [project.urls]
-"Homepage" = "https://github.com/Neoteroi/BlackSheep"
-"Bug Tracker" = "https://github.com/Neoteroi/BlackSheep/issues"
+Homepage = "https://github.com/Neoteroi/BlackSheep"
+Documentation = "https://www.neoteroi.dev/blacksheep/"
+Issues = "https://github.com/Neoteroi/BlackSheep/issues"
+Repository = "https://github.com/Neoteroi/BlackSheep"
+Changelog = "https://github.com/Neoteroi/BlackSheep/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+include-package-data = true
+
+# Modern tool configuration
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["blacksheep"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests", "itests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["blacksheep"]
+omit = ["*/tests/*", "*/itests/*", "setup.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

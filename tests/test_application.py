@@ -564,7 +564,7 @@ async def test_application_middlewares_skip_handler(app):
 
 async def test_application_post_multipart_formdata_files_handler(app):
     ensure_folder("out")
-    ensure_folder("tests/out")
+    ensure_folder(get_resource_file_path("tests", "out"))
 
     @app.router.post("/files/upload")
     async def upload_files(request):

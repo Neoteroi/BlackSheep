@@ -7,8 +7,9 @@ https://github.com/Neoteroi/BlackSheep/issues/539#issuecomment-2888631226
 """
 
 import os
-from setuptools import Extension, setup
 import platform
+from pathlib import Path
+from setuptools import Extension, setup
 
 COMPILE_ARGS = ["-O2"]
 

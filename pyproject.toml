@@ -33,7 +33,7 @@ keywords = ["blacksheep", "web framework", "asyncio", "asgi"]
 dependencies = [
     "certifi>=2025.4.26",
     "charset-normalizer~=3.4.2",
-	@@ -31,11 +39,14 @@ dependencies = [
+	dependencies = [
     "essentials-openapi>=1.2.0,<2.0",
     "python-dateutil~=2.9.0",
     "itsdangerous~=2.2.0",
@@ -48,7 +48,7 @@ exclude = ["tests*", "itests*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "blacksheep.__version__" }
-	@@ -48,9 +59,83 @@ full = [
+	full = [
     "websockets~=15.0.1",
     "Jinja2~=3.1.6",
 ]

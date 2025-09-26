@@ -33,7 +33,4 @@ def parse_datetime(value: str) -> datetime:
         except ValueError:
             pass
 
-    raise ValueError(
-        "Could not parse datetime string. "
-        "Install python-dateutil for more robust parsing."
-    )
+    raise ValueError("Could not parse datetime string.")

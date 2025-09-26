@@ -587,22 +587,6 @@ class BytesBinder(Binder):
         return await request.read()
 
 
-def _default_bool_converter(value: str) -> bool:
-    if value in {"1", "true"}:
-        return True
-
-    if value in {"0", "false"}:
-        return False
-
-    # bad request: expected a bool value, but
-    # got something different that is not handled
-    raise BadRequest(f"Expected a bool value for a parameter, but got {value}.")
-
-
-def _default_bool_list_converter(values: Sequence[str]):
-    return _default_bool_converter(values[0].lower()) if values else None
-
-
 class SyncBinder(Binder):
     """
     Base binder class for values that can be read synchronously from requests

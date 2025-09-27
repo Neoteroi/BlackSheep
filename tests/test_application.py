@@ -2035,8 +2035,8 @@ async def test_handler_from_json_list_of_objects(app):
         ],
         [
             List[bytes],
-            b'["bG9yZW0gaXBzdW0=","aGVsbG8gd29ybGQ=","VGhyZWU="]',
-            ["lorem ipsum", "hello world", "Three"],
+            b'["lorem ipsum", "hello world", "Three"]',
+            [b"lorem ipsum", b"hello world", b"Three"],
         ],
         [
             List[str],

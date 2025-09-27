@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2025-09-??
+
+- Correct bug in controller inheritance that would prevent argument types and
+  return type hints from working as expected ([#594](https://github.com/Neoteroi/BlackSheep/pull/594)).
+  By @martinmkhitaryan.
+- Improve the code responsible of mapping input request parameters into
+  instances of desired types. Change the inner workings of
+  `blacksheep.server.bindings` to make the code more configurable and easier to
+  maintain.
+- Add support for `StrEnum` and `IntEnum` to binders for request handlers'
+  parameters. See [#588](https://github.com/Neoteroi/BlackSheep/issues/588).
+  Enums can be mapped by key and by value. The class that matches `StrEnum`
+  make _case sensitive_ checks; override the `__missing__` method of your
+  user-defined enums to support case insensitive checks; or define a custom
+  `StrEnumConverter` class. This feature requires `Python >= 3.11`.
+- Add support for `Literal` to binders for request handlers'
+  parameters. See [#588](https://github.com/Neoteroi/BlackSheep/issues/588).
+  String literals are _case sensitive_ by default.
+- **Minor breaking change**. Remove the dependency on `python-dateutil`
+  ([#544](https://github.com/Neoteroi/BlackSheep/issues/544)), which was always
+  used to parse input `datetime` parameters. The datetime parsing logic is
+  replaced with a function that only supports the most common ISO formats:
+  `%Y-%m-%dT%H:%M:%S.%f`, `%Y-%m-%dT%H:%M:%S`, `%Y-%m-%d`, and is much more
+  performant for such formats. The new code API offers a simple way to keep
+  using `python-dateutil` for those who desire doing so.
+- Fix erroneous assumption when parsing a request body declared as `bytes`.
+  When the declared requested input body is `bytes`, the framework has been
+  corrected to not require URL-safe base64 encoded data, and to read the input
+  body as-is.
+- Add support for defining `convert` functions in custom `BoundValue` classes
+  that are used to convert Python objects from parsed JSON into more specific
+  classes.
+- Correct bug that prevented request body input to be mapped properly to
+  a `list` using the default logic.
+
 ## [2.4.0] - 2025-06-22
 
 - **SOME BREAKING CHANGES**. Modify the built-in sessions to support any kind

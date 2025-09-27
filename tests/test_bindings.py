@@ -1,4 +1,4 @@
-from enum import IntEnum, StrEnum
+import sys
 from typing import Any, List, Literal, Optional, Sequence, Set, Tuple, Type
 from uuid import UUID
 
@@ -40,6 +40,16 @@ JSONContentType = (b"Content-Type", b"application/json")
 
 ExampleLiteralStr = Literal["Hello", "World"]
 ExampleLiteralInt = Literal[1, 2, 3]
+
+
+try:
+    # Supported only in Python >= 3.11
+    from enum import IntEnum, StrEnum
+except ImportError:
+
+    class StrEnum: ...
+
+    class IntEnum: ...
 
 
 class ExampleOne:
@@ -164,10 +174,6 @@ async def test_from_body_json_binding_invalid_input():
         [bool, b"0", False],
         [ExampleLiteralStr, b"Hello", "Hello"],
         [ExampleLiteralInt, b"2", 2],
-        [ExampleStrEnum, b"one", ExampleStrEnum.ONE],
-        [ExampleStrEnum, b"ONE", ExampleStrEnum.ONE],
-        [ExampleIntEnum, b"1", ExampleIntEnum.ONE],
-        [ExampleIntEnum, b"ONE", ExampleIntEnum.ONE],
     ],
 )
 async def test_from_header_binding(expected_type, header_value, expected_value):
@@ -181,6 +187,21 @@ async def test_from_header_binding(expected_type, header_value, expected_value):
     if expected_type not in {ExampleLiteralStr, ExampleLiteralInt}:
         assert isinstance(value, expected_type)
     assert value == expected_value
+
+
+# TODO: merge with above when support for Python < 3.11 is dropped
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+@pytest.mark.parametrize(
+    "expected_type,header_value,expected_value",
+    [
+        [ExampleStrEnum, b"one", ExampleStrEnum.ONE],
+        [ExampleStrEnum, b"ONE", ExampleStrEnum.ONE],
+        [ExampleIntEnum, b"1", ExampleIntEnum.ONE],
+        [ExampleIntEnum, b"ONE", ExampleIntEnum.ONE],
+    ],
+)
+async def test_from_header_binding_enums(expected_type, header_value, expected_value):
+    await test_from_header_binding(expected_type, header_value, expected_value)
 
 
 @pytest.mark.parametrize(
@@ -223,8 +244,6 @@ async def test_from_header_binding_name_ci(expected_type, header_value, expected
         [bool, b"0", False],
         [ExampleLiteralStr, b"Hello", "Hello"],
         [ExampleLiteralInt, b"2", 2],
-        [ExampleStrEnum, b"one", ExampleStrEnum.ONE],
-        [ExampleIntEnum, b"1", ExampleIntEnum.ONE],
     ],
 )
 async def test_from_query_binding(expected_type, query_value, expected_value):
@@ -238,6 +257,19 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
     if expected_type not in {ExampleLiteralStr, ExampleLiteralInt}:
         assert isinstance(value, expected_type)
     assert value == expected_value
+
+
+# TODO: merge with above when support for Python < 3.11 is dropped
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+@pytest.mark.parametrize(
+    "expected_type,query_value,expected_value",
+    [
+        [ExampleStrEnum, b"one", ExampleStrEnum.ONE],
+        [ExampleIntEnum, b"1", ExampleIntEnum.ONE],
+    ],
+)
+async def test_from_query_binding_enums(expected_type, query_value, expected_value):
+    await test_from_query_binding(expected_type, query_value, expected_value)
 
 
 @pytest.mark.parametrize(
@@ -257,8 +289,6 @@ async def test_from_query_binding(expected_type, query_value, expected_value):
             "b0c1f822-b63c-475e-9f2e-b6406bafcc2b",
             UUID("b0c1f822-b63c-475e-9f2e-b6406bafcc2b"),
         ],
-        [ExampleStrEnum, "one", ExampleStrEnum.ONE],
-        [ExampleIntEnum, "1", ExampleIntEnum.ONE],
     ],
 )
 async def test_from_route_binding(expected_type, route_value, expected_value):
@@ -272,6 +302,19 @@ async def test_from_route_binding(expected_type, route_value, expected_value):
     if expected_type not in {ExampleLiteralStr, ExampleLiteralInt}:
         assert isinstance(value, expected_type)
     assert value == expected_value
+
+
+# TODO: merge with above when support for Python < 3.11 is dropped
+@pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11 or higher")
+@pytest.mark.parametrize(
+    "expected_type,route_value,expected_value",
+    [
+        [ExampleStrEnum, "one", ExampleStrEnum.ONE],
+        [ExampleIntEnum, "1", ExampleIntEnum.ONE],
+    ],
+)
+async def test_from_route_binding_enums(expected_type, route_value, expected_value):
+    await test_from_route_binding(expected_type, route_value, expected_value)
 
 
 @pytest.mark.parametrize("binder_type", [HeaderBinder, QueryBinder, RouteBinder])

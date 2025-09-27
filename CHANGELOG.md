@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Enums can be mapped by key and by value. The class that matches `StrEnum`
   make _case sensitive_ checks; override the `__missing__` method of your
   user-defined enums to support case insensitive checks; or define a custom
-  `StrEnumConverter` class.
+  `StrEnumConverter` class. This feature requires `Python >= 3.11`.
 - Add support for `Literal` to binders for request handlers'
   parameters. See [#588](https://github.com/Neoteroi/BlackSheep/issues/588).
   String literals are _case sensitive_ by default.

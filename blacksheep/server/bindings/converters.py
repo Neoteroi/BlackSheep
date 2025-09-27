@@ -11,7 +11,6 @@ the user can still define custom logic to parse input values.
 
 from abc import ABC, abstractmethod
 from datetime import date, datetime
-from enum import IntEnum, StrEnum
 from typing import Any, Callable, List, Literal, get_args
 from urllib.parse import unquote
 from uuid import UUID
@@ -19,6 +18,13 @@ from uuid import UUID
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.bindings.dates import parse_datetime
 from blacksheep.utils import ensure_str
+
+try:
+    # Supported only in Python >= 3.11
+    from enum import IntEnum, StrEnum
+except ImportError:
+    IntEnum = None
+    StrEnum = None
 
 
 class TypeConverter(ABC):
@@ -207,10 +213,14 @@ converters: List[TypeConverter] = [
     DateConverter(),
     DateTimeConverter(),
     IntConverter(),
-    IntEnumConverter(),
     FloatConverter(),
     LiteralConverter(),
     StrConverter(),
-    StrEnumConverter(),
     UUIDConverter(),
 ]
+
+
+if StrEnum is not None and IntEnum is not None:
+    # Python > 3.10
+    converters.append(IntEnumConverter())
+    converters.append(StrEnumConverter())

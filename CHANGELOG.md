@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.4.1] - 2025-09-??
 
+- Correct bug in controller inheritance that would prevent argument types and
+  return type hints from working as expected ([#594](https://github.com/Neoteroi/BlackSheep/pull/594)).
+  By @martinmkhitaryan.
 - Improve the code responsible of mapping input request parameters into
   instances of desired types. Change the inner workings of
   `blacksheep.server.bindings` to make the code more configurable and easier to

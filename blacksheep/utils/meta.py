@@ -33,7 +33,7 @@ def import_child_modules(root_path: Path):
 
 def clonefunc(func):
     """
-    Clone a function, preserving its name and docstring.
+    Clone a function, preserving its name, docstring, annotations and kwdefaults.
     """
     new_func = func.__class__(
         func.__code__,
@@ -44,6 +44,9 @@ def clonefunc(func):
     )
     new_func.__doc__ = func.__doc__
     new_func.__dict__ = copy.deepcopy(func.__dict__)
+    new_func.__annotations__ = copy.deepcopy(func.__annotations__)
+    if func.__kwdefaults__:
+        new_func.__kwdefaults__ = copy.deepcopy(func.__kwdefaults__)
     return new_func
 
 

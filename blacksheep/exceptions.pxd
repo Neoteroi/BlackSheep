@@ -35,3 +35,7 @@ cdef class InvalidOperation(Exception):
 
 cdef class FailedRequestError(HTTPException):
     cdef public str data
+
+
+cdef class InvalidExceptionHandler(Exception):
+    pass

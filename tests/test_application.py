@@ -26,7 +26,12 @@ from blacksheep import (
     TextContent,
 )
 from blacksheep.contents import FormPart
-from blacksheep.exceptions import Conflict, InternalServerError, NotFound
+from blacksheep.exceptions import (
+    Conflict,
+    InternalServerError,
+    InvalidExceptionHandler,
+    NotFound,
+)
 from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.bindings import (
     ClientInfo,
@@ -662,6 +667,37 @@ async def test_application_http_exception_handlers(app):
     assert text == "Called", (
         "The response is the one returned by " "defined http exception handler"
     )
+
+
+async def test_application_invalid_exception_handler(app):
+    # https://github.com/Neoteroi/BlackSheep/issues/592
+    async def exception_handler(request, http_exception):
+        pass
+
+    with pytest.raises(InvalidExceptionHandler):
+        app.exceptions_handlers[500] = exception_handler
+
+
+async def test_application_failing_exception_handler(app):
+    # https://github.com/Neoteroi/BlackSheep/issues/592
+    async def exception_handler(app, request, http_exception):
+        raise Exception("Invalid handler!")
+
+    app.exceptions_handlers[519] = exception_handler
+
+    @app.router.get("/")
+    async def home(request):
+        raise HTTPException(519)
+
+    await app(get_example_scope("GET", "/"), MockReceive, MockSend())
+
+    assert app.response is not None
+    response: Response = app.response
+
+    assert response is not None
+
+    text = await response.text()
+    assert text == "Internal Server Error"
 
 
 async def test_application_http_exception_handlers_called_in_application_context(app):

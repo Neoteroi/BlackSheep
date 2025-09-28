@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct bug that prevented request body input to be mapped properly to
   a `list` using the default logic.
 - Upgrade `pytest-asyncio` to the latest version. Fix [#596](https://github.com/Neoteroi/BlackSheep/issues/596).
+- Fix a Cython segmentation fault happening when the user defines an exception handler
+  with a wrong signature ([#592](https://github.com/Neoteroi/BlackSheep/issues/592)),
+  or that contains a bug and causes exceptions itself.
+  Replace the Application `exception_handlers` dictionary with a user defined
+  dictionary that validates values, and change a piece of code that causes
+  a recursive error when an exception handler itself is buggy.
+- Fix `license` field in `pyproject.toml`.
 
 ## [2.4.0] - 2025-06-22
 

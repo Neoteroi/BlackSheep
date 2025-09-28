@@ -49,7 +49,7 @@ from itests.utils import CrashTest
 
 os.environ["APP_SHOW_ERROR_DETAILS"] = "0"
 
-app_2 = Application(show_error_details=False)
+app_2 = Application()
 
 use_gzip_compression(app_2)
 

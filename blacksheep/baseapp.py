@@ -24,8 +24,7 @@ except ImportError:
 class ExceptionHandlersDict(UserDict):
 
     def __setitem__(self, key, item) -> None:
-        iscoroutinefunction = inspect.iscoroutinefunction(item)
-        if not iscoroutinefunction:
+        if not inspect.iscoroutinefunction(item):
             raise InvalidExceptionHandler()
         signature = inspect.Signature.from_callable(item)
         if len(signature.parameters) != 3 and not any(

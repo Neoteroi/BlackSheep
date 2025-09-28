@@ -69,3 +69,6 @@ class FailedRequestError(HTTPException):
             f"The response status code does not indicate success: {status}. Response body: {data}",
         )
         self.data = data
+
+class InvalidExceptionHandler(Exception):
+    pass

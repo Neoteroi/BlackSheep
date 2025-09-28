@@ -1,8 +1,11 @@
 import http
+import inspect
 import logging
 
+from collections import UserDict
+
 from .contents cimport Content, TextContent
-from .exceptions cimport BadRequest, HTTPException, InternalServerError, NotFound
+from .exceptions cimport BadRequest, HTTPException, InvalidExceptionHandler, InternalServerError, NotFound
 from .messages cimport Request, Response
 
 from .utils import get_class_instance_hierarchy
@@ -12,6 +15,22 @@ try:
     from pydantic import ValidationError
 except ImportError:
     ValidationError = None
+
+
+class ExceptionHandlersDict(UserDict):
+
+    def __setitem__(self, key, item) -> None:
+        iscoroutinefunction = inspect.iscoroutinefunction(item)
+        if not iscoroutinefunction:
+            raise InvalidExceptionHandler()
+        signature = inspect.Signature.from_callable(item)
+        if len(signature.parameters) != 3 and not any(
+            param
+            for param in signature.parameters
+            if signature.parameters[param].kind == 2
+        ):
+            raise InvalidExceptionHandler()
+        return super().__setitem__(key, item)
 
 
 async def handle_not_found(app, Request request, HTTPException http_exception):
@@ -56,10 +75,10 @@ cdef class BaseApplication:
         self.logger = get_logger()
 
     def init_exceptions_handlers(self):
-        default_handlers = {
+        default_handlers = ExceptionHandlersDict({
             404: handle_not_found,
             400: handle_bad_request
-        }
+        })
         if ValidationError is not None:
             default_handlers[ValidationError] = _default_pydantic_validation_error_handler
         return default_handlers
@@ -178,7 +197,13 @@ cdef class BaseApplication:
         try:
             return await exception_handler(self, request, exc)
         except Exception as server_ex:
-            return await self.handle_exception(request, server_ex)
+            # If the exception happens in the user-defined exception handler,
+            # we need to fallback to the default handlers.
+            self.logger.error("Unhandled exception in exception_handler: %s", exception_handler.__name__)
+            if self.show_error_details:
+                return self.server_error_details_handler.produce_response(request, exc)
+
+            return await handle_internal_server_error(self, request, server_ex)
 
     async def handle_http_exception(self, Request request, HTTPException http_exception):
         exception_handler = self.get_http_exception_handler(http_exception)

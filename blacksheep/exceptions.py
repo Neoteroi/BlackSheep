@@ -77,3 +77,13 @@ class MessageAborted(Exception):
         super().__init__(
             "The message was aborted before the client sent its whole content."
         )
+
+
+class InvalidExceptionHandler(Exception):
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Invalid Exception handler. Exception handlers must be asynchronous "
+            "functions with signature: "
+            "async def handler(app: Application, request: Request, exc: Exception)"
+        )

@@ -7,7 +7,8 @@ name = "blacksheep"
 dynamic = ["version"]
 authors = [{ name = "Roberto Prevato", email = "roberto.prevato@gmail.com" }]
 description = "Fast web framework for Python asyncio"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [

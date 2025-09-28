@@ -125,8 +125,11 @@ nomodel_text = """<!DOCTYPE html>
 </html>"""
 
 
-async def _home_scenario(app: FakeApplication, url="/", expected_text=None):
+async def _home_scenario(
+    app: FakeApplication, url="/", expected_text=None, status: int = 200
+):
     await app(get_example_scope("GET", url), MockReceive(), MockSend())
+    assert app.response is not None
     text = await app.response.text()
 
     if expected_text is None:
@@ -143,7 +146,7 @@ async def _home_scenario(app: FakeApplication, url="/", expected_text=None):
 </html>"""
 
     assert text == expected_text
-    assert app.response.status == 200
+    assert app.response.status == status
 
 
 async def _view_scenario(app: FakeApplication, expected_text, url="/"):
@@ -163,6 +166,16 @@ async def test_jinja_async_mode(home_model, async_jinja_env):
     await _home_scenario(app)
 
 
+async def test_jinja_async_mode_with_status(home_model, async_jinja_env):
+    app, render = get_app(True)
+
+    @app.router.get("/")
+    async def home():
+        return await render("home", home_model, status=500)
+
+    await _home_scenario(app, status=500)
+
+
 async def test_jinja_sync_mode(home_model):
     app, render = get_app(False)
 
@@ -171,6 +184,16 @@ async def test_jinja_sync_mode(home_model):
         return render("home", home_model)
 
     await _home_scenario(app)
+
+
+async def test_jinja_sync_mode_with_status(home_model):
+    app, render = get_app(False)
+
+    @app.router.get("/")
+    async def home():
+        return render("home", home_model, 500)
+
+    await _home_scenario(app, status=500)
 
 
 async def test_controller_conventional_view_name(home_model):
@@ -210,6 +233,34 @@ async def test_controller_specific_view_name(home_model, specific_text):
             return self.view("specific", home_model)
 
     await _home_scenario(app, expected_text=specific_text)
+
+
+async def test_controller_conventional_view_name_async_with_status(
+    home_model, async_jinja_env
+):
+    app, _ = get_app(True)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Lorem(Controller):
+        @get()
+        async def index(self):
+            return await self.view_async(model=home_model, status=404)
+
+    await _home_scenario(app, status=404)
+
+
+async def test_controller_specific_view_name_with_status(home_model, specific_text):
+    app, _ = get_app(False)
+    app.controllers_router = RoutesRegistry()
+    get = app.controllers_router.get
+
+    class Lorem(Controller):
+        @get()
+        def index(self):
+            return self.view("specific", home_model, status=404)
+
+    await _home_scenario(app, expected_text=specific_text, status=404)
 
 
 async def test_controller_specific_view_name_async(

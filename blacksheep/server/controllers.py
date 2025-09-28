@@ -434,7 +434,11 @@ class Controller(metaclass=ControllerMeta):
         return f"{self.class_name()}/{name}"
 
     def view(
-        self, name: Optional[str] = None, model: Optional[Any] = None, **kwargs
+        self,
+        name: Optional[str] = None,
+        model: Optional[Any] = None,
+        status: int = 200,
+        **kwargs,
     ) -> Response:
         """
         Returns a view rendered synchronously.
@@ -442,15 +446,20 @@ class Controller(metaclass=ControllerMeta):
         :param name: name of the template (path to the template file,
             optionally without '.html' extension
         :param model: optional model, required to render the template.
+        :param status: optional status code for the response, default 200.
         :return: a Response object
         """
         if name is None:
             name = self.get_default_view_name()
 
-        return view(self.full_view_name(name), model, **kwargs)
+        return view(self.full_view_name(name), model, status, **kwargs)
 
     async def view_async(
-        self, name: Optional[str] = None, model: Optional[Any] = None, **kwargs
+        self,
+        name: Optional[str] = None,
+        model: Any = None,
+        status: int = 200,
+        **kwargs,
     ) -> Response:
         """
         Returns a view rendered asynchronously.
@@ -458,12 +467,13 @@ class Controller(metaclass=ControllerMeta):
         :param name: name of the template (path to the template file,
             optionally without '.html' extension
         :param model: optional model, required to render the template.
+        :param status: optional status code for the response, default 200.
         :return: a Response object
         """
         if name is None:
             name = self.get_default_view_name()
 
-        return await view_async(self.full_view_name(name), model, **kwargs)
+        return await view_async(self.full_view_name(name), model, status, **kwargs)
 
 
 class APIController(Controller):

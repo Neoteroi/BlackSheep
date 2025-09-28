@@ -46,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Replace the Application `exception_handlers` dictionary with a user defined
   dictionary that validates values, and change a piece of code that causes
   a recursive error when an exception handler itself is buggy.
+- Add support for specifying the status code in view functions
+  ([#591](https://github.com/Neoteroi/BlackSheep/issues/591)).
 - Fix `license` field in `pyproject.toml`.
 
 ## [2.4.0] - 2025-06-22

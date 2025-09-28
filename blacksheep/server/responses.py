@@ -320,14 +320,14 @@ def file(
     return _file(value, content_type, content_disposition, file_name)
 
 
-def _create_html_response(html: str):
+def _create_html_response(html: str, status: int = 200):
     """Creates a Response to serve dynamic HTML. Caching is disabled."""
-    return Response(200, [(b"Cache-Control", b"no-cache")]).with_content(
+    return Response(status, [(b"Cache-Control", b"no-cache")]).with_content(
         Content(b"text/html; charset=utf-8", html.encode("utf8"))
     )
 
 
-def view(name: str, model: Any = None, **kwargs) -> Response:
+def view(name: str, model: Any = None, status: int = 200, **kwargs) -> Response:
     """
     Returns a Response object with HTML obtained using synchronous rendering.
 
@@ -338,12 +338,15 @@ def view(name: str, model: Any = None, **kwargs) -> Response:
     renderer = html_settings.renderer
     if model:
         return _create_html_response(
-            renderer.render(name, html_settings.model_to_params(model), **kwargs)
+            renderer.render(name, html_settings.model_to_params(model), **kwargs),
+            status,
         )
-    return _create_html_response(renderer.render(name, None, **kwargs))
+    return _create_html_response(renderer.render(name, None, **kwargs), status)
 
 
-async def view_async(name: str, model: Any = None, **kwargs) -> Response:
+async def view_async(
+    name: str, model: Any = None, status: int = 200, **kwargs
+) -> Response:
     """
     Returns a Response object with HTML obtained using asynchronous rendering.
 
@@ -356,6 +359,9 @@ async def view_async(name: str, model: Any = None, **kwargs) -> Response:
         return _create_html_response(
             await renderer.render_async(
                 name, html_settings.model_to_params(model), **kwargs
-            )
+            ),
+            status,
         )
-    return _create_html_response(await renderer.render_async(name, None, **kwargs))
+    return _create_html_response(
+        await renderer.render_async(name, None, **kwargs), status
+    )

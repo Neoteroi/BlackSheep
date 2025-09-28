@@ -1,7 +1,6 @@
 import http
 import inspect
 import logging
-
 from collections import UserDict
 
 from blacksheep.server.errors import ServerErrorDetailsHandler

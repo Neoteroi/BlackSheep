@@ -1,11 +1,16 @@
 import http
 import inspect
 import logging
-
 from collections import UserDict
 
 from .contents cimport Content, TextContent
-from .exceptions cimport BadRequest, HTTPException, InvalidExceptionHandler, InternalServerError, NotFound
+from .exceptions cimport (
+    BadRequest,
+    HTTPException,
+    InternalServerError,
+    InvalidExceptionHandler,
+    NotFound,
+)
 from .messages cimport Request, Response
 
 from .utils import get_class_instance_hierarchy

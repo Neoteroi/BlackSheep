@@ -1,4 +1,5 @@
 import json
+import os
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -45,6 +46,8 @@ from blacksheep.server.openapi.v3 import OpenAPIHandler
 from blacksheep.server.responses import text
 from blacksheep.server.routing import RoutesRegistry
 from itests.utils import CrashTest
+
+os.environ["APP_SHOW_ERROR_DETAILS"] = "0"
 
 app_2 = Application()
 

@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import pytest
@@ -16,6 +17,16 @@ os.environ["APP_SIGNAL_HANDLER"] = "0"
 @pytest.fixture
 def app():
     return FakeApplication()
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    yield loop
+    # pytest-asyncio closes the loop and would complain if the loop was closed here.
 
 
 ASYNC_RENDERER = JinjaRenderer(enable_async=True)

@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   classes.
 - Correct bug that prevented request body input to be mapped properly to
   a `list` using the default logic.
+- Upgrade `pytest-asyncio` to the latest version. Fix [#596](https://github.com/Neoteroi/BlackSheep/issues/596).
 
 ## [2.4.0] - 2025-06-22
 

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.4.1] - 2025-09-??
+## [2.4.1] - 2025-09-28
 
 - Correct bug in controller inheritance that would prevent argument types and
   return type hints from working as expected ([#594](https://github.com/Neoteroi/BlackSheep/pull/594)).
@@ -46,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Replace the Application `exception_handlers` dictionary with a user defined
   dictionary that validates values, and change a piece of code that causes
   a recursive error when an exception handler itself is buggy.
+- Add support for specifying the status code in view functions
+  ([#591](https://github.com/Neoteroi/BlackSheep/issues/591)).
 - Fix `license` field in `pyproject.toml`.
 
 ## [2.4.0] - 2025-06-22

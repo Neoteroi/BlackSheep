@@ -1,4 +1,5 @@
 import json
+import os
 from base64 import urlsafe_b64decode
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -46,7 +47,9 @@ from blacksheep.server.responses import text
 from blacksheep.server.routing import RoutesRegistry
 from itests.utils import CrashTest
 
-app_2 = Application()
+os.environ["APP_SHOW_ERROR_DETAILS"] = "0"
+
+app_2 = Application(show_error_details=False)
 
 use_gzip_compression(app_2)
 

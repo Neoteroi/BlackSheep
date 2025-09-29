@@ -109,9 +109,6 @@ class APIKeyAuthentication(AuthenticationHandler):
         if not keys and keys_provider is None:
             raise ValueError("Either keys or keys_provider must be provided")
 
-    def is_valid_api_secret(self, api_key: APIKey, secret_from_client: str) -> bool:
-        return api_key.is_valid_secret(secret_from_client)
-
     async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
         """
         Tries to authenticate the request using API Keys.
@@ -162,6 +159,6 @@ class APIKeyAuthentication(AuthenticationHandler):
 
         for key in keys:
             input_secret = self._get_input_secret(key, context)
-            if input_secret and self.is_valid_api_secret(key, input_secret):
+            if input_secret and key.is_valid_secret(input_secret):
                 return key
         return None

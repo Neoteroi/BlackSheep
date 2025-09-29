@@ -9,11 +9,7 @@ from dataclasses import dataclass
 from openapidocs.v3 import Info
 
 from blacksheep import Application, get
-from blacksheep.server.authentication.apikey import (
-    APIKey,
-    APIKeyAuthentication,
-    InMemoryAPIKeysProvider,
-)
+from blacksheep.server.authentication.apikey import APIKey, APIKeyAuthentication
 from blacksheep.server.authorization import auth
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 
@@ -22,17 +18,10 @@ app = Application()
 
 app.use_authentication().add(
     APIKeyAuthentication(
-        InMemoryAPIKeysProvider(
-            [
-                APIKey(
-                    scheme="example",
-                    name="X-API-KEY",
-                    secret="my-secret-1243",
-                    location="header",
-                    claims={"app": "foo"},
-                    roles=["admin"],
-                )
-            ]
+        APIKey(
+            name="X-API-KEY",
+            secret="my-secret-1243",
+            roles=["user"],
         )
     )
 )

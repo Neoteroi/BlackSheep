@@ -5,7 +5,7 @@ This module contains an AuthenticationHandler that uses API Keys for authenticat
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import List, Literal, Optional, Sequence, Union
 
 from guardpost import AuthenticationHandler, Identity
 
@@ -18,16 +18,17 @@ class APIKeyLocation(Enum):
     COOKIE = "cookie"
 
 
-APIKeyLocationType = Literal["header", "query", "cookie"]
+APIKeyLocationValue = Literal["header", "query", "cookie"]
 
 
 class APIKey:
     def __init__(
         self,
-        scheme: str,
         name: str,
-        secret: str,
-        location: Union[APIKeyLocationType, APIKeyLocation] = APIKeyLocation.HEADER,
+        secret: Optional[str] = None,
+        secrets: Optional[Sequence[str]] = None,
+        scheme: str = "apikey",
+        location: Union[APIKeyLocationValue, APIKeyLocation] = "header",
         claims: Optional[dict] = None,
         roles: Optional[List[str]] = None,
     ) -> None:
@@ -38,6 +39,16 @@ class APIKey:
         self._claims = claims or {}
         self._roles = roles or []
 
+        # Handle secret/secrets parameters
+        if secret is not None and secrets is not None:
+            raise ValueError("Cannot specify both 'secret' and 'secrets' parameters")
+        elif secret is not None:
+            self._secrets = {secret}
+        elif secrets is not None:
+            self._secrets = set(secrets)
+        else:
+            raise ValueError("Either 'secret' or 'secrets' parameter must be provided")
+
     @property
     def scheme(self) -> str:
         """Returns the name of the Authentication Scheme used by this handler."""
@@ -47,11 +58,6 @@ class APIKey:
     def name(self) -> str:
         """Returns the name of the API Key."""
         return self._name
-
-    @property
-    def secret(self) -> str:
-        """Returns the secret of the API Key."""
-        return self._secret
 
     @property
     def location(self) -> APIKeyLocation:
@@ -68,40 +74,14 @@ class APIKey:
         """Returns the roles associated with this API Key."""
         return self._roles
 
+    def is_valid_secret(self, provided_secret: str) -> bool:
+        """Validate if the provided secret matches any of the configured secrets"""
+        return provided_secret in self._secrets
+
 
 class APIKeysProvider(ABC):
     @abstractmethod
     async def get_keys(self) -> List[APIKey]: ...
-
-
-class InMemoryAPIKeysProvider(APIKeysProvider):
-    """
-    Type of keys provider that stores keys in memory.
-    """
-
-    def __init__(self, keys: List[APIKey]) -> None:
-        """
-        Creates a new instance of InMemoryAPIKeysProvider bound to the given JWKS.
-
-        Parameters
-        ----------
-        keys : List[APIKey]
-            Exact keys handled by this instance.
-        """
-        super().__init__()
-        self._keys = keys
-
-    async def get_keys(self) -> List[APIKey]:
-        return self._keys
-
-
-class APIKeyValidator:
-    def __init__(self, keys_provider: APIKeysProvider) -> None:
-        self._keys_provider = keys_provider
-
-    async def is_valid(self, api_key: str) -> bool:
-        keys = await self._keys_provider.get_keys()
-        return any(key.secret == api_key for key in keys)
 
 
 class APIKeyAuthentication(AuthenticationHandler):
@@ -109,13 +89,28 @@ class APIKeyAuthentication(AuthenticationHandler):
     AuthenticationHandler that uses API Keys for authentication.
     """
 
-    def __init__(self, keys_provider: Optional[APIKeysProvider] = None) -> None:
-        """ """
+    def __init__(
+        self, *keys: APIKey, keys_provider: Optional[APIKeysProvider] = None
+    ) -> None:
+        """
+        Creates a new instance of APIKeyAuthentication.
+        Parameters
+        ----------
+        *keys : APIKey
+            Exact keys handled by this instance.
+        keys_provider : Optional[APIKeysProvider]
+            An optional provider that can be used to retrieve keys dynamically.
+            If not provided, the keys passed as parameters will be used.
+        """
         super().__init__()
+        self._keys = keys
         self._keys_provider = keys_provider
 
+        if not keys and keys_provider is None:
+            raise ValueError("Either keys or keys_provider must be provided")
+
     def is_valid_api_secret(self, api_key: APIKey, secret_from_client: str) -> bool:
-        return api_key.secret == secret_from_client
+        return api_key.is_valid_secret(secret_from_client)
 
     async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
         """
@@ -160,10 +155,11 @@ class APIKeyAuthentication(AuthenticationHandler):
         Tries to find a matching API Key in the request context.
         Returns the matching API Key if found, otherwise None.
         """
-        if self._keys_provider is None:
-            return None
+        keys = self._keys
 
-        keys = await self._keys_provider.get_keys()
+        if not keys and self._keys_provider is not None:
+            keys = await self._keys_provider.get_keys()
+
         for key in keys:
             input_secret = self._get_input_secret(key, context)
             if input_secret and self.is_valid_api_secret(key, input_secret):

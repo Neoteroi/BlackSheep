@@ -98,7 +98,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         self.auth_mode = auth_mode
         self._validator.logger = self.logger
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:

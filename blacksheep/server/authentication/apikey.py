@@ -1,15 +1,16 @@
 """
-This module contains an AuthenticationHandler that uses API Keys for authentication.
+This module provides classes to handle API Keys authentication.
 """
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import List, Literal, Optional, Sequence, Union
+from typing import List, Literal, Optional, Sequence, Tuple, Union
 
 from guardpost import AuthenticationHandler, Identity
 
 from blacksheep.messages import Request
+from securestr import Secret  # TODO: essentials
 
 
 class APIKeyLocation(Enum):
@@ -25,16 +26,44 @@ class APIKey:
     def __init__(
         self,
         name: str,
-        secret: Optional[str] = None,
-        secrets: Optional[Sequence[str]] = None,
+        description: str = "",
+        secret: Optional[Secret] = None,
+        secrets: Optional[Sequence[Secret]] = None,
         scheme: str = "apikey",
         location: Union[APIKeyLocationValue, APIKeyLocation] = "header",
         claims: Optional[dict] = None,
         roles: Optional[List[str]] = None,
     ) -> None:
+        """
+        Initialize an API Key for authentication.
+
+        Parameters
+        ----------
+        name : str
+            Arbitrary name of the API key (e.g., header name, query parameter name, or
+            cookie name).
+        secret : Optional[Secret], optional
+            A single secret value for the API key. Cannot be used together with 'secrets'.
+        secrets : Optional[Sequence[Secret]], optional
+            Multiple secret values for the API key. Cannot be used together with 'secret'.
+        scheme : str, optional
+            The authentication scheme name, by default "apikey".
+        location : Union[APIKeyLocationValue, APIKeyLocation], optional
+            Where to look for the API key in the request (header, query, or cookie), by default "header".
+        claims : Optional[dict], optional
+            Additional claims to include in the authenticated identity, by default None.
+        roles : Optional[List[str]], optional
+            List of roles to assign to the authenticated identity, by default None.
+
+        Raises
+        ------
+        ValueError
+            If both 'secret' and 'secrets' are provided, or if neither is provided.
+        """
+
         self._scheme = scheme
         self._name = name
-        self._secret = secret
+        self.description = description
         self._location = APIKeyLocation(location)
         self._claims = claims or {}
         self._roles = roles or []
@@ -43,9 +72,9 @@ class APIKey:
         if secret is not None and secrets is not None:
             raise ValueError("Cannot specify both 'secret' and 'secrets' parameters")
         elif secret is not None:
-            self._secrets = {secret}
+            self.__secrets = [secret]
         elif secrets is not None:
-            self._secrets = set(secrets)
+            self.__secrets = list(secrets)
         else:
             raise ValueError("Either 'secret' or 'secrets' parameter must be provided")
 
@@ -75,13 +104,60 @@ class APIKey:
         return self._roles
 
     def is_valid_secret(self, provided_secret: str) -> bool:
-        """Validate if the provided secret matches any of the configured secrets"""
-        return provided_secret in self._secrets
+        """
+        Validate if the provided secret matches any of the configured secrets,
+        Using constant-time comparison to prevent timing attacks, with
+        secrets.compare_digest.
+        """
+        for secret in self.__secrets:
+            # Note: internally the Secret class uses constant-time comparison
+            # to prevent timing attacks, with secrets.compare_digest.
+            if secret == provided_secret:
+                return True
+        return False
 
 
 class APIKeysProvider(ABC):
+    """
+    Abstract base class for providing API keys dynamically.
+
+    This class defines the interface for API key providers that can be used
+    with APIKeyAuthentication to retrieve API keys at runtime. Implementations
+    can fetch keys from various sources such as databases, configuration files,
+    external services, or in-memory stores.
+
+    Examples
+    --------
+    >>> class DatabaseAPIKeysProvider(APIKeysProvider):
+    ...     async def get_keys(self) -> List[APIKey]:
+    ...         # Fetch keys from database…
+    ...         api_keys = await self.fetch_api_keys_from_db()
+    ...         return [APIKey(key.name, Secret(key.secret, direct_value=True))
+    ...                 for key in api_keys]
+    """
+
     @abstractmethod
-    async def get_keys(self) -> List[APIKey]: ...
+    async def get_keys(self) -> List[APIKey]:
+        """
+        Retrieve a list of valid API keys.
+
+        This method should return all currently valid API keys that can be used
+        for authentication. The method is called by APIKeyAuthentication during
+        the authentication process when no static keys are provided.
+
+        Returns
+        -------
+        List[APIKey]
+            A list of APIKey instances representing all valid keys for authentication.
+            An empty list indicates no valid keys are available.
+
+        Notes
+        -----
+        - This method is called for each authentication attempt, so implementations
+          should consider caching strategies for performance if fetching keys is expensive.
+        - The returned list should only contain currently valid and active API keys.
+        """
+        ...
 
 
 class APIKeyAuthentication(AuthenticationHandler):
@@ -94,20 +170,26 @@ class APIKeyAuthentication(AuthenticationHandler):
     ) -> None:
         """
         Creates a new instance of APIKeyAuthentication.
+
         Parameters
         ----------
-        *keys : APIKey
-            Exact keys handled by this instance.
+        *keys : Exact keys handled by this instance (APIKeys).
         keys_provider : Optional[APIKeysProvider]
             An optional provider that can be used to retrieve keys dynamically.
             If not provided, the keys passed as parameters will be used.
         """
         super().__init__()
-        self._keys = keys
+        self._keys = tuple(keys)
         self._keys_provider = keys_provider
 
-        if not keys and keys_provider is None:
+        if keys and keys_provider:
+            raise ValueError("Cannot specify both static keys and a keys_provider")
+        elif not keys and keys_provider is None:
             raise ValueError("Either keys or keys_provider must be provided")
+
+    @property
+    def keys(self) -> Tuple[APIKey, ...]:
+        return self._keys
 
     async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
         """

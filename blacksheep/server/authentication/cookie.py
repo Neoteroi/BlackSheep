@@ -1,3 +1,7 @@
+"""
+This module provides classes to handle Cookie-based authentication.
+"""
+
 from datetime import datetime
 
 try:
@@ -105,7 +109,7 @@ class CookieAuthentication(AuthenticationHandler):
         """
         context.user = Identity(data, self.auth_scheme)
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
         cookie = context.get_cookie(self.cookie_name)
 
         if cookie is None:

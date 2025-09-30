@@ -12,6 +12,7 @@ from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
 from uuid import UUID
 
+from guardpost import AuthenticationHandler
 from openapidocs.common import Format, Serializer
 from openapidocs.v3 import (
     APIKeySecurity,
@@ -21,15 +22,15 @@ from openapidocs.v3 import (
     HTTPSecurity,
     Info,
     MediaType,
-    OAuth2Security,
     OpenAPI,
-    OpenIdConnectSecurity,
     Operation,
     Parameter,
     ParameterLocation,
     PathItem,
     Reference,
     RequestBody,
+    Security,
+    SecurityScheme,
 )
 from openapidocs.v3 import Response as ResponseDoc
 from openapidocs.v3 import (
@@ -41,6 +42,13 @@ from openapidocs.v3 import (
     ValueType,
 )
 
+from blacksheep.server.authentication.apikey import (
+    APIKeyAuthentication,
+    APIKeyLocation,
+    APIKeyLocation,
+)
+from blacksheep.server.authentication.basic import BasicAuthentication
+from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.bindings import (
     Binder,
     BodyBinder,
@@ -181,7 +189,7 @@ class ObjectTypeHandler(ABC):
     @abstractmethod
     def handles_type(self, object_type) -> bool:
         """
-        Returns a value indicating whether the given type is handled but this
+        Returns a value indicating whether the given type is handled by this
         object type handler.
         """
 
@@ -199,6 +207,80 @@ class ObjectTypeHandler(ABC):
         """
         Returns a set of fields to be used for the handled type.
         """
+
+
+class SecuritySchemeHandler(ABC):
+    """
+    Abstract class describing the interface used to generate an OpenAPI Documentation
+    security scheme for an authentication handler.
+    """
+
+    @abstractmethod
+    def get_security_schemes(
+        self, handler: AuthenticationHandler
+    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+        """
+        Returns an iterable of tuples containing:
+            - the name of the security scheme,
+            - the security scheme definition itself.
+        """
+
+
+class APIKeySecuritySchemeHandler(SecuritySchemeHandler):
+    """
+    A SecuritySchemeHandler that can handle APIKeyAuthentication handlers.
+    """
+
+    @staticmethod
+    def _get_api_key_location(location: APIKeyLocation) -> ParameterLocation:
+        if location == APIKeyLocation.HEADER:
+            return ParameterLocation.HEADER
+        if location == APIKeyLocation.QUERY:
+            return ParameterLocation.QUERY
+        if location == APIKeyLocation.COOKIE:
+            return ParameterLocation.COOKIE
+        raise ValueError(f"Unknown APIKeyLocation: {location}")
+
+    def get_security_schemes(
+        self, handler: AuthenticationHandler
+    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+        if isinstance(handler, APIKeyAuthentication):
+            for key in handler.keys:
+                # TODO: make independent from handler.keys!!
+                yield key.scheme, APIKeySecurity(
+                    name=key.name,
+                    in_=self._get_api_key_location(key.location),
+                    description=key.description,
+                ), SecurityRequirement(key.scheme, [])
+
+
+class BasicAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
+    """
+    A SecuritySchemeHandler that can handle APIKeyAuthentication handlers.
+    """
+
+    def get_security_schemes(
+        self, handler: AuthenticationHandler
+    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+        if isinstance(handler, BasicAuthentication):
+            yield handler.scheme, HTTPSecurity(
+                scheme="basic",
+                description=handler.description,
+            ), SecurityRequirement(handler.scheme, [])
+
+
+class JWTAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
+    """
+    A SecuritySchemeHandler that can handle APIKeyAuthentication handlers.
+    """
+
+    def get_security_schemes(
+        self, handler: AuthenticationHandler
+    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+        if isinstance(handler, JWTBearerAuthentication):
+            yield handler.scheme, HTTPSecurity(
+                scheme="bearer", bearer_format="JWT"
+            ), SecurityRequirement(handler.scheme, [])
 
 
 def _try_is_subclass(object_type, check_type):
@@ -329,14 +411,6 @@ class PydanticDataClassTypeHandler(PydanticModelTypeHandler):
         return TypeAdapter(object_type).json_schema()
 
 
-SecuritySchemes = Union[
-    OAuth2Security,
-    OpenIdConnectSecurity,
-    HTTPSecurity,
-    APIKeySecurity,
-]
-
-
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     """
     Handles the automatic generation of OpenAPI Documentation, specification v3
@@ -354,12 +428,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
         tags: Optional[List[Tag]] = None,
-        security_schemes: Optional[
-            Dict[
-                str,
-                SecuritySchemes,
-            ]
-        ] = None,
+        security_schemes: Optional[Dict[str, SecurityScheme]] = None,
         servers: Optional[Sequence[Server]] = None,
         serializer: Optional[Serializer] = None,
     ) -> None:
@@ -373,7 +442,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         )
         self.info = info
         self._tags = tags
-        self.components = Components()
+        self.components = Components(security_schemes=security_schemes)  # type: ignore
         self._objects_references: Dict[Any, Reference] = {}
         self.servers: List[Server] = list(servers) if servers else []
         self.common_responses: Dict[ResponseStatusType, ResponseDoc] = {}
@@ -382,14 +451,33 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             PydanticModelTypeHandler(),
             PydanticDataClassTypeHandler(),
         ]
+        self._security_schemes_handlers: List[SecuritySchemeHandler] = [
+            APIKeySecuritySchemeHandler(),
+            BasicAuthenticationSecuritySchemeHandler(),
+            JWTAuthenticationSecuritySchemeHandler(),
+        ]
         self._binder_docs: Dict[Type[Binder], Iterable[Union[Parameter, Reference]]] = (
             {}
         )
-        self.security_schemes = security_schemes or {}
+        self.security: Optional[Security] = None
 
     @property
     def object_types_handlers(self) -> List[ObjectTypeHandler]:
+        """
+        Gets the list of objects responsible of generating OpenAPI Documentation
+        schemas for object types. Extend this list with custom objects to control how
+        OpenAPI Schemas are handled for specific types.
+        """
         return self._object_types_handlers
+
+    @property
+    def security_schemes_handlers(self) -> List[SecuritySchemeHandler]:
+        """
+        Gets the list of objects responsible of generating OpenAPI Documentation
+        for security schemas. These objects are used to generate security schemes
+        from the application's authentication strategy.
+        """
+        return self._security_schemes_handlers
 
     def get_ui_page_title(self) -> str:
         return self.info.title
@@ -419,7 +507,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def generate_documentation(self, app: Application) -> OpenAPI:
         self._optimize_binders_docs()
-        self._generate_security_schemes()
+        self._generate_security_schemes(app)
         paths = self.get_paths(app)
         return OpenAPI(
             info=self.info,
@@ -427,6 +515,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             components=self.components,
             tags=self._tags or self._tags_from_paths(paths),
             json_schema_dialect=None,  # type: ignore
+            security=self.security,
         )
 
     def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:
@@ -485,11 +574,39 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             f"Cannot obtain a name for object_type parameter: {object_type!r}"
         )
 
-    def _generate_security_schemes(self):
-        for name, scheme in self.security_schemes.items():
-            self.register_security_scheme(name, scheme)
+    def _generate_security_schemes(self, app: Application):
+        # If the user did not specify security schemes, tries to generate security
+        # schemes from the configured authentication handlers.
+        # Important:
+        schemes = self.components.security_schemes or {}
+        if not schemes and app.authentication_strategy is not None:
+            # Note: auth_handler can be defined as a type! Because Guardpost supports
+            # dependency injection... We need to resolve services at application start
+            # to generate OpenAPI Docs.
+            for auth_handler in app.authentication_strategy.handlers:
+                for doc_handler in self._security_schemes_handlers:
+                    # We need to activate the service here, if it is a type
+                    if not isinstance(auth_handler, AuthenticationHandler):
+                        auth_handler = app.services.resolve(auth_handler)
 
-    def register_security_scheme(self, name: str, scheme: SecuritySchemes):
+                    for (
+                        scheme,
+                        security_scheme,
+                        req,
+                    ) in doc_handler.get_security_schemes(auth_handler):
+                        schemes[scheme] = security_scheme
+
+                        if self.security is None:
+                            self.security = Security([], optional=True)  # ??? Optional?
+                        self.security.requirements.append(req)
+
+        for name, scheme in schemes.items():
+            self.register_security_scheme(name, scheme)  # type: ignore
+
+    def register_security_scheme(self, name: str, scheme: SecurityScheme):
+        """
+        Adds a security scheme to the OpenAPI documentation components.
+        """
         if self.components.security_schemes is None:
             self.components.security_schemes = {}
 

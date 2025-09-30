@@ -119,6 +119,8 @@ class APIKeyAuthentication(AuthenticationHandler):
         matching_key = await self._match_key(context)
 
         if matching_key is None:
+            # Return None here and do not raise an exception, because the application
+            # might be configured with alternative ways to authenticate users.
             context.user = Identity({})
             return None
 
@@ -126,8 +128,13 @@ class APIKeyAuthentication(AuthenticationHandler):
         return context.user
 
     def _get_identity_for_key(self, key: APIKey) -> Identity:
+        """
+        Returns an instance of Identity to be used when authentication with a given
+        API Key succeeded. Each API Key can be associated with specific roles and
+        claims.
+        """
         claims = deepcopy(key.claims)
-        claims.update({"roles": key.roles})
+        claims.update({"roles": deepcopy(key.roles)})
         return Identity(claims, authentication_mode=key.scheme)
 
     def _get_input_secret(self, api_key: APIKey, context: Request) -> Optional[str]:
@@ -144,7 +151,7 @@ class APIKeyAuthentication(AuthenticationHandler):
             value = context.cookies[api_key.name]
         else:
             # This should never happen
-            raise RuntimeError("APIKeyLocation not supported.")
+            raise TypeError("APIKeyLocation not supported.")
         return value
 
     async def _match_key(self, context: Request) -> Optional[APIKey]:

@@ -7,10 +7,10 @@ from copy import deepcopy
 from enum import Enum
 from typing import List, Literal, Optional, Sequence, Tuple, Union
 
+from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
 
 from blacksheep.messages import Request
-from securestr import Secret  # TODO: essentials
 
 
 class APIKeyLocation(Enum):
@@ -25,12 +25,7 @@ APIKeyLocationValue = Literal["header", "query", "cookie"]
 class APIKey:
     def __init__(
         self,
-        name: str,
-        description: str = "",
-        secret: Optional[Secret] = None,
-        secrets: Optional[Sequence[Secret]] = None,
-        scheme: str = "apikey",
-        location: Union[APIKeyLocationValue, APIKeyLocation] = "header",
+        secret: Secret,
         claims: Optional[dict] = None,
         roles: Optional[List[str]] = None,
     ) -> None:
@@ -39,17 +34,8 @@ class APIKey:
 
         Parameters
         ----------
-        name : str
-            Arbitrary name of the API key (e.g., header name, query parameter name, or
-            cookie name).
-        secret : Optional[Secret], optional
-            A single secret value for the API key. Cannot be used together with 'secrets'.
-        secrets : Optional[Sequence[Secret]], optional
-            Multiple secret values for the API key. Cannot be used together with 'secret'.
-        scheme : str, optional
-            The authentication scheme name, by default "apikey".
-        location : Union[APIKeyLocationValue, APIKeyLocation], optional
-            Where to look for the API key in the request (header, query, or cookie), by default "header".
+        secret : Secret
+            The secret value of the API key.
         claims : Optional[dict], optional
             Additional claims to include in the authenticated identity, by default None.
         roles : Optional[List[str]], optional
@@ -60,38 +46,9 @@ class APIKey:
         ValueError
             If both 'secret' and 'secrets' are provided, or if neither is provided.
         """
-
-        self._scheme = scheme
-        self._name = name
-        self.description = description
-        self._location = APIKeyLocation(location)
         self._claims = claims or {}
         self._roles = roles or []
-
-        # Handle secret/secrets parameters
-        if secret is not None and secrets is not None:
-            raise ValueError("Cannot specify both 'secret' and 'secrets' parameters")
-        elif secret is not None:
-            self.__secrets = [secret]
-        elif secrets is not None:
-            self.__secrets = list(secrets)
-        else:
-            raise ValueError("Either 'secret' or 'secrets' parameter must be provided")
-
-    @property
-    def scheme(self) -> str:
-        """Returns the name of the Authentication Scheme used by this handler."""
-        return self._scheme
-
-    @property
-    def name(self) -> str:
-        """Returns the name of the API Key."""
-        return self._name
-
-    @property
-    def location(self) -> APIKeyLocation:
-        """Returns the location of the API Key."""
-        return self._location
+        self._secret = secret
 
     @property
     def claims(self) -> dict:
@@ -105,16 +62,11 @@ class APIKey:
 
     def is_valid_secret(self, provided_secret: str) -> bool:
         """
-        Validate if the provided secret matches any of the configured secrets,
-        Using constant-time comparison to prevent timing attacks, with
+        Validate if the provided secret matches this API Key secret,
+        using constant-time comparison to prevent timing attacks, with
         secrets.compare_digest.
         """
-        for secret in self.__secrets:
-            # Note: internally the Secret class uses constant-time comparison
-            # to prevent timing attacks, with secrets.compare_digest.
-            if secret == provided_secret:
-                return True
-        return False
+        return self._secret == provided_secret
 
 
 class APIKeysProvider(ABC):
@@ -166,21 +118,42 @@ class APIKeyAuthentication(AuthenticationHandler):
     """
 
     def __init__(
-        self, *keys: APIKey, keys_provider: Optional[APIKeysProvider] = None
+        self,
+        *keys: APIKey,
+        param_name: str,
+        scheme: str = "apiKey",
+        location: Union[APIKeyLocationValue, APIKeyLocation] = "header",
+        keys_provider: Optional[APIKeysProvider] = None,
+        description: Optional[str] = None,
     ) -> None:
         """
         Creates a new instance of APIKeyAuthentication.
 
         Parameters
         ----------
-        *keys : Exact keys handled by this instance (APIKeys).
+        param_name : str
+            Arbitrary name of the API key parameter (e.g., header name, query parameter
+            name, or cookie name).
+        keys : Optional keys handled by this instance (APIKeys). Use this
+            parameter or a keys_provider.
+        scheme : str, optional
+            The authentication scheme name, by default "apikey".
+        location : Union[APIKeyLocationValue, APIKeyLocation], optional
+            Where to look for the API key in the request (header, query, or cookie), by
+            default "header".
         keys_provider : Optional[APIKeysProvider]
             An optional provider that can be used to retrieve keys dynamically.
             If not provided, the keys passed as parameters will be used.
+        description : Optional[str]
+            An optional description for this authentication scheme.
         """
         super().__init__()
-        self._keys = tuple(keys)
+        self._scheme = scheme
+        self._keys = tuple(keys) if keys else None
         self._keys_provider = keys_provider
+        self._param_name = param_name
+        self._location = APIKeyLocation(location)
+        self.description = description
 
         if keys and keys_provider:
             raise ValueError("Cannot specify both static keys and a keys_provider")
@@ -188,8 +161,19 @@ class APIKeyAuthentication(AuthenticationHandler):
             raise ValueError("Either keys or keys_provider must be provided")
 
     @property
-    def keys(self) -> Tuple[APIKey, ...]:
-        return self._keys
+    def scheme(self) -> str:
+        """Returns the name of the Authentication Scheme used by this handler."""
+        return self._scheme
+
+    @property
+    def param_name(self) -> str:
+        """Returns the name of the API Key."""
+        return self._param_name
+
+    @property
+    def location(self) -> APIKeyLocation:
+        """Returns the location of the API Key."""
+        return self._location
 
     async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
         """
@@ -217,20 +201,20 @@ class APIKeyAuthentication(AuthenticationHandler):
         """
         claims = deepcopy(key.claims)
         claims.update({"roles": deepcopy(key.roles)})
-        return Identity(claims, authentication_mode=key.scheme)
+        return Identity(claims, authentication_mode=self.scheme)
 
-    def _get_input_secret(self, api_key: APIKey, context: Request) -> Optional[str]:
+    def _get_input_secret(self, context: Request) -> Optional[str]:
         value = None
-        if api_key.location == APIKeyLocation.HEADER:
-            bytes_value = context.get_first_header(api_key.name.encode())
+        if self.location == APIKeyLocation.HEADER:
+            bytes_value = context.get_first_header(self._param_name.encode())
             if bytes_value:
                 value = bytes_value.decode()
-        elif api_key.location == APIKeyLocation.QUERY:
-            list_value = context.query[api_key.name]
+        elif self.location == APIKeyLocation.QUERY:
+            list_value = context.query[self._param_name]
             if list_value:
                 value = list_value[-1]
-        elif api_key.location == APIKeyLocation.COOKIE:
-            value = context.cookies[api_key.name]
+        elif self.location == APIKeyLocation.COOKIE:
+            value = context.cookies[self._param_name]
         else:
             # This should never happen
             raise TypeError("APIKeyLocation not supported.")
@@ -246,8 +230,12 @@ class APIKeyAuthentication(AuthenticationHandler):
         if not keys and self._keys_provider is not None:
             keys = await self._keys_provider.get_keys()
 
+        input_secret = self._get_input_secret(context)
+
+        if not input_secret:
+            return None
+
         for key in keys:
-            input_secret = self._get_input_secret(key, context)
-            if input_secret and key.is_valid_secret(input_secret):
+            if key.is_valid_secret(input_secret):
                 return key
         return None

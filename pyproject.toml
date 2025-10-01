@@ -27,7 +27,7 @@ dependencies = [
     "certifi>=2025.4.26",
     "guardpost>=1.0.2",
     "rodi~=2.0.8",
-    "essentials>=1.1.4,<2.0",
+    "essentials>=1.1.7,<2.0",
     "essentials-openapi>=1.2.0,<2.0",
     "itsdangerous~=2.2.0",
 ]

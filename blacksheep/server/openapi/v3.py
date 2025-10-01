@@ -245,13 +245,11 @@ class APIKeySecuritySchemeHandler(SecuritySchemeHandler):
         self, handler: AuthenticationHandler
     ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
         if isinstance(handler, APIKeyAuthentication):
-            for key in handler.keys:
-                # TODO: make independent from handler.keys!!
-                yield key.scheme, APIKeySecurity(
-                    name=key.name,
-                    in_=self._get_api_key_location(key.location),
-                    description=key.description,
-                ), SecurityRequirement(key.scheme, [])
+            yield handler.scheme, APIKeySecurity(
+                name=handler.param_name,
+                in_=self._get_api_key_location(handler.location),
+                description=handler.description,
+            ), SecurityRequirement(handler.scheme, [])
 
 
 class BasicAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):

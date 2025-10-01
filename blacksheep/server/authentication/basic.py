@@ -6,12 +6,12 @@ import base64
 import secrets
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
+from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
 
 from blacksheep.messages import Request
-from securestr import Secret
 
 
 class BasicCredentials:

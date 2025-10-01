@@ -5,7 +5,7 @@ This module provides classes to handle API Keys authentication.
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import List, Literal, Optional, Sequence, Tuple, Union
+from typing import List, Literal, Optional, Union
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
@@ -30,7 +30,7 @@ class APIKey:
         roles: Optional[List[str]] = None,
     ) -> None:
         """
-        Initialize an API Key for authentication.
+        Creates an instance of API Key for authentication.
 
         Parameters
         ----------
@@ -60,13 +60,11 @@ class APIKey:
         """Returns the roles associated with this API Key."""
         return self._roles
 
-    def is_valid_secret(self, provided_secret: str) -> bool:
+    def match(self, secret: Union[Secret, str]) -> bool:
         """
-        Validate if the provided secret matches this API Key secret,
-        using constant-time comparison to prevent timing attacks, with
-        secrets.compare_digest.
+        Returns a value indicating if the provided secret matches this API Key secret.
         """
-        return self._secret == provided_secret
+        return self._secret == secret
 
 
 class APIKeysProvider(ABC):
@@ -106,7 +104,8 @@ class APIKeysProvider(ABC):
         Notes
         -----
         - This method is called for each authentication attempt, so implementations
-          should consider caching strategies for performance if fetching keys is expensive.
+          should consider caching strategies for performance if fetching keys is
+          expensive.
         - The returned list should only contain currently valid and active API keys.
         """
         ...
@@ -114,7 +113,8 @@ class APIKeysProvider(ABC):
 
 class APIKeyAuthentication(AuthenticationHandler):
     """
-    AuthenticationHandler that uses API Keys for authentication.
+    AuthenticationHandler that uses API Keys for authentication, handling one or more
+    API Key secrets. Each secret can be associated to different claims and roles.
     """
 
     def __init__(
@@ -175,7 +175,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         """Returns the location of the API Key."""
         return self._location
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
+    async def authenticate(self, context: Request) -> Optional[Identity]:
         """
         Tries to authenticate the request using API Keys.
         If authentication succeeds, returns an Identity with the authentication mode set
@@ -230,12 +230,15 @@ class APIKeyAuthentication(AuthenticationHandler):
         if not keys and self._keys_provider is not None:
             keys = await self._keys_provider.get_keys()
 
+        if not keys:
+            return None
+
         input_secret = self._get_input_secret(context)
 
         if not input_secret:
             return None
 
         for key in keys:
-            if key.is_valid_secret(input_secret):
+            if key.match(input_secret):
                 return key
         return None

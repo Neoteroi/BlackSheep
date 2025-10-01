@@ -109,7 +109,7 @@ class CookieAuthentication(AuthenticationHandler):
         """
         context.user = Identity(data, self.auth_scheme)
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
+    async def authenticate(self, context: Request) -> Optional[Identity]:
         cookie = context.get_cookie(self.cookie_name)
 
         if cookie is None:

@@ -6,7 +6,7 @@ import base64
 import secrets
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
@@ -67,7 +67,8 @@ class BasicCredentials:
         Returns
         -------
         str
-            The Authorization header value in the format "Basic base64(username:password)".
+            The Authorization header value in the format
+            "Basic base64(username:password)".
         """
         credentials = f"{self._username}:{self._password.get_value()}"
         encoded_credentials = base64.b64encode(credentials.encode("utf-8")).decode(
@@ -75,24 +76,15 @@ class BasicCredentials:
         )
         return f"Basic {encoded_credentials}"
 
-    def is_valid_password(self, provided_password: str) -> bool:
+    def match(self, username: str, password: str) -> bool:
         """
-        Validate if the provided password matches the stored password.
-        Uses constant-time comparison to prevent timing attacks.
-
-        Parameters
-        ----------
-        provided_password : str
-            The password to validate.
-
-        Returns
-        -------
-        bool
-            True if the password is valid, False otherwise.
+        Returns a value indicating whether the given username and password combination
+        matches this credentials object.
         """
-        # Note: internally the Secret class uses constant-time comparison
-        # to prevent timing attacks, with secrets.compare_digest.
-        return self._password == provided_password
+        return (
+            secrets.compare_digest(self.username, username)
+            and self._password == password
+        )
 
 
 class BasicCredentialsProvider(ABC):
@@ -103,16 +95,6 @@ class BasicCredentialsProvider(ABC):
     with BasicAuthentication to retrieve credentials at runtime. Implementations
     can fetch credentials from various sources such as databases, LDAP, configuration
     files, or external authentication services.
-
-    Examples
-    --------
-    >>> class DatabaseBasicCredentialsProvider(BasicCredentialsProvider):
-    ...     async def get_credentials(self) -> List[BasicCredentials]:
-    ...         # Fetch credentials from database
-    ...         # TODO: handle password hashing and verification as needed!
-    ...         users = await self.fetch_users_from_db()
-    ...         return [BasicCredentials(user.username, Secret.from_plain_text(user.password_hash))
-    ...                 for user in users if user.is_active]
     """
 
     @abstractmethod
@@ -128,16 +110,18 @@ class BasicCredentialsProvider(ABC):
         -------
         List[BasicCredentials]
             A list of BasicCredentials instances representing all valid credentials
-            for authentication. An empty list indicates no valid credentials are available.
+            for authentication. An empty list indicates no valid credentials are
+            available.
 
         Notes
         -----
         - This method is called for each authentication attempt, so implementations
-          should consider caching strategies for performance if fetching credentials is expensive.
+          should consider caching strategies for performance if fetching credentials is
+          expensive.
         - The returned list should only contain currently valid and active credentials.
-        - Consider implementing rate limiting and other security measures in your provider.
+        - Consider implementing rate limiting and other security measures in your
+          provider.
         """
-        ...
 
 
 class BasicAuthentication(AuthenticationHandler):
@@ -162,7 +146,8 @@ class BasicAuthentication(AuthenticationHandler):
         ----------
         *credentials : BasicCredentials
             Static credentials handled by this instance.
-        scheme: arbitrary scheme name of this authentication handler, default "basicAuth".
+        scheme: arbitrary scheme name of this authentication handler, default
+                "basicAuth".
         credentials_provider : Optional[BasicCredentialsProvider], optional
             An optional provider that can be used to retrieve credentials dynamically.
             If not provided, only the static credentials will be used.
@@ -174,7 +159,7 @@ class BasicAuthentication(AuthenticationHandler):
         """
         super().__init__()
         self._scheme = scheme
-        self._credentials = tuple(credentials)
+        self._credentials: Tuple[BasicCredentials, ...] = tuple(credentials)
         self._credentials_provider = credentials_provider
         self.description = description
 
@@ -187,7 +172,7 @@ class BasicAuthentication(AuthenticationHandler):
     def scheme(self) -> str:
         return self._scheme
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:  # type: ignore
+    async def authenticate(self, context: Request) -> Optional[Identity]:
         """
         Tries to authenticate the request using Basic Authentication.
 
@@ -276,10 +261,7 @@ class BasicAuthentication(AuthenticationHandler):
             credentials = await self._credentials_provider.get_credentials()
 
         for cred in credentials:
-            # Use constant-time comparison for username to prevent timing attacks
-            if secrets.compare_digest(
-                cred.username, username
-            ) and cred.is_valid_password(password):
+            if cred.match(username, password):
                 return cred
 
         return None

@@ -6,7 +6,7 @@ from typing import Optional, Sequence
 
 from guardpost import AuthenticationHandler, Identity
 from guardpost.jwks import KeysProvider
-from guardpost.jwts import InvalidAccessToken, JWTValidator
+from guardpost.jwts import InvalidAccessToken, AsymmetricJWTValidator
 from jwt.exceptions import InvalidTokenError
 
 from blacksheep.baseapp import get_logger
@@ -89,7 +89,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         if not algorithms:
             algorithms = ["RS256"]
 
-        self._validator = JWTValidator(
+        self._validator = AsymmetricJWTValidator(
             authority=authority,
             algorithms=algorithms,
             require_kid=require_kid,

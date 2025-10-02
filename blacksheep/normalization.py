@@ -2,6 +2,7 @@ def copy_special_attributes(source_method, wrapper) -> None:
     for name in {
         "auth",
         "auth_policy",
+        "auth_roles",
         "auth_schemes",
         "allow_anonymous",
         "controller_type",

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2025-10-??
+
+- Add significant improvements to authentication and authorization features.
+- Add built-in support for **API Key Authentication**.
+- Add built-in support for **Basic Authentication**.
+- Add built-in support for **JWT Bearer authentication** validating JWTs signed using
+  **symmetric encryption** (previously the built-in classes only supported using
+  asymmetric encryption to validate JWTs).
+- Improve the code that generates OpenAPI Documentation to include automatically
+  security `securitySchemes` and `security` sections by `Authentication` handlers
+  configured in the application. The feature can be extended with user-defined
+  authentication handlers.
+- Improve the `@auth` decorator to support specifying sufficient **roles** to authorize
+  requests (`@auth(roles=["admin"])`).
+- Upgrade `GuardPost` to `1.0.3`, as it includes improved features to handle roles and
+  JWT validation using symmetric encryption.
+- Upgrade `essentials` to `1.1.7` as it includes a `Secret` class to handle secrets in
+  code.
+
 ## [2.4.1] - 2025-09-28
 
 - Correct bug in controller inheritance that would prevent argument types and

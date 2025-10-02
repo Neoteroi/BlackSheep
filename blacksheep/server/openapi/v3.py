@@ -29,24 +29,20 @@ from openapidocs.v3 import (
     PathItem,
     Reference,
     RequestBody,
-    Security,
-    SecurityScheme,
 )
 from openapidocs.v3 import Response as ResponseDoc
 from openapidocs.v3 import (
     Schema,
+    Security,
     SecurityRequirement,
+    SecurityScheme,
     Server,
     Tag,
     ValueFormat,
     ValueType,
 )
 
-from blacksheep.server.authentication.apikey import (
-    APIKeyAuthentication,
-    APIKeyLocation,
-    APIKeyLocation,
-)
+from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.bindings import (

@@ -74,14 +74,15 @@ def get_authorization_middleware(
         if getattr(handler, "allow_anonymous", False) is True:
             return await handler(request)
 
+        roles = getattr(handler, "auth_roles", None)
         if hasattr(handler, "auth"):
             # function decorated by auth;
-            await strategy.authorize(handler.auth_policy, user, request)
+            await strategy.authorize(handler.auth_policy, user, request, roles)
         else:
             # function not decorated by auth; use the default policy.
             # this is necessary to support configuring authorization rules globally
             # without configuring every single request handler
-            await strategy.authorize(None, user, request)
+            await strategy.authorize(None, user, request, roles)
 
         return await handler(request)
 

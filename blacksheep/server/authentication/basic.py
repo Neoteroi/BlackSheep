@@ -135,7 +135,7 @@ class BasicAuthentication(AuthenticationHandler):
     def __init__(
         self,
         *credentials: BasicCredentials,
-        scheme: str = "basicAuth",
+        scheme: str = "Basic",
         credentials_provider: Optional[BasicCredentialsProvider] = None,
         description: Optional[str] = None,
     ) -> None:
@@ -146,8 +146,7 @@ class BasicAuthentication(AuthenticationHandler):
         ----------
         *credentials : BasicCredentials
             Static credentials handled by this instance.
-        scheme: arbitrary scheme name of this authentication handler, default
-                "basicAuth".
+        scheme: arbitrary scheme name of this authentication handler, default "Basic".
         credentials_provider : Optional[BasicCredentialsProvider], optional
             An optional provider that can be used to retrieve credentials dynamically.
             If not provided, only the static credentials will be used.

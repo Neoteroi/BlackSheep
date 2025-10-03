@@ -121,7 +121,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         self,
         *keys: APIKey,
         param_name: str,
-        scheme: str = "apiKey",
+        scheme: str = "APIKey",
         location: Union[APIKeyLocationValue, APIKeyLocation] = "header",
         keys_provider: Optional[APIKeysProvider] = None,
         description: Optional[str] = None,
@@ -137,7 +137,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         keys : Optional keys handled by this instance (APIKeys). Use this
             parameter or a keys_provider.
         scheme : str, optional
-            The authentication scheme name, by default "apikey".
+            The authentication scheme name, by default "APIKey".
         location : Union[APIKeyLocationValue, APIKeyLocation], optional
             Where to look for the API key in the request (header, query, or cookie), by
             default "header".

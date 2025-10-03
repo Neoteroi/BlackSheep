@@ -1100,6 +1100,14 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if docs and docs.security:
             return [SecurityRequirement(s.name, s.value) for s in docs.security]
 
+        # is the handler decorated with the built-in @auth decorator?
+        auth_schemes = getattr(handler, "auth_schemes", None)
+        if auth_schemes:
+            # TODO: how to support scope names in the list of security requirements?
+            return [
+                SecurityRequirement(auth_scheme, []) for auth_scheme in auth_schemes
+            ]
+
         return None
 
     def _get_media_type_from_content_doc(self, content_doc: ContentInfo) -> MediaType:

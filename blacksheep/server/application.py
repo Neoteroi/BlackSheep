@@ -484,7 +484,7 @@ class Application(BaseApplication):
             # meaning that request handlers allow anonymous users by default, unless
             # they are decorated with @auth()
             strategy.default_policy = Policy("default")
-            strategy.add(Policy("authenticated").add(AuthenticatedRequirement()))
+            strategy.add(Policy("authenticated", AuthenticatedRequirement()))
 
         self._authorization_strategy = strategy
         self.exceptions_handlers.update(

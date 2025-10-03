@@ -62,6 +62,12 @@ async def get_claims(request):
     return request.user.claims
 
 
+@auth(roles=["admin"])
+@get("/for-admins")
+async def for_admins_only(request):
+    return request.user.claims
+
+
 if __name__ == "__main__":
     import uvicorn
 

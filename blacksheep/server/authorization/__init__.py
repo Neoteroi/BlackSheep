@@ -34,7 +34,7 @@ def auth(
 
     :param policy: optional, name of the policy to use for authorization.
     :param roles: optional set of sufficient roles (any one is enough). If both a
-        policy and roles are specified, both conditions are checked.
+        policy and roles are specified, both are checked.
     :param authentication_schemes: optional, authentication schemes to use
         for this handler. If not specified, all configured authentication handlers
         are used.
@@ -43,7 +43,7 @@ def auth(
     def decorator(f):
         f.auth = True
         f.auth_policy = policy
-        f.auth_roles = roles
+        f.auth_roles = list(roles) if roles else None
         f.auth_schemes = authentication_schemes
         return f
 

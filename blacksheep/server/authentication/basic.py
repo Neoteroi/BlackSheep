@@ -79,10 +79,14 @@ class BasicCredentials:
     def match(self, username: str, password: str) -> bool:
         """
         Returns a value indicating whether the given username and password combination
-        matches this credentials object.
+        matches this credentials object. This method assumes that the username
+        configured for this credentials object is a valid unicode string, and ignores
+        encoding errors in the username received from the client.
         """
         return (
-            secrets.compare_digest(self.username, username)
+            secrets.compare_digest(
+                self.username.encode("utf8"), username.encode("utf8", errors="ignore")
+            )
             and self._password == password
         )
 

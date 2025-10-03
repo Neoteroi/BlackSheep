@@ -108,7 +108,6 @@ class APIKeysProvider(ABC):
           expensive.
         - The returned list should only contain currently valid and active API keys.
         """
-        ...
 
 
 class APIKeyAuthentication(AuthenticationHandler):
@@ -210,11 +209,11 @@ class APIKeyAuthentication(AuthenticationHandler):
             if bytes_value:
                 value = bytes_value.decode()
         elif self.location == APIKeyLocation.QUERY:
-            list_value = context.query[self._param_name]
+            list_value = context.query.get(self._param_name)
             if list_value:
                 value = list_value[-1]
         elif self.location == APIKeyLocation.COOKIE:
-            value = context.cookies[self._param_name]
+            value = context.cookies.get(self._param_name)
         else:
             # This should never happen
             raise TypeError("APIKeyLocation not supported.")

@@ -41,10 +41,7 @@ def get_example_scope(
 ):
     """Returns a mocked ASGI scope"""
     if "?" in path:
-        raise ValueError(
-            "The path in ASGI messages does not contain query string, "
-            "use the `query` parameter"
-        )
+        path, query = path.split("?")
 
     if server is None:
         server = ("127.0.0.1", 8000)

@@ -192,9 +192,10 @@ async def test_client_methods(test_app, method, expected_method):
     assert actual_method == expected_method
 
 
-def test_get_example_scope_raise_error_if_query_provided():
-    with pytest.raises(ValueError):
-        get_example_scope("GET", "/test?")
+def test_get_example_scope_query_in_path():
+    scope = get_example_scope("GET", "/test?foo=2")
+    assert scope["path"] == "/test"
+    assert scope["query_string"] == b"foo=2"
 
 
 async def test_app_controller_handle_correct_method(test_app):

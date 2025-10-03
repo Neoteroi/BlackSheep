@@ -3,9 +3,11 @@ from typing import Any, Dict, Optional
 
 import jwt
 import pytest
+from essentials.secrets import Secret
 from guardpost import AuthorizationContext, Identity, Policy, UnauthorizedError
 from guardpost.common import AuthenticatedRequirement
 from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
+from guardpost.jwts import SymmetricJWTValidator
 from pytest import raises
 from rodi import Container
 
@@ -73,6 +75,17 @@ def get_token(kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = No
         algorithm="RS256",
         headers={"kid": kid if not fake_kid else fake_kid},
     )
+
+
+@pytest.fixture(scope="session")
+def symmetric_secret() -> Secret:
+    return Secret(
+        "test-secret-key-for-hmac-validation-at-least-32-chars", direct_value=True
+    )
+
+
+def get_symmetric_token(secret: str, payload: Dict[str, Any], algorithm: str = "HS256"):
+    return jwt.encode(payload, secret, algorithm=algorithm)
 
 
 # endregion
@@ -667,3 +680,368 @@ async def test_di_supports_scoped_auth_handlers_with_request_dep(app: Applicatio
     assert app.response.status == 204
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+
+# region Symmetric JWT Tests
+
+
+def test_jwt_bearer_symmetric_authentication_validation():
+    secret = Secret("test-secret-key", direct_value=True)
+    auth = JWTBearerAuthentication(
+        valid_audiences=["test-audience"],
+        valid_issuers=["test-issuer"],
+        secret_key=secret,
+    )
+    assert isinstance(auth._validator, SymmetricJWTValidator)
+
+
+def test_jwt_bearer_symmetric_requires_valid_issuers():
+    secret = Secret("test-secret-key", direct_value=True)
+    with pytest.raises(TypeError, match="Specify valid issuers"):
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            secret_key=secret,
+        )
+
+
+def test_jwt_bearer_symmetric_mutual_exclusivity():
+    secret = Secret("test-secret-key", direct_value=True)
+    with pytest.raises(TypeError, match="Cannot specify both secret_key"):
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=secret,
+            authority="https://example.com",
+        )
+
+
+def test_jwt_bearer_symmetric_algorithm_validation():
+    secret = Secret("test-secret-key", direct_value=True)
+    with pytest.raises(TypeError, match="only HS\\* algorithms are supported"):
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=secret,
+            algorithms=["RS256"],
+        )
+
+
+def test_jwt_bearer_symmetric_default_algorithm():
+    secret = Secret("test-secret-key", direct_value=True)
+    auth = JWTBearerAuthentication(
+        valid_audiences=["test-audience"],
+        valid_issuers=["test-issuer"],
+        secret_key=secret,
+    )
+    assert auth._validator._algorithms == ["HS256"]
+
+
+def test_jwt_bearer_symmetric_custom_algorithms():
+    secret = Secret("test-secret-key", direct_value=True)
+    auth = JWTBearerAuthentication(
+        valid_audiences=["test-audience"],
+        valid_issuers=["test-issuer"],
+        secret_key=secret,
+        algorithms=["HS256", "HS384", "HS512"],
+    )
+    assert auth._validator._algorithms == ["HS256", "HS384", "HS512"]
+
+
+async def test_jwt_bearer_symmetric_authentication_success(app, symmetric_secret):
+    app.use_authentication().add(
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=symmetric_secret,
+        )
+    )
+
+    identity: Optional[Identity] = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    await app.start()
+
+    # Test with valid symmetric token
+    access_token = get_symmetric_token(
+        symmetric_secret.get_value(),
+        {
+            "aud": "test-audience",
+            "iss": "test-issuer",
+            "sub": "user123",
+            "name": "Test User",
+            "exp": 9999999999,  # Far future
+        },
+    )
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is True
+    assert identity["sub"] == "user123"
+    assert identity["name"] == "Test User"
+
+
+async def test_jwt_bearer_symmetric_authentication_invalid_audience(
+    app, symmetric_secret
+):
+    app.use_authentication().add(
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=symmetric_secret,
+        )
+    )
+
+    identity: Optional[Identity] = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    await app.start()
+
+    # Test with invalid audience
+    access_token = get_symmetric_token(
+        symmetric_secret.get_value(),
+        {
+            "aud": "wrong-audience",
+            "iss": "test-issuer",
+            "sub": "user123",
+            "exp": 9999999999,
+        },
+    )
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is False
+
+
+async def test_jwt_bearer_symmetric_authentication_invalid_issuer(
+    app, symmetric_secret
+):
+    app.use_authentication().add(
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=symmetric_secret,
+        )
+    )
+
+    identity: Optional[Identity] = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    await app.start()
+
+    # Test with invalid issuer
+    access_token = get_symmetric_token(
+        symmetric_secret.get_value(),
+        {
+            "aud": "test-audience",
+            "iss": "wrong-issuer",
+            "sub": "user123",
+            "exp": 9999999999,
+        },
+    )
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is False
+
+
+async def test_jwt_bearer_symmetric_authentication_wrong_secret(app):
+    secret = Secret("correct-secret", direct_value=True)
+    wrong_secret = "wrong-secret"
+
+    app.use_authentication().add(
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=secret,
+        )
+    )
+
+    identity: Optional[Identity] = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    await app.start()
+
+    # Test with token signed with wrong secret
+    access_token = get_symmetric_token(
+        wrong_secret,
+        {
+            "aud": "test-audience",
+            "iss": "test-issuer",
+            "sub": "user123",
+            "exp": 9999999999,
+        },
+    )
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is False
+
+
+async def test_jwt_bearer_symmetric_authentication_expired_token(app, symmetric_secret):
+    app.use_authentication().add(
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=symmetric_secret,
+        )
+    )
+
+    identity: Optional[Identity] = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    await app.start()
+
+    # Test with expired token
+    access_token = get_symmetric_token(
+        symmetric_secret.get_value(),
+        {
+            "aud": "test-audience",
+            "iss": "test-issuer",
+            "sub": "user123",
+            "exp": 1000000000,  # Past timestamp
+        },
+    )
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is False
+
+
+@pytest.mark.parametrize("algorithm", ["HS256", "HS384", "HS512"])
+async def test_jwt_bearer_symmetric_different_algorithms(app, algorithm):
+    secret = Secret(
+        "test-secret-key-for-hmac-validation-at-least-32-chars", direct_value=True
+    )
+
+    app.use_authentication().add(
+        JWTBearerAuthentication(
+            valid_audiences=["test-audience"],
+            valid_issuers=["test-issuer"],
+            secret_key=secret,
+            algorithms=[algorithm],
+        )
+    )
+
+    identity: Optional[Identity] = None
+
+    @app.router.get(f"/{algorithm.lower()}")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    await app.start()
+
+    # Test with token using the specific algorithm
+    access_token = get_symmetric_token(
+        secret.get_value(),
+        {
+            "aud": "test-audience",
+            "iss": "test-issuer",
+            "sub": "user123",
+            "exp": 9999999999,
+        },
+        algorithm=algorithm,
+    )
+
+    await app(
+        get_example_scope(
+            "GET",
+            f"/{algorithm.lower()}",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is True
+    assert identity["sub"] == "user123"
+
+    # Reset for next iteration
+    app._authentication = None
+
+
+# endregion

@@ -4,9 +4,14 @@ This module provides classes to handle JWT Bearer authentication.
 
 from typing import Optional, Sequence
 
+from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
 from guardpost.jwks import KeysProvider
-from guardpost.jwts import InvalidAccessToken, AsymmetricJWTValidator
+from guardpost.jwts import (
+    AsymmetricJWTValidator,
+    InvalidAccessToken,
+    SymmetricJWTValidator,
+)
 from jwt.exceptions import InvalidTokenError
 
 from blacksheep.baseapp import get_logger
@@ -18,12 +23,12 @@ class JWTBearerAuthentication(AuthenticationHandler):
     AuthenticationHandler that can parse and verify JWT Bearer access tokens to identify
     users.
 
-    JWTs are validated using public RSA keys, and keys can be fetched automatically from
-    OpenID Connect (OIDC) discovery, if an `authority` is provided.
+    JWTs are validated using either public RSA keys (asymmetric) or a shared secret
+    (symmetric), but not both in the same instance. Keys can be fetched automatically
+    from OpenID Connect (OIDC) discovery, if an `authority` is provided.
 
-    It is possible to use several instances of this class, to support authentication
-    through several identity providers (e.g. Azure Active Directory, Auth0, Azure Active
-    Directory B2C).
+    Use separate instances of this class to support different authentication methods
+    or identity providers.
     """
 
     def __init__(
@@ -38,6 +43,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         keys_url: Optional[str] = None,
         cache_time: float = 10800,
         auth_mode: str = "JWT Bearer",
+        secret_key: Optional[Secret] = None,
     ):
         """
         Creates a new instance of JWTBearerAuthentication, which tries to
@@ -57,48 +63,101 @@ class JWTBearerAuthentication(AuthenticationHandler):
             If provided, keys are obtained from a standard well-known endpoint.
             This parameter is ignored if `keys_provider` is given.
         algorithms : Sequence[str], optional
-            Sequence of acceptable algorithms, by default ["RS256"].
+            Sequence of acceptable algorithms. Defaults to ["RS256"] for asymmetric
+            validation or ["HS256"] for symmetric validation.
         require_kid : bool, optional
             According to the specification, a key id is optional in JWK. However,
             this parameter lets control whether access tokens missing `kid` in their
             headers should be handled or rejected. By default True, thus only JWTs
-            having `kid` header are accepted.
+            having `kid` header are accepted. Only applies to asymmetric validation.
         keys_provider : Optional[KeysProvider], optional
-            If provided, the exact `KeysProvider` to be used when fetching keys.
-            By default None
+            If provided, the exact `KeysProvider` to be used when fetching JWKS for
+            validation. Only applies to asymmetric validation. By default None.
         keys_url : Optional[str], optional
             If provided, keys are obtained from the given URL through HTTP GET.
-            This parameter is ignored if `keys_provider` is given.
+            This parameter is ignored if `keys_provider` is given or if `secret_key`
+            is provided. Only applies to asymmetric validation.
         cache_time : float, optional
             If >= 0, JWKS are cached in memory and stored for the given amount in
-            seconds. By default 10800 (3 hours).
+            seconds. By default 10800 (3 hours). Only applies to asymmetric validation.
         auth_mode : str, optional
             When authentication succeeds, the declared authentication mode. By default,
             "JWT Bearer".
+        secret_key : Optional[Secret], optional
+            If provided, enables symmetric JWT validation (HS256/HS384/HS512).
+            Cannot be used together with asymmetric validation parameters.
         """
         self.logger = get_logger()
 
-        if authority and not valid_issuers:
-            valid_issuers = [authority]
+        # Validate mutual exclusivity
+        if secret_key and (authority or keys_provider or keys_url):
+            raise TypeError(
+                "Cannot specify both secret_key (symmetric) and "
+                "authority/keys_provider/keys_url (asymmetric) parameters. "
+                "Use separate instances for different validation methods."
+            )
 
-        if not authority and not valid_issuers:
-            raise TypeError("Specify either an authority or valid issuers.")
+        # Determine validation mode and set appropriate defaults
+        if secret_key:
+            # Symmetric validation
+            if not algorithms:
+                algorithms = ["HS256"]
 
-        assert valid_issuers is not None
+            if valid_issuers is None:
+                raise TypeError("Specify valid issuers.")
 
-        if not algorithms:
-            algorithms = ["RS256"]
+            # Validate that only symmetric algorithms are specified
+            invalid_algorithms = [
+                algo for algo in algorithms if not algo.startswith("HS")
+            ]
+            if invalid_algorithms:
+                raise TypeError(
+                    f"When using secret_key, only HS* algorithms are supported. "
+                    f"Invalid algorithms: {invalid_algorithms}"
+                )
 
-        self._validator = AsymmetricJWTValidator(
-            authority=authority,
-            algorithms=algorithms,
-            require_kid=require_kid,
-            keys_provider=keys_provider,
-            keys_url=keys_url,
-            valid_issuers=valid_issuers,
-            valid_audiences=valid_audiences,
-            cache_time=cache_time,
-        )
+            self._validator = SymmetricJWTValidator(
+                valid_issuers=valid_issuers,
+                valid_audiences=valid_audiences,
+                secret_key=secret_key.get_value(),
+                algorithms=algorithms,
+            )
+        else:
+            # Asymmetric validation
+            if not algorithms:
+                algorithms = ["RS256"]
+
+            if authority and not valid_issuers:
+                valid_issuers = [authority]
+
+            if not authority and not valid_issuers:
+                raise TypeError("Specify either an authority or valid issuers.")
+
+            assert valid_issuers is not None
+
+            # Validate that only asymmetric algorithms are specified
+            invalid_algorithms = [
+                algo
+                for algo in algorithms
+                if not (algo.startswith("RS") or algo.startswith("ES"))
+            ]
+            if invalid_algorithms:
+                raise TypeError(
+                    f"When using asymmetric validation, only RS*/ES* algorithms are supported. "
+                    f"Invalid algorithms: {invalid_algorithms}"
+                )
+
+            self._validator = AsymmetricJWTValidator(
+                authority=authority,
+                algorithms=algorithms,
+                require_kid=require_kid,
+                keys_provider=keys_provider,
+                keys_url=keys_url,
+                valid_issuers=valid_issuers,
+                valid_audiences=valid_audiences,
+                cache_time=cache_time,
+            )
+
         self.auth_mode = auth_mode
         self._validator.logger = self.logger
 

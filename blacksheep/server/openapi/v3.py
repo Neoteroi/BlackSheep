@@ -13,6 +13,7 @@ from typing import get_type_hints
 from uuid import UUID
 
 from guardpost import AuthenticationHandler
+from guardpost.common import AuthenticatedRequirement
 from openapidocs.common import Format, Serializer
 from openapidocs.v3 import (
     APIKeySecurity,
@@ -568,15 +569,38 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             f"Cannot obtain a name for object_type parameter: {object_type!r}"
         )
 
+    def app_requires_auth(self, app: Application) -> bool:
+        """
+        Returns a value indicating whether the application **requires** authentication
+        for all endpoints by default. If it does, the generated OpenAPI Documentation
+        does not include an empty object in the global "security" section.
+        Override this method in subclasses for finer control on this feature.
+        """
+        authorization_strategy = app.authorization_strategy
+        if (
+            authorization_strategy is None
+            or authorization_strategy.default_policy is None
+        ):
+            return False
+        default_reqs = authorization_strategy.default_policy.requirements
+
+        if AuthenticatedRequirement in default_reqs or any(
+            isinstance(req, AuthenticatedRequirement) for req in default_reqs
+        ):
+            return True
+        return False
+
     def _generate_security_schemes(self, app: Application):
         # If the user did not specify security schemes, tries to generate security
         # schemes from the configured authentication handlers.
         # Important:
         schemes = self.components.security_schemes or {}
+
         if not schemes and app.authentication_strategy is not None:
             # Note: auth_handler can be defined as a type! Because Guardpost supports
             # dependency injection... We need to resolve services at application start
             # to generate OpenAPI Docs.
+
             for auth_handler in app.authentication_strategy.handlers:
                 for doc_handler in self._security_schemes_handlers:
                     # We need to activate the service here, if it is a type
@@ -591,7 +615,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                         schemes[scheme] = security_scheme
 
                         if self.security is None:
-                            self.security = Security([], optional=True)  # ??? Optional?
+                            self.security = Security(
+                                [], optional=not self.app_requires_auth(app)
+                            )
                         self.security.requirements.append(req)
 
         for name, scheme in schemes.items():
@@ -1107,6 +1133,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return [
                 SecurityRequirement(auth_scheme, []) for auth_scheme in auth_schemes
             ]
+
+        # is the handler decorated with "allow_anonymous"?
+        if getattr(handler, "allow_anonymous", False):
+            # return an empty array to specify the endpoint does not require
+            # authentication
+            return []
 
         return None
 

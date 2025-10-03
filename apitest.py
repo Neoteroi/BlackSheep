@@ -9,13 +9,15 @@ curl http://127.0.0.1:44777 -H "X-API-Key: Foo"
 from dataclasses import dataclass
 
 from essentials.secrets import Secret
+from guardpost import Policy
 from openapidocs.v3 import Info
 
 from blacksheep import Application, get
 from blacksheep.server.authentication.apikey import APIKey, APIKeyAuthentication
 from blacksheep.server.authentication.basic import BasicAuthentication, BasicCredentials
-from blacksheep.server.authorization import auth
+from blacksheep.server.authorization import auth, allow_anonymous
 from blacksheep.server.openapi.v3 import OpenAPIHandler
+from guardpost.common import AuthenticatedRequirement
 
 app = Application()
 
@@ -38,7 +40,9 @@ app.use_authentication().add(
     )
 ).add(BasicAuthentication(admin_credentials))
 
-app.use_authorization()
+app.use_authorization()  # .with_default_policy(
+#    Policy("default", AuthenticatedRequirement())
+# )
 
 
 docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
@@ -50,7 +54,7 @@ class Foo:
     foo: str
 
 
-@auth()
+@allow_anonymous()
 @get("/")
 async def get_foo() -> Foo:
     return Foo("Hello!")
@@ -62,7 +66,7 @@ async def get_claims(request):
     return request.user.claims
 
 
-@auth(roles=["admin"])
+@auth(roles=["admin"], authentication_schemes=["Basic"])
 @get("/for-admins")
 async def for_admins_only(request):
     return request.user.claims

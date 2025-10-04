@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **symmetric encryption** (previously the built-in classes only supported using
   asymmetric encryption to validate JWTs).
 - Improve the `JWTBearerAuthentication` class to support validating JWTs with both
-  asymmetric and symmetric encryption, including a combination of both if desired.
+  asymmetric and symmetric encryption.
 - Improve the code that generates OpenAPI Documentation to automatically include
   security `securitySchemes` and `security` sections by `Authentication` handlers
   configured in the application. The feature can be extended with user-defined

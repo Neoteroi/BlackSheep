@@ -2,7 +2,7 @@
 This module provides integration for OpenTelemetry using OTLP (OpenTelemetry Protocol)
 exporters for logging and tracing in BlackSheep applications. This code is vendor
 agnostic as it can work with all providers supporting the OpenTelemetry Protocol
-(e.g. Grafana).
+(e.g. OpenTelemtry Collector, Grafana Alloy).
 
 It defines a helper function to configure OpenTelemetry with OTLPLogExporter and
 OTLPSpanExporter, ensuring that all required OTLP-related environment variables are set
@@ -36,8 +36,10 @@ def use_open_telemetry_otlp(
     """
     Configures OpenTelemetry for a BlackSheep application using OTLP exporters.
 
-    This function checks for required OTLP-related environment variables and sets up
-    OpenTelemetry logging and tracing using OTLPLogExporter and OTLPSpanExporter.
+    This function configures OpenTelemetry logging and tracing using OTLPLogExporter
+    and OTLPSpanExporter. It is your responsibility to configure OTEL env variables as
+    desired:
+    https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/
 
     Args:
         app: The BlackSheep Application instance.
@@ -47,15 +49,4 @@ def use_open_telemetry_otlp(
     Raises:
         ValueError: If any required OTLP environment variables are missing.
     """
-    expected_vars = [
-        "OTEL_RESOURCE_ATTRIBUTES",
-        "OTEL_EXPORTER_OTLP_ENDPOINT",
-        "OTEL_EXPORTER_OTLP_HEADERS",
-        "OTEL_EXPORTER_OTLP_PROTOCOL",
-    ]
-    missing_vars = [var for var in expected_vars if os.environ.get(var) is None]
-    if missing_vars:
-        raise ValueError(f"Missing env variables: {', '.join(missing_vars)}")
-
-    # The following exporters use environment variables for configuration:
     use_open_telemetry(app, OTLPLogExporter(), OTLPSpanExporter(), middleware)

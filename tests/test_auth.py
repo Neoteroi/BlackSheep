@@ -247,8 +247,6 @@ async def test_static_files_allow_anonymous_by_default(app):
 
     app.serve_files(get_folder_path("files"))
 
-    await app.start()
-
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
@@ -273,8 +271,6 @@ async def test_static_files_support_authentication(app):
 
     app.serve_files(get_folder_path("files"), allow_anonymous=False)
 
-    await app.start()
-
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response.status == 401
@@ -297,8 +293,6 @@ async def test_static_files_support_authentication_by_route(app):
 
     app.serve_files(get_folder_path("files"), allow_anonymous=False)
     app.serve_files(get_folder_path("files2"), allow_anonymous=True, root_path="/login")
-
-    await app.start()
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
@@ -467,7 +461,6 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
         identity = request.user
         return None
 
-    await app.start()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert app.response is not None
@@ -603,7 +596,6 @@ async def test_di_works_with_auth_handlers(app: Application):
         identity = request.user
         return None
 
-    await app.start()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert isinstance(app, FakeApplication)
@@ -643,7 +635,6 @@ async def test_di_supports_scoped_auth_handlers(app: Application):
             assert first_foo is not foo
         return None
 
-    await app.start()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert isinstance(app, FakeApplication)
@@ -672,7 +663,6 @@ async def test_di_supports_scoped_auth_handlers_with_request_dep(app: Applicatio
     async def home(request):
         return None
 
-    await app.start()
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 
     assert isinstance(app, FakeApplication)
@@ -764,8 +754,6 @@ async def test_jwt_bearer_symmetric_authentication_success(app, symmetric_secret
         identity = request.user
         return None
 
-    await app.start()
-
     # Test with valid symmetric token
     access_token = get_symmetric_token(
         symmetric_secret.get_value(),
@@ -815,8 +803,6 @@ async def test_jwt_bearer_symmetric_authentication_invalid_audience(
         identity = request.user
         return None
 
-    await app.start()
-
     # Test with invalid audience
     access_token = get_symmetric_token(
         symmetric_secret.get_value(),
@@ -862,8 +848,6 @@ async def test_jwt_bearer_symmetric_authentication_invalid_issuer(
         nonlocal identity
         identity = request.user
         return None
-
-    await app.start()
 
     # Test with invalid issuer
     access_token = get_symmetric_token(
@@ -912,8 +896,6 @@ async def test_jwt_bearer_symmetric_authentication_wrong_secret(app):
         identity = request.user
         return None
 
-    await app.start()
-
     # Test with token signed with wrong secret
     access_token = get_symmetric_token(
         wrong_secret,
@@ -957,8 +939,6 @@ async def test_jwt_bearer_symmetric_authentication_expired_token(app, symmetric_
         nonlocal identity
         identity = request.user
         return None
-
-    await app.start()
 
     # Test with expired token
     access_token = get_symmetric_token(
@@ -1010,8 +990,6 @@ async def test_jwt_bearer_symmetric_different_algorithms(app, algorithm):
         identity = request.user
         return None
 
-    await app.start()
-
     # Test with token using the specific algorithm
     access_token = get_symmetric_token(
         secret.get_value(),
@@ -1039,9 +1017,6 @@ async def test_jwt_bearer_symmetric_different_algorithms(app, algorithm):
     assert identity is not None
     assert identity.is_authenticated() is True
     assert identity["sub"] == "user123"
-
-    # Reset for next iteration
-    app._authentication = None
 
 
 # endregion

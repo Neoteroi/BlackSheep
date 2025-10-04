@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.4.2] - 2025-10-??
+## [2.4.2] - 2025-10-04 :large_blue_diamond:
 
 - Add significant improvements to authentication and authorization features.
 - Add built-in support for **API Key Authentication**.
@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asymmetric encryption to validate JWTs).
 - Improve the `JWTBearerAuthentication` class to support validating JWTs with both
   asymmetric and symmetric encryption, including a combination of both if desired.
-- Improve the code that generates OpenAPI Documentation to include automatically
+- Improve the code that generates OpenAPI Documentation to automatically include
   security `securitySchemes` and `security` sections by `Authentication` handlers
   configured in the application. The feature can be extended with user-defined
   authentication handlers.
@@ -23,8 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   requests (`@auth(roles=["admin"])`).
 - Upgrade `GuardPost` to `1.0.3`, as it includes improved features to handle roles and
   JWT validation using symmetric encryption.
-- Upgrade `essentials` to `1.1.7` as it includes a `Secret` class to handle secrets in
-  code.
+- Upgrade `essentials` to `1.1.8` as it includes a `Secret` class to handle
+  secrets in code. This class is used for safe handling of secrets in API Keys,
+  Basic Credentials, and symmetric encryption for JWT Bearer authentication. It
+  will be used in the future in all circumstances where BlackSheep code needs
+  user-defined secrets.
+- Remove the code that required four env variables to be configured for the
+  **OTLP** exporter (in the `use_open_telemetry_otlp` function), because it
+  didn't cover legitimate use cases supported by the
+  [**OpenTelemetry SDK**](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/).
+  It is responsibility of the developers to configure env variables according
+  to their preference for **OTLP**.
+
+> [!TIP]
+>
+> For a tutorial on OTLP and how it can be used with BlackSheep and an
+> OpenTelemetry Collector self-hosted in Kubernetes, see:
+> https://robertoprevato.github.io/K8sStudies/k3s/monitoring/
 
 ## [2.4.1] - 2025-09-28
 
@@ -65,8 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a wrong signature ([#592](https://github.com/Neoteroi/BlackSheep/issues/592)),
   or that contains a bug and causes exceptions itself.
   Replace the Application `exception_handlers` dictionary with a user defined
-  dictionary that validates values, and change a piece of code that causes
-  a recursive error when an exception handler itself is buggy.
+  dictionary that validates values, and change a piece of code that caused
+  a recursive error when an exception handler itself was buggy.
 - Add support for specifying the status code in view functions
   ([#591](https://github.com/Neoteroi/BlackSheep/issues/591)).
 - Fix `license` field in `pyproject.toml`.

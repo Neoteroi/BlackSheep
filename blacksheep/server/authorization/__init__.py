@@ -24,6 +24,7 @@ __all__ = (
 def auth(
     policy: Optional[str] = "authenticated",
     *,
+    roles: Optional[Sequence[str]] = None,
     authentication_schemes: Optional[Sequence[str]] = None,
 ) -> Callable[..., Any]:
     """
@@ -32,14 +33,17 @@ def auth(
     used.
 
     :param policy: optional, name of the policy to use for authorization.
+    :param roles: optional set of sufficient roles (any one is enough). If both a
+        policy and roles are specified, both are checked.
     :param authentication_schemes: optional, authentication schemes to use
-    for this handler. If not specified, all configured authentication handlers
-    are used.
+        for this handler. If not specified, all configured authentication handlers
+        are used.
     """
 
     def decorator(f):
         f.auth = True
         f.auth_policy = policy
+        f.auth_roles = list(roles) if roles else None
         f.auth_schemes = authentication_schemes
         return f
 
@@ -70,14 +74,15 @@ def get_authorization_middleware(
         if getattr(handler, "allow_anonymous", False) is True:
             return await handler(request)
 
+        roles = getattr(handler, "auth_roles", None)
         if hasattr(handler, "auth"):
             # function decorated by auth;
-            await strategy.authorize(handler.auth_policy, user, request)
+            await strategy.authorize(handler.auth_policy, user, request, roles)
         else:
             # function not decorated by auth; use the default policy.
             # this is necessary to support configuring authorization rules globally
             # without configuring every single request handler
-            await strategy.authorize(None, user, request)
+            await strategy.authorize(None, user, request, roles)
 
         return await handler(request)
 

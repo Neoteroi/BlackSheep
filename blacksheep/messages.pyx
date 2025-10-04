@@ -167,7 +167,6 @@ cdef class Message:
 
     async def read(self):
         if self.content:
-            # TODO: return content.body if not an instance of StreamedContent?
             return await self.content.read()
         return None
 

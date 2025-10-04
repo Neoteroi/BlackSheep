@@ -5,6 +5,122 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2025-10-04 :large_blue_diamond:
+
+- Add significant improvements to authentication and authorization features.
+- Add built-in support for **API Key Authentication**.
+- Add built-in support for **Basic Authentication**.
+- Add built-in support for **JWT Bearer authentication** validating JWTs signed using
+  **symmetric encryption** (previously the built-in classes only supported using
+  asymmetric encryption to validate JWTs).
+- Improve the `JWTBearerAuthentication` class to support validating JWTs with both
+  asymmetric and symmetric encryption.
+- Improve the code that generates OpenAPI Documentation to automatically include
+  security `securitySchemes` and `security` sections by `Authentication` handlers
+  configured in the application. The feature can be extended with user-defined
+  authentication handlers.
+- Improve the `@auth` decorator to support specifying **sufficient roles** to
+  authorize requests (`@auth(roles=["admin"])`).
+- Upgrade `GuardPost` to `1.0.3`, as it includes improved features to handle roles and
+  JWT validation using symmetric encryption.
+- Upgrade `essentials` to `1.1.8` as it includes a `Secret` class to handle
+  secrets in code. This class is used for safe handling of secrets in API Keys,
+  Basic Credentials, and symmetric encryption for JWT Bearer authentication. It
+  will be used in the future in all circumstances where BlackSheep code needs
+  user-defined secrets.
+- Remove the code that required four env variables to be configured for the
+  **OTLP** exporter (in the `use_open_telemetry_otlp` function), because it
+  didn't cover legitimate use cases supported by the
+  [**OpenTelemetry SDK**](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/).
+  It is responsibility of the developers to configure env variables according
+  to their preference for **OTLP**.
+- The framework has been tested for `cryptography>=46.0.0` and therefore update
+  the dependency to `cryptography>=45.0.2,<47.0.0`.
+
+> [!TIP]
+>
+> For a tutorial on OTLP and how it can be used with BlackSheep and an
+> OpenTelemetry Collector self-hosted in Kubernetes, see:
+> https://robertoprevato.github.io/K8sStudies/k3s/monitoring/
+
+Example:
+
+```python
+"""
+uvicorn apitest:app --port 44777
+
+curl http://127.0.0.1:44777 -H "X-API-Key: Foo"
+"""
+
+from dataclasses import dataclass
+
+from essentials.secrets import Secret
+from openapidocs.v3 import Info
+
+from blacksheep import Application, get
+from blacksheep.server.authentication.apikey import APIKey, APIKeyAuthentication
+from blacksheep.server.authentication.basic import BasicAuthentication, BasicCredentials
+from blacksheep.server.authorization import auth, allow_anonymous
+from blacksheep.server.openapi.v3 import OpenAPIHandler
+
+app = Application()
+
+
+admin_credentials = BasicCredentials(
+    username="admin",
+    password=Secret("$ADMIN_PASSWORD"),  # Obtained from ADMIN_PASSWORD env var
+    roles=["admin"],
+)
+
+print(admin_credentials.to_header_value())
+
+app.use_authentication().add(
+    APIKeyAuthentication(
+        APIKey(
+            secret=Secret("$API_SECRET"),  # Obtained from API_SECRET env var
+            roles=["user"],
+        ),
+        param_name="X-API-Key",
+    )
+).add(BasicAuthentication(admin_credentials))
+
+app.use_authorization()
+
+
+# See the generated docs and how they include security sections
+docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
+docs.bind_app(app)
+
+
+@dataclass
+class Foo:
+    foo: str
+
+
+@allow_anonymous()
+@get("/")
+async def get_foo() -> Foo:
+    return Foo("Hello!")
+
+
+@auth()
+@get("/claims")
+async def get_claims(request):
+    return request.user.claims
+
+
+@auth(roles=["admin"], authentication_schemes=["Basic"])
+@get("/for-admins")
+async def for_admins_only(request):
+    return request.user.claims
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, port=44777)
+```
+
 ## [2.4.1] - 2025-09-28
 
 - Correct bug in controller inheritance that would prevent argument types and
@@ -44,8 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a wrong signature ([#592](https://github.com/Neoteroi/BlackSheep/issues/592)),
   or that contains a bug and causes exceptions itself.
   Replace the Application `exception_handlers` dictionary with a user defined
-  dictionary that validates values, and change a piece of code that causes
-  a recursive error when an exception handler itself is buggy.
+  dictionary that validates values, and change a piece of code that caused
+  a recursive error when an exception handler itself was buggy.
 - Add support for specifying the status code in view functions
   ([#591](https://github.com/Neoteroi/BlackSheep/issues/591)).
 - Fix `license` field in `pyproject.toml`.
@@ -110,7 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > `2.3.0`. The breaking changes aim to improve the user experience (UX) when
 > using `Controllers` and registering routes. In particular, they address
 > issues [#511](https://github.com/Neoteroi/BlackSheep/issues/511) and
-> [#540](https://github.com/Neoteroi/BlackSheep/issues/540).The scope of the
+> [#540](https://github.com/Neoteroi/BlackSheep/issues/540). The scope of the
 > breaking changes is relatively minor, as they affect built-in features that
 > are *likely* not commonly modified: removes the `prepare_controllers` and the
 > `get_controller_handler_pattern` from the `Application` class, transferring

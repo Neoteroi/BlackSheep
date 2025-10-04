@@ -1,3 +1,7 @@
+"""
+This module provides classes to handle Cookie-based authentication.
+"""
+
 from datetime import datetime
 
 try:

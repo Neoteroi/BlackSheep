@@ -224,6 +224,14 @@ class Application(BaseApplication):
             use_shutdown_handler(self)
 
     @property
+    def authentication_strategy(self) -> Optional[AuthenticationStrategy]:
+        return self._authentication_strategy
+
+    @property
+    def authorization_strategy(self) -> Optional[AuthorizationStrategy]:
+        return self._authorization_strategy
+
+    @property
     def controllers_router(self) -> RoutesRegistry:
         return self.router.controllers_routes
 
@@ -476,7 +484,7 @@ class Application(BaseApplication):
             # meaning that request handlers allow anonymous users by default, unless
             # they are decorated with @auth()
             strategy.default_policy = Policy("default")
-            strategy.add(Policy("authenticated").add(AuthenticatedRequirement()))
+            strategy.add(Policy("authenticated", AuthenticatedRequirement()))
 
         self._authorization_strategy = strategy
         self.exceptions_handlers.update(

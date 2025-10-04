@@ -219,14 +219,20 @@ async def only_for_authenticated_users():
 
 BlackSheep provides:
 
-* [Built-in support for OpenID Connect authentication](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
-* [Built-in support for JWT Bearer authentication](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
+* [Built-in support for **OpenID Connect** authentication](https://www.neoteroi.dev/blacksheep/authentication/#oidc)
+* [Built-in support for **JWT Bearer** authentication](https://www.neoteroi.dev/blacksheep/authentication/#jwt-bearer)
 
 Meaning that it is easy to integrate with services such as:
 * [Auth0](https://auth0.com)
 * [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/)
 * [Azure Active Directory B2C](https://docs.microsoft.com/en-us/azure/active-directory-b2c/overview)
 * [Okta](https://www.okta.com)
+
+Since version `2.4.2`, it also offers built-in support for **Basic authentication**,
+**API Key authentication**, **JWT Bearer authentication using symmetric encryption**,
+and automatic generation of OpenAPI Documentation for security schemes when using
+built-in classes for authentication. It supports defining custom authentication handlers
+and custom mappers for OpenAPI Documentation.
 
 Refer to the documentation and to [BlackSheep-Examples](https://github.com/Neoteroi/BlackSheep-Examples)
 for more details and examples.

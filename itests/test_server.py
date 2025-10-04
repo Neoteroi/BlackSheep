@@ -324,9 +324,9 @@ def test_get_is_disconnected_cancelling(session_1):
                 timeout=0.005,
             )
         except ReadTimeout:
-            # wait 310 ms and check a file written by the server after asserting the request
+            # wait 2s and check a file written by the server after asserting the request
             # was disconnected
-            time.sleep(0.31)
+            time.sleep(2)
 
         try:
             text = check_file.read_text()

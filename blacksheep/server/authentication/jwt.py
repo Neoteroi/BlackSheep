@@ -143,8 +143,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
             ]
             if invalid_algorithms:
                 raise TypeError(
-                    f"When using asymmetric validation, only RS*/ES* algorithms are supported. "
-                    f"Invalid algorithms: {invalid_algorithms}"
+                    f"When using asymmetric validation, only RS*/ES* algorithms are "
+                    f"supported. Invalid algorithms: {invalid_algorithms}"
                 )
 
             self._validator = AsymmetricJWTValidator(

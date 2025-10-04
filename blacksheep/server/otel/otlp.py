@@ -17,7 +17,6 @@ Usage:
     use_open_telemetry_otlp(app)
 """
 
-import os
 from typing import Optional
 
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter

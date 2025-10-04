@@ -19,8 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   security `securitySchemes` and `security` sections by `Authentication` handlers
   configured in the application. The feature can be extended with user-defined
   authentication handlers.
-- Improve the `@auth` decorator to support specifying sufficient **roles** to authorize
-  requests (`@auth(roles=["admin"])`).
+- Improve the `@auth` decorator to support specifying **sufficient roles** to
+  authorize requests (`@auth(roles=["admin"])`).
 - Upgrade `GuardPost` to `1.0.3`, as it includes improved features to handle roles and
   JWT validation using symmetric encryption.
 - Upgrade `essentials` to `1.1.8` as it includes a `Secret` class to handle
@@ -34,12 +34,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [**OpenTelemetry SDK**](https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/).
   It is responsibility of the developers to configure env variables according
   to their preference for **OTLP**.
+- The framework has been tested for `cryptography>=46.0.0` and therefore update
+  the dependency to `cryptography>=45.0.2,<47.0.0`.
 
 > [!TIP]
 >
 > For a tutorial on OTLP and how it can be used with BlackSheep and an
 > OpenTelemetry Collector self-hosted in Kubernetes, see:
 > https://robertoprevato.github.io/K8sStudies/k3s/monitoring/
+
+Example:
+
+```python
+"""
+uvicorn apitest:app --port 44777
+
+curl http://127.0.0.1:44777 -H "X-API-Key: Foo"
+"""
+
+from dataclasses import dataclass
+
+from essentials.secrets import Secret
+from openapidocs.v3 import Info
+
+from blacksheep import Application, get
+from blacksheep.server.authentication.apikey import APIKey, APIKeyAuthentication
+from blacksheep.server.authentication.basic import BasicAuthentication, BasicCredentials
+from blacksheep.server.authorization import auth, allow_anonymous
+from blacksheep.server.openapi.v3 import OpenAPIHandler
+
+app = Application()
+
+
+admin_credentials = BasicCredentials(
+    username="admin",
+    password=Secret("$ADMIN_PASSWORD"),  # Obtained from ADMIN_PASSWORD env var
+    roles=["admin"],
+)
+
+print(admin_credentials.to_header_value())
+
+app.use_authentication().add(
+    APIKeyAuthentication(
+        APIKey(
+            secret=Secret("$API_SECRET"),  # Obtained from API_SECRET env var
+            roles=["user"],
+        ),
+        param_name="X-API-Key",
+    )
+).add(BasicAuthentication(admin_credentials))
+
+app.use_authorization()
+
+
+# See the generated docs and how they include security sections
+docs = OpenAPIHandler(info=Info(title="Example API", version="0.0.1"))
+docs.bind_app(app)
+
+
+@dataclass
+class Foo:
+    foo: str
+
+
+@allow_anonymous()
+@get("/")
+async def get_foo() -> Foo:
+    return Foo("Hello!")
+
+
+@auth()
+@get("/claims")
+async def get_claims(request):
+    return request.user.claims
+
+
+@auth(roles=["admin"], authentication_schemes=["Basic"])
+@get("/for-admins")
+async def for_admins_only(request):
+    return request.user.claims
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, port=44777)
+```
 
 ## [2.4.1] - 2025-09-28
 
@@ -146,7 +226,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > `2.3.0`. The breaking changes aim to improve the user experience (UX) when
 > using `Controllers` and registering routes. In particular, they address
 > issues [#511](https://github.com/Neoteroi/BlackSheep/issues/511) and
-> [#540](https://github.com/Neoteroi/BlackSheep/issues/540).The scope of the
+> [#540](https://github.com/Neoteroi/BlackSheep/issues/540). The scope of the
 > breaking changes is relatively minor, as they affect built-in features that
 > are *likely* not commonly modified: removes the `prepare_controllers` and the
 > `get_controller_handler_pattern` from the `Application` class, transferring

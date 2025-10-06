@@ -43,6 +43,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         keys_url: Optional[str] = None,
         cache_time: float = 10800,
         auth_mode: str = "JWT Bearer",
+        scheme: str = "",
         secret_key: Optional[Secret] = None,
     ):
         """
@@ -80,13 +81,24 @@ class JWTBearerAuthentication(AuthenticationHandler):
         cache_time : float, optional
             If >= 0, JWKS are cached in memory and stored for the given amount in
             seconds. By default 10800 (3 hours). Only applies to asymmetric validation.
+        scheme: str
+            Authentication scheme. When authentication succeeds, the identity is
+            authenticated with this scheme.
         auth_mode : str, optional
-            When authentication succeeds, the declared authentication mode. By default,
-            "JWT Bearer".
+            Deprecated parameter, use `scheme` instead. When authentication succeeds,
+            the declared authentication mode. By default, "JWT Bearer".
         secret_key : Optional[Secret], optional
             If provided, enables symmetric JWT validation (HS256/HS384/HS512).
             Cannot be used together with asymmetric validation parameters.
         """
+        if auth_mode != "JWT Bearer":
+            # the user specified an auth_mode different than default.
+            # TODO: write deprecation warning!
+            scheme = auth_mode
+        elif scheme:
+            # the user used the new parameter - good;
+            auth_mode = scheme
+
         self.logger = get_logger()
 
         # Validate mutual exclusivity
@@ -159,6 +171,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
             )
 
         self.auth_mode = auth_mode
+        self._scheme = scheme
         self._validator.logger = self.logger
 
     async def authenticate(self, context: Request) -> Optional[Identity]:
@@ -189,8 +202,12 @@ class JWTBearerAuthentication(AuthenticationHandler):
             )
             pass
         else:
-            context.user = Identity(decoded, self.auth_mode)
+            context.user = Identity(decoded, self.scheme)
             return context.user
 
         context.user = Identity({})
         return None
+
+    @property
+    def scheme(self) -> str:
+        return self._scheme.replace(" ", "")

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3] - 2025-10-??
+
+- Fix bug [#605](https://github.com/Neoteroi/BlackSheep/issues/605), that
+  prevented the `JWTBearerAuthentication` scheme from being documented
+  properly.
+- Deprecate the `auth_mode` parameter for the `JWTBearerAuthentication`
+  constructor, and add a new `scheme` parameter that will replace it completely.
+
 ## [2.4.2] - 2025-10-04 :large_blue_diamond:
 
 - Add significant improvements to authentication and authorization features.
@@ -41,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > For a tutorial on OTLP and how it can be used with BlackSheep and an
 > OpenTelemetry Collector self-hosted in Kubernetes, see:
-> https://robertoprevato.github.io/K8sStudies/k3s/monitoring/
+> https://robertoprevato.github.io/K8sStudies/k3s/monitoring/#test-sending-telemetries-from-an-application
 
 Example:
 

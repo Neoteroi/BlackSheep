@@ -199,7 +199,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         claims.
         """
         claims = deepcopy(key.claims)
-        claims.update({"roles": deepcopy(key.roles)})
+        claims.update({"roles": [role for role in key.roles]})
         return Identity(claims, authentication_mode=self.scheme)
 
     def _get_input_secret(self, context: Request) -> Optional[str]:
@@ -223,6 +223,10 @@ class APIKeyAuthentication(AuthenticationHandler):
         """
         Tries to find a matching API Key in the request context.
         Returns the matching API Key if found, otherwise None.
+
+        If the client provides an API Key and it is invalid, an InvalidCredentialsError
+        error is raised to keep track of this event and support rate-limiting requests
+        from the same client, to prevent brute-forcing.
         """
         keys = self._keys
 
@@ -240,4 +244,9 @@ class APIKeyAuthentication(AuthenticationHandler):
         for key in keys:
             if key.match(input_secret):
                 return key
+
+        # The client provided an API Key, but it is invalid.
+        # This event must be logged, and we must rate-limit this kind of request by
+        # client IP.
+        raise InvalidCredentialsError()
         return None

@@ -237,7 +237,9 @@ class BasicAuthentication(AuthenticationHandler):
             An Identity object containing the user's claims and roles.
         """
         claims = deepcopy(credentials.claims)
-        claims.update({"sub": credentials.username, "roles": credentials.roles})
+        claims.update(
+            {"sub": credentials.username, "roles": [role for role in credentials.roles]}
+        )
         return Identity(claims, authentication_mode=self.scheme)
 
     async def _match_credentials(

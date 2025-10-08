@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix bug [#605](https://github.com/Neoteroi/BlackSheep/issues/605), that
   prevented the `JWTBearerAuthentication` scheme from being documented
-  properly.
+  properly in OpenAPI Specification files.
 - Deprecate the `auth_mode` parameter for the `JWTBearerAuthentication`
   constructor, and add a new `scheme` parameter that will replace it completely.
 

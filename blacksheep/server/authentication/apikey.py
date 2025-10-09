@@ -9,6 +9,7 @@ from typing import List, Literal, Optional, Union
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
+from guardpost.errors import InvalidCredentialsError
 
 from blacksheep.messages import Request
 
@@ -245,8 +246,6 @@ class APIKeyAuthentication(AuthenticationHandler):
             if key.match(input_secret):
                 return key
 
-        # The client provided an API Key, but it is invalid.
-        # This event must be logged, and we must rate-limit this kind of request by
-        # client IP.
-        raise InvalidCredentialsError()
-        return None
+        # The client provided an API Key, but it is invalid. This event must be logged,
+        # and we must rate-limit this kind of request by client IP.
+        raise InvalidCredentialsError(context.original_client_ip)

@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
+from guardpost.errors import InvalidCredentialsError
 
 from blacksheep.messages import Request
 
@@ -216,8 +217,10 @@ class BasicAuthentication(AuthenticationHandler):
         matching_credentials = await self._match_credentials(username, password)
 
         if matching_credentials is None:
-            context.user = Identity({})
-            return None
+            # The user provided a username and password combination, but they are
+            # invalid. This kind of events must be logged and rate-limited to avoid the
+            # risk of attackers trying to guess usernames and passwords.
+            raise InvalidCredentialsError(context.original_client_ip)
 
         context.user = self._get_identity_for_credentials(matching_credentials)
         return context.user

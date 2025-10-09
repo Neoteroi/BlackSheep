@@ -1,6 +1,12 @@
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from guardpost import AuthenticationHandler, AuthenticationStrategy, AuthorizationError
+from guardpost import (
+    AuthenticationHandler,
+    AuthenticationStrategy,
+    AuthorizationError,
+    RateLimiter,
+    TooManyAuthenticationAttemptsError,
+)
 
 from blacksheep import Response, TextContent
 
@@ -55,7 +61,26 @@ class AuthenticateChallenge(AuthorizationError):
         return self.header_name, self._get_header_value()
 
 
+class DefaultRateLimiter(RateLimiter):
+
+    def get_context_key(self, context: Any) -> str:
+        return context.original_client_ip
+
+
 async def handle_authentication_challenge(
     app, request, exception: AuthenticateChallenge
 ):
     return Response(401, [exception.get_header()], content=TextContent("Unauthorized"))
+
+
+async def handle_rate_limited_auth(
+    app, request, exception: TooManyAuthenticationAttemptsError
+):
+    return Response(
+        429,
+        [],
+        content=TextContent(
+            "The request is blocked because of "
+            "too many authentication attempts. Try again later."
+        ),
+    )

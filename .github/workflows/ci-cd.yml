@@ -81,6 +81,7 @@ jobs:
 
           CIBW_BEFORE_TEST: >
             python3 -m pip install -e "{project}[dev]" &&
+            where openssl &&
             echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance." &&
             flake8 blacksheep &&
             flake8 tests &&

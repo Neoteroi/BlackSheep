@@ -80,9 +80,8 @@ jobs:
             make compile
 
           CIBW_BEFORE_TEST: >
-            pip install -e {project}[dev] &&
+            pip install -e "{project}[dev]" &&
             echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance." &&
-
             flake8 blacksheep &&
             flake8 tests &&
             flake8 itests &&

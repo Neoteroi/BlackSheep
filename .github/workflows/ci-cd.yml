@@ -46,8 +46,8 @@ jobs:
             # ubuntu-24.04-arm,
             # windows-latest,
             # windows-11-arm,
-            # macos-15-intel,
-            macos-latest,
+            macos-15-intel,
+            # macos-latest,
           ]
 
     steps:
@@ -108,7 +108,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          name: dist-${{ matrix.os }}-${{ strategy.job-index }}
           path: dist/*.whl
 
   # Build PyPy wheel (pure Python)

@@ -6,6 +6,8 @@ from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
+from guardpost import Identity
+
 from blacksheep.multipart import parse_multipart
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
@@ -262,6 +264,8 @@ class Request(Message):
         self.scope = None
         self.content: Optional[Content] = None
 
+    # TODO: deprecate the 'identity' property in the future. This requires a breaking
+    # change in guardpost, too.
     @property
     def identity(self):
         return self.__dict__.get("_user")
@@ -272,7 +276,11 @@ class Request(Message):
 
     @property
     def user(self):
-        return self.__dict__.get("_user")
+        try:
+            return self.__dict__["_user"]
+        except KeyError:
+            self.__dict__["_user"] = Identity()
+            return self.__dict__["_user"]
 
     @user.setter
     def user(self, value):

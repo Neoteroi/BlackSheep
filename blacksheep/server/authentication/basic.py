@@ -197,11 +197,9 @@ class BasicAuthentication(AuthenticationHandler):
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:
-            context.user = Identity({})
             return None
 
         if not authorization_value.startswith(b"Basic "):
-            context.user = Identity({})
             return None
 
         # Decode the base64 encoded credentials
@@ -211,7 +209,6 @@ class BasicAuthentication(AuthenticationHandler):
             username, password = decoded_credentials.split(":", 1)
         except (ValueError, UnicodeDecodeError):
             # Invalid base64 or malformed credentials
-            context.user = Identity({})
             return None
 
         matching_credentials = await self._match_credentials(username, password)
@@ -222,8 +219,7 @@ class BasicAuthentication(AuthenticationHandler):
             # risk of attackers trying to guess usernames and passwords.
             raise InvalidCredentialsError(context.original_client_ip)
 
-        context.user = self._get_identity_for_credentials(matching_credentials)
-        return context.user
+        return self._get_identity_for_credentials(matching_credentials)
 
     def _get_identity_for_credentials(self, credentials: BasicCredentials) -> Identity:
         """

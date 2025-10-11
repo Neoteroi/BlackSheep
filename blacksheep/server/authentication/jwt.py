@@ -3,12 +3,14 @@ This module provides classes to handle JWT Bearer authentication.
 """
 
 from typing import Optional, Sequence
+import warnings
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
 from guardpost.jwks import KeysProvider
 from guardpost.jwts import (
     AsymmetricJWTValidator,
+    BaseJWTValidator,
     InvalidAccessToken,
     SymmetricJWTValidator,
 )
@@ -93,12 +95,17 @@ class JWTBearerAuthentication(AuthenticationHandler):
         """
         if auth_mode != "JWT Bearer":
             # the user specified an auth_mode different than default.
-            # TODO: write deprecation warning!
+            warnings.warn(
+                "The auth_mode parameter is deprecated and will be removed in a "
+                "future version. Use the scheme parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             scheme = auth_mode
         elif scheme:
             # the user used the new parameter - good;
             auth_mode = scheme
-
+        self._validator: BaseJWTValidator
         self.logger = get_logger()
 
         # Validate mutual exclusivity
@@ -171,14 +178,13 @@ class JWTBearerAuthentication(AuthenticationHandler):
             )
 
         self.auth_mode = auth_mode
-        self._scheme = scheme
+        self._scheme = scheme or auth_mode
         self._validator.logger = self.logger
 
     async def authenticate(self, context: Request) -> Optional[Identity]:
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:
-            context.user = Identity({})
             return None
 
         if not authorization_value.startswith(b"Bearer "):
@@ -186,7 +192,6 @@ class JWTBearerAuthentication(AuthenticationHandler):
                 "Invalid Authorization header, not starting with `Bearer `, "
                 "the header is ignored."
             )
-            context.user = Identity({})
             return None
 
         token = authorization_value[7:].decode()
@@ -202,10 +207,8 @@ class JWTBearerAuthentication(AuthenticationHandler):
             )
             pass
         else:
-            context.user = Identity(decoded, self.scheme)
-            return context.user
+            return Identity(decoded, self.scheme)
 
-        context.user = Identity({})
         return None
 
     @property

@@ -187,11 +187,9 @@ class APIKeyAuthentication(AuthenticationHandler):
         if matching_key is None:
             # Return None here and do not raise an exception, because the application
             # might be configured with alternative ways to authenticate users.
-            context.user = Identity({})
             return None
 
-        context.user = self._get_identity_for_key(matching_key)
-        return context.user
+        return self._get_identity_for_key(matching_key)
 
     def _get_identity_for_key(self, key: APIKey) -> Identity:
         """

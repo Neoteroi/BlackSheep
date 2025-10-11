@@ -86,8 +86,6 @@ jobs:
             black --check tests 2>&1 &&
             black --check itests 2>&1
 
-          CIBW_TEST_SKIP: "*-macosx_arm64 *-macosx_universal2:arm64"
-
           CIBW_TEST_COMMAND_WINDOWS: >
             echo "Running unit tests..." &&
             python3 -m pytest {project}\tests &&

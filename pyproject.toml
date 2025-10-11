@@ -78,8 +78,8 @@ dev = [
     "Hypercorn==0.17.3",
     "requests==2.32.4",
     "uvicorn==0.34.2",
-    "pydantic==2.11.4",
-    "pydantic_core==2.33.2",
+    "pydantic>=2.11.4",
+    "pydantic_core>=2.33.2",
     "cryptography>=45.0.2,<47.0.0",
     "websockets~=15.0.1",
 ]

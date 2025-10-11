@@ -64,23 +64,23 @@ jobs:
 
           # Before build commands
           CIBW_BEFORE_BUILD_WINDOWS: >
-            pip install setuptools wheel Cython==3.1.4 &&
+            python3 -m pip install setuptools wheel Cython==3.1.4 &&
             python -c "import os, glob; [os.remove(f) for f in glob.glob('blacksheep/*.c') + glob.glob('blacksheep/*.so')]" &&
             make compile
 
           # Unix-based systems (macOS, Linux)
           CIBW_BEFORE_BUILD_LINUX: >
-            pip install setuptools wheel Cython==3.1.4 &&
+            python3 -m pip install setuptools wheel Cython==3.1.4 &&
             make clean &&
             make compile
 
           CIBW_BEFORE_BUILD_MACOS: >
-            pip install setuptools wheel Cython==3.1.4 &&
+            python3 -m pip install setuptools wheel Cython==3.1.4 &&
             make clean &&
             make compile
 
           CIBW_BEFORE_TEST: >
-            pip install -e "{project}[dev]" &&
+            python3 -m pip install -e "{project}[dev]" &&
             echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance." &&
             flake8 blacksheep &&
             flake8 tests &&

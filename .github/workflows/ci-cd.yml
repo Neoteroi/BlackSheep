@@ -74,7 +74,7 @@ jobs:
             make clean &&
             make compile
 
-          CIBW_TEST_SKIP: "*-macos*"
+          # CIBW_TEST_SKIP: "*-macos*"
 
           CIBW_BEFORE_TEST: >
             python3 -m pip install -e "{project}[dev]" &&

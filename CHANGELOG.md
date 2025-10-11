@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prevented the `JWTBearerAuthentication` scheme from being documented
   properly in OpenAPI Specification files.
 - Deprecate the `auth_mode` parameter for the `JWTBearerAuthentication`
-  constructor, and add a new `scheme` parameter that will replace it completely.
+  constructor, and add a new `scheme` parameter that will replace it.
 - Improve the code to not require returning an empty `Identity()` object in
   authentication handlers when authentication is not successful.
+- Upgrade `GuardPost` to `1.0.4`, as it includes improved features and a
+  built-in strategy to protect against brute-force authentication attempts.
 
 ## [2.4.2] - 2025-10-04 :large_blue_diamond:
 

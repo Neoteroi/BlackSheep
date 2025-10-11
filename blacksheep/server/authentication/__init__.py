@@ -61,12 +61,6 @@ class AuthenticateChallenge(AuthorizationError):
         return self.header_name, self._get_header_value()
 
 
-class DefaultRateLimiter(RateLimiter):
-
-    def get_context_key(self, context: Any) -> str:
-        return context.original_client_ip
-
-
 async def handle_authentication_challenge(
     app, request, exception: AuthenticateChallenge
 ):

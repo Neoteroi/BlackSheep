@@ -79,8 +79,9 @@ jobs:
             make compile
 
           CIBW_BEFORE_TEST: >
-            python3 -m pip install -e "{project}[dev]" &&
             where openssl &&
+            where vcpkg &&
+            python3 -m pip install -e "{project}[dev]" &&
             echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance." &&
             flake8 blacksheep &&
             flake8 tests &&

@@ -70,6 +70,7 @@ jobs:
           # Unix-based systems (macOS, Linux)
           CIBW_BEFORE_BUILD: >
             python3 -m pip install setuptools wheel Cython==3.1.4 &&
+            ls ./dist &&
             make clean &&
             make compile
 

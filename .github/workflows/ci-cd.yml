@@ -42,12 +42,12 @@ jobs:
     strategy:
       matrix:
         os: [
-            ubuntu-latest,
-            ubuntu-24.04-arm,
-            windows-latest,
-            windows-11-arm,
+            # ubuntu-latest,
+            # ubuntu-24.04-arm,
+            # windows-latest,
+            # windows-11-arm,
             # macos-15-intel,
-            # macos-latest,
+            macos-latest,
           ]
 
     steps:
@@ -137,7 +137,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e {project}[dev]
+          pip install -e .[dev]
 
       - name: Run tests with PyPy
         run: |

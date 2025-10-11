@@ -70,7 +70,6 @@ jobs:
           # Unix-based systems (macOS, Linux)
           CIBW_BEFORE_BUILD: >
             python3 -m pip install setuptools wheel Cython==3.1.4 &&
-            ls ./dist &&
             make clean &&
             make compile
 
@@ -117,8 +116,7 @@ jobs:
   # Build PyPy wheel (pure Python)
   build-pypy-wheels:
     needs: build-wheels
-    if: true
-    # if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -165,8 +163,7 @@ jobs:
   # Build source distribution
   build-sdist:
     name: Build source distribution
-    if: true
-    # if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_artifacts == 'Y')
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_artifacts == 'Y')
     runs-on: ubuntu-latest
 
     steps:

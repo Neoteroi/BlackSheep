@@ -73,6 +73,8 @@ jobs:
             make clean &&
             make compile
 
+          CIBW_TEST_SKIP: "*-macosx_arm64 *-macosx_universal2:arm64"
+
           CIBW_BEFORE_TEST: >
             python3 -m pip install -e "{project}[dev]" &&
             echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance." &&

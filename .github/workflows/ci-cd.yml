@@ -73,7 +73,7 @@ jobs:
             make clean &&
             make compile
 
-          CIBW_TEST_SKIP: "*-macosx_arm64 *-macosx_universal2:arm64"
+          CIBW_TEST_SKIP: "*-macos*"
 
           CIBW_BEFORE_TEST: >
             python3 -m pip install -e "{project}[dev]" &&

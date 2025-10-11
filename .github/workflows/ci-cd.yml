@@ -41,13 +41,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [
-            # ubuntu-latest,
-            # ubuntu-24.04-arm,
-            # windows-latest,
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            windows-latest,
             windows-11-arm,
-            # macos-15-intel,
-            # macos-latest,
+            macos-15-intel,
+            macos-latest,
           ]
 
     steps:
@@ -68,19 +69,12 @@ jobs:
             make compile
 
           # Unix-based systems (macOS, Linux)
-          CIBW_BEFORE_BUILD_LINUX: >
-            python3 -m pip install setuptools wheel Cython==3.1.4 &&
-            make clean &&
-            make compile
-
-          CIBW_BEFORE_BUILD_MACOS: >
+          CIBW_BEFORE_BUILD: >
             python3 -m pip install setuptools wheel Cython==3.1.4 &&
             make clean &&
             make compile
 
           CIBW_BEFORE_TEST: >
-            where openssl &&
-            where vcpkg &&
             python3 -m pip install -e "{project}[dev]" &&
             echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance." &&
             flake8 blacksheep &&
@@ -121,7 +115,8 @@ jobs:
   # Build PyPy wheel (pure Python)
   build-pypy-wheels:
     needs: build-wheels
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    if: true
+    # if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -168,7 +163,8 @@ jobs:
   # Build source distribution
   build-sdist:
     name: Build source distribution
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_artifacts == 'Y')
+    if: true
+    # if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_artifacts == 'Y')
     runs-on: ubuntu-latest
 
     steps:

@@ -98,7 +98,7 @@ jobs:
             pytest {project}/tests &&
             echo "Running integration tests..." &&
             export APP_DEFAULT_ROUTER=false &&
-            pytest itests
+            pytest {project}/itests
 
           CIBW_TEST_REQUIRES: pytest
         with:

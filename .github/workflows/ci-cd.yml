@@ -34,20 +34,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # TODO: windows-validation job
   # Build wheels with cibuildwheel
   build-wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [
-            # ubuntu-latest,
-            # ubuntu-24.04-arm,
-            # windows-latest,
-            # windows-11-arm,
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            windows-latest,
+            windows-11-arm,
             macos-15-intel,
-            # macos-latest,
+            macos-latest,
           ]
 
     steps:

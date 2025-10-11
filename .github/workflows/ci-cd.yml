@@ -96,10 +96,10 @@ jobs:
           # Run tests to ensure wheels work
           CIBW_TEST_COMMAND: >
             echo "Running unit tests..." &&
-            pytest {project}/tests &&
+            python3 -m pytest {project}/tests &&
             echo "Running integration tests..." &&
             export APP_DEFAULT_ROUTER=false &&
-            pytest {project}/itests
+            python3 -m pytest {project}/itests
 
           CIBW_TEST_REQUIRES: pytest
         with:

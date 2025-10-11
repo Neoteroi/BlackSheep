@@ -44,7 +44,6 @@ install-dev: ## Install development dependencies
 clean: ## Clean all build artifacts
 	@echo "🧹 Cleaning build artifacts..."
 	rm -rf build/
-	rm -rf dist/
 	rm -rf *.egg-info/
 	rm -rf .pytest_cache/
 	rm -rf .coverage

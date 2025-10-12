@@ -41,7 +41,6 @@ from blacksheep.scribe import send_asgi_response
 from blacksheep.server.asgi import get_request_url_from_scope
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
-    DefaultRateLimiter,
     get_authentication_middleware,
     handle_authentication_challenge,
     handle_rate_limited_auth,

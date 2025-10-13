@@ -268,7 +268,7 @@ class Request(Message):
     # change in guardpost, too.
     @property
     def identity(self):
-        return self.__dict__.get("_user")
+        return self.user
 
     @identity.setter
     def identity(self, value):

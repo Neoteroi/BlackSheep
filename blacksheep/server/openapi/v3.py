@@ -77,13 +77,13 @@ from .common import (
     response_status_to_str,
 )
 
-
 try:
     from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 except ImportError:  # pragma: no cover
     # This happens if PyJWT is not installed
     class JWTBearerAuthentication:
         pass
+
 
 try:
     from pydantic import BaseModel

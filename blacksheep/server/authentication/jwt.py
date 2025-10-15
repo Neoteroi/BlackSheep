@@ -2,8 +2,8 @@
 This module provides classes to handle JWT Bearer authentication.
 """
 
-from typing import Optional, Sequence
 import warnings
+from typing import Optional, Sequence
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity

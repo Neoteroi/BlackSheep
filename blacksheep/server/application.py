@@ -21,8 +21,8 @@ from guardpost import (
     AuthenticationStrategy,
     AuthorizationStrategy,
     ForbiddenError,
-    RateLimiter,
     Policy,
+    RateLimiter,
     RateLimitExceededError,
     UnauthorizedError,
 )

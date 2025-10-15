@@ -1,10 +1,9 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from guardpost import (
     AuthenticationHandler,
     AuthenticationStrategy,
     AuthorizationError,
-    RateLimiter,
     RateLimitExceededError,
 )
 
@@ -67,9 +66,7 @@ async def handle_authentication_challenge(
     return Response(401, [exception.get_header()], content=TextContent("Unauthorized"))
 
 
-async def handle_rate_limited_auth(
-    app, request, exception: RateLimitExceededError
-):
+async def handle_rate_limited_auth(app, request, exception: RateLimitExceededError):
     return Response(
         429,
         [],

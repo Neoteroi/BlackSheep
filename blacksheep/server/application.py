@@ -23,7 +23,7 @@ from guardpost import (
     ForbiddenError,
     RateLimiter,
     Policy,
-    TooManyAuthenticationAttemptsError,
+    RateLimitExceededError,
     UnauthorizedError,
 )
 from guardpost.common import AuthenticatedRequirement
@@ -496,7 +496,7 @@ class Application(BaseApplication):
                 AuthenticateChallenge: handle_authentication_challenge,
                 UnauthorizedError: handle_unauthorized,
                 ForbiddenError: handle_forbidden,
-                TooManyAuthenticationAttemptsError: handle_rate_limited_auth,
+                RateLimitExceededError: handle_rate_limited_auth,
             }
         )
         return strategy

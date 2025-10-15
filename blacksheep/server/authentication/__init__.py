@@ -5,7 +5,7 @@ from guardpost import (
     AuthenticationStrategy,
     AuthorizationError,
     RateLimiter,
-    TooManyAuthenticationAttemptsError,
+    RateLimitExceededError,
 )
 
 from blacksheep import Response, TextContent
@@ -68,7 +68,7 @@ async def handle_authentication_challenge(
 
 
 async def handle_rate_limited_auth(
-    app, request, exception: TooManyAuthenticationAttemptsError
+    app, request, exception: RateLimitExceededError
 ):
     return Response(
         429,

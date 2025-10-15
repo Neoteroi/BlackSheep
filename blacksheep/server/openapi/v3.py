@@ -45,7 +45,6 @@ from openapidocs.v3 import (
 
 from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
-from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.bindings import (
     Binder,
     BodyBinder,
@@ -77,6 +76,14 @@ from .common import (
     ResponseStatusType,
     response_status_to_str,
 )
+
+
+try:
+    from blacksheep.server.authentication.jwt import JWTBearerAuthentication
+except ImportError:  # pragma: no cover
+    # This happens if PyJWT is not installed
+    class JWTBearerAuthentication:
+        pass
 
 try:
     from pydantic import BaseModel

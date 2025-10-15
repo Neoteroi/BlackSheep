@@ -2295,7 +2295,7 @@ components:
 tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
-        expected_result = """
+        expected_result = r"""
 openapi: 3.1.0
 info:
     title: Example

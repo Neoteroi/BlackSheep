@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade `GuardPost` to `1.0.4`, as it includes improved features and a
   built-in strategy to protect against brute-force authentication attempts.
 - Upgrade `pydantic` to a version supported by Python 3.14.
+- Fix regression causing an import error when trying to use OpenAPI features without
+  installing dependencies for JWT validation [#606](https://github.com/Neoteroi/BlackSheep/issues/606).
 
 ## [2.4.2] - 2025-10-04 :large_blue_diamond:
 

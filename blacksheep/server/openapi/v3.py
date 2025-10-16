@@ -78,9 +78,10 @@ from .common import (
 )
 
 try:
+    # JWT dependencies are optional (cryptography, PyJWT)
     from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 except ImportError:  # pragma: no cover
-    # This happens if PyJWT is not installed
+
     class JWTBearerAuthentication:
         pass
 

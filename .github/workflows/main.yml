@@ -270,9 +270,38 @@ jobs:
           name: dist-${{ matrix.os }}-${{ matrix.python-version }}
           path: dist
 
+  opt-deps-check:
+    needs: build
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 9
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install basic dependencies
+        run: |
+          BLACKSHEEP_NO_EXTENSIONS="1" pip install -e .
+
+      - name: Test imports with no optional dependencies
+        run: |
+          cd itests
+          echo "Expect no import error…"
+          python issue606.py
+
   publish:
     runs-on: ubuntu-latest
-    needs: [build, build-cpython-wheels, build-pypy-wheels]
+    needs: [build, build-cpython-wheels, build-pypy-wheels, opt-deps-check]
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_artifacts == 'Y')
     steps:
       - name: Download a distribution artifact

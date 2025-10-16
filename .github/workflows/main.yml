@@ -272,7 +272,6 @@ jobs:
 
   opt-deps-check:
     needs: build
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

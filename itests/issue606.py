@@ -36,3 +36,6 @@ class Foo:
 @get("/foo")
 async def get_foo() -> Foo:
     return Foo("Hello!")
+
+
+print("OK... ✔️")

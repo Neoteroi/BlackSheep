@@ -9,6 +9,7 @@ from typing import List, Literal, Optional, Union
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
+from guardpost.errors import InvalidCredentialsError
 
 from blacksheep.messages import Request
 
@@ -186,11 +187,9 @@ class APIKeyAuthentication(AuthenticationHandler):
         if matching_key is None:
             # Return None here and do not raise an exception, because the application
             # might be configured with alternative ways to authenticate users.
-            context.user = Identity({})
             return None
 
-        context.user = self._get_identity_for_key(matching_key)
-        return context.user
+        return self._get_identity_for_key(matching_key)
 
     def _get_identity_for_key(self, key: APIKey) -> Identity:
         """
@@ -199,7 +198,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         claims.
         """
         claims = deepcopy(key.claims)
-        claims.update({"roles": deepcopy(key.roles)})
+        claims.update({"roles": [role for role in key.roles]})
         return Identity(claims, authentication_mode=self.scheme)
 
     def _get_input_secret(self, context: Request) -> Optional[str]:
@@ -223,6 +222,10 @@ class APIKeyAuthentication(AuthenticationHandler):
         """
         Tries to find a matching API Key in the request context.
         Returns the matching API Key if found, otherwise None.
+
+        If the client provides an API Key and it is invalid, an InvalidCredentialsError
+        error is raised to keep track of this event and support rate-limiting requests
+        from the same client, to prevent brute-forcing.
         """
         keys = self._keys
 
@@ -240,4 +243,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         for key in keys:
             if key.match(input_secret):
                 return key
-        return None
+
+        # The client provided an API Key, but it is invalid. This event must be logged,
+        # and we must rate-limit this kind of request by client IP.
+        raise InvalidCredentialsError(context.original_client_ip)

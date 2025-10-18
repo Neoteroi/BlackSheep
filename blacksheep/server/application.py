@@ -20,10 +20,12 @@ from typing import (
 from guardpost import (
     AuthenticationStrategy,
     AuthorizationStrategy,
+    ForbiddenError,
     Policy,
+    RateLimiter,
+    RateLimitExceededError,
     UnauthorizedError,
 )
-from guardpost.authorization import ForbiddenError
 from guardpost.common import AuthenticatedRequirement
 from itsdangerous import Serializer
 from rodi import ContainerProtocol
@@ -41,6 +43,7 @@ from blacksheep.server.authentication import (
     AuthenticateChallenge,
     get_authentication_middleware,
     handle_authentication_challenge,
+    handle_rate_limited_auth,
 )
 from blacksheep.server.authorization import (
     AuthorizationWithoutAuthenticationError,
@@ -57,17 +60,9 @@ from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.process import use_shutdown_handler
 from blacksheep.server.responses import _ensure_bytes
-from blacksheep.server.routing import (
-    MountRegistry,
-    RouteMethod,
-    Router,
-    RoutesRegistry,
-)
+from blacksheep.server.routing import MountRegistry, RouteMethod, Router, RoutesRegistry
 from blacksheep.server.routing import router as default_router
-from blacksheep.server.routing import (
-    validate_default_router,
-    validate_router,
-)
+from blacksheep.server.routing import validate_default_router, validate_router
 from blacksheep.server.websocket import WebSocket, format_reason
 from blacksheep.sessions import SessionMiddleware, SessionSerializer
 from blacksheep.sessions.abc import SessionStore
@@ -447,7 +442,9 @@ class Application(BaseApplication):
         )
 
     def use_authentication(
-        self, strategy: Optional[AuthenticationStrategy] = None
+        self,
+        strategy: Optional[AuthenticationStrategy] = None,
+        rate_limiter: Optional[RateLimiter] = None,
     ) -> AuthenticationStrategy:
         if self.started:
             raise RuntimeError(
@@ -459,7 +456,11 @@ class Application(BaseApplication):
             return self._authentication_strategy
 
         if not strategy:
-            strategy = AuthenticationStrategy(container=self.services)
+            strategy = AuthenticationStrategy(
+                container=self.services,
+                rate_limiter=rate_limiter,
+                logger=self.logger,
+            )
 
         self._authentication_strategy = strategy
         return strategy
@@ -492,6 +493,7 @@ class Application(BaseApplication):
                 AuthenticateChallenge: handle_authentication_challenge,
                 UnauthorizedError: handle_unauthorized,
                 ForbiddenError: handle_forbidden,
+                RateLimitExceededError: handle_rate_limited_auth,
             }
         )
         return strategy

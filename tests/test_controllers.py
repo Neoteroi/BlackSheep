@@ -141,8 +141,7 @@ async def test_user_binder_with_controller(app):
 
     class MockAuthHandler(AuthenticationHandler):
         async def authenticate(self, context):
-            context.user = User({"name": "Dummy"}, "TEST")
-            return context.user
+            return User({"name": "Dummy"}, "TEST")
 
     app.use_authentication().add(MockAuthHandler())
     called = False

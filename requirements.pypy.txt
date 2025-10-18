@@ -1,5 +1,5 @@
 certifi>=2025.4.26
-guardpost>=1.0.3
+guardpost>=1.0.4
 rodi~=2.0.2
 essentials>=1.1.8,<2.0
 essentials-openapi>=1.2.0,<2.0

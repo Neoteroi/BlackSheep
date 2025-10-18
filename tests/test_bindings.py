@@ -516,12 +516,14 @@ async def test_identity_binder_identity_not_set():
 
     value = await parameter.get_value(request)
 
-    assert value is None
+    # request.user is automatically set, if missing, to an empty object representing
+    # an anonymous user
+    assert value is not None
 
 
 async def test_identity_binder():
     request = Request("GET", b"/", None)
-    request.user = Identity({})
+    request.user = Identity()
 
     parameter = IdentityBinder(Identity)
 

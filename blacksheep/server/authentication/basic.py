@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
+from guardpost.errors import InvalidCredentialsError
 
 from blacksheep.messages import Request
 
@@ -196,11 +197,9 @@ class BasicAuthentication(AuthenticationHandler):
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:
-            context.user = Identity({})
             return None
 
         if not authorization_value.startswith(b"Basic "):
-            context.user = Identity({})
             return None
 
         # Decode the base64 encoded credentials
@@ -210,17 +209,17 @@ class BasicAuthentication(AuthenticationHandler):
             username, password = decoded_credentials.split(":", 1)
         except (ValueError, UnicodeDecodeError):
             # Invalid base64 or malformed credentials
-            context.user = Identity({})
             return None
 
         matching_credentials = await self._match_credentials(username, password)
 
         if matching_credentials is None:
-            context.user = Identity({})
-            return None
+            # The user provided a username and password combination, but they are
+            # invalid. This kind of events must be logged and rate-limited to avoid the
+            # risk of attackers trying to guess usernames and passwords.
+            raise InvalidCredentialsError(context.original_client_ip)
 
-        context.user = self._get_identity_for_credentials(matching_credentials)
-        return context.user
+        return self._get_identity_for_credentials(matching_credentials)
 
     def _get_identity_for_credentials(self, credentials: BasicCredentials) -> Identity:
         """
@@ -237,7 +236,9 @@ class BasicAuthentication(AuthenticationHandler):
             An Identity object containing the user's claims and roles.
         """
         claims = deepcopy(credentials.claims)
-        claims.update({"sub": credentials.username, "roles": credentials.roles})
+        claims.update(
+            {"sub": credentials.username, "roles": [role for role in credentials.roles]}
+        )
         return Identity(claims, authentication_mode=self.scheme)
 
     async def _match_credentials(

@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
+from guardpost import Identity
+
 from blacksheep.multipart import parse_multipart
 from blacksheep.sessions import Session
 from blacksheep.settings.encodings import encodings_settings
@@ -308,9 +310,11 @@ cdef class Request(Message):
             self._path = _url.path
             self._raw_query = _url.query
 
+    # TODO: deprecate the 'identity' property in the future. This requires a
+    # breaking change in guardpost, too.
     @property
     def identity(self):
-        return self.__dict__.get("_user")
+        return self.user
 
     @identity.setter
     def identity(self, value):
@@ -318,7 +322,11 @@ cdef class Request(Message):
 
     @property
     def user(self):
-        return self.__dict__.get("_user")
+        try:
+            return self.__dict__["_user"]
+        except KeyError:
+            self.__dict__["_user"] = Identity()  # no claims, unauthenticated
+            return self.__dict__["_user"]
 
     @user.setter
     def user(self, value):

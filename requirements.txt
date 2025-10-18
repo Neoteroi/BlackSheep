@@ -1,5 +1,5 @@
 certifi>=2025.4.26
-guardpost>=1.0.3
+guardpost>=1.0.4
 rodi~=2.0.2
 essentials>=1.1.8,<2.0
 essentials-openapi>=1.2.0,<2.0
@@ -20,5 +20,5 @@ pytest==8.3.5
 pytest-asyncio==1.2.0
 pytest-cov==6.1.1
 uvicorn==0.34.2
-pydantic==2.11.4
-pydantic_core==2.33.2
+pydantic
+pydantic_core

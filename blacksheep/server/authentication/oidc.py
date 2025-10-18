@@ -610,7 +610,7 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
                 )
             else:
                 if context.user is None:
-                    context.user = Identity({})
+                    context.user = Identity()
                 context.user.refresh_token = value
 
     async def authenticate(self, context: Request) -> Optional[Identity]:

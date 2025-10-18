@@ -98,16 +98,14 @@ class MockAuthHandler(AuthenticationHandler):
         self.user = identity
 
     async def authenticate(self, context: Any) -> Optional[Identity]:
-        context.user = self.user
-        return context.user
+        return self.user
 
 
 class MockNotAuthHandler(AuthenticationHandler):
     async def authenticate(self, context: Any) -> Optional[Identity]:
-        context.user = Identity({"id": "007"})
         # NB: an identity without authentication scheme is treated
         # as anonymous identity
-        return context.user
+        return Identity({"id": "007"})
 
 
 class AccessTokenCrashingHandler(AuthenticationHandler):

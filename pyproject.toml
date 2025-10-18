@@ -10,14 +10,14 @@ description = "Fast web framework for Python asyncio"
 license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Environment :: Web Environment",
     "Operating System :: OS Independent",
     "Framework :: AsyncIO",
@@ -25,7 +25,7 @@ classifiers = [
 keywords = ["blacksheep", "web framework", "asyncio"]
 dependencies = [
     "certifi>=2025.4.26",
-    "guardpost>=1.0.3",
+    "guardpost>=1.0.4",
     "rodi~=2.0.8",
     "essentials>=1.1.8,<2.0",
     "essentials-openapi>=1.2.0,<2.0",

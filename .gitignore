@@ -127,7 +127,7 @@ example.jpg
 nice-cat.jpg
 venv*
 
-.local/*
+.local
 benchmark_results/
 *.xlsx
 .~lock*

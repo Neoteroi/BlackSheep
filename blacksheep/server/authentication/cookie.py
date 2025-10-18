@@ -113,16 +113,17 @@ class CookieAuthentication(AuthenticationHandler):
         cookie = context.get_cookie(self.cookie_name)
 
         if cookie is None:
-            context.user = Identity({})
+            return None
         else:
             try:
                 value = self.serializer.loads(cookie)
             except BadSignature:
-                self.logger.debug(
+                self.logger.info(
                     "Cookie authentication failed (%s), invalid signature.",
                     self.cookie_name,
                 )
-                context.user = Identity({})
+                # TODO: raise a dedicated exception for bad signature!
             else:
                 self.set_user_context(context, value)
+                return context.user
         return None

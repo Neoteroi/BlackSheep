@@ -2295,7 +2295,7 @@ components:
 tags: []
 """.strip()
     elif PYDANTIC_VERSION == 2:
-        expected_result = """
+        expected_result = r"""
 openapi: 3.1.0
 info:
     title: Example
@@ -2342,13 +2342,15 @@ components:
                     anyOf:
                     -   exclusiveMinimum: 0.0
                         type: number
-                    -   type: string
+                    -   pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+                        type: string
                     title: Decimal Positive
                 decimal_negative:
                     anyOf:
                     -   exclusiveMaximum: 0.0
                         type: number
-                    -   type: string
+                    -   pattern: ^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$
+                        type: string
                     title: Decimal Negative
             required:
             - a

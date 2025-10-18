@@ -1112,7 +1112,7 @@ async def test_cookies_tokens_store_restoring_context(
         )
     )
 
-    request.user = Identity({})
+    request.user = Identity()
     await tokens_store.restore_tokens(request)
 
     assert request.user.access_token == "secret"
@@ -1139,7 +1139,7 @@ async def test_cookies_tokens_store_discards_invalid_tokens(
         )
     )
 
-    request.user = Identity({})
+    request.user = Identity()
     await tokens_store.restore_tokens(request)
 
     assert getattr(request.user, "access_token", None) is None
@@ -1160,7 +1160,7 @@ async def test_cookies_tokens_store_handle_missing_cookies(
         )
     )
 
-    request.user = Identity({})
+    request.user = Identity()
     await tokens_store.restore_tokens(request)
 
     assert getattr(request.user, "access_token", None) is None

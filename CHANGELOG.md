@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.4.3] - 2025-10-??
 
+- Add Python `3.14` and remove `3.9` from the build matrix.
+- Drop support for Python `3.9` (it reached EOL in October 2025).
 - Fix bug [#605](https://github.com/Neoteroi/BlackSheep/issues/605), that
   prevented the `JWTBearerAuthentication` scheme from being documented
   properly in OpenAPI Specification files.

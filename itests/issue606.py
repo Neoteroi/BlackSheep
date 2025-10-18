@@ -4,13 +4,12 @@ without optional dependencies.
 """
 
 import sys
-
 from dataclasses import dataclass
+
+from openapidocs.v3 import Info
 
 from blacksheep import Application, get
 from blacksheep.server.openapi.v3 import OpenAPIHandler
-from openapidocs.v3 import Info
-
 
 # Ensure optional dependencies are not installed!
 for pkg in ("cryptography", "jwt", "PyJWT"):

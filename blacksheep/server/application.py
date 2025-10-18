@@ -458,10 +458,7 @@ class Application(BaseApplication):
         if not strategy:
             strategy = AuthenticationStrategy(
                 container=self.services,
-                rate_limiter=rate_limiter
-                or RateLimiter(
-                    key_extractor=lambda request: request.original_client_ip
-                ),
+                rate_limiter=rate_limiter,
                 logger=self.logger,
             )
 

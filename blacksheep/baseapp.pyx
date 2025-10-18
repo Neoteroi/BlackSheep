@@ -1,7 +1,6 @@
 import http
 import inspect
 import logging
-import sys
 from collections import UserDict
 
 from .contents cimport Content, TextContent
@@ -23,15 +22,10 @@ except ImportError:
     ValidationError = None
 
 
-_IS_PYTHON_39_OR_OLDER = sys.version_info < (3, 10)
-
-
 class ExceptionHandlersDict(UserDict):
 
     def __setitem__(self, key, item) -> None:
-        # In Python 3.9, inspect.iscoroutinefunction does not return the right
-        # answer for Cython async functions.
-        if not _IS_PYTHON_39_OR_OLDER and not inspect.iscoroutinefunction(item):
+        if not inspect.iscoroutinefunction(item):
             raise InvalidExceptionHandler()
         signature = inspect.Signature.from_callable(item)
         if len(signature.parameters) != 3 and not any(

@@ -6,11 +6,12 @@ import warnings
 from typing import Optional, Sequence
 
 from essentials.secrets import Secret
-from guardpost import AuthenticationHandler, Identity
+from guardpost import AuthenticationHandler, Identity, InvalidCredentialsError
 from guardpost.jwks import KeysProvider
 from guardpost.jwts import (
     AsymmetricJWTValidator,
     BaseJWTValidator,
+    ExpiredAccessToken,
     InvalidAccessToken,
     SymmetricJWTValidator,
 )
@@ -198,18 +199,18 @@ class JWTBearerAuthentication(AuthenticationHandler):
 
         try:
             decoded = await self._validator.validate_jwt(token)
-        except (InvalidAccessToken, InvalidTokenError) as ex:
-            # pass, because the application might support more than one
-            # authentication method and several JWT Bearer configurations
+        except ExpiredAccessToken:
+            # Common scenario
+            return None
+        except (InvalidAccessToken, InvalidTokenError) as exc:
             self.logger.debug(
                 "JWT Bearer - access token not valid for this configuration: %s",
-                str(ex),
+                str(exc),
             )
-            pass
+            # Raise a dedicated exception to keep track of the event
+            raise InvalidCredentialsError(context.original_client_ip)
         else:
             return Identity(decoded, self.scheme)
-
-        return None
 
     @property
     def scheme(self) -> str:

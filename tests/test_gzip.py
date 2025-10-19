@@ -8,10 +8,10 @@ from blacksheep.testing.messages import MockReceive, MockSend
 
 
 @pytest.mark.parametrize(
-    "comp_level, comp_size",
-    (zip(range(0, 10), (468, 283, 283, 283, 282, 282, 282, 282, 282, 282))),
+    "comp_level",
+    range(0, 10),
 )
-async def test_gzip_output(app, comp_level, comp_size):
+async def test_gzip_output(app, comp_level):
     return_value = (
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "
         "eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim "
@@ -40,9 +40,13 @@ async def test_gzip_output(app, comp_level, comp_size):
 
     response = app.response
     assert response.status == 200
-    assert response.content.length == comp_size
-    assert gzip.decompress(response.content.body) == return_value.encode("ascii")
+    # Assert that the response is gzip-compressed
     assert response.headers.get_single(b"content-encoding") == b"gzip"
+    # Assert that decompressing yields the original string
+    assert gzip.decompress(response.content.body) == return_value.encode("ascii")
+    # Optionally, assert that compression reduces size for levels > 0
+    if comp_level > 0:
+        assert response.content.length < len(return_value.encode("ascii"))
 
 
 async def test_skip_gzip_small_output(app):

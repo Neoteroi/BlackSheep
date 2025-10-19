@@ -20,5 +20,5 @@ pytest==8.3.5
 pytest-asyncio==1.2.0
 pytest-cov==6.1.1
 uvicorn==0.34.2
-pydantic
-pydantic_core
+pydantic==2.12.3
+pydantic_core==2.41.4

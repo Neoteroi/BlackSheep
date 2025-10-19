@@ -93,7 +93,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          VER='${{ matrix.python-version }}'
+
+          if [ $VER == "pypy-3.11" ]; then
+            echo "Install requirements for PyPy"
+            pip install -r requirements.pypy.txt
+          else
+            echo "Install requirements for CPython"
+            pip install -r requirements.txt
+          fi
+
           pip install black==25.1.0 isort==6.0.1 flake8==7.2.0
 
       - name: Run tests for Pure-Python Code

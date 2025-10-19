@@ -106,12 +106,12 @@ jobs:
           pytest itests
 
       - name: Compile Cython extensions
-        if: matrix.python-version != "pypy-3.11" 
+        if: matrix.python-version != 'pypy-3.11'
         run: |
           make compile
 
       - name: Run tests with Cython Code
-        if: matrix.python-version != "pypy-3.11" 
+        if: matrix.python-version != 'pypy-3.11'
         run: |
           echo "Running unit tests..."
           pytest tests

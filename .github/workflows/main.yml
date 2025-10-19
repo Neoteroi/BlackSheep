@@ -170,7 +170,7 @@ jobs:
 
       - name: Test imports with no optional dependencies
         run: |
-          pip uninstall PyJWT cryptography Jinja2 websockets
+          pip uninstall -y PyJWT cryptography Jinja2 websockets
           cd itests
           echo "Expect no import error…"
           python issue606.py

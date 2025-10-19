@@ -78,6 +78,6 @@ def get_running_loop() -> AbstractEventLoop:
     try:
         return asyncio.get_running_loop()
     except RuntimeError:
-        # TODO: fix deprecation warning happening in the test suite
-        # DeprecationWarning: There is no current event loop
-        return asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop

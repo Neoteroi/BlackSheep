@@ -2,13 +2,16 @@
 This module provides classes to handle JWT Bearer authentication.
 """
 
+import warnings
 from typing import Optional, Sequence
 
 from essentials.secrets import Secret
-from guardpost import AuthenticationHandler, Identity
+from guardpost import AuthenticationHandler, Identity, InvalidCredentialsError
 from guardpost.jwks import KeysProvider
 from guardpost.jwts import (
     AsymmetricJWTValidator,
+    BaseJWTValidator,
+    ExpiredAccessToken,
     InvalidAccessToken,
     SymmetricJWTValidator,
 )
@@ -43,6 +46,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         keys_url: Optional[str] = None,
         cache_time: float = 10800,
         auth_mode: str = "JWT Bearer",
+        scheme: str = "",
         secret_key: Optional[Secret] = None,
     ):
         """
@@ -80,13 +84,29 @@ class JWTBearerAuthentication(AuthenticationHandler):
         cache_time : float, optional
             If >= 0, JWKS are cached in memory and stored for the given amount in
             seconds. By default 10800 (3 hours). Only applies to asymmetric validation.
+        scheme: str
+            Authentication scheme. When authentication succeeds, the identity is
+            authenticated with this scheme.
         auth_mode : str, optional
-            When authentication succeeds, the declared authentication mode. By default,
-            "JWT Bearer".
+            Deprecated parameter, use `scheme` instead. When authentication succeeds,
+            the declared authentication mode. By default, "JWT Bearer".
         secret_key : Optional[Secret], optional
             If provided, enables symmetric JWT validation (HS256/HS384/HS512).
             Cannot be used together with asymmetric validation parameters.
         """
+        if auth_mode != "JWT Bearer":
+            # the user specified an auth_mode different than default.
+            warnings.warn(
+                "The auth_mode parameter is deprecated and will be removed in a "
+                "future version. Use the scheme parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            scheme = auth_mode
+        elif scheme:
+            # the user used the new parameter - good;
+            auth_mode = scheme
+        self._validator: BaseJWTValidator
         self.logger = get_logger()
 
         # Validate mutual exclusivity
@@ -144,7 +164,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
             if invalid_algorithms:
                 raise TypeError(
                     f"When using asymmetric validation, only RS*/ES* algorithms are "
-                    f"supported. Invalid algorithms: {invalid_algorithms}"
+                    f"supported. Invalid algorithms: {invalid_algorithms}."
                 )
 
             self._validator = AsymmetricJWTValidator(
@@ -159,38 +179,39 @@ class JWTBearerAuthentication(AuthenticationHandler):
             )
 
         self.auth_mode = auth_mode
+        self._scheme = scheme or auth_mode
         self._validator.logger = self.logger
 
     async def authenticate(self, context: Request) -> Optional[Identity]:
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:
-            context.user = Identity({})
             return None
 
         if not authorization_value.startswith(b"Bearer "):
             self.logger.debug(
-                "Invalid Authorization header, not starting with `Bearer `, "
+                "Invalid Authorization header, not starting with 'Bearer ', "
                 "the header is ignored."
             )
-            context.user = Identity({})
             return None
 
         token = authorization_value[7:].decode()
 
         try:
             decoded = await self._validator.validate_jwt(token)
-        except (InvalidAccessToken, InvalidTokenError) as ex:
-            # pass, because the application might support more than one
-            # authentication method and several JWT Bearer configurations
+        except ExpiredAccessToken:
+            # Common scenario
+            return None
+        except (InvalidAccessToken, InvalidTokenError) as exc:
             self.logger.debug(
                 "JWT Bearer - access token not valid for this configuration: %s",
-                str(ex),
+                str(exc),
             )
-            pass
+            # Raise a dedicated exception to keep track of the event
+            raise InvalidCredentialsError(context.original_client_ip)
         else:
-            context.user = Identity(decoded, self.auth_mode)
-            return context.user
+            return Identity(decoded, self.scheme)
 
-        context.user = Identity({})
-        return None
+    @property
+    def scheme(self) -> str:
+        return self._scheme.replace(" ", "")

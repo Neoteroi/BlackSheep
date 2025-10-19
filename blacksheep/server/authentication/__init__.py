@@ -1,6 +1,11 @@
 from typing import Dict, Optional, Tuple
 
-from guardpost import AuthenticationHandler, AuthenticationStrategy, AuthorizationError
+from guardpost import (
+    AuthenticationHandler,
+    AuthenticationStrategy,
+    AuthorizationError,
+    RateLimitExceededError,
+)
 
 from blacksheep import Response, TextContent
 
@@ -59,3 +64,14 @@ async def handle_authentication_challenge(
     app, request, exception: AuthenticateChallenge
 ):
     return Response(401, [exception.get_header()], content=TextContent("Unauthorized"))
+
+
+async def handle_rate_limited_auth(app, request, exception: RateLimitExceededError):
+    return Response(
+        429,
+        [],
+        content=TextContent(
+            "The request is blocked because of "
+            "too many authentication attempts. Try again later."
+        ),
+    )

@@ -3220,10 +3220,9 @@ async def test_user_binding(app):
             header_value = context.get_first_header(b"Authorization")
             if header_value:
                 data = json.loads(urlsafe_b64decode(header_value).decode("utf8"))
-                context.user = Identity(data, "TEST")
+                return Identity(data, "TEST")
             else:
-                context.user = None
-            return context.user
+                return None
 
     app.use_authentication().add(MockAuthHandler())
 
@@ -3287,10 +3286,9 @@ async def test_use_auth_raises_if_app_is_already_started(app):
             header_value = context.get_first_header(b"Authorization")
             if header_value:
                 data = json.loads(urlsafe_b64decode(header_value).decode("utf8"))
-                context.user = Identity(data, "TEST")
+                return Identity(data, "TEST")
             else:
-                context.user = None
-            return context.user
+                return None
 
     await app.start()
     with pytest.raises(RuntimeError):

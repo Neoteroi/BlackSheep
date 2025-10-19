@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3] - 2025-10-19 :musical_keyboard:
+
+- Add Python `3.14` and remove `3.9` from the build matrix.
+- Drop support for Python `3.9` (it reached EOL in October 2025).
+- Fix bug [#605](https://github.com/Neoteroi/BlackSheep/issues/605), that
+  prevented the `JWTBearerAuthentication` scheme from being documented
+  properly in OpenAPI Specification files.
+- Deprecate the `auth_mode` parameter for the `JWTBearerAuthentication`
+  constructor, and add a new `scheme` parameter that will replace it.
+- Improve the code to not require returning an empty `Identity()` object in
+  authentication handlers when authentication is not successful.
+- Upgrade `GuardPost` to `1.0.4`, as it includes improved features and a
+  built-in strategy to protect against brute-force authentication attempts (opt-in).
+- Upgrade `pydantic` to a version supported by Python 3.14.
+- Fix regression causing an import error when trying to use OpenAPI features without
+  installing dependencies for JWT validation [#606](https://github.com/Neoteroi/BlackSheep/issues/606).
+- Add verification step to the main workflow to verify that basic functionalities work
+  also when not having optional dependencies.
+- Remove support for Pydantic v1 in Python 3.14.
+
 ## [2.4.2] - 2025-10-04 :large_blue_diamond:
 
 - Add significant improvements to authentication and authorization features.
@@ -41,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 >
 > For a tutorial on OTLP and how it can be used with BlackSheep and an
 > OpenTelemetry Collector self-hosted in Kubernetes, see:
-> https://robertoprevato.github.io/K8sStudies/k3s/monitoring/
+> https://robertoprevato.github.io/K8sStudies/k3s/monitoring/#test-sending-telemetries-from-an-application
 
 Example:
 

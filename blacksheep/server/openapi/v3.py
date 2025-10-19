@@ -1,11 +1,13 @@
 import collections.abc as collections_abc
 import inspect
+import typing
 import warnings
 from abc import ABC, abstractmethod
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
+from types import UnionType
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
 from typing import _AnnotatedAlias as AnnotatedAlias
 from typing import _GenericAlias as GenericAlias
@@ -45,7 +47,6 @@ from openapidocs.v3 import (
 
 from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
-from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.bindings import (
     Binder,
     BodyBinder,
@@ -79,6 +80,15 @@ from .common import (
 )
 
 try:
+    # JWT dependencies are optional (cryptography, PyJWT)
+    from blacksheep.server.authentication.jwt import JWTBearerAuthentication
+except ImportError:  # pragma: no cover
+
+    class JWTBearerAuthentication:
+        pass
+
+
+try:
     from pydantic import BaseModel
 except ImportError:  # pragma: no cover
     # noqa
@@ -95,16 +105,8 @@ except ImportError:  # pragma: no cover
     is_pydantic_dataclass = ...
 
 
-# region PEP 604
-try:
-    # Python >= 3.10
-    from types import UnionType
-except ImportError:  # pragma: no cover
-    UnionType = ...
-
-
 def _is_union_type(annotation):
-    if UnionType is not ... and isinstance(annotation, UnionType):  # type: ignore
+    if isinstance(annotation, UnionType):  # type: ignore
         return True
     return False
 
@@ -113,7 +115,7 @@ def _is_union_type(annotation):
 
 
 def get_origin(object_type):
-    return getattr(object_type, "__origin__", None)
+    return typing.get_origin(object_type)
 
 
 def check_union(object_type: Any) -> Tuple[bool, Any]:
@@ -307,7 +309,7 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
     """
 
     def handles_type(self, object_type) -> bool:
-        if isinstance(object_type, GenericAlias):
+        if isinstance(object_type, GenericAlias) or isinstance(object_type, UnionType):
             # support for Generic BaseModel here is better since it can extract items
             # type, skip this;
             # anyway using Generic with BaseModel doesn't seem to be recommended by
@@ -539,14 +541,16 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         """
         This method returns a type name for a generic type.
         """
-        assert isinstance(object_type, GenericAlias), "This method requires a generic"
+        assert isinstance(object_type, GenericAlias) or isinstance(
+            object_type, UnionType
+        ), "This method requires a generic"
         # Note: by default returns a string respectful of this requirement:
         # $ref values must be RFC3986-compliant percent-encoded URIs
         # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
         # and C# or TypeScript Example<Foo, Bar>
         # Becomes here represented as: ExampleOfFooAndBar
         origin = get_origin(object_type)
-        args = object_type.__args__
+        args = typing.get_args(object_type)
         args_repr = "And".join(
             self.get_type_name(arg, context_type_args) for arg in args
         )
@@ -557,7 +561,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> str:
         if context_type_args and object_type in context_type_args:
             object_type = context_type_args.get(object_type)
-        if isinstance(object_type, GenericAlias):
+        if isinstance(object_type, GenericAlias) or isinstance(object_type, UnionType):
             return self.get_type_name_for_generic(object_type, context_type_args)
         if hasattr(object_type, "__name__"):
             return object_type.__name__
@@ -791,7 +795,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         if isinstance(object_type, AnnotatedAlias):
             # Replace Annotated object type with the original type
-            object_type = getattr(object_type, "__origin__")
+            object_type = typing.get_origin(object_type)
 
         if self._can_handle_class_type(object_type):
             return self._get_schema_for_class(object_type)
@@ -810,7 +814,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if schema:
             return schema
 
-        if isinstance(object_type, GenericAlias):
+        if isinstance(object_type, GenericAlias) or isinstance(object_type, UnionType):
             schema = self._try_get_schema_for_generic(object_type, type_args)
             if schema:
                 return schema
@@ -861,7 +865,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         # can be List, List[str] or list[str] (Python 3.9),
         # note: it could also be union if it wasn't handled above for dataclasses
         try:
-            type_args = object_type.__args__  # type: ignore
+            type_args = typing.get_args(object_type)  # type: ignore
         except AttributeError:  # pragma: no cover
             item_type = str
         else:
@@ -899,7 +903,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         # can be Dict, Dict[str, str] or dict[str, str] (Python 3.9),
         # note: it could also be union if it wasn't handled above for dataclasses
         try:
-            _, value_type = object_type.__args__  # type: ignore
+            _, value_type = typing.get_args(object_type)  # type: ignore
         except AttributeError:  # pragma: no cover
             value_type = str
 
@@ -938,7 +942,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 ValueType.OBJECT,
                 any_of=[
                     self.get_schema_by_type(child_type, context_type_args)
-                    for child_type in object_type.__args__
+                    for child_type in typing.get_args(object_type)
                 ],
             )
             return self._handle_object_type_schema(
@@ -948,7 +952,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         required: List[str] = []
         properties: Dict[str, Union[Schema, Reference]] = {}
 
-        args = object_type.__args__
+        args = typing.get_args(object_type)
         parameters = origin.__parameters__
         type_args = dict(zip(parameters, args))
 

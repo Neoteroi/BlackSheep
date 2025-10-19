@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installing dependencies for JWT validation [#606](https://github.com/Neoteroi/BlackSheep/issues/606).
 - Add verification step to the main workflow to verify that basic functionalities work
   also when not having optional dependencies.
+- Remove support for Pydantic v1 in Python 3.14.
 
 ## [2.4.2] - 2025-10-04 :large_blue_diamond:
 

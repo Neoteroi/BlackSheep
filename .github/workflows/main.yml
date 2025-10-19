@@ -118,17 +118,6 @@ jobs:
           export APP_DEFAULT_ROUTER=false
           pytest itests
 
-      - name: Run tests with Pydantic v1
-        run: |
-          echo "[*] The previous tests used Pydantic v2, now running with v1"
-          pip install -U "pydantic<2"
-          echo "Running unit tests..."
-          pytest tests
-
-          echo "Running integration tests..."
-          export APP_DEFAULT_ROUTER=false
-          pytest itests
-
       - name: Run linters
         run: |
           echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance."
@@ -170,7 +159,8 @@ jobs:
 
       - name: Test imports with no optional dependencies
         run: |
-          pip uninstall -y PyJWT cryptography Jinja2 websockets
+          pip uninstall -y -r <(pip freeze)
+          BLACKSHEEP_NO_EXTENSIONS="1" pip install -e .
           cd itests
           echo "Expect no import error…"
           python issue606.py

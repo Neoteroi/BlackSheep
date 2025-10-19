@@ -77,7 +77,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "pypy-3.11"]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -106,10 +106,12 @@ jobs:
           pytest itests
 
       - name: Compile Cython extensions
+        if: matrix.python-version != "pypy-3.11" 
         run: |
           make compile
 
       - name: Run tests with Cython Code
+        if: matrix.python-version != "pypy-3.11" 
         run: |
           echo "Running unit tests..."
           pytest tests
@@ -223,7 +225,6 @@ jobs:
 
   build-pypy-wheels:
     needs: build
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

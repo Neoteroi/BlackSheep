@@ -5,7 +5,7 @@ request handlers, including a decorator and a middleware.
 
 import inspect
 from functools import wraps
-from typing import Optional
+from typing import List, Optional, Union
 
 from blacksheep import Request, Response
 from blacksheep.server.normalization import ensure_response
@@ -15,11 +15,11 @@ def write_cache_control_response_header(
     *,
     max_age: Optional[int] = None,
     shared_max_age: Optional[int] = None,
-    no_cache: Optional[bool] = None,
+    no_cache: Union[bool, List[str], None] = None,
     no_store: Optional[bool] = None,
     must_revalidate: Optional[bool] = None,
     proxy_revalidate: Optional[bool] = None,
-    private: Optional[bool] = None,
+    private: Union[bool, List[str], None] = None,
     public: Optional[bool] = None,
     must_understand: Optional[bool] = None,
     no_transform: Optional[bool] = None,
@@ -36,16 +36,18 @@ def write_cache_control_response_header(
         max age in seconds
     shared_max_age: int | None
         optional shared max age in seconds
-    no_cache: bool | None
-        enables no-cache
+    no_cache: bool | list[str] | None
+        enables no-cache; if a list of field names is provided, they will be added
+        as field-names (e.g., no-cache="Set-Cookie, Authorization")
     no_store: bool | None
         enables no-store
     must_revalidate: bool | None
         enables must-revalidate
     proxy_revalidate: bool | None
         enables proxy-revalidate
-    private: bool | None
-        enables private
+    private: bool | list[str] | None
+        enables private; if a list of field names is provided, they will be added
+        as field-names (e.g., private="Set-Cookie, Authorization")
     public: bool | None
         enables public
     must_understand: bool | None
@@ -73,7 +75,11 @@ def write_cache_control_response_header(
         value.extend(part)
 
     if private:
-        extend(b"private")
+        if isinstance(private, list):
+            field_names = ", ".join(private)
+            extend(f'private="{field_names}"'.encode("ascii"))
+        else:
+            extend(b"private")
 
     if public:
         extend(b"public")
@@ -85,7 +91,11 @@ def write_cache_control_response_header(
         extend(f"s-maxage={shared_max_age}".encode("ascii"))
 
     if no_cache:
-        extend(b"no-cache")
+        if isinstance(no_cache, list):
+            field_names = ", ".join(no_cache)
+            extend(f'no-cache="{field_names}"'.encode("ascii"))
+        else:
+            extend(b"no-cache")
 
     if must_revalidate:
         extend(b"must-revalidate")
@@ -124,16 +134,18 @@ class CacheControlHeaderValue:
         max age in seconds
     shared_max_age: int | None
         optional shared max age in seconds
-    no_cache: bool | None
-        enables no-cache
+    no_cache: bool | list[str] | None
+        enables no-cache; if a list of field names is provided, they will be added
+        as field-names (e.g., no-cache="Set-Cookie, Authorization")
     no_store: bool | None
         enables no-store
     must_revalidate: bool | None
         enables must-revalidate
     proxy_revalidate: bool | None
         enables proxy-revalidate
-    private: bool | None
-        enables private
+    private: bool | list[str] | None
+        enables private; if a list of field names is provided, they will be added
+        as field-names (e.g., private="Set-Cookie, Authorization")
     public: bool | None
         enables public
     must_understand: bool | None
@@ -156,11 +168,11 @@ class CacheControlHeaderValue:
         *,
         max_age: Optional[int] = None,
         shared_max_age: Optional[int] = None,
-        no_cache: Optional[bool] = None,
+        no_cache: Union[bool, List[str], None] = None,
         no_store: Optional[bool] = None,
         must_revalidate: Optional[bool] = None,
         proxy_revalidate: Optional[bool] = None,
-        private: Optional[bool] = None,
+        private: Union[bool, List[str], None] = None,
         public: Optional[bool] = None,
         must_understand: Optional[bool] = None,
         no_transform: Optional[bool] = None,
@@ -188,11 +200,11 @@ class CacheControlHeaderValue:
 def cache_control(
     max_age: Optional[int] = None,
     shared_max_age: Optional[int] = None,
-    no_cache: Optional[bool] = None,
+    no_cache: Union[bool, List[str], None] = None,
     no_store: Optional[bool] = None,
     must_revalidate: Optional[bool] = None,
     proxy_revalidate: Optional[bool] = None,
-    private: Optional[bool] = None,
+    private: Union[bool, List[str], None] = None,
     public: Optional[bool] = None,
     must_understand: Optional[bool] = None,
     no_transform: Optional[bool] = None,
@@ -210,16 +222,18 @@ def cache_control(
         max age in seconds
     shared_max_age: int | None
         optional shared max age in seconds
-    no_cache: bool | None
-        enables no-cache
+    no_cache: bool | list[str] | None
+        enables no-cache; if a list of field names is provided, they will be added
+        as field-names (e.g., no-cache="Set-Cookie, Authorization")
     no_store: bool | None
         enables no-store
     must_revalidate: bool | None
         enables must-revalidate
     proxy_revalidate: bool | None
         enables proxy-revalidate
-    private: bool | None
-        enables private
+    private: bool | list[str] | None
+        enables private; if a list of field names is provided, they will be added
+        as field-names (e.g., private="Set-Cookie, Authorization")
     public: bool | None
         enables public
     must_understand: bool | None
@@ -287,16 +301,18 @@ class CacheControlMiddleware:
         max age in seconds
     shared_max_age: int | None
         optional shared max age in seconds
-    no_cache: bool | None
-        enables no-cache
+    no_cache: bool | list[str] | None
+        enables no-cache; if a list of field names is provided, they will be added
+        as field-names (e.g., no-cache="Set-Cookie, Authorization")
     no_store: bool | None
         enables no-store
     must_revalidate: bool | None
         enables must-revalidate
     proxy_revalidate: bool | None
         enables proxy-revalidate
-    private: bool | None
-        enables private
+    private: bool | list[str] | None
+        enables private; if a list of field names is provided, they will be added
+        as field-names (e.g., private="Set-Cookie, Authorization")
     public: bool | None
         enables public
     must_understand: bool | None
@@ -316,11 +332,11 @@ class CacheControlMiddleware:
         *,
         max_age: Optional[int] = None,
         shared_max_age: Optional[int] = None,
-        no_cache: Optional[bool] = None,
+        no_cache: Union[bool, List[str], None] = None,
         no_store: Optional[bool] = None,
         must_revalidate: Optional[bool] = None,
         proxy_revalidate: Optional[bool] = None,
-        private: Optional[bool] = None,
+        private: Union[bool, List[str], None] = None,
         public: Optional[bool] = None,
         must_understand: Optional[bool] = None,
         no_transform: Optional[bool] = None,

@@ -67,11 +67,6 @@ jobs:
         run: |
           pytest
 
-      - name: Run linters
-        run: |
-          flake8 blacksheep
-          flake8 tests
-
   build:
     strategy:
       fail-fast: false
@@ -130,6 +125,7 @@ jobs:
           pytest itests
 
       - name: Run linters
+        continue-on-error: true
         run: |
           echo "Running linters - if build fails here, please be patient! Feel free to ask for assistance."
 

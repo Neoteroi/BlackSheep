@@ -35,6 +35,27 @@ CACHE_CONTROL_PARAMS_EXPECTED = [
         {"max_age": 604800, "stale_if_error": 86400},
         b"max-age=604800, stale-if-error=86400",
     ),
+    # Test list support for private directive
+    ({"private": ["Set-Cookie"]}, b'private="Set-Cookie"'),
+    (
+        {"private": ["Set-Cookie", "Authorization"]},
+        b'private="Set-Cookie, Authorization"',
+    ),
+    # Test list support for no-cache directive
+    ({"no_cache": ["Set-Cookie"]}, b'no-cache="Set-Cookie"'),
+    (
+        {"no_cache": ["Set-Cookie", "Authorization"]},
+        b'no-cache="Set-Cookie, Authorization"',
+    ),
+    # Test combined list support
+    (
+        {"private": ["Set-Cookie"], "max_age": 3600},
+        b'private="Set-Cookie", max-age=3600',
+    ),
+    (
+        {"no_cache": ["Authorization"], "no_store": True},
+        b'no-cache="Authorization", no-store',
+    ),
 ]
 
 

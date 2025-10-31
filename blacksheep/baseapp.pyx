@@ -64,6 +64,10 @@ async def common_http_exception_handler(app, Request request, HTTPException http
     return Response(http_exception.status, content=TextContent(http.HTTPStatus(http_exception.status).phrase))
 
 
+async def default_fallback(Request request):
+    raise NotFound()
+
+
 def get_logger():
     logger = logging.getLogger("blacksheep.server")
     logger.setLevel(logging.INFO)
@@ -77,6 +81,12 @@ cdef class BaseApplication:
         self.exceptions_handlers = self.init_exceptions_handlers()
         self.show_error_details = show_error_details
         self.logger = get_logger()
+
+        # The main router must have a fallback to avoid surprising behaviors
+        # (see issue #619).
+        # With this approach, the user can still change the fallback route, if desired.
+        if not router.fallback:
+            router.fallback = default_fallback
 
     def init_exceptions_handlers(self):
         default_handlers = ExceptionHandlersDict({
@@ -117,24 +127,11 @@ cdef class BaseApplication:
         cdef Response response
 
         route = self.router.get_match(request)
-
-        if route:
-            request.route_values = route.values
-
-            try:
-                response = await route.handler(request)
-            except Exception as exc:
-                response = await self.handle_request_handler_exception(request, exc)
-        else:
-            not_found_handler = self.get_http_exception_handler(NotFound()) or handle_not_found
-
-            response = await not_found_handler(self, request, None)
-            if not response:
-                response = Response(404)
-        # if the request handler didn't return an object,
-        # and since the request was handled successfully, return success status code No Content
-        # for example, a user might return "None" from an handler
-        # this might be ambiguous, if a programmer thinks to return None for "Not found"
+        request.route_values = route.values
+        try:
+            response = await route.handler(request)
+        except Exception as exc:
+            response = await self.handle_request_handler_exception(request, exc)
         return response or Response(204)
 
     async def handle_request_handler_exception(self, request, exc):

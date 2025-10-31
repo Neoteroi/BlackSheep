@@ -4210,3 +4210,28 @@ async def test_application_sse_plain_text():
         "data: Hello World 0\n\n" "data: Hello World 1\n\n" "data: Hello World 2\n\n"
     )
     assert streamed_data.decode("utf-8") == expected_events
+
+
+async def test_middlewares_execute_for_no_route_by_default():
+    """
+    Test that middlewares are executed for not configured routes by default.
+    """
+    # issue #619
+    app = FakeApplication(router=Router())
+
+    middleware_called = False
+
+    async def middleware(request, next_handler):
+        nonlocal middleware_called
+        middleware_called = True
+        return await next_handler(request)
+
+    app.middlewares.append(middleware)
+
+    await app(get_example_scope("GET", "/not_found", []), MockReceive(), MockSend())
+
+    response = app.response
+    assert response is not None
+    assert response.status == 404
+
+    assert middleware_called is True

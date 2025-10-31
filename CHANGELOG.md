@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for `list[str]` as a value for `no-cache` and `private` directives in
   code handling cache control headers, by @karpetrosyan.
+- Fix bug [#619](https://github.com/Neoteroi/BlackSheep/issues/619), that caused
+  surprising behavior (requiring an explicit fallback or catch-all route to handle web
+  requests that didn't match any route, otherwise middlewares would be bypassed for the
+  defined `NotFound` exception handler).
 
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 

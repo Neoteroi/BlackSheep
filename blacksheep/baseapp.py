@@ -4,6 +4,7 @@ import logging
 from collections import UserDict
 
 from blacksheep.server.errors import ServerErrorDetailsHandler
+from blacksheep.server.routing import Router
 
 from .contents import Content, TextContent
 from .exceptions import (
@@ -12,7 +13,7 @@ from .exceptions import (
     InvalidExceptionHandler,
     NotFound,
 )
-from .messages import Response
+from .messages import Request, Response
 from .utils import get_class_instance_hierarchy
 
 try:
@@ -76,13 +77,25 @@ def get_logger():
     return logger
 
 
+async def default_fallback(request: Request) -> Response:
+    raise NotFound()
+
+
 class BaseApplication:
+    router: Router
+
     def __init__(self, show_error_details, router):
         self.router = router
         self.exceptions_handlers = self.init_exceptions_handlers()
         self.show_error_details = show_error_details
         self.logger = get_logger()
         self.server_error_details_handler: ServerErrorDetailsHandler
+
+        # The main router must have a fallback to avoid surprising behaviors
+        # (see issue #619).
+        # With this approach, the user can still change the fallback route, if desired.
+        if not router.fallback:
+            router.fallback = default_fallback
 
     def init_exceptions_handlers(self):
         default_handlers = ExceptionHandlersDict(
@@ -121,19 +134,11 @@ class BaseApplication:
 
     async def handle(self, request):
         route = self.router.get_match(request)
-        if route:
-            request.route_values = route.values
-            try:
-                response = await route.handler(request)
-            except Exception as exc:
-                response = await self.handle_request_handler_exception(request, exc)
-        else:
-            not_found_handler = (
-                self.get_http_exception_handler(NotFound()) or handle_not_found
-            )
-            response = await not_found_handler(self, request, None)
-            if not response:
-                response = Response(404)
+        request.route_values = route.values
+        try:
+            response = await route.handler(request)
+        except Exception as exc:
+            response = await self.handle_request_handler_exception(request, exc)
         return response or Response(204)
 
     async def handle_request_handler_exception(self, request, exc):

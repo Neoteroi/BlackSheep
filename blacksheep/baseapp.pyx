@@ -9,7 +9,6 @@ from .exceptions cimport (
     HTTPException,
     InternalServerError,
     InvalidExceptionHandler,
-    NotFound,
 )
 from .messages cimport Request, Response
 
@@ -118,23 +117,17 @@ cdef class BaseApplication:
 
         route = self.router.get_match(request)
 
-        if route:
-            request.route_values = route.values
+        if not route:
+            # This is intentional. We should not use user-defined not found exception
+            # handlers here because middlewares are not executed. The main router should
+            # always have a fallback route configured.
+            return Response(404)
 
-            try:
-                response = await route.handler(request)
-            except Exception as exc:
-                response = await self.handle_request_handler_exception(request, exc)
-        else:
-            not_found_handler = self.get_http_exception_handler(NotFound()) or handle_not_found
-
-            response = await not_found_handler(self, request, None)
-            if not response:
-                response = Response(404)
-        # if the request handler didn't return an object,
-        # and since the request was handled successfully, return success status code No Content
-        # for example, a user might return "None" from an handler
-        # this might be ambiguous, if a programmer thinks to return None for "Not found"
+        request.route_values = route.values
+        try:
+            response = await route.handler(request)
+        except Exception as exc:
+            response = await self.handle_request_handler_exception(request, exc)
         return response or Response(204)
 
     async def handle_request_handler_exception(self, request, exc):

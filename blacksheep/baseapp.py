@@ -4,14 +4,10 @@ import logging
 from collections import UserDict
 
 from blacksheep.server.errors import ServerErrorDetailsHandler
+from blacksheep.server.routing import Router
 
 from .contents import Content, TextContent
-from .exceptions import (
-    HTTPException,
-    InternalServerError,
-    InvalidExceptionHandler,
-    NotFound,
-)
+from .exceptions import HTTPException, InternalServerError, InvalidExceptionHandler
 from .messages import Response
 from .utils import get_class_instance_hierarchy
 
@@ -77,6 +73,8 @@ def get_logger():
 
 
 class BaseApplication:
+    router: Router
+
     def __init__(self, show_error_details, router):
         self.router = router
         self.exceptions_handlers = self.init_exceptions_handlers()
@@ -121,19 +119,18 @@ class BaseApplication:
 
     async def handle(self, request):
         route = self.router.get_match(request)
-        if route:
-            request.route_values = route.values
-            try:
-                response = await route.handler(request)
-            except Exception as exc:
-                response = await self.handle_request_handler_exception(request, exc)
-        else:
-            not_found_handler = (
-                self.get_http_exception_handler(NotFound()) or handle_not_found
-            )
-            response = await not_found_handler(self, request, None)
-            if not response:
-                response = Response(404)
+
+        if not route:
+            # This is intentional. We should not use user-defined not found exception
+            # handlers here because middlewares are not executed. The main router should
+            # always have a fallback route configured.
+            return Response(404)
+
+        request.route_values = route.values
+        try:
+            response = await route.handler(request)
+        except Exception as exc:
+            response = await self.handle_request_handler_exception(request, exc)
         return response or Response(204)
 
     async def handle_request_handler_exception(self, request, exc):

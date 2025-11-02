@@ -87,6 +87,10 @@ def get_default_headers_middleware(
     return default_headers_middleware
 
 
+async def default_fallback(request: Request) -> Response:
+    raise NotFound()
+
+
 class ApplicationEvent:
     def __init__(self, context: Any) -> None:
         self._handlers: List[Callable[..., Any]] = []
@@ -639,9 +643,26 @@ class Application(BaseApplication):
         configured_handlers.clear()
 
     def _normalize_fallback_route(self):
+        """
+        Automatically configures the NotFound exception handler to use the user-defined
+        fallback route when no explicit NotFound handler is defined.
+        This provides intuitive behavior where custom fallback routes handle 404s.
+
+        The purpose of this function is to improve the user experience, as a
+        user-defined fallback route is automatically used to handle NotFound
+        exceptions.
+        """
         fallback = self.router.fallback
 
-        if fallback is not None and self._has_default_not_found_handler():
+        if (
+            fallback is not None
+            and fallback.handler is not default_fallback
+            and self._has_default_not_found_handler()
+        ):
+            self.logger.debug(
+                "The user-defined fallback route is configured to handle NotFound "
+                "exceptions."
+            )
 
             async def fallback_handler(app, request, exc) -> Response:
                 return await fallback.handler(request)  # type: ignore
@@ -700,6 +721,12 @@ class Application(BaseApplication):
             return
 
         self.started = True
+
+        # The main router must have a fallback to avoid surprising behaviors
+        # (see issue #619).
+        if not self.router.fallback:
+            self.router.fallback = default_fallback
+
         self.router.apply_routes()
 
         if self.on_start:

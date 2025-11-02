@@ -8,10 +8,20 @@ from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
 from types import UnionType
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+    get_type_hints,
+)
 from typing import _AnnotatedAlias as AnnotatedAlias
 from typing import _GenericAlias as GenericAlias
-from typing import get_type_hints
 from uuid import UUID
 
 from guardpost import AuthenticationHandler
@@ -32,9 +42,6 @@ from openapidocs.v3 import (
     PathItem,
     Reference,
     RequestBody,
-)
-from openapidocs.v3 import Response as ResponseDoc
-from openapidocs.v3 import (
     Schema,
     Security,
     SecurityRequirement,
@@ -44,6 +51,7 @@ from openapidocs.v3 import (
     ValueFormat,
     ValueType,
 )
+from openapidocs.v3 import Response as ResponseDoc
 
 from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
@@ -75,6 +83,7 @@ from .common import (
     RequestBodyInfo,
     ResponseExample,
     ResponseInfo,
+    ResponseInfoDict,
     ResponseStatusType,
     response_status_to_str,
 )
@@ -244,11 +253,15 @@ class APIKeySecuritySchemeHandler(SecuritySchemeHandler):
         self, handler: AuthenticationHandler
     ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
         if isinstance(handler, APIKeyAuthentication):
-            yield handler.scheme, APIKeySecurity(
-                name=handler.param_name,
-                in_=self._get_api_key_location(handler.location),
-                description=handler.description,
-            ), SecurityRequirement(handler.scheme, [])
+            yield (
+                handler.scheme,
+                APIKeySecurity(
+                    name=handler.param_name,
+                    in_=self._get_api_key_location(handler.location),
+                    description=handler.description,
+                ),
+                SecurityRequirement(handler.scheme, []),
+            )
 
 
 class BasicAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
@@ -260,10 +273,14 @@ class BasicAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
         self, handler: AuthenticationHandler
     ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
         if isinstance(handler, BasicAuthentication):
-            yield handler.scheme, HTTPSecurity(
-                scheme="basic",
-                description=handler.description,
-            ), SecurityRequirement(handler.scheme, [])
+            yield (
+                handler.scheme,
+                HTTPSecurity(
+                    scheme="basic",
+                    description=handler.description,
+                ),
+                SecurityRequirement(handler.scheme, []),
+            )
 
 
 class JWTAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
@@ -275,9 +292,11 @@ class JWTAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
         self, handler: AuthenticationHandler
     ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
         if isinstance(handler, JWTBearerAuthentication):
-            yield handler.scheme, HTTPSecurity(
-                scheme="bearer", bearer_format="JWT"
-            ), SecurityRequirement(handler.scheme, [])
+            yield (
+                handler.scheme,
+                HTTPSecurity(scheme="bearer", bearer_format="JWT"),
+                SecurityRequirement(handler.scheme, []),
+            )
 
 
 def _try_is_subclass(object_type, check_type):
@@ -453,9 +472,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             BasicAuthenticationSecuritySchemeHandler(),
             JWTAuthenticationSecuritySchemeHandler(),
         ]
-        self._binder_docs: Dict[Type[Binder], Iterable[Union[Parameter, Reference]]] = (
-            {}
-        )
+        self._binder_docs: Dict[
+            Type[Binder], Iterable[Union[Parameter, Reference]]
+        ] = {}
         self.security: Optional[Security] = None
 
     @property
@@ -1181,7 +1200,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return media_type
 
     def _get_content_from_response_info(
-        self, response_content: Optional[List[ContentInfo]]
+        self,
+        response_content: Optional[Union[List[ContentInfo], List[Type[Any]]]],
     ) -> Optional[Dict[str, Union[MediaType, Reference]]]:
         if not response_content:
             return None
@@ -1249,6 +1269,24 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                         data["404"] = ResponseInfo("Object not found")
             else:
                 return responses
+
+        def build_response_doc(
+            value: Union[str, ResponseInfoDict, ResponseInfo],
+        ) -> ResponseDoc:
+            if isinstance(value, ResponseInfo):
+                return ResponseDoc(
+                    description=value.description,
+                    content=self._get_content_from_response_info(value.content),
+                    headers=self._get_headers_from_response_info(value.headers),
+                )
+            if isinstance(value, str):
+                return ResponseDoc(description=value)
+
+            return ResponseDoc(
+                description=value["description"],
+                content=self._get_content_from_response_info(value.get("content")),
+                headers=self._get_headers_from_response_info(value.get("headers")),
+            )
 
         responses.update(
             {

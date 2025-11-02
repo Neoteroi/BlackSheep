@@ -22,9 +22,12 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Self,
     Type,
+    TypedDict,
     TypeVar,
     Union,
+    Literal,
 )
 
 from essentials.json import dumps
@@ -69,10 +72,41 @@ class ParameterSource(Enum):
     COOKIE = "cookie"
 
 
+ParameterSourceLiteral = Literal[
+    "query",
+    "header",
+    "path",
+    "cookie",
+]
+
+
 @dataclass
 class RequestBodyInfo:
     description: Optional[str] = None
     examples: Optional[Dict[str, Any]] = None
+
+    @classmethod
+    def from_dict(cls, data: RequestBodyInfoDict) -> Self:
+        return cls(
+            description=data.get("description"),
+            examples=data.get("examples"),
+        )
+
+    @classmethod
+    def from_any(cls, data: "RequestBodyInfo | RequestBodyInfoDict") -> "Self | RequestBodyInfo":
+        if isinstance(data, RequestBodyInfo):
+            return data
+        if isinstance(data, dict):
+            return cls.from_dict(data)
+
+        raise TypeError("Invalid type for RequestBodyInfo")
+
+
+class RequestBodyInfoDict(TypedDict):
+    description: str | None
+    examples: dict[str, Any] | None
+
+
 
 
 @dataclass
@@ -81,6 +115,22 @@ class ParameterExample:
     name: Optional[str] = None
     summary: Optional[str] = None
     description: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: ParameterExampleDict) -> Self:
+        return cls(
+            value=data["value"],
+            name=data.get("name"),
+            summary=data.get("summary"),
+            description=data.get("description"),
+        )
+
+
+class ParameterExampleDict(TypedDict):
+    value: Any
+    name: str | None
+    summary: str | None
+    description: str | None
 
 
 @dataclass
@@ -95,12 +145,78 @@ class ParameterInfo:
     examples: Optional[Dict[str, ParameterExample]] = None
 
 
+    @classmethod
+    def from_dict(cls, data: ParameterInfoDict) -> Self:
+        examples = None
+        if "examples" in data and data["examples"] is not None:
+            examples = {
+                key: ParameterExample(
+                    value=value["value"],
+                    name=value.get("name"),
+                    summary=value.get("summary"),
+                    description=value.get("description"),
+                )
+                for key, value in data["examples"].items()
+            }
+
+        source = None
+        if "source" in data and data["source"] is not None:
+            source = ParameterSource(data["source"])
+
+        return cls(
+            description=data["description"],
+            value_type=data.get("value_type"),
+            source=source,
+            required=data.get("required"),
+            deprecated=data.get("deprecated"),
+            allow_empty_value=data.get("allow_empty_value"),
+            example=data.get("example"),
+            examples=examples,
+        )
+
+    @classmethod
+    def from_any(cls, data: "ParameterInfo | ParameterInfoDict") -> "Self | ParameterInfo":
+        if isinstance(data, ParameterInfo):
+            return data
+        if isinstance(data, dict):
+            return cls.from_dict(data)
+
+        raise TypeError("Invalid type for ParameterInfo")
+
+
+class ParameterInfoDict(TypedDict):
+    description: str
+    value_type: Type[Any] | None
+    source: str | None
+    required: bool | None
+    deprecated: bool | None
+    allow_empty_value: bool | None
+    example: Any | None
+    examples: dict[str, ParameterExampleDict] | None
+
+
 @dataclass
 class ResponseExample:
     value: Any
     name: Optional[str] = None
     summary: Optional[str] = None
     description: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: ResponseExampleDict) -> Self:
+        return cls(
+            value=data["value"],
+            name=data.get("name"),
+            summary=data.get("summary"),
+            description=data.get("description"),
+        )
+
+
+class ResponseExampleDict(TypedDict):
+    value: Any
+    name: str | None
+    summary: str | None
+    description: str | None
 
 
 @dataclass
@@ -109,12 +225,40 @@ class ContentInfo:
     examples: Optional[List[Union[ResponseExample, Any]]] = None
     content_type: str = "application/json"
 
+    @classmethod
+    def from_dict(cls, data: ContentInfoDict) -> Self:
+        return cls(
+            type=data["type"],
+            examples=data.get("examples"),
+            content_type=data.get("content_type", "application/json"),
+        )
+
+
+class ContentInfoDict(TypedDict):
+    type: Type[Any]
+    examples: list[ResponseExampleDict | Any] | None
+    content_type: str
+
 
 @dataclass
 class HeaderInfo:
     type: Type
     description: Optional[str] = None
     example: Any = None
+
+    @classmethod
+    def from_dict(cls, data: HeaderInfoDict) -> Self:
+        return cls(
+            type=data["type"],
+            description=data.get("description"),
+            example=data.get("example"),
+        )
+
+
+class HeaderInfoDict(TypedDict):
+    type: Type[Any]
+    description: str | None
+    example: Any
 
 
 @dataclass
@@ -123,11 +267,70 @@ class ResponseInfo:
     headers: Optional[Dict[str, HeaderInfo]] = None
     content: Optional[List[ContentInfo]] = None
 
+    @classmethod
+    def from_dict(cls, data: ResponseInfoDict) -> Self:
+        headers = None
+        if "headers" in data and data["headers"] is not None:
+            headers = {
+                key: HeaderInfo.from_dict(value)
+                for key, value in data["headers"].items()
+            }
+
+        content = None
+        if "content" in data and data["content"] is not None:
+            content = []
+            for item in data["content"]:
+                content.append(
+                    ContentInfo.from_dict(item)
+                )
+
+        return cls(
+            description=data["description"],
+            headers=headers,
+            content=content,
+        )
+
+    @classmethod
+    def from_any(cls, data: "ResponseInfo | ResponseInfoDict") -> "Self | ResponseInfo":
+        if isinstance(data, ResponseInfo):
+            return data
+        if isinstance(data, dict):
+            return cls.from_dict(data)
+
+        raise TypeError("Invalid type for ResponseInfo")
+
+
+class ResponseInfoDict(TypedDict):
+    description: str
+    headers: dict[str, HeaderInfoDict] | None
+    content: list[ContentInfoDict] | None
+
 
 @dataclass
 class SecurityInfo:
     name: str
     value: List[str]
+
+    @classmethod
+    def from_dict(cls, data: SecurityInfoDict) -> Self:
+        return cls(
+            name=data["name"],
+            value=data["value"],
+        )
+
+    @classmethod
+    def from_any(cls, data: "SecurityInfo | SecurityInfoDict") -> "Self | SecurityInfo":
+        if isinstance(data, SecurityInfo):
+            return data
+        if isinstance(data, dict):
+            return cls.from_dict(data)
+
+        raise TypeError("Invalid type for SecurityInfo")
+
+
+class SecurityInfoDict(TypedDict):
+    name: str
+    value: list[str]
 
 
 ResponseStatusType = Union[int, str, HTTPStatus]
@@ -145,6 +348,16 @@ def response_status_to_str(value: ResponseStatusType) -> str:
 class ControllerDocs:
     tags: Optional[List[str]] = None
 
+    @classmethod
+    def from_dict(cls, data: ControllerDocsDict) -> Self:
+        return cls(
+            tags=data.get("tags"),
+        )
+
+
+class ControllerDocsDict(TypedDict):
+    tags: list[str] | None
+
 
 @dataclass
 class EndpointDocs:
@@ -153,11 +366,70 @@ class EndpointDocs:
     tags: Optional[List[str]] = None
     parameters: Optional[Mapping[str, ParameterInfo]] = None
     request_body: Optional[RequestBodyInfo] = None
-    responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None
+    responses: Optional[
+        Dict[ResponseStatusType, Union[str, ResponseInfo]]
+    ] = None
     ignored: Optional[bool] = None
     deprecated: Optional[bool] = None
     on_created: Optional[Callable[[Any, Any], None]] = None
     security: Optional[List[SecurityInfo]] = None
+
+    @classmethod
+    def from_dict(cls, data: EndpointDocsDict) -> Self:
+        parameters = None
+        if "parameters" in data and data["parameters"] is not None:
+            parameters = {
+                key: ParameterInfo.from_dict(value)
+                for key, value in data["parameters"].items()
+            }
+
+        request_body = None
+        if "request_body" in data and data["request_body"] is not None:
+            request_body = RequestBodyInfo(
+                description=data["request_body"].get("description"),
+                examples=data["request_body"].get("examples"),
+            )
+
+        responses: dict[ResponseStatusType, str | ResponseInfo] | None = None
+        if "responses" in data and data["responses"] is not None:
+            responses = {}
+            for key, value in data["responses"].items():
+                if isinstance(value, dict):
+                    responses[key] = ResponseInfo.from_dict(value)
+                else:
+                    responses[key] = value
+
+        security = None
+        if "security" in data and data["security"] is not None:
+            security = [
+                SecurityInfo.from_dict(item) for item in data["security"]
+            ]
+
+        return cls(
+            summary=data.get("summary"),
+            description=data.get("description"),
+            tags=data.get("tags"),
+            parameters=parameters,
+            request_body=request_body,
+            responses=responses,
+            ignored=data.get("ignored"),
+            deprecated=data.get("deprecated"),
+            on_created=data.get("on_created"),
+            security=security,
+        )
+
+
+class EndpointDocsDict(TypedDict):
+    summary: str | None
+    description: str | None
+    tags: list[str] | None
+    parameters: Mapping[str, ParameterInfoDict] | None
+    request_body: RequestBodyInfoDict | None
+    responses: dict[ResponseStatusType, str | ResponseInfoDict | ResponseInfoDict] | None
+    ignored: bool | None
+    deprecated: bool | None
+    on_created: Callable[[Any, Any], None] | None
+    security: list[SecurityInfoDict] | None
 
 
 OpenAPIRootType = TypeVar("OpenAPIRootType", bound=OpenAPIRoot)
@@ -295,15 +567,17 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         summary: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        parameters: Optional[Mapping[str, ParameterInfo]] = None,
-        request_body: Optional[RequestBodyInfo] = None,
-        responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None,
+        parameters: Optional[Mapping[str, ParameterInfo | ParameterInfoDict]] = None,
+        request_body: Optional[RequestBodyInfo | RequestBodyInfoDict] = None,
+        responses: Optional[
+            Dict[ResponseStatusType, Union[str, ResponseInfo, ResponseInfoDict]]
+        ] = None,
         ignored: Optional[bool] = None,
         deprecated: Optional[bool] = None,
         on_created: Optional[Callable[[Any, Any], None]] = None,
-        security: Optional[List[SecurityInfo]] = None,
-    ) -> Any:
-        def decorator(fn):
+        security: Optional[List[SecurityInfo | SecurityInfoDict]] = None,
+    ) -> Callable[[T], T]:
+        def decorator(fn: T) -> T:
             if doc:
                 self._handlers_docs[fn] = doc
                 return fn
@@ -312,13 +586,21 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 summary=summary,
                 description=description,
                 tags=tags,
-                request_body=request_body,
-                responses=responses,
-                parameters=parameters,
+                request_body=RequestBodyInfo.from_any(request_body) if request_body else None,
+                responses={
+                    key: value if isinstance(value, str) else ResponseInfo.from_any(value)
+                    for key, value in responses.items()
+                } if responses else None,
+                parameters={
+                    key: ParameterInfo.from_any(value)
+                    for key, value in parameters.items()
+                } if parameters else None,
                 ignored=ignored,
                 deprecated=deprecated,
                 on_created=on_created,
-                security=security,
+                security=[
+                    SecurityInfo.from_any(item) for item in security
+                ] if security else None
             )
             return fn
 

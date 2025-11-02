@@ -30,6 +30,7 @@ from pydantic.types import (
     conint,
 )
 
+from blacksheep.server import res
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromForm
 from blacksheep.server.controllers import APIController
@@ -40,6 +41,7 @@ from blacksheep.server.openapi.common import (
     OpenAPIEndpointException,
     ResponseInfo,
     SecurityInfo,
+    SecurityInfoDict,
 )
 from blacksheep.server.openapi.exceptions import DuplicatedContentTypeDocsException
 from blacksheep.server.openapi.v3 import (
@@ -285,15 +287,16 @@ async def test_raises_for_started_app(docs):
     with pytest.raises(TypeError):
         docs.bind_app(app)
 
-
-async def test_raises_for_duplicated_content_example(docs):
+@pytest.mark.parametrize("responses", [
+    {200: ResponseInfo("Example", content=[ContentInfo(Foo), ContentInfo(Foo)])},
+    {200: {"description": "Example", "content": [{"type": Foo}, {"type": Foo}]}},
+])
+async def test_raises_for_duplicated_content_example(docs, responses):
     app = get_app()
 
     @app.router.get("/")
     @docs(
-        responses={
-            200: ResponseInfo("Example", content=[ContentInfo(Foo), ContentInfo(Foo)])
-        }
+        responses=responses
     )
     async def example(): ...
 
@@ -2367,7 +2370,11 @@ tags: []
     assert yaml.strip() == expected_result
 
 
-async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer):
+@pytest.mark.parametrize("security", (
+    [SecurityInfo("basicAuth", []), SecurityInfo("bearerAuth", ["read:home", "write:home"])],
+    [{"name": "basicAuth", "value": []}, {"name": "bearerAuth", "value": ["read:home", "write:home"]}],
+))
+async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer, security: list[SecurityInfo | SecurityInfoDict]):
     @docs.register(
         Schema(
             type=ValueType.OBJECT,
@@ -2390,10 +2397,7 @@ async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer)
     def home() -> A: ...
 
     @docs(
-        security=[
-            SecurityInfo("basicAuth", []),
-            SecurityInfo("bearerAuth", ["read:home", "write:home"]),
-        ]
+        security=security
     )
     @app.router.route("/", methods=["POST"])
     def auth_home() -> A: ...

@@ -77,10 +77,6 @@ def get_logger():
     return logger
 
 
-async def default_fallback(request: Request) -> Response:
-    raise NotFound()
-
-
 class BaseApplication:
     router: Router
 
@@ -90,12 +86,6 @@ class BaseApplication:
         self.show_error_details = show_error_details
         self.logger = get_logger()
         self.server_error_details_handler: ServerErrorDetailsHandler
-
-        # The main router must have a fallback to avoid surprising behaviors
-        # (see issue #619).
-        # With this approach, the user can still change the fallback route, if desired.
-        if not router.fallback:
-            router.fallback = default_fallback
 
     def init_exceptions_handlers(self):
         default_handlers = ExceptionHandlersDict(

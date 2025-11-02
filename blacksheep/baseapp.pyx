@@ -9,7 +9,6 @@ from .exceptions cimport (
     HTTPException,
     InternalServerError,
     InvalidExceptionHandler,
-    NotFound,
 )
 from .messages cimport Request, Response
 
@@ -64,10 +63,6 @@ async def common_http_exception_handler(app, Request request, HTTPException http
     return Response(http_exception.status, content=TextContent(http.HTTPStatus(http_exception.status).phrase))
 
 
-async def default_fallback(Request request):
-    raise NotFound()
-
-
 def get_logger():
     logger = logging.getLogger("blacksheep.server")
     logger.setLevel(logging.INFO)
@@ -81,12 +76,6 @@ cdef class BaseApplication:
         self.exceptions_handlers = self.init_exceptions_handlers()
         self.show_error_details = show_error_details
         self.logger = get_logger()
-
-        # The main router must have a fallback to avoid surprising behaviors
-        # (see issue #619).
-        # With this approach, the user can still change the fallback route, if desired.
-        if not router.fallback:
-            router.fallback = default_fallback
 
     def init_exceptions_handlers(self):
         default_handlers = ExceptionHandlersDict({

@@ -30,7 +30,7 @@ from guardpost.common import AuthenticatedRequirement
 from itsdangerous import Serializer
 from rodi import ContainerProtocol
 
-from blacksheep.baseapp import BaseApplication, default_fallback, handle_not_found
+from blacksheep.baseapp import BaseApplication, handle_not_found
 from blacksheep.common import extend
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
@@ -85,6 +85,10 @@ def get_default_headers_middleware(
         return response
 
     return default_headers_middleware
+
+
+async def default_fallback(request: Request) -> Response:
+    raise NotFound()
 
 
 class ApplicationEvent:
@@ -717,6 +721,12 @@ class Application(BaseApplication):
             return
 
         self.started = True
+
+        # The main router must have a fallback to avoid surprising behaviors
+        # (see issue #619).
+        if not self.router.fallback:
+            self.router.fallback = default_fallback
+
         self.router.apply_routes()
 
         if self.on_start:

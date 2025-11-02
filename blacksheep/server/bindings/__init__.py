@@ -33,7 +33,7 @@ from rodi import CannotResolveTypeException, ContainerProtocol
 from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
-from blacksheep.server.bindings.converters import converters
+from blacksheep.server.bindings.converters import class_converters, converters
 from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
 
@@ -406,7 +406,12 @@ def _try_get_type_name(expected_type) -> str:
 
 
 def get_default_class_converter(expected_type):
-    def converter(data):
+    for converter in class_converters:
+        if converter.can_convert(expected_type):
+            return partial(converter.convert, expected_type=expected_type)
+
+    # fallback
+    def default_converter(data):
         try:
             if isinstance(data, dict):
                 return expected_type(**data)
@@ -421,7 +426,7 @@ def get_default_class_converter(expected_type):
                 + _generalize_init_type_error_message(type_error)
             ) from type_error
 
-    return converter
+    return default_converter
 
 
 class BodyBinder(Binder):

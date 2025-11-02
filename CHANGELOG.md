@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surprising behavior (requiring an explicit fallback or catch-all route to handle web
   requests that didn't match any route, otherwise middlewares would be bypassed for the
   defined `NotFound` exception handler).
+- Improve the user experience by ignoring extra properties in request body by default,
+  when mapping user-defined dataclasses, Pydantic v2 models, or classes
+  (see [#614](https://github.com/Neoteroi/BlackSheep/issues/614)). Previously, extra
+  properties were not ignored by default and required the user to explicitly code their
+  input classes to allow extra properties.
 
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 

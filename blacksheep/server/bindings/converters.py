@@ -1,17 +1,18 @@
 """
-This module provides a strategy and classes to convert optional string representations
-of values into expected types. This is used to offer a good user experience to
-developers: rather than parsing raw input values from requests manually, they can
-declare the expected types using Python type annotations, and the code tries to obtain
-objects of the exact type.
+This module provides a strategy and classes to convert client input into expected types.
+This is used to offer a good user experience to developers: rather than parsing raw
+input values from requests manually, they can declare the expected types using Python
+type annotations, and the code tries to obtain objects of the expected type.
 
 The following code only offers default implementations that should work in most cases,
 the user can still define custom logic to parse input values.
 """
 
+import inspect
 from abc import ABC, abstractmethod
+from dataclasses import fields, is_dataclass
 from datetime import date, datetime
-from typing import Any, Callable, List, Literal, get_args
+from typing import Any, Callable, List, Literal, get_args, get_origin
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -25,6 +26,12 @@ try:
 except ImportError:
     IntEnum = None
     StrEnum = None
+
+try:
+    # Pydantic v2 support
+    from pydantic import BaseModel
+except ImportError:
+    BaseModel = None
 
 
 class TypeConverter(ABC):
@@ -207,6 +214,122 @@ class LiteralConverter(TypeConverter):
         raise ValueError(f"{value!r} is not a valid {expected_type}")
 
 
+class ClassConverter(TypeConverter):
+    def __init__(self):
+        self._valid_params_cache = {}
+
+    def can_convert(self, expected_type) -> bool:
+        # Must be a class
+        if not inspect.isclass(expected_type):
+            return False
+
+        # Exclude built-in types
+        if expected_type.__module__ == "builtins":
+            return False
+
+        # Exclude typing module generics
+        if get_origin(expected_type) is not None:
+            return False
+
+        # Exclude types that already have specific converters
+        # (this prevents conflicts with existing converters)
+        for converter in converters:
+            if converter != self and converter.can_convert(expected_type):
+                return False
+
+        # Must have a callable __init__ method
+        if not hasattr(expected_type, "__init__"):
+            return False
+
+        return True
+
+    def _get_valid_params(self, expected_type):
+        # Check cache first
+        if expected_type not in self._valid_params_cache:
+            # Filter out unknown parameters to ignore extra properties
+            try:
+                sig = inspect.signature(expected_type.__init__)
+                valid_params = set(sig.parameters.keys()) - {"self"}
+                self._valid_params_cache[expected_type] = valid_params
+            except (ValueError, TypeError):
+                # Cache None to indicate fallback behavior
+                self._valid_params_cache[expected_type] = None
+
+        return self._valid_params_cache[expected_type]
+
+    def convert(self, value, expected_type) -> Any:
+        if value is None:
+            return None
+
+        if isinstance(value, dict):
+            valid_params = self._get_valid_params(expected_type)
+
+            if valid_params is not None:
+                filtered_data = {k: v for k, v in value.items() if k in valid_params}
+                return expected_type(**filtered_data)
+            else:
+                # Fallback if signature inspection failed
+                return expected_type(**value)
+        else:
+            # Try to construct from single value
+            return expected_type(value)
+
+
+class DataClassConverter(TypeConverter):
+    def __init__(self):
+        self._valid_fields_cache = {}
+
+    def can_convert(self, expected_type) -> bool:
+        return is_dataclass(expected_type) and inspect.isclass(expected_type)
+
+    def _get_valid_fields(self, expected_type):
+        # Check cache first
+        if expected_type not in self._valid_fields_cache:
+            try:
+                field_names = {field.name for field in fields(expected_type)}
+                self._valid_fields_cache[expected_type] = field_names
+            except (ValueError, TypeError):
+                # Cache None to indicate fallback behavior
+                self._valid_fields_cache[expected_type] = None
+
+        return self._valid_fields_cache[expected_type]
+
+    def convert(self, value, expected_type) -> Any:
+        if value is None:
+            return None
+
+        if isinstance(value, dict):
+            valid_fields = self._get_valid_fields(expected_type)
+
+            if valid_fields is not None:
+                filtered_data = {k: v for k, v in value.items() if k in valid_fields}
+                return expected_type(**filtered_data)
+            else:
+                # Fallback if field inspection failed
+                return expected_type(**value)
+        else:
+            # Try to construct from single value
+            return expected_type(value)
+
+
+class PydanticConverter(TypeConverter):
+    def can_convert(self, expected_type) -> bool:
+        if BaseModel is None:
+            return False
+        return inspect.isclass(expected_type) and issubclass(expected_type, BaseModel)
+
+    def convert(self, value, expected_type) -> Any:
+        if value is None:
+            return None
+
+        if isinstance(value, dict):
+            # Use Pydantic's model_validate for proper validation and conversion
+            return expected_type.model_validate(value)
+        else:
+            # Try to construct from single value
+            return expected_type.model_validate(value)
+
+
 converters: List[TypeConverter] = [
     BoolConverter(),
     BytesConverter(),
@@ -224,3 +347,10 @@ if StrEnum is not None and IntEnum is not None:
     # Python > 3.10
     converters.append(IntEnumConverter())
     converters.append(StrEnumConverter())
+
+
+class_converters: List[TypeConverter] = [DataClassConverter(), ClassConverter()]
+
+if BaseModel is not None:
+    # Insert PydanticConverter before ClassConverter to give it priority
+    class_converters.insert(-1, PydanticConverter())

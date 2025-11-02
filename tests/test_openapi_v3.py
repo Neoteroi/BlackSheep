@@ -3761,3 +3761,88 @@ components:
 def test_default_serializer_sanitize_name(name, result):
     serializer = DefaultSerializer()
     assert serializer.get_type_name_for_generic(name) == result
+
+
+async def test_tags_decorator(serializer: Serializer):
+    app = get_app()
+    get = app.controllers_router.get
+    post = app.controllers_router.post
+
+    docs = OpenAPIHandler(
+        info=Info(
+            title="Example API",
+            version="0.0.1",
+        )
+    )
+    docs.bind_app(app)
+
+    @dataclass
+    class Parrot:
+        pass
+
+    @docs.tags("TagExample")
+    class Parrots(APIController):
+        @get()
+        def get_parrots(self) -> List[Parrot]:
+            """Return the list of configured Parrots."""
+            ...
+
+        @post()
+        def create_parrot(self, parrot: Parrot) -> None:
+            """Add a Parrot to the system."""
+
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert (
+        yaml.strip()
+        == """
+openapi: 3.1.0
+info:
+    title: Example API
+    version: 0.0.1
+paths:
+    /api/parrots:
+        get:
+            responses:
+                '200':
+                    description: Success response
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                nullable: false
+                                items:
+                                    $ref: '#/components/schemas/Parrot'
+            tags:
+            - TagExample
+            summary: Return the list of configured Parrots.
+            description: Return the list of configured Parrots.
+            operationId: get_parrots
+            parameters: []
+        post:
+            responses:
+                '204':
+                    description: Success response
+            tags:
+            - TagExample
+            summary: Add a Parrot to the system.
+            description: Add a Parrot to the system.
+            operationId: create_parrot
+            parameters: []
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Parrot'
+                required: true
+components:
+    schemas:
+        Parrot:
+            type: object
+            properties: {}
+tags:
+-   name: TagExample
+""".strip()
+    )

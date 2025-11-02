@@ -7,6 +7,7 @@ OpenAPI Documentation v2 and v3 (currently only v3 is supported) from these type
 potentially in the future v4, if it will be so different from v3.
 """
 
+import inspect
 import json
 import re
 from abc import ABC, abstractmethod
@@ -404,7 +405,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         """Assigns tags to a controller or a request handler."""
 
         def decorator(obj):
-            if issubclass(obj, Controller):
+            if inspect.isclass(obj) and issubclass(obj, Controller):
                 self.get_controller_docs_or_set(obj).tags = list(tags)
             else:
                 self.get_handler_docs_or_set(obj).tags = list(tags)

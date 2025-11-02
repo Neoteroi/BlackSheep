@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (see [#614](https://github.com/Neoteroi/BlackSheep/issues/614)). Previously, extra
   properties were not ignored by default and required the user to explicitly code their
   input classes to allow extra properties.
+  This is also done for expected input body declared as `List[T]`, `Sequence[T]`, and
+  `Tuple[T]` where `T` is a dataclass, Pydantic model, or plain class.
+  The user can still control how input bodies from clients are converted using custom
+  binders or altering `blacksheep.server.bindings.class_converters`.
+- Change the text of `Bad Request` response body when the input from the client causes
+  a `TypeError` when trying to bind to an instance of the expected type (it reduces the
+  amount of details sent to the client).
 
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 

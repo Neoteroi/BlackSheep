@@ -10,9 +10,10 @@ the user can still define custom logic to parse input values.
 
 import inspect
 from abc import ABC, abstractmethod
+from collections.abc import Sequence as SequenceABC
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
-from typing import Any, Callable, List, Literal, get_args, get_origin
+from typing import Any, Callable, List, Literal, Sequence, get_args, get_origin
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -330,6 +331,73 @@ class PydanticConverter(TypeConverter):
             return expected_type.model_validate(value)
 
 
+# Add this new converter class after the existing converters
+class ListConverter(TypeConverter):
+    """
+    Converter for List[T], Sequence[T], and Tuple[T] where T
+    is handled by class_converters (DataClass, Pydantic models, plain classes).
+    """
+
+    def __init__(self, supported_origins=None):
+        if supported_origins is None:
+            supported_origins = {list, List, Sequence, SequenceABC, tuple}
+        self.supported_origins = supported_origins
+
+    def can_convert(self, expected_type) -> bool:
+        origin = get_origin(expected_type)
+        if origin not in self.supported_origins:
+            return False
+
+        # Get the item type
+        args = get_args(expected_type)
+        if not args:
+            return False
+
+        item_type = args[0]
+
+        # Check if any class converter can handle the item type
+        for converter in class_converters:
+            if converter.can_convert(item_type):
+                return True
+
+        return False
+
+    def convert(self, value, expected_type) -> Any:
+        if value is None:
+            return None
+
+        if not isinstance(value, list):
+            raise ValueError(f"Expected a list for {expected_type}, got {type(value)}")
+
+        origin = get_origin(expected_type)
+        item_type = get_args(expected_type)[0]
+
+        # Find the appropriate converter for the item type
+        item_converter = None
+        for converter in class_converters:
+            if converter.can_convert(item_type):
+                item_converter = converter
+                break
+
+        if item_converter is None:
+            raise ValueError(f"No converter found for item type {item_type}")
+
+        # Convert each item in the list
+        converted_items = []
+        for item in value:
+            converted_item = item_converter.convert(item, item_type)
+            converted_items.append(converted_item)
+
+        # Return the appropriate collection type
+        if origin in {list, List}:
+            return converted_items
+        elif origin in {tuple}:
+            return tuple(converted_items)
+        else:
+            # For Sequence and other abstract types, default to list
+            return converted_items
+
+
 converters: List[TypeConverter] = [
     BoolConverter(),
     BytesConverter(),
@@ -349,8 +417,12 @@ if StrEnum is not None and IntEnum is not None:
     converters.append(StrEnumConverter())
 
 
-class_converters: List[TypeConverter] = [DataClassConverter(), ClassConverter()]
+class_converters: List[TypeConverter] = [
+    DataClassConverter(),
+    ClassConverter(),
+    ListConverter(),
+]
 
 if BaseModel is not None:
     # Insert PydanticConverter before ClassConverter to give it priority
-    class_converters.insert(-1, PydanticConverter())
+    class_converters.insert(-2, PydanticConverter())

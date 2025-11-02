@@ -802,3 +802,64 @@ async def test_from_body_json_binding_ignore_extra_parameters(
     assert isinstance(value, model_class)
     assert value.a == expected_a
     assert value.b == expected_b
+
+
+@pytest.mark.parametrize(
+    "collection_type,model_class,expected_type",
+    [
+        (List[ExampleOne], ExampleOne, list),
+        (List[ExampleDataClass], ExampleDataClass, list),
+        pytest.param(
+            List[ExamplePydanticModel],
+            ExamplePydanticModel,
+            list,
+            marks=pytest.mark.skipif(
+                BaseModel is None, reason="pydantic not available"
+            ),
+        ),
+        (Sequence[ExampleOne], ExampleOne, list),
+        (Sequence[ExampleDataClass], ExampleDataClass, list),
+        pytest.param(
+            Sequence[ExamplePydanticModel],
+            ExamplePydanticModel,
+            list,
+            marks=pytest.mark.skipif(
+                BaseModel is None, reason="pydantic not available"
+            ),
+        ),
+    ],
+)
+async def test_from_body_json_binding_collections(
+    collection_type, model_class, expected_type
+):
+    request = Request("POST", b"/", [JSONContentType]).with_content(
+        JSONContent(
+            [
+                {"a": "first", "b": 100, "c": "extra property to ignore 1"},
+                {"a": "second", "b": 200, "c": "extra property to ignore 2"},
+                {"a": "third", "b": 300, "c": "extra property to ignore 3"},
+            ]
+        )
+    )
+
+    parameter = JSONBinder(collection_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert len(value) == 3
+
+    # Convert to list for uniform iteration (since sets don't guarantee order)
+    items = list(value)
+
+    for i, item in enumerate(items):
+        assert isinstance(item, model_class)
+        # For sets, we can't guarantee order, so we check that all expected values are present
+        if expected_type == set:
+            assert item.a in ["first", "second", "third"]
+            assert item.b in [100, 200, 300]
+        else:
+            # For lists and sequences, order is preserved
+            expected_values = [("first", 100), ("second", 200), ("third", 300)]
+            assert item.a == expected_values[i][0]
+            assert item.b == expected_values[i][1]

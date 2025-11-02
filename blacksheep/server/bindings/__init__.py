@@ -109,17 +109,6 @@ class BinderMeta(type):
             cls.handlers[handle] = cls  # type: ignore
 
 
-def _generalize_init_type_error_message(ex: TypeError) -> str:
-    return (
-        str(ex)
-        .replace("__init__() ", "")
-        .replace("keyword argument", "parameter")
-        .replace("keyword arguments", "parameters")
-        .replace("positional arguments", "parameters")
-        .replace("positional argument", "parameter")
-    )
-
-
 class BoundValue(Generic[T]):
     """Base class for parameters that are bound for a web request."""
 
@@ -410,21 +399,12 @@ def get_default_class_converter(expected_type):
         if converter.can_convert(expected_type):
             return partial(converter.convert, expected_type=expected_type)
 
-    # fallback
     def default_converter(data):
-        try:
-            if isinstance(data, dict):
-                return expected_type(**data)
-            else:
-                # list, simple type
-                return expected_type(data)
-        except TypeError as type_error:
-            raise BadRequest(
-                "invalid parameter in request payload, "
-                + f"caused by type {_try_get_type_name(expected_type)} or "
-                + "one of its subproperties. Error: "
-                + _generalize_init_type_error_message(type_error)
-            ) from type_error
+        if isinstance(data, dict):
+            return expected_type(**data)
+        else:
+            # list, simple type
+            return expected_type(data)
 
     return default_converter
 
@@ -524,6 +504,10 @@ class BodyBinder(Binder):
     def parse_value(self, data: dict):
         try:
             return self.converter(data)
+        except TypeError as type_error:
+            raise BadRequest(
+                "Bad Request: invalid parameter in request payload."
+            ) from type_error
         except ValueError as value_error:
             raise InvalidRequestBody(str(value_error)) from value_error
 

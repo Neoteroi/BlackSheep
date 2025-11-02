@@ -1,9 +1,11 @@
 import sys
+from dataclasses import dataclass
 from typing import Any, List, Literal, Optional, Sequence, Set, Tuple, Type
 from uuid import UUID
 
 import pytest
 from guardpost import Identity
+from pydantic import BaseModel
 from pytest import raises
 from rodi import Container
 
@@ -58,6 +60,12 @@ class ExampleOne:
         self.b = int(b)
 
 
+@dataclass
+class ExampleDataClass:
+    a: str
+    b: int
+
+
 class ExampleTwo:
     def __init__(self, a, b, **kwargs):
         self.a = a
@@ -80,6 +88,11 @@ class ExampleIntEnum(IntEnum):
     ONE = 1
     TWO = 2
     THREE = 3
+
+
+class ExamplePydanticModel(BaseModel):
+    a: str
+    b: int
 
 
 async def test_from_body_json_binding():
@@ -752,3 +765,101 @@ def test_duplicate_type_alias_raises():
     assert str(duplicate_alias_error.value) == (
         "There is already a type alias defined for 'X', the second type is: XBinder2"
     )
+
+
+@pytest.mark.parametrize(
+    "model_class,expected_a,expected_b",
+    [
+        (ExampleOne, "world", 9000),  # Plain class
+        (ExampleDataClass, "world", 9000),  # Dataclass
+        pytest.param(
+            ExamplePydanticModel,
+            "world",
+            9000,  # Pydantic model
+            marks=pytest.mark.skipif(
+                BaseModel is None, reason="pydantic not available"
+            ),
+        ),
+    ],
+)
+async def test_from_body_json_binding_ignore_extra_parameters(
+    model_class, expected_a, expected_b
+):
+    request = Request("POST", b"/", [JSONContentType]).with_content(
+        JSONContent(
+            {
+                "a": "world",
+                "b": 9000,
+                "c": "This is an extra parameter that should be ignored",
+            }
+        )
+    )
+
+    parameter = JSONBinder(model_class)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, model_class)
+    assert value.a == expected_a
+    assert value.b == expected_b
+
+
+@pytest.mark.parametrize(
+    "collection_type,model_class,expected_type",
+    [
+        (List[ExampleOne], ExampleOne, list),
+        (List[ExampleDataClass], ExampleDataClass, list),
+        pytest.param(
+            List[ExamplePydanticModel],
+            ExamplePydanticModel,
+            list,
+            marks=pytest.mark.skipif(
+                BaseModel is None, reason="pydantic not available"
+            ),
+        ),
+        (Sequence[ExampleOne], ExampleOne, list),
+        (Sequence[ExampleDataClass], ExampleDataClass, list),
+        pytest.param(
+            Sequence[ExamplePydanticModel],
+            ExamplePydanticModel,
+            list,
+            marks=pytest.mark.skipif(
+                BaseModel is None, reason="pydantic not available"
+            ),
+        ),
+    ],
+)
+async def test_from_body_json_binding_collections(
+    collection_type, model_class, expected_type
+):
+    request = Request("POST", b"/", [JSONContentType]).with_content(
+        JSONContent(
+            [
+                {"a": "first", "b": 100, "c": "extra property to ignore 1"},
+                {"a": "second", "b": 200, "c": "extra property to ignore 2"},
+                {"a": "third", "b": 300, "c": "extra property to ignore 3"},
+            ]
+        )
+    )
+
+    parameter = JSONBinder(collection_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert len(value) == 3
+
+    # Convert to list for uniform iteration (since sets don't guarantee order)
+    items = list(value)
+
+    for i, item in enumerate(items):
+        assert isinstance(item, model_class)
+        # For sets, we can't guarantee order, so we check that all expected values are present
+        if expected_type == set:
+            assert item.a in ["first", "second", "third"]
+            assert item.b in [100, 200, 300]
+        else:
+            # For lists and sequences, order is preserved
+            expected_values = [("first", 100), ("second", 200), ("third", 300)]
+            assert item.a == expected_values[i][0]
+            assert item.b == expected_values[i][1]

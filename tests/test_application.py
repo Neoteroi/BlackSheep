@@ -1882,7 +1882,7 @@ async def test_handler_from_json_parameter_missing_property(app):
     @app.router.post("/")
     async def home(item: FromJSON[Item]): ...
 
-    # Note: the following example missing one of the properties
+    # Note: the following example is missing one of the properties
     # required by the constructor
     await app(
         get_example_scope(
@@ -1895,8 +1895,7 @@ async def test_handler_from_json_parameter_missing_property(app):
     )
     assert app.response.status == 400
     assert (
-        b"Bad Request: invalid parameter in request payload, caused by type Item "
-        + b"or one of its subproperties."
+        b"Bad Request: invalid parameter in request payload"
         in app.response.content.body
     )
 
@@ -1982,8 +1981,7 @@ async def test_handler_from_json_parameter_missing_property_complex_type(app):
     )
     assert app.response.status == 400
     assert (
-        b"Bad Request: invalid parameter in request payload, caused by type Foo "
-        + b"or one of its subproperties."
+        b"Bad Request: invalid parameter in request payload."
         in app.response.content.body
     )
 
@@ -2005,7 +2003,7 @@ async def test_handler_from_json_parameter_missing_property_array(app):
     )
     assert app.response.status == 400
     assert (
-        b"Bad Request: invalid parameter in request payload, caused by type Item"
+        b"Bad Request: invalid parameter in request payload."
         in app.response.content.body
     )
 

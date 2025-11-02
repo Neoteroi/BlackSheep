@@ -33,7 +33,7 @@ from rodi import CannotResolveTypeException, ContainerProtocol
 from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
-from blacksheep.server.bindings.converters import converters
+from blacksheep.server.bindings.converters import class_converters, converters
 from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
 
@@ -107,17 +107,6 @@ class BinderMeta(type):
             if handle in cls.handlers:
                 raise BinderAlreadyDefinedException(handle, name)
             cls.handlers[handle] = cls  # type: ignore
-
-
-def _generalize_init_type_error_message(ex: TypeError) -> str:
-    return (
-        str(ex)
-        .replace("__init__() ", "")
-        .replace("keyword argument", "parameter")
-        .replace("keyword arguments", "parameters")
-        .replace("positional arguments", "parameters")
-        .replace("positional argument", "parameter")
-    )
 
 
 class BoundValue(Generic[T]):
@@ -406,22 +395,18 @@ def _try_get_type_name(expected_type) -> str:
 
 
 def get_default_class_converter(expected_type):
-    def converter(data):
-        try:
-            if isinstance(data, dict):
-                return expected_type(**data)
-            else:
-                # list, simple type
-                return expected_type(data)
-        except TypeError as type_error:
-            raise BadRequest(
-                "invalid parameter in request payload, "
-                + f"caused by type {_try_get_type_name(expected_type)} or "
-                + "one of its subproperties. Error: "
-                + _generalize_init_type_error_message(type_error)
-            ) from type_error
+    for converter in class_converters:
+        if converter.can_convert(expected_type):
+            return partial(converter.convert, expected_type=expected_type)
 
-    return converter
+    def default_converter(data):
+        if isinstance(data, dict):
+            return expected_type(**data)
+        else:
+            # list, simple type
+            return expected_type(data)
+
+    return default_converter
 
 
 class BodyBinder(Binder):
@@ -519,6 +504,10 @@ class BodyBinder(Binder):
     def parse_value(self, data: dict):
         try:
             return self.converter(data)
+        except TypeError as type_error:
+            raise BadRequest(
+                "Bad Request: invalid parameter in request payload."
+            ) from type_error
         except ValueError as value_error:
             raise InvalidRequestBody(str(value_error)) from value_error
 

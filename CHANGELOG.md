@@ -13,8 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surprising behavior (requiring an explicit fallback or catch-all route to handle web
   requests that didn't match any route, otherwise middlewares would be bypassed for the
   defined `NotFound` exception handler).
+- Change the text of `Bad Request` response body when the input from the client causes
+  a `TypeError` when trying to bind to an instance of the expected type (it reduces the
+  amount of details sent to the client).
 - Improve the user experience by ignoring extra properties in request body by default,
-  when mapping user-defined dataclasses, Pydantic v2 models, or classes
+  when mapping to user-defined dataclasses, Pydantic v2 models, or classes
   (see [#614](https://github.com/Neoteroi/BlackSheep/issues/614)). Previously, extra
   properties were not ignored by default and required the user to explicitly code their
   input classes to allow extra properties.
@@ -22,9 +25,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Tuple[T]` where `T` is a dataclass, Pydantic model, or plain class.
   The user can still control how input bodies from clients are converted using custom
   binders or altering `blacksheep.server.bindings.class_converters`.
-- Change the text of `Bad Request` response body when the input from the client causes
-  a `TypeError` when trying to bind to an instance of the expected type (it reduces the
-  amount of details sent to the client).
+  **Note:** automatic type conversion from strings is not performed for sub-properties.
+  Use Pydantic models if you want this feature. Example: dates can require conversion
+  when mapping JSON input, and everything is transmitted as text when using multipart
+  form data.
+
+```html
+# HTML form
+<form enctype="multipart/form-data">
+    <input type="number" name="age" value="25">  <!-- Still sent as "25" -->
+    <input type="text" name="name" value="Snoopy">  <!-- Sent as "Snoopy" -->
+</form>
+```
+
+Solutions to have automatic conversion of properties:
+
+1. Use Pydantic models to describe expected types.
+2. Do conversion in the constructors of your classes.
 
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 

@@ -119,6 +119,13 @@ class BaseApplication:
 
     async def handle(self, request):
         route = self.router.get_match(request)
+
+        if not route:
+            # This is intentional. We should not use user-defined not found exception
+            # handlers here because middlewares are not executed. The main router should
+            # always have a fallback route configured.
+            return Response(404)
+
         request.route_values = route.values
         try:
             response = await route.handler(request)

@@ -7,13 +7,8 @@ from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.routing import Router
 
 from .contents import Content, TextContent
-from .exceptions import (
-    HTTPException,
-    InternalServerError,
-    InvalidExceptionHandler,
-    NotFound,
-)
-from .messages import Request, Response
+from .exceptions import HTTPException, InternalServerError, InvalidExceptionHandler
+from .messages import Response
 from .utils import get_class_instance_hierarchy
 
 try:

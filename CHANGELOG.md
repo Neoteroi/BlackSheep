@@ -29,19 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Use Pydantic models if you want this feature. Example: dates can require conversion
   when mapping JSON input, and everything is transmitted as text when using multipart
   form data.
-
-```html
-# HTML form
-<form enctype="multipart/form-data">
-    <input type="number" name="age" value="25">  <!-- Still sent as "25" -->
-    <input type="text" name="name" value="Snoopy">  <!-- Sent as "Snoopy" -->
-</form>
-```
-
-Solutions to have automatic conversion of properties:
-
-1. Use Pydantic models to describe expected types.
-2. Do conversion in the constructors of your classes.
+- Add support for specifying OpenAPI tags for controllers. This simplifies handling tags
+  for documentation ([#616](https://github.com/Neoteroi/BlackSheep/issues/616)).
 
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 

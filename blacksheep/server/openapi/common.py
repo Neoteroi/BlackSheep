@@ -32,6 +32,7 @@ from openapidocs.common import Format, OpenAPIElement, OpenAPIRoot, Serializer
 from blacksheep.messages import Request
 from blacksheep.server.application import Application, ApplicationSyncEvent
 from blacksheep.server.authorization import allow_anonymous
+from blacksheep.server.controllers import Controller
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.routing import Route, Router
 from blacksheep.url import join_prefix
@@ -137,6 +138,11 @@ def response_status_to_str(value: ResponseStatusType) -> str:
     if isinstance(value, str):
         return value
     return str(value)
+
+
+@dataclass
+class ControllerDocs:
+    tags: Optional[List[str]] = None
 
 
 @dataclass
@@ -266,6 +272,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         serializer: Optional[Serializer] = None,
     ) -> None:
         self._handlers_docs: Dict[Any, EndpointDocs] = {}
+        self._controllers_docs: Dict[Any, ControllerDocs] = {}
         self.use_docstrings: bool = True
         self.include: Optional[Callable[[str, Route], bool]] = None
         self.json_spec_path = json_spec_path
@@ -340,6 +347,16 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         else:
             self._types_schemas[object_type] = schema
 
+    def get_controller_docs(self, obj: Any) -> Optional[ControllerDocs]:
+        return self._controllers_docs.get(obj)
+
+    def get_controller_docs_or_set(self, obj: Any) -> ControllerDocs:
+        if obj in self._controllers_docs:
+            return self._controllers_docs[obj]
+        docs = ControllerDocs()
+        self._controllers_docs[obj] = docs
+        return docs
+
     def get_handler_docs(self, obj: Any) -> Optional[EndpointDocs]:
         return self._handlers_docs.get(obj)
 
@@ -384,11 +401,14 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         return decorator
 
     def tags(self, *tags: str):
-        """Assigns tags to a request handler."""
+        """Assigns tags to a controller or a request handler."""
 
-        def decorator(fn):
-            self.get_handler_docs_or_set(fn).tags = list(tags)
-            return fn
+        def decorator(obj):
+            if issubclass(obj, Controller):
+                self.get_controller_docs_or_set(obj).tags = list(tags)
+            else:
+                self.get_handler_docs_or_set(obj).tags = list(tags)
+            return obj
 
         return decorator
 
@@ -405,6 +425,10 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             return docs.tags
 
         if hasattr(handler, "controller_type"):
+            # support specific tags
+            controller_docs = self.get_controller_docs(handler.controller_type)
+            if controller_docs and controller_docs.tags:
+                return controller_docs.tags
             # default to controller's class name for the tags
             return [handler.controller_type.class_name().title()]
 

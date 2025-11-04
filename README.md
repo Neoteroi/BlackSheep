@@ -91,11 +91,6 @@ classifiers. The current list is:
 
 [![versions](https://img.shields.io/pypi/pyversions/blacksheep.svg)](https://github.com/robertoprevato/blacksheep)
 
-> [!TIP]
->
-> Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/), too (`PyPy 3.11`).
-> Previous versions of the framework supported only [CPython](https://github.com/python/cpython).
-
 BlackSheep belongs to the category of
 [ASGI](https://asgi.readthedocs.io/en/latest/) web frameworks, so it requires
 an ASGI HTTP server to run, such as [uvicorn](https://www.uvicorn.org/),
@@ -224,7 +219,7 @@ BlackSheep provides:
 
 Meaning that it is easy to integrate with services such as:
 * [Auth0](https://auth0.com)
-* [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/)
+* [Microsoft Entra ID](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id)
 * [Azure Active Directory B2C](https://docs.microsoft.com/en-us/azure/active-directory-b2c/overview)
 * [Okta](https://www.okta.com)
 
@@ -318,10 +313,6 @@ asyncio.run(client_example())
 ## Documentation
 
 Please refer to the [documentation website](https://www.neoteroi.dev/blacksheep/).
-
-## Communication
-
-[BlackSheep community in Gitter](https://gitter.im/Neoteroi/BlackSheep).
 
 ## Branches
 

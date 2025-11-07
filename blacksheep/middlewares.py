@@ -1,3 +1,8 @@
+"""
+This module contains high-level middlewares functions that can be used both by client
+and server code.
+"""
+
 from blacksheep.normalization import copy_special_attributes
 
 

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Awaitable, Callable
 from rodi import ActivationScope, Container
 
 from blacksheep.messages import Request, Response
+from blacksheep.server.middlewares import MiddlewareCategory
 
 if TYPE_CHECKING:
     from blacksheep.server.application import Application
@@ -45,9 +46,6 @@ def register_http_context(app: "Application"):
     assert isinstance(app.services, Container), "This method requires rodi."
 
     if di_scope_middleware not in app.middlewares:
-
-        @app.on_middlewares_configuration
-        def enable_request_accessor(_):
-            app.middlewares.insert(0, di_scope_middleware)
+        app.middlewares.append(di_scope_middleware, MiddlewareCategory.INIT, -50)
 
     app.services.add_scoped_by_factory(request_factory)

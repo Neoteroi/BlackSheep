@@ -27,6 +27,7 @@ from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.dataprotection import generate_secret, get_serializer
 from blacksheep.server.headers.cache import cache_control
+from blacksheep.server.middlewares import MiddlewareCategory
 from blacksheep.server.responses import accepted, bad_request, html, json, ok, redirect
 from blacksheep.utils import ensure_str
 from blacksheep.utils.aio import FailedRequestError, HTTPHandler
@@ -1096,9 +1097,10 @@ def use_openid_connect(
         return await handler.handle_refresh_token_request(request)
 
     if is_default:
-
-        @app.on_middlewares_configuration
-        def insert_challenge_middleware(app):
-            app.middlewares.insert(0, ChallengeMiddleware(handler.redirect_to_sign_in))
+        app.middlewares.append(
+            ChallengeMiddleware(handler.redirect_to_sign_in),
+            MiddlewareCategory.INIT,
+            100,
+        )
 
     return handler

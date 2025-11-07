@@ -39,6 +39,7 @@ from opentelemetry.trace import SpanKind
 from blacksheep import Application
 from blacksheep.messages import Request, Response
 from blacksheep.server.env import get_env
+from blacksheep.server.middlewares import MiddlewareCategory
 
 ExceptionHandler = Callable[[Request, Exception], Awaitable[Response]]
 
@@ -177,11 +178,11 @@ def use_open_telemetry(
     _configure_logging(log_exporter, span_exporter)
 
     # Insert the middleware at the beginning of the middlewares list
-    @app.on_middlewares_configuration
-    def add_otel_middleware(app):
-        app.middlewares.insert(
-            0, middleware or OTELMiddleware(app.handle_request_handler_exception)
-        )
+    app.middlewares.append(
+        middleware or OTELMiddleware(app.handle_request_handler_exception),
+        MiddlewareCategory.INIT,
+        -10,
+    )
 
     @app.on_start
     async def on_start(app):

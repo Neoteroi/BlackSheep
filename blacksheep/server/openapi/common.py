@@ -250,6 +250,7 @@ class DefaultSerializer(Serializer):
         if "[" not in name:
             return name
         name = name.replace("[", "Of").replace("]", "")
+        # TODO: handle pipes (|) as Union
         return re.sub(r",\s?", "And", name)
 
 

@@ -3753,7 +3753,7 @@ components:
     "name,result",
     [
         ("Example[Cat]", "ExampleOfCat"),
-        ("A | B | C", "UnionOfAAndBAndC"),
+        ("Union[A, B, C]", "UnionOfAAndBAndC"),
         ("list[A | B | C]", "ListOfUnionOfAAndBAndC"),
         ("dict[str, int]", "DictOfstrAndint"),
     ],

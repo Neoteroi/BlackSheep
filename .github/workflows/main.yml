@@ -186,8 +186,8 @@ jobs:
             ubuntu-24.04-arm,
             windows-latest,
             windows-11-arm,
-            # macos-15-intel,  # Failing with "File Not Found"
-            # macos-latest,  # Failing with "File Not Found"
+            # macos-15-intel,  # Failing with "File Not Found" for wheels it builds
+            # macos-latest,  # Failing with "File Not Found" for wheels it builds
           ]
 
     steps:
@@ -229,7 +229,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, macos-15-intel]
+        os: [macos-latest]  # macos-15-intel NOT supported
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "pypy-3.11"]
     steps:
       - uses: actions/checkout@v5

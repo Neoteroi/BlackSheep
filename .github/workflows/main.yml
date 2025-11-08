@@ -201,18 +201,13 @@ jobs:
           CIBW_BUILD: cp310-* cp311-* cp312-* cp313-* cp314-*
           CIBW_ARCHS: "auto64"
 
-          # Skip wheel repair on macOS to avoid file not found errors
-          CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
-
-          # Disable GitHub step summary to avoid file not found errors in MacOS
-          CIBW_GITHUB_STEP_SUMMARY: false
-
           # Before build commands
           CIBW_BEFORE_BUILD_WINDOWS: >
             python3 -m pip install setuptools wheel Cython==3.1.4 &&
             python -c "import os, glob; [os.remove(f) for f in glob.glob('blacksheep/*.c') + glob.glob('blacksheep/*.so')]" &&
             make compile
-          # Unix-based systems (macOS, Linux)
+
+          # Unix-based systems (Linux)
           CIBW_BEFORE_BUILD: >
             python3 -m pip install setuptools wheel Cython==3.1.4 &&
             make clean &&
@@ -235,6 +230,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, macos-15-intel]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "pypy-3.11"]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -243,7 +239,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install build dependencies
         run: |
@@ -261,7 +257,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: dist/*.whl
 
   # Build PyPy wheel (pure Python)

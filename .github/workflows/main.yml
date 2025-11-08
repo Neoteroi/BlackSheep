@@ -174,7 +174,7 @@ jobs:
 
   # Build wheels with cibuildwheel
   build-wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build ${{ matrix.os }} wheels
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -214,7 +214,7 @@ jobs:
           CIBW_TEST_SKIP: "*-macos*"
 
           CIBW_BEFORE_TEST: >
-            python3 -m pip install requirements.txt
+            python3 -m pip install -r requirements.txt
           CIBW_TEST_COMMAND_WINDOWS: >
             echo "Running unit tests..." &&
             set CIBUILD_RUN=1 &&

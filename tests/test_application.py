@@ -562,9 +562,6 @@ async def test_application_middlewares_skip_handler(app):
     assert calls == [1, 3, 6, 4, 2]
 
 
-@pytest.mark.skipif(
-    os.environ.get("CIBUILD_RUN") == "1", reason="Skipped during CIBUILD_RUN"
-)
 async def test_application_post_multipart_formdata_files_handler(app):
     ensure_folder("out")
     ensure_folder("tests/out")

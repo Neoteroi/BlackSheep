@@ -190,7 +190,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.0
         env:
-          CIBW_BUILD: cp39-* cp310-* cp311-* cp312-* cp313-*
+          CIBW_BUILD: cp310-* cp311-* cp312-* cp313-* cp314-*
           CIBW_ARCHS: "auto64"
 
           # Before build commands
@@ -237,7 +237,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.os }}-${{ strategy.job-index }}
+          name: wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: dist/*.whl
 
   # Build PyPy wheel (pure Python)
@@ -279,7 +279,7 @@ jobs:
           python -m build
       - uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.os }}-${{ matrix.python-version }}
+          name: wheels-${{ matrix.os }}-${{ matrix.python-version }}
           path: dist
 
   # Build source distribution
@@ -308,7 +308,7 @@ jobs:
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: sdist
+          name: wheels-sdist
           path: dist/*.tar.gz
 
   publish:
@@ -319,7 +319,7 @@ jobs:
       - name: Download a distribution artifact
         uses: actions/download-artifact@v4
         with:
-          pattern: dist-*
+          pattern: wheels-*
           merge-multiple: true
           path: dist
 

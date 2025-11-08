@@ -5,6 +5,7 @@ from blacksheep.client import ClientSession
 from blacksheep.client.connection import ClientConnection, ConnectionClosedError
 from blacksheep.client.exceptions import UnsupportedRedirect
 from blacksheep.client.session import normalize_headers
+from blacksheep.contents import TextContent
 
 
 @pytest.mark.parametrize(
@@ -252,7 +253,7 @@ async def test_client_session_middleware_can_skip_core_handler():
 
     async def short_circuit_middleware(request, next_handler):
         if request.get_first_header(b"X-Skip-Core"):
-            return Response(304, content=b"Not Modified")
+            return Response(304, content=TextContent("Not Modified"))
         return await next_handler(request)
 
     core_called = False
@@ -342,7 +343,7 @@ async def test_client_session_middleware_with_redirects():
         call_count += 1
         if call_count == 1:
             return Response(302, [(b"Location", b"https://example.com/redirected")])
-        return Response(200, content=b"Final response")
+        return Response(200, content=TextContent("Final response"))
 
     async with ClientSession(
         middlewares=[redirect_counter_middleware], follow_redirects=True

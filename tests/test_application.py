@@ -1023,7 +1023,7 @@ async def test_handler_query_value_binding_optional_float(query, expected_value,
 )
 async def test_handler_query_value_binding_optional_list(query, expected_value, app):
     @app.router.get("/")
-    async def home(request, a: list[float | None]):
+    async def home(request, a: list[float] | None):
         assert a == expected_value
 
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
@@ -1318,17 +1318,17 @@ async def test_handler_normalize_sync_method_from_query_optional(app):
 
 async def test_handler_normalize_optional_binder(app):
     @app.router.get("/1")
-    def home1(xx: FromQuery[int | None], yy: FromQuery[int | None]):
+    def home1(xx: FromQuery[int] | None, yy: FromQuery[int] | None):
         assert xx is None
         assert yy.value == 20
 
     @app.router.get("/2")
-    def home2(xx: FromQuery[int | None]):
+    def home2(xx: FromQuery[int] | None):
         assert xx is not None
         assert xx.value == 10
 
     @app.router.get("/3")
-    def home3(xx: FromQuery[Optional[int]] | None):
+    def home3(xx: FromQuery[int | None] | None):
         assert xx is not None
         assert xx.value == 10
 

@@ -171,7 +171,7 @@ def test_parameters_get_binders_list_types_default_from_query():
 
 
 def test_parameters_get_binders_list_types_default_from_query_optional():
-    def handler(a: list[str | None]): ...
+    def handler(a: list[str] | None): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -220,7 +220,7 @@ def test_does_not_throw_for_forward_ref():
 
     get_binders(Route(b"/", handler), Container())
 
-    def handler(a: list["Cat" | None]): ...
+    def handler(a: list["Cat | None"]): ...
 
     get_binders(Route(b"/", handler), Container())
 
@@ -294,7 +294,7 @@ def test_from_query_unspecified_type():
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
-    assert binder.expected_type is list[str]
+    assert binder.expected_type == list[str]
     assert binder.required is True
     assert binder.parameter_name == "a"
 
@@ -351,7 +351,7 @@ def test_from_query_optional_list_type():
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
-    assert binder.expected_type is list[str]
+    assert binder.expected_type == list[str]
     assert binder.required is False
     assert binder.parameter_name == "a"
 

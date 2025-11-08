@@ -935,7 +935,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 object_type, context_type_args, schema
             )
 
-        if origin is Union:
+        if origin is Union or origin is UnionType:
             schema = Schema(
                 ValueType.OBJECT,
                 any_of=[

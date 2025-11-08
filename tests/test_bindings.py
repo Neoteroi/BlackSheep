@@ -1,6 +1,6 @@
 import sys
 from dataclasses import dataclass
-from typing import Any, List, Literal, Optional, Sequence, Set, Tuple, Type
+from typing import Any, List, Literal, Sequence, Set, Tuple, Type
 from uuid import UUID
 
 import pytest
@@ -73,7 +73,7 @@ class ExampleTwo:
 
 
 class ExampleThree:
-    def __init__(self, a: str, b: List[str]):
+    def __init__(self, a: str, b: list[str]):
         self.a = a
         self.b = b
 
@@ -388,9 +388,9 @@ async def test_from_services():
 @pytest.mark.parametrize(
     "declared_type,expected_type,header_values,expected_values",
     [
-        [List[str], list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
+        [list[str], list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
         [
-            Tuple[str],
+            tuple[str],
             tuple,
             [b"Lorem", b"ipsum", b"dolor"],
             ("Lorem", "ipsum", "dolor"),
@@ -426,9 +426,9 @@ async def test_from_header_binding_iterables(
         [List, list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
         [Tuple, tuple, [b"Lorem", b"ipsum", b"dolor"], ("Lorem", "ipsum", "dolor")],
         [Set, set, [b"Lorem", b"ipsum", b"dolor"], {"Lorem", "ipsum", "dolor"}],
-        [List[str], list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
+        [list[str], list, [b"Lorem", b"ipsum", b"dolor"], ["Lorem", "ipsum", "dolor"]],
         [
-            Tuple[str],
+            tuple[str],
             tuple,
             [b"Lorem", b"ipsum", b"dolor"],
             ("Lorem", "ipsum", "dolor"),
@@ -440,29 +440,29 @@ async def test_from_header_binding_iterables(
             [b"Lorem", b"ipsum", b"dolor"],
             ["Lorem", "ipsum", "dolor"],
         ],
-        [List[int], list, [b"10"], [10]],
-        [List[int], list, [b"0", b"1", b"0"], [0, 1, 0]],
-        [List[int], list, [b"0", b"1", b"0", b"2"], [0, 1, 0, 2]],
+        [list[int], list, [b"10"], [10]],
+        [list[int], list, [b"0", b"1", b"0"], [0, 1, 0]],
         [list[int], list, [b"0", b"1", b"0", b"2"], [0, 1, 0, 2]],
-        [List[bytes], list, [b"0", b"1", b"0", b"2"], [b"0", b"1", b"0", b"2"]],
-        [List[bool], list, [b"1"], [True]],
-        [List[bool], list, [b"0", b"1", b"0"], [False, True, False]],
-        [List[bool], list, [b"0", b"1", b"0", b"true"], [False, True, False, True]],
+        [list[int], list, [b"0", b"1", b"0", b"2"], [0, 1, 0, 2]],
+        [list[bytes], list, [b"0", b"1", b"0", b"2"], [b"0", b"1", b"0", b"2"]],
+        [list[bool], list, [b"1"], [True]],
+        [list[bool], list, [b"0", b"1", b"0"], [False, True, False]],
         [list[bool], list, [b"0", b"1", b"0", b"true"], [False, True, False, True]],
-        [List[float], list, [b"10.2"], [10.2]],
-        [List[float], list, [b"0.3", b"1", b"0"], [0.3, 1.0, 0]],
-        [List[float], list, [b"0.5", b"1", b"0", b"2"], [0.5, 1.0, 0, 2.0]],
+        [list[bool], list, [b"0", b"1", b"0", b"true"], [False, True, False, True]],
+        [list[float], list, [b"10.2"], [10.2]],
+        [list[float], list, [b"0.3", b"1", b"0"], [0.3, 1.0, 0]],
         [list[float], list, [b"0.5", b"1", b"0", b"2"], [0.5, 1.0, 0, 2.0]],
-        [Tuple[float], tuple, [b"10.2"], (10.2,)],
-        [Tuple[float], tuple, [b"0.3", b"1", b"0"], (0.3, 1.0, 0)],
-        [Tuple[float], tuple, [b"0.5", b"1", b"0", b"2"], (0.5, 1.0, 0, 2.0)],
+        [list[float], list, [b"0.5", b"1", b"0", b"2"], [0.5, 1.0, 0, 2.0]],
+        [tuple[float], tuple, [b"10.2"], (10.2,)],
+        [tuple[float], tuple, [b"0.3", b"1", b"0"], (0.3, 1.0, 0)],
+        [tuple[float], tuple, [b"0.5", b"1", b"0", b"2"], (0.5, 1.0, 0, 2.0)],
         [tuple[float], tuple, [b"0.5", b"1", b"0", b"2"], (0.5, 1.0, 0, 2.0)],
         [Set[int], set, [b"10"], {10}],
         [Set[int], set, [b"0", b"1", b"0"], {0, 1, 0}],
         [Set[int], set, [b"0", b"1", b"0", b"2"], {0, 1, 0, 2}],
         [set[int], set, [b"0", b"1", b"0", b"2"], {0, 1, 0, 2}],
         [
-            List[UUID],
+            list[UUID],
             list,
             [
                 b"de18d268-f5c5-42db-89b2-c61bbfe96e65",
@@ -507,7 +507,7 @@ async def test_from_query_binding_iterables(
 
 
 @pytest.mark.parametrize(
-    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
+    "declared_type", [list[List[str]], tuple[Tuple[str]], list[list]]
 )
 async def test_nested_iterables_raise_missing_converter_from_header(declared_type):
     with raises(MissingConverterError):
@@ -515,7 +515,7 @@ async def test_nested_iterables_raise_missing_converter_from_header(declared_typ
 
 
 @pytest.mark.parametrize(
-    "declared_type", [List[List[str]], Tuple[Tuple[str]], List[list]]
+    "declared_type", [list[List[str]], tuple[Tuple[str]], list[list]]
 )
 async def test_nested_iterables_raise_missing_converter_from_query(declared_type):
     with raises(MissingConverterError):
@@ -614,7 +614,7 @@ async def test_custom_bound_value_and_binder():
     class MethodBinder(Binder):
         handle = FromMethod
 
-        async def get_value(self, request: Request) -> Optional[str]:
+        async def get_value(self, request: Request) -> str | None:
             return request.method
 
     parameter = MethodBinder(str)
@@ -642,7 +642,7 @@ async def test_raises_for_duplicate_binders():
     class MethodBinder(Binder):
         handle = FromMethod
 
-        async def get_value(self, request: Request) -> Optional[str]:
+        async def get_value(self, request: Request) -> str | None:
             return request.method
 
     with pytest.raises(BinderAlreadyDefinedException):
@@ -650,7 +650,7 @@ async def test_raises_for_duplicate_binders():
         class MethodBinder2(Binder):
             handle = FromMethod
 
-            async def get_value(self, request: Request) -> Optional[str]:
+            async def get_value(self, request: Request) -> str | None:
                 return request.method
 
 
@@ -807,10 +807,10 @@ async def test_from_body_json_binding_ignore_extra_parameters(
 @pytest.mark.parametrize(
     "collection_type,model_class,expected_type",
     [
-        (List[ExampleOne], ExampleOne, list),
-        (List[ExampleDataClass], ExampleDataClass, list),
+        (list[ExampleOne], ExampleOne, list),
+        (list[ExampleDataClass], ExampleDataClass, list),
         pytest.param(
-            List[ExamplePydanticModel],
+            list[ExamplePydanticModel],
             ExamplePydanticModel,
             list,
             marks=pytest.mark.skipif(

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 
 from blacksheep import Content
@@ -24,7 +22,7 @@ class CustomTestSimulator(AbstractTestSimulator):
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ):
         if method == "GET":

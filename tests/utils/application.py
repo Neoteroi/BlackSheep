@@ -1,5 +1,3 @@
-from typing import Optional
-
 from essentials.meta import deprecated
 
 from blacksheep.messages import Request, Response
@@ -12,8 +10,8 @@ class FakeApplication(Application):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.auto_start: bool = True
-        self.request: Optional[Request] = None
-        self.response: Optional[Response] = None
+        self.request: Request | None = None
+        self.response: Response | None = None
 
     @deprecated(
         "This function is not needed anymore, and will be removed. Rely instead on "

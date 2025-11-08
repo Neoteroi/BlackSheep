@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, AnyStr, Awaitable, Callable, Dict, Optional, Sequence
+from typing import Any, AnyStr, Awaitable, Callable, Sequence
 from urllib.parse import urlencode
 
 import jwt
@@ -67,7 +67,7 @@ class OpenIDConfiguration:
         return self._data["token_endpoint"]
 
     @property
-    def end_session_endpoint(self) -> Optional[str]:
+    def end_session_endpoint(self) -> str | None:
         return self._data.get("end_session_endpoint")
 
 
@@ -89,10 +89,10 @@ class OpenIDConnectEvents:
 @dataclass
 class OpenIDSettings:
     client_id: str
-    authority: Optional[str] = None
-    audience: Optional[str] = None
-    client_secret: Optional[str] = None
-    discovery_endpoint: Optional[str] = None
+    authority: str | None = None
+    audience: str | None = None
+    client_secret: str | None = None
+    discovery_endpoint: str | None = None
     entry_path: str = "/sign-in"
     logout_path: str = "/sign-out"
     post_logout_redirect_path: str = "/"
@@ -100,10 +100,10 @@ class OpenIDSettings:
     refresh_token_path: str = "/refresh-token"
     response_type: str = "code"
     scope: str = "openid profile email"
-    redirect_uri: Optional[str] = None
+    redirect_uri: str | None = None
     scheme_name: str = "OpenIDConnect"
-    error_redirect_path: Optional[str] = None
-    end_session_endpoint: Optional[str] = None
+    error_redirect_path: str | None = None
+    end_session_endpoint: str | None = None
 
 
 class OpenIDSettingsError(TypeError):
@@ -137,7 +137,7 @@ class ParametersBuilder:
     def scope(self) -> str:
         return self._settings.scope
 
-    def get_state(self, request: Request) -> Dict[str, str]:
+    def get_state(self, request: Request) -> dict[str, str]:
         desired_path = (
             "/"
             if request.path == self._settings.entry_path
@@ -145,7 +145,7 @@ class ParametersBuilder:
         )
         return {"orig_path": desired_path, "nonce": generate_secret(8)}
 
-    def read_state(self, state: str) -> Dict[str, str]:
+    def read_state(self, state: str) -> dict[str, str]:
         try:
             return self._serializer.loads(state)
         except BadSignature as signature_error:
@@ -261,29 +261,29 @@ class TokenResponse:
         return str(self.data)
 
     @property
-    def expires_in(self) -> Optional[int]:
+    def expires_in(self) -> int | None:
         value = self.data.get("expires_in")
         return int(value) if value else None
 
     @property
-    def expires_on(self) -> Optional[int]:
+    def expires_on(self) -> int | None:
         value = self.data.get("expires_on")
         return int(value) if value else None
 
     @property
-    def token_type(self) -> Optional[str]:
+    def token_type(self) -> str | None:
         return self.data.get("token_type")
 
     @property
-    def id_token(self) -> Optional[str]:
+    def id_token(self) -> str | None:
         return self.data.get("id_token")
 
     @property
-    def access_token(self) -> Optional[str]:
+    def access_token(self) -> str | None:
         return self.data.get("access_token")
 
     @property
-    def refresh_token(self) -> Optional[str]:
+    def refresh_token(self) -> str | None:
         return self.data.get("refresh_token")
 
 
@@ -320,7 +320,7 @@ class TokensStore(ABC):
         request: Request,
         response: Response,
         access_token: str,
-        refresh_token: Optional[str],
+        refresh_token: str | None,
     ):
         """
         Applies a strategy to store an access token and an optional refresh token for
@@ -354,7 +354,7 @@ class OpenIDTokensHandler(AuthenticationHandler):
         self,
         request: Request,
         id_token: IDToken,
-        token_response: Optional[TokenResponse],
+        token_response: TokenResponse | None,
         original_path: str,
     ) -> Response:
         """
@@ -396,8 +396,8 @@ class CookiesOpenIDTokensHandler(OpenIDTokensHandler):
 
     def __init__(
         self,
-        auth_handler: Optional[CookieAuthentication] = None,
-        tokens_store: Optional["TokensStore"] = None,
+        auth_handler: CookieAuthentication | None = None,
+        tokens_store: TokensStore | None = None,
     ) -> None:
         self.auth_handler = (
             auth_handler if auth_handler is not None else CookieAuthentication()
@@ -409,7 +409,7 @@ class CookiesOpenIDTokensHandler(OpenIDTokensHandler):
         self,
         request: Request,
         id_token: IDToken,
-        token_response: Optional[TokenResponse],
+        token_response: TokenResponse | None,
         original_path: str,
     ) -> Response:
         """
@@ -468,7 +468,7 @@ class CookiesOpenIDTokensHandler(OpenIDTokensHandler):
             await self.tokens_store.unset_tokens(request)
         return response
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Identity | None:
         await self.auth_handler.authenticate(context)
 
         if self.tokens_store:
@@ -514,7 +514,7 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
         self,
         request: Request,
         id_token: IDToken,
-        token_response: Optional[TokenResponse],
+        token_response: TokenResponse | None,
         original_path: str,
     ) -> Response:
         """
@@ -614,7 +614,7 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
                     context.user = Identity()
                 context.user.refresh_token = value
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Identity | None:
         await self.auth_handler.authenticate(context)
 
         self.restore_refresh_token(context)
@@ -638,8 +638,8 @@ class CookiesTokensStore(TokensStore):
     def __init__(
         self,
         scheme_name: str = "OpenIDConnect",
-        secret_keys: Optional[Sequence[str]] = None,
-        serializer: Optional[Serializer] = None,
+        secret_keys: Sequence[str | None] = None,
+        serializer: Serializer | None = None,
         refresh_token_path: str = "/refresh-token",
     ) -> None:
         self._scheme_name: str
@@ -667,7 +667,7 @@ class CookiesTokensStore(TokensStore):
         request: Request,
         response: Response,
         access_token: str,
-        refresh_token: Optional[str],
+        refresh_token: str | None,
     ) -> None:
         secure = request.scheme == "https"
         self.set_cookie(
@@ -705,7 +705,7 @@ class CookiesTokensStore(TokensStore):
         cookie_name: str,
         data: AnyStr,
         secure: bool,
-        expires: Optional[datetime] = None,
+        expires: datetime | None = None,
         path: str = "/",
     ) -> None:
         value = self.serializer.dumps(data)  # type: ignore
@@ -750,14 +750,14 @@ class OpenIDConnectHandler:
         self,
         settings: OpenIDSettings,
         auth_handler: OpenIDTokensHandler,
-        parameters_builder: Optional[ParametersBuilder] = None,
+        parameters_builder: ParametersBuilder | None = None,
     ) -> None:
         self._settings = settings
-        self._configuration: Optional[OpenIDConfiguration] = None
+        self._configuration: OpenIDConfiguration | None = None
         self._http_handler: HTTPHandler = HTTPHandler()
         self.events = OpenIDConnectEvents(self)
         self.parameters_builder = parameters_builder or ParametersBuilder(settings)
-        self._jwt_validator: Optional[JWTValidator] = None
+        self._jwt_validator: JWTValidator | None = None
         self._auth_handler = auth_handler
 
     @property
@@ -829,7 +829,7 @@ class OpenIDConnectHandler:
         authorization_endpoint = openid_conf.authorization_endpoint
         return authorization_endpoint + "?" + urlencode(parameters)
 
-    async def handle_error(self, request: Request, data: Dict[str, Any]) -> Response:
+    async def handle_error(self, request: Request, data: dict[str, Any]) -> Response:
         """
         Handles an error received from the identity provider.
         """
@@ -1022,8 +1022,8 @@ class ChallengeMiddleware:
 def use_openid_connect(
     app: Application,
     settings: OpenIDSettings,
-    auth_handler: Optional[OpenIDTokensHandler] = None,
-    parameters_builder: Optional[ParametersBuilder] = None,
+    auth_handler: OpenIDTokensHandler | None = None,
+    parameters_builder: ParametersBuilder | None = None,
     is_default: bool = True,
 ) -> OpenIDConnectHandler:
     """
@@ -1036,7 +1036,7 @@ def use_openid_connect(
         The application to be configured to handle OpenID Connect.
     settings : OpenIDSettings
         Basic OAuth settings, and other settings to handle the OIDC flow.
-    auth_handler : Optional[OpenIDTokensHandler]
+    auth_handler : OpenIDTokensHandler | None
         Lets specify the object that is responsible of handling responses to communicate
         tokens to the client and restoring user context for web requests.
         If not specified, the default CookiesOpenIDTokensHandler class is used.
@@ -1045,7 +1045,7 @@ def use_openid_connect(
         tokens on the client side. See [the OIDC
         examples](https://github.com/Neoteroi/BlackSheep-Examples/tree/main/oidc)
         for more information.
-    parameters_builder : Optional[ParametersBuilder]
+    parameters_builder : ParametersBuilder | None
         ParametersBuilder used to build parameters for OAuth requests, by default None
     is_default : bool, optional
         If true, the application is configured to automatically redirect

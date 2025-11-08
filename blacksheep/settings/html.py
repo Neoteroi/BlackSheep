@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from blacksheep.server.rendering.abc import ModelHandler, Renderer
 from blacksheep.server.rendering.models import DefaultModelHandler
@@ -13,13 +13,13 @@ def default_renderer() -> Renderer:
 class HTMLSettings:
     def __init__(self):
         self._renderer: Renderer | None = None
-        self._model_handlers: List[ModelHandler] = [DefaultModelHandler()]
+        self._model_handlers: list[ModelHandler] = [DefaultModelHandler()]
 
     def use(self, renderer: Renderer):
         self._renderer = renderer
 
     @property
-    def model_handlers(self) -> List[ModelHandler]:
+    def model_handlers(self) -> list[ModelHandler]:
         return self._model_handlers
 
     @property

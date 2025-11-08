@@ -1,4 +1,4 @@
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable
 
 from blacksheep import Response
 from blacksheep.server.responses import moved_permanently
@@ -9,7 +9,7 @@ def default_trailing_slash_exclude(path: str) -> bool:
 
 
 def get_trailing_slash_middleware(
-    exclude: Optional[Callable[[str], bool]] = None,
+    exclude: Callable[[str | None, bool]] = None,
 ) -> Callable[..., Awaitable[Response]]:
     """
     Returns a middleware that redirects requests that do not end with a trailing slash

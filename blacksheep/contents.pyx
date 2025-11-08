@@ -202,7 +202,7 @@ cpdef void write_multipart_part(FormPart part, bytearray destination):
     destination.extend(b'\r\n')
 
 
-cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
+cpdef bytes write_www_form_urlencoded(data: dict | list):
     # application/x-www-form-urlencoded
     if isinstance(data, list):
         values = data
@@ -222,7 +222,7 @@ cpdef bytes write_www_form_urlencoded(data: Union[dict, list]):
 
 cdef class FormContent(Content):
 
-    def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
+    def __init__(self, data: Union[dict[str, str], list[tuple[str, str]]]):
         super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
 
 
@@ -231,9 +231,9 @@ cdef class FormPart:
     def __init__(self,
                  bytes name,
                  bytes data,
-                 bytes content_type: Optional[bytes]=None,
-                 bytes file_name: Optional[bytes]=None,
-                 bytes charset: Optional[bytes] = None):
+                 bytes content_type: bytes | None=None,
+                 bytes file_name: bytes | None=None,
+                 bytes charset: bytes | None = None):
         self.name = name
         self.data = data
         self.file_name = file_name

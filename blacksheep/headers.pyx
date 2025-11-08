@@ -68,7 +68,7 @@ cdef class Headers:
                 continue
             self.values.append(header)
 
-    def update(self, dict values: Dict[bytes, bytes]):
+    def update(self, dict values: dict[bytes, bytes]):
         for key, value in values.items():
             self[key] = value
 
@@ -82,7 +82,7 @@ cdef class Headers:
             values.append((name, value))
         return Headers(values)
 
-    def add_many(self, values: Union[Dict[bytes, bytes], List[Tuple[bytes, bytes]]]):
+    def add_many(self, values: Union[dict[bytes, bytes], list[tuple[bytes, bytes]]]):
         if isinstance(values, MutableSequence):
             for item in values:
                 self.add(*item)
@@ -92,7 +92,7 @@ cdef class Headers:
             for key, value in values.items():
                 self.add(key, value)
             return
-        raise ValueError('values must be Dict[bytes, bytes] or List[Header]')
+        raise ValueError('values must be dict[bytes, bytes] or list[Header]')
 
     @staticmethod
     def _add_to_instance(instance, other):

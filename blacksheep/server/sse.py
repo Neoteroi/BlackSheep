@@ -2,7 +2,7 @@
 This module offer built-in functions for Server Sent Events.
 """
 
-from typing import AsyncIterable, Callable, List, Optional, Tuple
+from typing import AsyncIterable, Callable
 
 from blacksheep.contents import ServerSentEvent, StreamedContent, TextServerSentEvent
 from blacksheep.messages import Response
@@ -49,7 +49,7 @@ class ServerSentEventsResponse(Response):
         self,
         events_provider: EventsProvider,
         status: int = 200,
-        headers: Optional[List[Tuple[bytes, bytes]]] = None,
+        headers: list[tuple[bytes, bytes]] | None = None,
     ) -> None:
         if headers is None:
             headers = [(b"Cache-Control", b"no-cache"), (b"Connection", b"Keep-Alive")]

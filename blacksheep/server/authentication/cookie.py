@@ -10,7 +10,7 @@ except ImportError:
     from datetime import timezone
 
     UTC = timezone.utc
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from guardpost import AuthenticationHandler, Identity
 from itsdangerous import Serializer
@@ -31,9 +31,9 @@ class CookieAuthentication(AuthenticationHandler):
     def __init__(
         self,
         cookie_name: str = "identity",
-        secret_keys: Optional[Sequence[str]] = None,
-        serializer: Optional[Serializer] = None,
-        auth_scheme: Optional[str] = None,
+        secret_keys: Sequence[str | None] = None,
+        serializer: Serializer | None = None,
+        auth_scheme: str | None = None,
     ) -> None:
         """
         Creates a new instance of CookieAuthentication handler, that tries to obtain
@@ -47,7 +47,7 @@ class CookieAuthentication(AuthenticationHandler):
         secret_key : str, optional
             If specified, the key used by a default serializer (when no serializer is
             specified), by default None
-        serializer : Optional[Serializer], optional
+        serializer : Serializer | None, optional
             If specified, controls the serializer used to sign and verify the values
             of cookies used for identities, by default None
         auth_scheme : str, optional
@@ -109,7 +109,7 @@ class CookieAuthentication(AuthenticationHandler):
         """
         context.user = Identity(data, self.auth_scheme)
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Identity | None:
         cookie = context.get_cookie(self.cookie_name)
 
         if cookie is None:

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Mapping
 
 from blacksheep.messages import Request, Response
 
@@ -26,7 +26,7 @@ class Session:
         to_dict(): Returns a shallow copy of the session data as a dictionary.
     """
 
-    def __init__(self, values: Optional[Mapping[str, Any]] = None) -> None:
+    def __init__(self, values: Mapping[str, Any | None] = None) -> None:
         if values is None:
             values = {}
         self._modified = False
@@ -75,7 +75,7 @@ class Session:
         self._modified = True
         self._values.clear()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return self._values.copy()
 
 

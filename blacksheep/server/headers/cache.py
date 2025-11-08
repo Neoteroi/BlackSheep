@@ -5,7 +5,7 @@ request handlers, including a decorator and a middleware.
 
 import inspect
 from functools import wraps
-from typing import List, Optional, Union
+from typing import Union
 
 from blacksheep import Request, Response
 from blacksheep.server.normalization import ensure_response
@@ -13,19 +13,19 @@ from blacksheep.server.normalization import ensure_response
 
 def write_cache_control_response_header(
     *,
-    max_age: Optional[int] = None,
-    shared_max_age: Optional[int] = None,
-    no_cache: Union[bool, List[str], None] = None,
-    no_store: Optional[bool] = None,
-    must_revalidate: Optional[bool] = None,
-    proxy_revalidate: Optional[bool] = None,
-    private: Union[bool, List[str], None] = None,
-    public: Optional[bool] = None,
-    must_understand: Optional[bool] = None,
-    no_transform: Optional[bool] = None,
-    immutable: Optional[bool] = None,
-    stale_while_revalidate: Optional[int] = None,
-    stale_if_error: Optional[int] = None,
+    max_age: int | None = None,
+    shared_max_age: int | None = None,
+    no_cache: Union[bool, list[str], None] = None,
+    no_store: bool | None = None,
+    must_revalidate: bool | None = None,
+    proxy_revalidate: bool | None = None,
+    private: Union[bool, list[str], None] = None,
+    public: bool | None = None,
+    must_understand: bool | None = None,
+    no_transform: bool | None = None,
+    immutable: bool | None = None,
+    stale_while_revalidate: int | None = None,
+    stale_if_error: int | None = None,
 ) -> bytes:
     """
     Writes the value of a Cache-Control response header, applying the given directives.
@@ -166,19 +166,19 @@ class CacheControlHeaderValue:
     def __init__(
         self,
         *,
-        max_age: Optional[int] = None,
-        shared_max_age: Optional[int] = None,
-        no_cache: Union[bool, List[str], None] = None,
-        no_store: Optional[bool] = None,
-        must_revalidate: Optional[bool] = None,
-        proxy_revalidate: Optional[bool] = None,
-        private: Union[bool, List[str], None] = None,
-        public: Optional[bool] = None,
-        must_understand: Optional[bool] = None,
-        no_transform: Optional[bool] = None,
-        immutable: Optional[bool] = None,
-        stale_while_revalidate: Optional[int] = None,
-        stale_if_error: Optional[int] = None,
+        max_age: int | None = None,
+        shared_max_age: int | None = None,
+        no_cache: Union[bool, list[str], None] = None,
+        no_store: bool | None = None,
+        must_revalidate: bool | None = None,
+        proxy_revalidate: bool | None = None,
+        private: Union[bool, list[str], None] = None,
+        public: bool | None = None,
+        must_understand: bool | None = None,
+        no_transform: bool | None = None,
+        immutable: bool | None = None,
+        stale_while_revalidate: int | None = None,
+        stale_if_error: int | None = None,
     ) -> None:
         self.value: bytes = write_cache_control_response_header(
             max_age=max_age,
@@ -198,19 +198,19 @@ class CacheControlHeaderValue:
 
 
 def cache_control(
-    max_age: Optional[int] = None,
-    shared_max_age: Optional[int] = None,
-    no_cache: Union[bool, List[str], None] = None,
-    no_store: Optional[bool] = None,
-    must_revalidate: Optional[bool] = None,
-    proxy_revalidate: Optional[bool] = None,
-    private: Union[bool, List[str], None] = None,
-    public: Optional[bool] = None,
-    must_understand: Optional[bool] = None,
-    no_transform: Optional[bool] = None,
-    immutable: Optional[bool] = None,
-    stale_while_revalidate: Optional[int] = None,
-    stale_if_error: Optional[int] = None,
+    max_age: int | None = None,
+    shared_max_age: int | None = None,
+    no_cache: Union[bool, list[str], None] = None,
+    no_store: bool | None = None,
+    must_revalidate: bool | None = None,
+    proxy_revalidate: bool | None = None,
+    private: Union[bool, list[str], None] = None,
+    public: bool | None = None,
+    must_understand: bool | None = None,
+    no_transform: bool | None = None,
+    immutable: bool | None = None,
+    stale_while_revalidate: int | None = None,
+    stale_if_error: int | None = None,
 ):
     """
     Cache control decorator, applying a Cache-Control header to all successful
@@ -330,19 +330,19 @@ class CacheControlMiddleware:
     def __init__(
         self,
         *,
-        max_age: Optional[int] = None,
-        shared_max_age: Optional[int] = None,
-        no_cache: Union[bool, List[str], None] = None,
-        no_store: Optional[bool] = None,
-        must_revalidate: Optional[bool] = None,
-        proxy_revalidate: Optional[bool] = None,
-        private: Union[bool, List[str], None] = None,
-        public: Optional[bool] = None,
-        must_understand: Optional[bool] = None,
-        no_transform: Optional[bool] = None,
-        immutable: Optional[bool] = None,
-        stale_while_revalidate: Optional[int] = None,
-        stale_if_error: Optional[int] = None,
+        max_age: int | None = None,
+        shared_max_age: int | None = None,
+        no_cache: Union[bool, list[str], None] = None,
+        no_store: bool | None = None,
+        must_revalidate: bool | None = None,
+        proxy_revalidate: bool | None = None,
+        private: Union[bool, list[str], None] = None,
+        public: bool | None = None,
+        must_understand: bool | None = None,
+        no_transform: bool | None = None,
+        immutable: bool | None = None,
+        stale_while_revalidate: int | None = None,
+        stale_if_error: int | None = None,
     ) -> None:
         self._header_value: bytes = write_cache_control_response_header(
             max_age=max_age,

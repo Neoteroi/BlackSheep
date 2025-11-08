@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
 
 from blacksheep.messages import Request, Response
 from blacksheep.server.files.static import get_response_for_static_content
@@ -33,8 +33,8 @@ SCALAR_UI_FONT = None
 @dataclass
 class UIFilesOptions:
     js_url: str
-    css_url: Optional[str] = None
-    fonts_url: Optional[str] = None
+    css_url: str | None = None
+    fonts_url: str | None = None
 
 
 @dataclass
@@ -51,7 +51,7 @@ class UIProvider(ABC):
     def __init__(
         self,
         ui_path: str,
-        ui_files: Optional[UIFilesOptions] = None,
+        ui_files: UIFilesOptions | None = None,
     ) -> None:
         super().__init__()
         self.ui_path = ui_path
@@ -77,7 +77,7 @@ class SwaggerUIProvider(UIProvider):
     def __init__(
         self,
         ui_path: str = "/docs",
-        ui_files_options: Optional[UIFilesOptions] = None,
+        ui_files_options: UIFilesOptions | None = None,
     ) -> None:
         super().__init__(ui_path, ui_files_options)
 
@@ -122,7 +122,7 @@ class SwaggerUIProvider(UIProvider):
 
 class ReDocUIProvider(UIProvider):
     def __init__(
-        self, ui_path: str = "/redocs", ui_files: Optional[UIFilesOptions] = None
+        self, ui_path: str = "/redocs", ui_files: UIFilesOptions | None = None
     ) -> None:
         super().__init__(ui_path, ui_files)
 
@@ -172,7 +172,7 @@ class ScalarUIProvider(UIProvider):
     """
 
     def __init__(
-        self, ui_path: str = "/scalar", ui_files: Optional[UIFilesOptions] = None
+        self, ui_path: str = "/scalar", ui_files: UIFilesOptions | None = None
     ) -> None:
         super().__init__(ui_path, ui_files)
 

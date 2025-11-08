@@ -1,6 +1,6 @@
 import re
 from functools import lru_cache
-from typing import Any, Awaitable, Callable, Dict, FrozenSet, Iterable, Optional, Union
+from typing import Any, Awaitable, Callable, FrozenSet, Iterable
 
 from blacksheep.baseapp import BaseApplication
 from blacksheep.messages import Request, Response
@@ -14,12 +14,12 @@ class CORSPolicy:
     def __init__(
         self,
         *,
-        allow_methods: Union[None, str, Iterable[str]] = None,
-        allow_headers: Union[None, str, Iterable[str]] = None,
-        allow_origins: Union[None, str, Iterable[str]] = None,
+        allow_methods: str | Iterable[str] | None = None,
+        allow_headers: str | Iterable[str] | None = None,
+        allow_origins: str | Iterable[str] | None = None,
         allow_credentials: bool = False,
         max_age: int = 5,
-        expose_headers: Union[None, str, Iterable[str]] = None,
+        expose_headers: str | Iterable[str] | None = None,
     ) -> None:
         if expose_headers is None:
             expose_headers = self.default_expose_headers()
@@ -50,7 +50,7 @@ class CORSPolicy:
         )
 
     def _normalize_set(
-        self, value: Union[None, str, Iterable[str]], ci_function: Callable[[str], str]
+        self, value: str | Iterable[str] | None, ci_function: Callable[[str], str]
     ) -> FrozenSet[str]:
         if value is None:
             return frozenset()
@@ -138,15 +138,15 @@ class CORSStrategy:
     def __init__(self, default_policy: CORSPolicy, router: Router) -> None:
         self.default_policy = default_policy
         self._router = router
-        self._policies: Dict[str, CORSPolicy] = {}
-        self._policies_by_route: Dict[Route, CORSPolicy] = {}
+        self._policies: dict[str, CORSPolicy] = {}
+        self._policies_by_route: dict[Route, CORSPolicy] = {}
 
     @property
     def router(self) -> Router:
         return self._router
 
     @property
-    def policies(self) -> Dict[str, CORSPolicy]:
+    def policies(self) -> dict[str, CORSPolicy]:
         return self._policies
 
     def add_policy(self, name: str, policy: CORSPolicy) -> "CORSStrategy":
@@ -175,7 +175,7 @@ class CORSStrategy:
         self.policies[name] = policy
         return self
 
-    def get_policy_by_route(self, route: Route) -> Optional[CORSPolicy]:
+    def get_policy_by_route(self, route: Route) -> CORSPolicy | None:
         return self._policies_by_route.get(route)
 
     def get_policy_by_route_or_default(self, route: Route) -> CORSPolicy:

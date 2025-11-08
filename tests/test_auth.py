@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 import jwt
 import pytest
@@ -65,7 +65,7 @@ def default_keys_provider() -> KeysProvider:
     return InMemoryKeysProvider(get_test_jwks())
 
 
-def get_token(kid: str, payload: Dict[str, Any], *, fake_kid: Optional[str] = None):
+def get_token(kid: str, payload: dict[str, Any], *, fake_kid: str | None = None):
     with open(get_file_path(f"{kid}.pem"), "r") as key_file:
         private_key = key_file.read()
 
@@ -84,7 +84,7 @@ def symmetric_secret() -> Secret:
     )
 
 
-def get_symmetric_token(secret: str, payload: Dict[str, Any], algorithm: str = "HS256"):
+def get_symmetric_token(secret: str, payload: dict[str, Any], algorithm: str = "HS256"):
     return jwt.encode(payload, secret, algorithm=algorithm)
 
 
@@ -97,19 +97,19 @@ class MockAuthHandler(AuthenticationHandler):
             identity = Identity({"id": "001", "name": "Charlie Brown"}, "JWT")
         self.user = identity
 
-    async def authenticate(self, context: Any) -> Optional[Identity]:
+    async def authenticate(self, context: Any) -> Identity | None:
         return self.user
 
 
 class MockNotAuthHandler(AuthenticationHandler):
-    async def authenticate(self, context: Any) -> Optional[Identity]:
+    async def authenticate(self, context: Any) -> Identity | None:
         # NB: an identity without authentication scheme is treated
         # as anonymous identity
         return Identity({"id": "007"})
 
 
 class AccessTokenCrashingHandler(AuthenticationHandler):
-    async def authenticate(self, context: Any) -> Optional[Identity]:
+    async def authenticate(self, context: Any) -> Identity | None:
         raise AuthenticateChallenge(
             "Bearer",
             None,
@@ -449,7 +449,7 @@ async def test_jwt_bearer_authentication(app, default_keys_provider):
         )
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -563,7 +563,7 @@ class Foo:
 class TestHandler(AuthenticationHandler):
     foo: Foo
 
-    def authenticate(self, context: Request) -> Optional[Identity]:
+    def authenticate(self, context: Request) -> Identity | None:
         context.foo = self.foo  # type: ignore
         return Identity({"test": True})
 
@@ -573,7 +573,7 @@ class TestHandlerReqDep(AuthenticationHandler):
 
     request: Request
 
-    def authenticate(self, context: Request) -> Optional[Identity]:
+    def authenticate(self, context: Request) -> Identity | None:
         assert context is self.request
         return Identity()
 
@@ -585,7 +585,7 @@ async def test_di_works_with_auth_handlers(app: Application):
     auth_strategy = app.use_authentication()
     auth_strategy += TestHandler
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -618,7 +618,7 @@ async def test_di_supports_scoped_auth_handlers(app: Application):
     auth_strategy = app.use_authentication()
     auth_strategy += TestHandler
 
-    first_foo: Optional[Foo] = None
+    first_foo: Foo | None = None
 
     @app.router.get("/")
     async def home(request, foo: Foo):
@@ -743,7 +743,7 @@ async def test_jwt_bearer_symmetric_authentication_success(app, symmetric_secret
         )
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -792,7 +792,7 @@ async def test_jwt_bearer_symmetric_authentication_invalid_audience(
         )
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -838,7 +838,7 @@ async def test_jwt_bearer_symmetric_authentication_invalid_issuer(
         )
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -885,7 +885,7 @@ async def test_jwt_bearer_symmetric_authentication_wrong_secret(app):
         )
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -929,7 +929,7 @@ async def test_jwt_bearer_symmetric_authentication_expired_token(app, symmetric_
         )
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -979,7 +979,7 @@ async def test_jwt_bearer_symmetric_different_algorithms(app, algorithm):
         )
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get(f"/{algorithm.lower()}")
     async def home(request):

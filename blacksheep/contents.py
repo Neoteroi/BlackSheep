@@ -1,7 +1,6 @@
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
-from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.settings.json import json_settings
@@ -158,7 +157,7 @@ def write_multipart_part(part, destination: bytearray):
     destination.extend(b"\r\n")
 
 
-def write_www_form_urlencoded(data: Union[dict, list]) -> bytes:
+def write_www_form_urlencoded(data: dict | list) -> bytes:
     if isinstance(data, list):
         values = data
     else:
@@ -174,7 +173,7 @@ def write_www_form_urlencoded(data: Union[dict, list]) -> bytes:
 
 
 class FormContent(Content):
-    def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
+    def __init__(self, data: dict[str, str] | list[tuple[str, str]]):
         super().__init__(
             b"application/x-www-form-urlencoded", write_www_form_urlencoded(data)
         )
@@ -185,9 +184,9 @@ class FormPart:
         self,
         name: bytes,
         data: bytes,
-        content_type: Optional[bytes] = None,
-        file_name: Optional[bytes] = None,
-        charset: Optional[bytes] = None,
+        content_type: bytes | None = None,
+        file_name: bytes | None = None,
+        charset: bytes | None = None,
     ):
         self.name = name
         self.data = data
@@ -244,10 +243,10 @@ class ServerSentEvent:
     def __init__(
         self,
         data,
-        event: Optional[str] = None,
-        id: Optional[str] = None,
-        retry: Optional[int] = -1,
-        comment: Optional[str] = None,
+        event: str | None = None,
+        id: str | None = None,
+        retry: int | None = -1,
+        comment: str | None = None,
     ):
         self.data = data
         self.event = event
@@ -266,10 +265,10 @@ class TextServerSentEvent(ServerSentEvent):
     def __init__(
         self,
         data: str,
-        event: Optional[str] = None,
-        id: Optional[str] = None,
-        retry: Optional[int] = -1,
-        comment: Optional[str] = None,
+        event: str | None = None,
+        id: str | None = None,
+        retry: int | None = -1,
+        comment: str | None = None,
     ):
         super().__init__(data, event, id, retry, comment)
 

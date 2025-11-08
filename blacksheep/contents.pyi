@@ -66,7 +66,7 @@ class JSONContent(Content):
         super().__init__(b"application/json", dumps(data).encode("utf8"))
 
 class FormContent(Content):
-    def __init__(self, data: Union[Dict[str, str], List[Tuple[str, str]]]):
+    def __init__(self, data: Union[dict[str, str], list[tuple[str, str]]]):
         """
         Creates an instance of FormContent class, with application/x-www-form-urlencoded
         type, and bytes data serialized from the given dictionary.
@@ -80,9 +80,9 @@ class FormPart:
         self,
         name: bytes,
         data: bytes,
-        content_type: Optional[bytes] = None,
-        file_name: Optional[bytes] = None,
-        charset: Optional[bytes] = None,
+        content_type: bytes | None = None,
+        file_name: bytes | None = None,
+        charset: bytes | None = None,
     ):
         self.name = name
         self.data = data
@@ -94,16 +94,16 @@ class FormPart:
         return f"<FormPart {self.name} - at {id(self)}>"
 
 class MultiPartFormData(Content):
-    def __init__(self, parts: List[FormPart]):
+    def __init__(self, parts: list[FormPart]):
         self.parts = parts
         self.boundary = b"------" + str(uuid.uuid4()).replace("-", "").encode()
         super().__init__(b"multipart/form-data; boundary=" + self.boundary, b"")
 
-def parse_www_form(content: str) -> Dict[str, Union[str, List[str]]]:
+def parse_www_form(content: str) -> dict[str, Union[str, list[str]]]:
     """Parses application/x-www-form-urlencoded content"""
 
 def write_www_form_urlencoded(
-    data: Union[Dict[str, str], List[Tuple[str, str]]],
+    data: Union[dict[str, str], list[tuple[str, str]]],
 ) -> bytes: ...
 
 class ServerSentEvent:
@@ -124,10 +124,10 @@ class ServerSentEvent:
     def __init__(
         self,
         data: Any,
-        event: Optional[str] = None,
-        id: Optional[str] = None,
+        event: str | None = None,
+        id: str | None = None,
         retry: int = -1,
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ):
         self.data = data
         self.event = event
@@ -141,10 +141,10 @@ class TextServerSentEvent(ServerSentEvent):
     def __init__(
         self,
         data: str,
-        event: Optional[str] = None,
-        id: Optional[str] = None,
+        event: str | None = None,
+        id: str | None = None,
         retry: int = -1,
-        comment: Optional[str] = None,
+        comment: str | None = None,
     ):
         super().__init__(data, event, id, retry, comment)
 

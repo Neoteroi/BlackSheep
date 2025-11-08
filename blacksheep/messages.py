@@ -3,7 +3,7 @@ import http
 import re
 from datetime import timedelta
 from json.decoder import JSONDecodeError
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
@@ -262,7 +262,7 @@ class Request(Message):
             self._path = None
             self._raw_query = None
         self.scope = None
-        self.content: Optional[Content] = None
+        self.content: Content | None = None
 
     # TODO: deprecate the 'identity' property in the future. This requires a breaking
     # change in guardpost, too.

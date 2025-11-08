@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass
 from inspect import Parameter, _ParameterKind
-from typing import AsyncIterable, List, Optional, Sequence, Union
+from typing import AsyncIterable, Sequence
 
 import pytest
 from guardpost import Identity, User
@@ -69,7 +69,7 @@ def test_parameters_get_binders_default_query():
 
 
 @pytest.mark.parametrize(
-    "annotation_type", [Identity, User, Optional[User], Optional[Identity]]
+    "annotation_type", [Identity, User, User | None, Identity | None]
 )
 def test_identity_binder_by_param_type(annotation_type):
     async def handler(param): ...
@@ -131,7 +131,7 @@ def test_parameters_get_binders_from_body():
 
 
 def test_parameters_get_binders_from_body_optional():
-    def handler(a: Optional[Cat]): ...
+    def handler(a: Cat | None): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     assert len(binders) == 1
@@ -157,32 +157,32 @@ def test_parameters_get_binders_simple_types_default_from_query():
 
 
 def test_parameters_get_binders_list_types_default_from_query():
-    def handler(a: List[str], b: List[int], c: List[bool]): ...
+    def handler(a: list[str], b: list[int], c: list[bool]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert binders[0].parameter_name == "a"
-    assert binders[0].expected_type == List[str]
+    assert binders[0].expected_type == list[str]
     assert binders[1].parameter_name == "b"
-    assert binders[1].expected_type == List[int]
+    assert binders[1].expected_type == list[int]
     assert binders[2].parameter_name == "c"
-    assert binders[2].expected_type == List[bool]
+    assert binders[2].expected_type == list[bool]
 
 
 def test_parameters_get_binders_list_types_default_from_query_optional():
-    def handler(a: Optional[List[str]]): ...
+    def handler(a: list[str | None]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
     assert all(isinstance(binder, QueryBinder) for binder in binders)
     assert all(binder.required is False for binder in binders)
     assert binders[0].parameter_name == "a"
-    assert binders[0].expected_type == List[str]
+    assert binders[0].expected_type == list[str]
 
 
 def test_parameters_get_binders_list_types_default_from_query_required():
-    def handler(a: List[str]): ...
+    def handler(a: list[str]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
 
@@ -216,11 +216,11 @@ def test_does_not_throw_for_forward_ref():
 
     get_binders(Route(b"/", handler), Container())
 
-    def handler(a: List["str"]): ...
+    def handler(a: list["str"]): ...
 
     get_binders(Route(b"/", handler), Container())
 
-    def handler(a: Optional[List["Cat"]]): ...
+    def handler(a: list["Cat" | None]): ...
 
     get_binders(Route(b"/", handler), Container())
 
@@ -231,7 +231,7 @@ def test_does_not_throw_for_forward_ref():
 
 def test_combination_of_sources():
     def handler(
-        a: FromQuery[List[str]],
+        a: FromQuery[list[str]],
         b: FromServices[Dog],
         c: FromJSON[Cat],
         d: FromRoute[str],
@@ -294,13 +294,13 @@ def test_from_query_unspecified_type():
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
-    assert binder.expected_type is List[str]
+    assert binder.expected_type is list[str]
     assert binder.required is True
     assert binder.parameter_name == "a"
 
 
 def test_from_query_optional_type():
-    def handler(a: FromQuery[Optional[str]]): ...
+    def handler(a: FromQuery[str | None]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
@@ -312,7 +312,7 @@ def test_from_query_optional_type():
 
 
 def test_from_query_optional_type_with_union():
-    def handler(a: FromQuery[Union[None, str]]): ...
+    def handler(a: FromQuery[str | None]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
@@ -326,7 +326,7 @@ def test_from_query_optional_type_with_union():
 def test_check_union():
     optional, value = _check_union(
         Parameter("foo", kind=_ParameterKind.POSITIONAL_ONLY),
-        Union[None, str],
+        str | None,
         len,
     )
     assert optional is True
@@ -345,13 +345,13 @@ def test_check_union_or_none():
 
 
 def test_from_query_optional_list_type():
-    def handler(a: FromQuery[Optional[List[str]]]): ...
+    def handler(a: FromQuery[list[str]] | None): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]
 
     assert isinstance(binder, QueryBinder)
-    assert binder.expected_type is List[str]
+    assert binder.expected_type is list[str]
     assert binder.required is False
     assert binder.parameter_name == "a"
 
@@ -399,7 +399,7 @@ def test_raises_for_route_mismatch_2():
 
 
 def test_raises_for_unsupported_union():
-    def handler(a: FromRoute[Union[str, int]]): ...
+    def handler(a: FromRoute[str | int]): ...
 
     with raises(NormalizationError):
         get_binders(Route(b"/:b", handler), Container())
@@ -636,7 +636,7 @@ async def test_binder_through_di():
             super().__init__(str)
             self.foo = foo
 
-        async def get_value(self, request: Request) -> Optional[str]:
+        async def get_value(self, request: Request) -> str | None:
             assert isinstance(self.foo, Foo)
             return "Foo!"
 

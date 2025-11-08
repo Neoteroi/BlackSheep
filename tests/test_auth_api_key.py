@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import pytest
 from essentials.secrets import Secret
 from guardpost import Identity
@@ -35,15 +33,15 @@ def admin_api_key():
 
 
 class MockAPIKeysProvider(APIKeysProvider):
-    def __init__(self, keys: List[APIKey]):
+    def __init__(self, keys: list[APIKey]):
         self._keys = keys
 
-    async def get_keys(self) -> List[APIKey]:
+    async def get_keys(self) -> list[APIKey]:
         return self._keys
 
 
 class FailingAPIKeysProvider(APIKeysProvider):
-    async def get_keys(self) -> List[APIKey]:
+    async def get_keys(self) -> list[APIKey]:
         raise Exception("Database connection failed")
 
 
@@ -138,7 +136,7 @@ def test_api_key_authentication_creation_mutual_exclusivity():
 async def test_api_key_authentication_header_success(app: FakeApplication, api_key):
     app.use_authentication().add(APIKeyAuthentication(api_key, param_name="X-API-Key"))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -169,7 +167,7 @@ async def test_api_key_authentication_header_success(app: FakeApplication, api_k
 async def test_api_key_authentication_header_no_header(app: FakeApplication, api_key):
     app.use_authentication().add(APIKeyAuthentication(api_key, param_name="X-API-Key"))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -189,7 +187,7 @@ async def test_api_key_authentication_header_no_header(app: FakeApplication, api
 async def test_api_key_authentication_header_wrong_key(app: FakeApplication, api_key):
     app.use_authentication().add(APIKeyAuthentication(api_key, param_name="X-API-Key"))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -220,7 +218,7 @@ async def test_api_key_authentication_query_success(app: FakeApplication, api_ke
         APIKeyAuthentication(api_key, param_name="api_key", location="query")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -247,7 +245,7 @@ async def test_api_key_authentication_query_no_param(app: FakeApplication, api_k
         APIKeyAuthentication(api_key, param_name="api_key", location="query")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -269,7 +267,7 @@ async def test_api_key_authentication_query_wrong_key(app: FakeApplication, api_
         APIKeyAuthentication(api_key, param_name="api_key", location="query")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -296,7 +294,7 @@ async def test_api_key_authentication_cookie_success(app: FakeApplication, api_k
         APIKeyAuthentication(api_key, param_name="api_key", location="cookie")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -327,7 +325,7 @@ async def test_api_key_authentication_cookie_no_cookie(app: FakeApplication, api
         APIKeyAuthentication(api_key, param_name="api_key", location="cookie")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -349,7 +347,7 @@ async def test_api_key_authentication_cookie_wrong_key(app: FakeApplication, api
         APIKeyAuthentication(api_key, param_name="api_key", location="cookie")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -382,7 +380,7 @@ async def test_api_key_authentication_multiple_keys(
         APIKeyAuthentication(api_key, admin_api_key, param_name="X-API-Key")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -432,7 +430,7 @@ async def test_api_key_authentication_with_provider(app: FakeApplication, api_ke
         APIKeyAuthentication(param_name="X-API-Key", keys_provider=provider)
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -464,7 +462,7 @@ async def test_api_key_authentication_with_empty_provider(app: FakeApplication):
         APIKeyAuthentication(param_name="X-API-Key", keys_provider=provider)
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -495,7 +493,7 @@ async def test_api_key_authentication_with_failing_provider(app: FakeApplication
         APIKeyAuthentication(param_name="X-API-Key", keys_provider=provider)
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -527,7 +525,7 @@ async def test_api_key_authentication_case_sensitive_header(
         APIKeyAuthentication(api_key, param_name="X-Api-Key")  # Different case
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -563,7 +561,7 @@ async def test_api_key_authentication_unicode_key(app: FakeApplication):
         APIKeyAuthentication(unicode_key, param_name="X-API-Key")
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -592,7 +590,7 @@ async def test_api_key_authentication_unicode_key(app: FakeApplication):
 async def test_api_key_authentication_empty_key_value(app: FakeApplication, api_key):
     app.use_authentication().add(APIKeyAuthentication(api_key, param_name="X-API-Key"))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):

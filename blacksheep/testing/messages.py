@@ -1,7 +1,7 @@
 import asyncio
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
-MessageType = Union[bytes, Dict[str, Any]]
+MessageType = bytes | dict[str, Any]
 
 
 class MockReceive:
@@ -22,7 +22,7 @@ class MockReceive:
         }
     """
 
-    def __init__(self, messages: Optional[List[MessageType]] = None):
+    def __init__(self, messages: list[MessageType | None] = None):
         self.messages = messages or []
         self.index = 0
 

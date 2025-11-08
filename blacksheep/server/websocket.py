@@ -1,6 +1,6 @@
 from enum import Enum
 from functools import wraps
-from typing import Any, AnyStr, Callable, List, MutableMapping, Optional
+from typing import Any, AnyStr, Callable, MutableMapping
 
 from blacksheep.messages import Request
 from blacksheep.server.asgi import get_full_path
@@ -94,7 +94,7 @@ class WebSocket(Request):
         self.client_state = WebSocketState.CONNECTED
 
     async def accept(
-        self, headers: Optional[List] = None, subprotocol: Optional[str] = None
+        self, headers: list | None = None, subprotocol: str | None = None
     ) -> None:
         headers = headers or []
 
@@ -180,7 +180,7 @@ class WebSocket(Request):
 
         return disconnect
 
-    async def close(self, code: int = 1000, reason: Optional[str] = None) -> None:
+    async def close(self, code: int = 1000, reason: str | None = None) -> None:
         await self._send({"type": "websocket.close", "code": code, "reason": reason})
 
 

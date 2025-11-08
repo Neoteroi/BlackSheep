@@ -922,12 +922,12 @@ if __name__ == "__main__":
   (issue [#173](https://github.com/Neoteroi/BlackSheep/issues/173)), updating
   the dependency on `essentials-openapi` to [v1.0.4](https://github.com/Neoteroi/essentials-openapi/blob/v0.1.4/CHANGELOG.md#014---2021-06-19-droplet)
 - Corrects a bug causing duplicate components definitions in generated OpenAPI
-  documentation, when handling `Optional[T]`
+  documentation, when handling `T | None`
 - Minor corrections to the `TestClient` class: HTTP HEAD, OPTIONS, and TRACE
   should not allow request content body, therefore the corresponding methods
   are updated to not support a `content` parameter
 - Automatically generates `404` response documentation when a request handler
-  defines an `Optional[T]` return type (this happens only when the user doesn't
+  defines an `T | None` return type (this happens only when the user doesn't
   specify the documentation for an endpoint)
 
 ## [1.0.7] - 2021-06-11 🍉

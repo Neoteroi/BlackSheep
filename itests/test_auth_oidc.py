@@ -6,7 +6,7 @@ authorization server in a running Flask server.
 import json
 import re
 from datetime import datetime
-from typing import Any, List, Optional, Tuple
+from typing import Any
 from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, urlencode
 
@@ -82,8 +82,8 @@ def _mock_token_endpoint(oidc, oidc_configuration, id_token_claims):
 class FakeTokensStore(TokensStore):
     def __init__(
         self,
-        access_token: Optional[str] = None,
-        refresh_token: Optional[str] = None,
+        access_token: str | None = None,
+        refresh_token: str | None = None,
     ) -> None:
         super().__init__()
         self._access_token = access_token
@@ -94,8 +94,8 @@ class FakeTokensStore(TokensStore):
         request: Request,
         response: Response,
         access_token: str,
-        refresh_token: Optional[str],
-        expires: Optional[datetime] = None,
+        refresh_token: str | None,
+        expires: datetime | None = None,
     ):
         """
         Applies a strategy to store an access token and an optional refresh token for
@@ -122,7 +122,7 @@ class FakeTokensStore(TokensStore):
 
 
 def configure_test_oidc_cookie_auth_id_token(
-    app: Application, secret: Optional[str] = None
+    app: Application, secret: str | None = None
 ):
     return use_openid_connect(
         app,
@@ -134,9 +134,7 @@ def configure_test_oidc_cookie_auth_id_token(
     )
 
 
-def configure_test_oidc_jwt_auth_id_token(
-    app: Application, secret: Optional[str] = None
-):
+def configure_test_oidc_jwt_auth_id_token(app: Application, secret: str | None = None):
     CLIENT_ID = "067cee45-faf3-4c75-9fef-09f050bcc3ae"
     return use_openid_connect(
         app,
@@ -171,14 +169,14 @@ def get_request(method: str = "GET", path: str = "/account") -> Request:
     return request
 
 
-def form_extra_headers(content: bytes) -> List[Tuple[bytes, bytes]]:
+def form_extra_headers(content: bytes) -> list[tuple[bytes, bytes]]:
     return [
         (b"content-length", str(len(content)).encode()),
         (b"content-type", b"application/x-www-form-urlencoded"),
     ]
 
 
-def assert_redirect_to_sign_in(response: Optional[Response], has_secret: bool = False):
+def assert_redirect_to_sign_in(response: Response | None, has_secret: bool = False):
     assert response is not None
     assert response.status == 302
     location = response.headers.get_first(b"location")

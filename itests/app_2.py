@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 from http import HTTPStatus
-from typing import List, Optional, Set
+from typing import Set
 from uuid import UUID
 
 import uvicorn
@@ -221,13 +221,13 @@ class PydanticExample(BaseModel):
     foo: float
     birthdate: date
     type: CatType
-    items: List[PydanticChild]
+    items: list[PydanticChild]
 
 
 @dataclass
 class Example:
-    name: Optional[str]
-    active: Optional[bool]
+    name: str | None
+    active: bool | None
 
 
 @dataclass
@@ -292,7 +292,7 @@ create_cat_docs = EndpointDocs(
 
 @dataclass
 class CatsList:
-    items: List[Cat]
+    items: list[Cat]
     total: int
 
 
@@ -350,12 +350,12 @@ class Foo:
 class UpdateFooInput:
     name: str
     cool: float
-    etag: Optional[str]
+    etag: str | None
 
 
 @dataclass
 class FooList:
-    items: List[Foo]
+    items: list[Foo]
     total: int
 
 
@@ -650,7 +650,7 @@ class Cats(APIController):
         """
 
     @post("magic")
-    def magic_cat(self, cat: PydanticExample, foo: Optional[bool]) -> Response:
+    def magic_cat(self, cat: PydanticExample, foo: bool | None) -> Response:
         """
         Creates a magic cat
         """

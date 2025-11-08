@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import wraps
-from typing import Annotated, ClassVar, Generic, List, Optional, Tuple, TypeVar
+from typing import Annotated, ClassVar, Generic, TypeVar
 
 import pytest
 from guardpost import AuthenticationHandler, User
@@ -51,7 +51,7 @@ def example():
 
 
 async def assert_expected_text(
-    app: FakeApplication, expected_results: List[Tuple[str, str]]
+    app: FakeApplication, expected_results: list[tuple[str, str]]
 ):
     for endpoint, result in expected_results:
         await app(
@@ -518,7 +518,7 @@ async def test_controller_on_request_setting_identity(app):
             request.user = User({"id": "001", "name": "Charlie Brown"}, "JWTBearer")
 
         @get("/")
-        async def index(self, request: Request, user: Optional[User]):
+        async def index(self, request: Request, user: User | None):
             assert hasattr(request, "identity")
             assert isinstance(request.user, User)
             return text(request.user["name"])
@@ -747,7 +747,7 @@ async def test_api_controller_with_version(app):
 
     class Cat(APIController):
         @classmethod
-        def version(cls) -> Optional[str]:
+        def version(cls) -> str | None:
             return "v1"
 
         @get(":cat_id")
@@ -791,7 +791,7 @@ async def test_api_controller_with_version_2(app):
 
     class CatV1(APIController):
         @classmethod
-        def version(cls) -> Optional[str]:
+        def version(cls) -> str | None:
             return "v1"
 
         @get(":cat_id")
@@ -812,7 +812,7 @@ async def test_api_controller_with_version_2(app):
 
     class CatV2(APIController):
         @classmethod
-        def version(cls) -> Optional[str]:
+        def version(cls) -> str | None:
             return "v2"
 
         @get(":cat_id")
@@ -1182,7 +1182,7 @@ async def test_issue_511(app):
         path: ClassVar[str] = "base"
 
         @classmethod
-        def route(cls) -> Optional[str]:
+        def route(cls) -> str | None:
             return f"/api/{cls.path}"
 
         @get("/foo")

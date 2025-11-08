@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 import pytest
 from pydantic import BaseModel
@@ -36,7 +35,7 @@ class Sentence:
 @dataclass
 class HelloModel:
     name: str
-    sentences: List[Sentence]
+    sentences: list[Sentence]
 
 
 class Sentence2:
@@ -46,7 +45,7 @@ class Sentence2:
 
 
 class HelloModel2:
-    def __init__(self, name: str, sentences: List[Sentence2]) -> None:
+    def __init__(self, name: str, sentences: list[Sentence2]) -> None:
         self.name = name
         self.sentences = sentences
 
@@ -58,7 +57,7 @@ class PydanticSentence(BaseModel):
 
 class PydanticHelloModel(BaseModel):
     name: str
-    sentences: List[PydanticSentence]
+    sentences: list[PydanticSentence]
 
 
 def dataclass_model():

@@ -6,7 +6,6 @@ import base64
 import secrets
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import List, Optional, Tuple
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
@@ -24,8 +23,8 @@ class BasicCredentials:
         self,
         username: str,
         password: Secret,
-        claims: Optional[dict] = None,
-        roles: Optional[List[str]] = None,
+        claims: dict | None = None,
+        roles: list[str | None] = None,
     ) -> None:
         """
         Initialize Basic Authentication credentials.
@@ -36,9 +35,9 @@ class BasicCredentials:
             The username for authentication.
         password : Secret
             The password for authentication, stored securely.
-        claims : Optional[dict], optional
+        claims : dict | None, optional
             Additional claims to include in the authenticated identity, by default None.
-        roles : Optional[List[str]], optional
+        roles : list[str | None], optional
             List of roles to assign to the authenticated identity, by default None.
         """
         self._username = username
@@ -57,7 +56,7 @@ class BasicCredentials:
         return self._claims
 
     @property
-    def roles(self) -> List[str]:
+    def roles(self) -> list[str]:
         """Returns the roles associated with these credentials."""
         return self._roles
 
@@ -103,7 +102,7 @@ class BasicCredentialsProvider(ABC):
     """
 
     @abstractmethod
-    async def get_credentials(self) -> List[BasicCredentials]:
+    async def get_credentials(self) -> list[BasicCredentials]:
         """
         Retrieve a list of valid Basic Authentication credentials.
 
@@ -113,7 +112,7 @@ class BasicCredentialsProvider(ABC):
 
         Returns
         -------
-        List[BasicCredentials]
+        list[BasicCredentials]
             A list of BasicCredentials instances representing all valid credentials
             for authentication. An empty list indicates no valid credentials are
             available.
@@ -141,8 +140,8 @@ class BasicAuthentication(AuthenticationHandler):
         self,
         *credentials: BasicCredentials,
         scheme: str = "Basic",
-        credentials_provider: Optional[BasicCredentialsProvider] = None,
-        description: Optional[str] = None,
+        credentials_provider: BasicCredentialsProvider | None = None,
+        description: str | None = None,
     ) -> None:
         """
         Creates a new instance of BasicAuthentication.
@@ -152,7 +151,7 @@ class BasicAuthentication(AuthenticationHandler):
         *credentials : BasicCredentials
             Static credentials handled by this instance.
         scheme: arbitrary scheme name of this authentication handler, default "Basic".
-        credentials_provider : Optional[BasicCredentialsProvider], optional
+        credentials_provider : BasicCredentialsProvider | None, optional
             An optional provider that can be used to retrieve credentials dynamically.
             If not provided, only the static credentials will be used.
         description: optional description.
@@ -163,7 +162,7 @@ class BasicAuthentication(AuthenticationHandler):
         """
         super().__init__()
         self._scheme = scheme
-        self._credentials: Tuple[BasicCredentials, ...] = tuple(credentials)
+        self._credentials: tuple[BasicCredentials, ...] = tuple(credentials)
         self._credentials_provider = credentials_provider
         self.description = description
 
@@ -176,7 +175,7 @@ class BasicAuthentication(AuthenticationHandler):
     def scheme(self) -> str:
         return self._scheme
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Identity | None:
         """
         Tries to authenticate the request using Basic Authentication.
 
@@ -191,7 +190,7 @@ class BasicAuthentication(AuthenticationHandler):
 
         Returns
         -------
-        Optional[Identity]
+        Identity | None
             An Identity object if authentication succeeds, None otherwise.
         """
         authorization_value = context.get_first_header(b"Authorization")
@@ -243,7 +242,7 @@ class BasicAuthentication(AuthenticationHandler):
 
     async def _match_credentials(
         self, username: str, password: str
-    ) -> Optional[BasicCredentials]:
+    ) -> BasicCredentials | None:
         """
         Tries to find matching credentials for the given username and password.
 
@@ -256,7 +255,7 @@ class BasicAuthentication(AuthenticationHandler):
 
         Returns
         -------
-        Optional[BasicCredentials]
+        BasicCredentials | None
             The matching credentials if found, None otherwise.
         """
         credentials = self._credentials

@@ -53,7 +53,7 @@ class InternalServerError(HTTPException):
     def __init__(
         self,
         message: str = "Internal Server Error",
-        source_error: Optional[Exception] = None,
+        source_error: Exception | None = None,
     ):
         super().__init__(500, message)
         self.source_error = source_error

@@ -1,6 +1,6 @@
 import asyncio
 from asyncio import TimeoutError
-from typing import AsyncIterable, List
+from typing import AsyncIterable
 
 import pytest
 
@@ -56,7 +56,7 @@ class FakeParser:
 
 class FakeTransport:
     def __init__(self) -> None:
-        self.messages: List[bytes] = []
+        self.messages: list[bytes] = []
 
     def write(self, message: bytes) -> None:
         self.messages.append(message)

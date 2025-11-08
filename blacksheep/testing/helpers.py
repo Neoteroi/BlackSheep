@@ -1,4 +1,4 @@
-from typing import Dict, List, Sequence, Tuple, Union
+from typing import Sequence
 from urllib.parse import quote, urlencode
 
 _DEFAULT_AGENT = (
@@ -12,16 +12,16 @@ _DEFAULT_ACCEPT_LANGUAGE = b"en-US,en;q=0.9,it-IT;q=0.8,it;q=0.7"
 _DEFAULT_ACCEPT_ENCODING = b"gzip, deflate"
 
 
-def _get_tuple(value: Union[List, Tuple[str, int]]) -> Tuple[str, int]:
+def _get_tuple(value: list | tuple[str, int]) -> tuple[str, int]:
     if isinstance(value, tuple):
         return value
     assert len(value) == 2
     return tuple(value)  # type: ignore
 
 
-HeadersType = Union[None, Sequence[Tuple[bytes, bytes]], Dict[str, str]]
-CookiesType = Union[None, Sequence[Tuple[bytes, bytes]], Dict[str, str]]
-QueryType = Union[None, bytes, str, dict, list]
+HeadersType = None | Sequence[tuple[bytes, bytes]] | dict[str, str]
+CookiesType = None | Sequence[tuple[bytes, bytes]] | dict[str, str]
+QueryType = None | bytes | str | dict | list
 
 
 def get_example_scope(
@@ -31,8 +31,8 @@ def get_example_scope(
     *,
     query: QueryType = None,
     scheme: str = "http",
-    server: Union[None, List, Tuple[str, int]] = None,
-    client: Union[None, List, Tuple[str, int]] = None,
+    server: list | tuple[str, int] | None = None,
+    client: list | tuple[str, int] | None = None,
     user_agent: bytes = _DEFAULT_AGENT,
     accept: bytes = _DEFAULT_ACCEPT,
     accept_language: bytes = _DEFAULT_ACCEPT_LANGUAGE,
@@ -79,7 +79,7 @@ def get_example_scope(
         if isinstance(query, bytes):
             query_string = query
 
-    cookies_headers: List[Tuple[bytes, bytes]] = []
+    cookies_headers: list[tuple[bytes, bytes]] = []
 
     if cookies:
         if isinstance(cookies, list):

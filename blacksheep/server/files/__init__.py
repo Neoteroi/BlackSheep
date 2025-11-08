@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterable, Callable, Optional, Set, TypedDict, Union
+from typing import AsyncIterable, Callable, Set, TypedDict
 
 from blacksheep import Request, Response, StreamedContent
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -25,8 +25,8 @@ class DefaultFileOptions:
     clients.
     """
 
-    on_response: Optional[Callable[[Request, Response], None]] = None
-    cache_control: Optional[CacheControlHeaderValue] = None
+    on_response: Callable[[Request, Response], None] | None  = None
+    cache_control: CacheControlHeaderValue | None = None
 
     def handle(self, request: Request, response: Response):
         if self.cache_control:
@@ -55,8 +55,8 @@ def get_range_file_getter(
     file_size: int,
     range_option: Range,
     size_limit=1024 * 64,
-    boundary: Optional[bytes] = None,
-    file_type: Optional[bytes] = None,
+    boundary: bytes | None = None,
+    file_type: bytes | None = None,
 ) -> Callable[[], AsyncIterable[bytes]]:
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range
     async def file_chunker() -> AsyncIterable[bytes]:
@@ -137,7 +137,7 @@ def get_file_getter(
     return file_getter
 
 
-def _get_requested_range(request: Request) -> Optional[Range]:
+def _get_requested_range(request: Request) -> Range | None:
     # http://svn.tools.ietf.org/svn/wg/httpbis/specs/rfc7233.html#rfc.section.3.1
     # A server must ignore a Range header field received with a request method
     # other than GET
@@ -201,7 +201,7 @@ def get_default_extensions() -> Set[str]:
     }
 
 
-def validate_source_path(source_folder: Union[str, Path]) -> None:
+def validate_source_path(source_folder: str | Path) -> None:
     source_folder_path = Path(source_folder)
 
     if not source_folder_path.exists():
@@ -216,7 +216,7 @@ def get_response_for_file(
     request: Request,
     resource_path: str,
     cache_time: int,
-    info: Optional[FileInfo] = None,
+    info: FileInfo | None = None,
 ) -> Response:
     if info is None:
         info = FileInfo.from_path(resource_path)
@@ -252,7 +252,7 @@ def get_response_for_file(
         # content-type and content-length for HEAD
 
         # TODO: instead of calling info.mime.encode every time, optimize using a
-        # Dict[str, bytes] - optimize number to encoded string, too, using LRU
+        # dict[str, bytes] - optimize number to encoded string, too, using LRU
         headers.append((b"Content-Type", info.mime.encode()))
         headers.append((b"Content-Length", str(info.size).encode()))
         return Response(200, headers, None)
@@ -264,7 +264,7 @@ def get_response_for_file(
         # NB: the method can only be GET for range requests, so it cannot
         # happen to have response 206 partial content with HEAD
         status = 206
-        boundary: Optional[bytes]
+        boundary: bytes | None
 
         if requested_range.is_multipart:
             # NB: multipart byteranges return the mime inside the portions

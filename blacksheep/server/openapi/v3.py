@@ -8,7 +8,7 @@ from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
 from types import UnionType
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Dict, Iterable, Sequence, Type, Union
 from typing import _AnnotatedAlias as AnnotatedAlias
 from typing import _GenericAlias as GenericAlias
 from typing import get_type_hints
@@ -118,7 +118,7 @@ def get_origin(object_type):
     return typing.get_origin(object_type)
 
 
-def check_union(object_type: Any) -> Tuple[bool, Any]:
+def check_union(object_type: Any) -> tuple[bool, Any]:
     if (
         hasattr(object_type, "__origin__")
         and object_type.__origin__ is Union
@@ -142,7 +142,7 @@ def check_union(object_type: Any) -> Tuple[bool, Any]:
     return False, object_type
 
 
-def is_ignored_parameter(param_name: str, matching_binder: Optional[Binder]) -> bool:
+def is_ignored_parameter(param_name: str, matching_binder: Binder | None) -> bool:
     # if a binder is used, handle only those that can be mapped to a type of
     # OpenAPI Documentation parameter's location
     if matching_binder and not isinstance(
@@ -175,8 +175,8 @@ class FieldInfo:
     """
 
     name: str
-    type: Union[Type, Schema]
-    schema: Optional[Dict[str, Any]] = None  # New property to store Pydantic schema
+    type: Type | Schema
+    schema: dict[str, Any | None] = None  # New property to store Pydantic schema
 
 
 class ObjectTypeHandler(ABC):
@@ -202,7 +202,7 @@ class ObjectTypeHandler(ABC):
         """
 
     @abstractmethod
-    def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
+    def get_type_fields(self, object_type, register_type) -> list[FieldInfo]:
         """
         Returns a set of fields to be used for the handled type.
         """
@@ -217,7 +217,7 @@ class SecuritySchemeHandler(ABC):
     @abstractmethod
     def get_security_schemes(
         self, handler: AuthenticationHandler
-    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+    ) -> Iterable[tuple[str, SecurityScheme, SecurityRequirement]]:
         """
         Returns an iterable of tuples containing:
             - the name of the security scheme,
@@ -242,7 +242,7 @@ class APIKeySecuritySchemeHandler(SecuritySchemeHandler):
 
     def get_security_schemes(
         self, handler: AuthenticationHandler
-    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+    ) -> Iterable[tuple[str, SecurityScheme, SecurityRequirement]]:
         if isinstance(handler, APIKeyAuthentication):
             yield handler.scheme, APIKeySecurity(
                 name=handler.param_name,
@@ -258,7 +258,7 @@ class BasicAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
 
     def get_security_schemes(
         self, handler: AuthenticationHandler
-    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+    ) -> Iterable[tuple[str, SecurityScheme, SecurityRequirement]]:
         if isinstance(handler, BasicAuthentication):
             yield handler.scheme, HTTPSecurity(
                 scheme="basic",
@@ -273,7 +273,7 @@ class JWTAuthenticationSecuritySchemeHandler(SecuritySchemeHandler):
 
     def get_security_schemes(
         self, handler: AuthenticationHandler
-    ) -> Iterable[Tuple[str, SecurityScheme, SecurityRequirement]]:
+    ) -> Iterable[tuple[str, SecurityScheme, SecurityRequirement]]:
         if isinstance(handler, JWTBearerAuthentication):
             yield handler.scheme, HTTPSecurity(
                 scheme="bearer", bearer_format="JWT"
@@ -299,7 +299,7 @@ class DataClassTypeHandler(ObjectTypeHandler):
         # Raise not implemented, because fields inspection should run for this handler.
         raise NotImplementedError()
 
-    def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
+    def get_type_fields(self, object_type, register_type) -> list[FieldInfo]:
         return [FieldInfo(field.name, field.type) for field in fields(object_type)]
 
 
@@ -333,7 +333,7 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
         self._normalize_dict_schema(schema, context)
         context.set_type_schema(object_type, schema)
 
-    def get_type_fields(self, object_type, register_type) -> List[FieldInfo]:
+    def get_type_fields(self, object_type, register_type) -> list[FieldInfo]:
         raise NotImplementedError()
 
     def _get_object_schema(self, object_type):
@@ -424,10 +424,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         yaml_spec_path: str = "openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
-        tags: Optional[List[Tag]] = None,
-        security_schemes: Optional[Dict[str, SecurityScheme]] = None,
-        servers: Optional[Sequence[Server]] = None,
-        serializer: Optional[Serializer] = None,
+        tags: list[Tag | None] = None,
+        security_schemes: dict[str, SecurityScheme | None] = None,
+        servers: Sequence[Server | None] = None,
+        serializer: Serializer | None = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -440,26 +440,24 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self.info = info
         self._tags = tags
         self.components = Components(security_schemes=security_schemes)  # type: ignore
-        self._objects_references: Dict[Any, Reference] = {}
-        self.servers: List[Server] = list(servers) if servers else []
-        self.common_responses: Dict[ResponseStatusType, ResponseDoc] = {}
-        self._object_types_handlers: List[ObjectTypeHandler] = [
+        self._objects_references: dict[Any, Reference] = {}
+        self.servers: list[Server] = list(servers) if servers else []
+        self.common_responses: dict[ResponseStatusType, ResponseDoc] = {}
+        self._object_types_handlers: list[ObjectTypeHandler] = [
             DataClassTypeHandler(),
             PydanticModelTypeHandler(),
             PydanticDataClassTypeHandler(),
         ]
-        self._security_schemes_handlers: List[SecuritySchemeHandler] = [
+        self._security_schemes_handlers: list[SecuritySchemeHandler] = [
             APIKeySecuritySchemeHandler(),
             BasicAuthenticationSecuritySchemeHandler(),
             JWTAuthenticationSecuritySchemeHandler(),
         ]
-        self._binder_docs: Dict[Type[Binder], Iterable[Union[Parameter, Reference]]] = (
-            {}
-        )
-        self.security: Optional[Security] = None
+        self._binder_docs: dict[Type[Binder], Iterable[Parameter | Reference]] = {}
+        self.security: Security | None = None
 
     @property
-    def object_types_handlers(self) -> List[ObjectTypeHandler]:
+    def object_types_handlers(self) -> list[ObjectTypeHandler]:
         """
         Gets the list of objects responsible of generating OpenAPI Documentation
         schemas for object types. Extend this list with custom objects to control how
@@ -468,7 +466,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return self._object_types_handlers
 
     @property
-    def security_schemes_handlers(self) -> List[SecuritySchemeHandler]:
+    def security_schemes_handlers(self) -> list[SecuritySchemeHandler]:
         """
         Gets the list of objects responsible of generating OpenAPI Documentation
         for security schemas. These objects are used to generate security schemes
@@ -479,7 +477,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_ui_page_title(self) -> str:
         return self.info.title
 
-    def _iter_tags(self, paths: Dict[str, PathItem]) -> Iterable[str]:
+    def _iter_tags(self, paths: dict[str, PathItem]) -> Iterable[str]:
         methods = (
             "get",
             "post",
@@ -493,12 +491,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         for path in paths.values():
             for method in methods:
-                prop: Optional[Operation] = getattr(path, method)
+                prop: Operation | None = getattr(path, method)
 
                 if prop is not None and prop.tags is not None:
                     yield from prop.tags
 
-    def _tags_from_paths(self, paths: Dict[str, PathItem]) -> List[Tag]:
+    def _tags_from_paths(self, paths: dict[str, PathItem]) -> list[Tag]:
         unique_tags = set(self._iter_tags(paths))
         return [Tag(name=name) for name in sorted(unique_tags)]
 
@@ -515,7 +513,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             security=self.security,
         )
 
-    def get_paths(self, app: Application, path_prefix: str = "") -> Dict[str, PathItem]:
+    def get_paths(self, app: Application, path_prefix: str = "") -> dict[str, PathItem]:
         own_paths = self.get_routes_docs(app.router, path_prefix)
 
         if app.mount_registry.mounted_apps and app.mount_registry.handle_docs:
@@ -536,7 +534,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_type_name_for_generic(
         self,
         object_type: GenericAlias,
-        context_type_args: Optional[Dict[Any, Type]] = None,
+        context_type_args: dict[Any, Type | None] = None,
     ) -> str:
         """
         This method returns a type name for a generic type.
@@ -557,7 +555,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return f"{self.get_type_name(origin)}Of{args_repr}"
 
     def get_type_name(
-        self, object_type, context_type_args: Optional[Dict[Any, Type]] = None
+        self, object_type, context_type_args: dict[Any, Type | None] = None
     ) -> str:
         if context_type_args and object_type in context_type_args:
             object_type = context_type_args.get(object_type)
@@ -696,8 +694,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else:
                 return self._handle_type_having_explicit_schema(object_type)
 
-        required: List[str] = []
-        properties: Dict[str, Union[Schema, Reference]] = {}
+        required: list[str] = []
+        properties: dict[str, Schema | Reference] = {}
 
         for field in self.get_fields(object_type):
             is_optional, child_type = check_union(field.type)
@@ -724,9 +722,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def _handle_object_type(
         self,
         object_type: Type,
-        properties: Dict[str, Union[Schema, Reference]],
-        required: List[str],
-        context_type_args: Optional[Dict[Any, Type]] = None,
+        properties: dict[str, Schema | Reference],
+        required: list[str],
+        context_type_args: dict[Any, Type | None] = None,
     ) -> Reference:
         return self._handle_object_type_schema(
             object_type,
@@ -748,8 +746,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return reference
 
     def _get_stored_reference(
-        self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
-    ) -> Optional[Reference]:
+        self, object_type: Type[Any], type_args: dict[Any, Type | None] = None
+    ) -> Reference | None:
         if object_type in self._objects_references:
             # if object_type is a generic, it can be like
             # Example[~T] while type_args can have the information: {~T: Foo}
@@ -765,11 +763,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def get_schema_by_type(
         self,
-        object_type: Union[Type, Schema],
-        type_args: Optional[Dict[Any, Type]] = None,
+        object_type: Type | Schema,
+        type_args: dict[Any, Type | None] = None,
         *,
-        root_optional: Optional[bool] = None,
-    ) -> Union[Schema, Reference]:
+        root_optional: bool | None = None,
+    ) -> Schema | Reference:
         if isinstance(object_type, Schema):
             return object_type
 
@@ -787,8 +785,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return schema
 
     def _get_schema_by_type(
-        self, object_type: Type[Any], type_args: Optional[Dict[Any, Type]] = None
-    ) -> Union[Schema, Reference]:
+        self, object_type: Type[Any], type_args: dict[Any, Type | None] = None
+    ) -> Schema | Reference:
         stored_ref = self._get_stored_reference(object_type, type_args)
         if stored_ref:  # pragma: no cover
             return stored_ref
@@ -823,7 +821,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             schema = self._try_get_schema_for_enum(object_type)
         return schema or Schema()
 
-    def _try_get_schema_for_simple_type(self, object_type: Type) -> Optional[Schema]:
+    def _try_get_schema_for_simple_type(self, object_type: Type) -> Schema | None:
         if object_type is str:
             return Schema(type=ValueType.STRING)
 
@@ -851,8 +849,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return None
 
     def _try_get_schema_for_iterable(
-        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
-    ) -> Optional[Schema]:
+        self, object_type: Type, context_type_args: dict[Any, Type | None] = None
+    ) -> Schema | None:
         if object_type in {list, set, tuple}:
             # the user didn't specify the item type
             return Schema(type=ValueType.ARRAY, items=Schema(type=ValueType.STRING))
@@ -862,7 +860,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if not origin or origin not in {list, set, tuple, collections_abc.Sequence}:
             return None
 
-        # can be List, List[str] or list[str] (Python 3.9),
+        # can be List, list[str] or list[str] (Python 3.9),
         # note: it could also be union if it wasn't handled above for dataclasses
         try:
             type_args = typing.get_args(object_type)  # type: ignore
@@ -880,8 +878,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         )
 
     def _try_get_schema_for_mapping(
-        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
-    ) -> Optional[Schema]:
+        self, object_type: Type, context_type_args: dict[Any, Type | None] = None
+    ) -> Schema | None:
         if object_type in {dict, defaultdict, OrderedDict}:
             # the user didn't specify the key and value types
             return Schema(
@@ -900,7 +898,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         }:
             return None
 
-        # can be Dict, Dict[str, str] or dict[str, str] (Python 3.9),
+        # can be Dict, dict[str, str] or dict[str, str] (Python 3.9),
         # note: it could also be union if it wasn't handled above for dataclasses
         try:
             _, value_type = typing.get_args(object_type)  # type: ignore
@@ -917,7 +915,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             ),
         )
 
-    def get_fields(self, object_type: Any) -> List[FieldInfo]:
+    def get_fields(self, object_type: Any) -> list[FieldInfo]:
         for handler in self._object_types_handlers:
             if handler.handles_type(object_type):
                 return handler.get_type_fields(
@@ -927,8 +925,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return []
 
     def _try_get_schema_for_generic(
-        self, object_type: Type, context_type_args: Optional[Dict[Any, Type]] = None
-    ) -> Optional[Reference]:
+        self, object_type: Type, context_type_args: dict[Any, Type | None] = None
+    ) -> Reference | None:
         origin = get_origin(object_type)
 
         if origin is dict:
@@ -949,8 +947,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 object_type, context_type_args, schema
             )
 
-        required: List[str] = []
-        properties: Dict[str, Union[Schema, Reference]] = {}
+        required: list[str] = []
+        properties: dict[str, Schema | Reference] = {}
 
         args = typing.get_args(object_type)
         parameters = origin.__parameters__
@@ -984,20 +982,20 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             object_type, properties, required, context_type_args
         )
 
-    def _try_get_schema_for_enum(self, object_type: Type) -> Optional[Schema]:
+    def _try_get_schema_for_enum(self, object_type: Type) -> Schema | None:
         if issubclass(object_type, IntEnum):
             return Schema(type=ValueType.INTEGER, enum=[v.value for v in object_type])
         if issubclass(object_type, Enum):
             return Schema(type=ValueType.STRING, enum=[v.value for v in object_type])
         return None
 
-    def _get_body_binder(self, handler: Any) -> Optional[BodyBinder]:
+    def _get_body_binder(self, handler: Any) -> BodyBinder | None:
         return next(
             (binder for binder in handler.binders if isinstance(binder, BodyBinder)),
             None,
         )
 
-    def _get_binder_by_name(self, handler: Any, name: str) -> Optional[Binder]:
+    def _get_binder_by_name(self, handler: Any, name: str) -> Binder | None:
         return next(
             (binder for binder in handler.binders if binder.parameter_name == name),
             None,
@@ -1006,8 +1004,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def _get_body_binder_content_type(
         self,
         body_binder: BodyBinder,
-        body_examples: Optional[Dict[str, Union[Example, Reference]]],
-    ) -> Dict[str, MediaType]:
+        body_examples: dict[str, Example | Reference] | None,
+    ) -> dict[str, MediaType]:
         return {
             possible_type: MediaType(
                 schema=self.get_schema_by_type(body_binder.expected_type),
@@ -1016,7 +1014,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             for possible_type in body_binder.content_type.split(";")
         }
 
-    def get_request_body(self, handler: Any) -> Union[None, RequestBody, Reference]:
+    def get_request_body(self, handler: Any) -> RequestBody | Reference | None:
         if not hasattr(handler, "binders"):
             return None
         # TODO: improve this code to support more scenarios!
@@ -1029,7 +1027,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         docs = self.get_handler_docs(handler)
         body_info = docs.request_body if docs else None
 
-        body_examples: Optional[Dict[str, Union[Example, Reference]]] = (
+        body_examples: dict[str, Example | Reference] | None = (
             {key: Example(value=value) for key, value in body_info.examples.items()}
             if body_info and body_info.examples
             else None
@@ -1043,7 +1041,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def get_parameter_location_for_binder(
         self, binder: Binder
-    ) -> Optional[ParameterLocation]:
+    ) -> ParameterLocation | None:
         if isinstance(binder, RouteBinder):
             return ParameterLocation.PATH
         if isinstance(binder, QueryBinder):
@@ -1066,13 +1064,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> ParameterLocation:
         return ParameterLocation[value.value.upper()]
 
-    def get_parameters(
-        self, handler: Any
-    ) -> Optional[List[Union[Parameter, Reference]]]:
+    def get_parameters(self, handler: Any) -> list[Parameter | Reference] | None:
         if not hasattr(handler, "binders"):
             return None
-        binders: List[Binder] = handler.binders
-        parameters: Dict[str, Union[Parameter, Reference]] = {}
+        binders: list[Binder] = handler.binders
+        parameters: dict[str, Parameter | Reference] = {}
 
         docs = self.get_handler_docs(handler)
         parameters_info = (docs.parameters if docs else None) or dict()
@@ -1125,7 +1121,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         return list(parameters.values())
 
-    def get_handler_security(self, handler: Any) -> Optional[List[SecurityRequirement]]:
+    def get_handler_security(self, handler: Any) -> list[SecurityRequirement | None]:
         docs = self.get_handler_docs(handler)
         if docs and docs.security:
             return [SecurityRequirement(s.name, s.value) for s in docs.security]
@@ -1161,7 +1157,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 else:
                     media_type.example = self.normalize_example(example_item)
             else:
-                examples_doc: Dict[str, Union[Example, Reference]] = {}
+                examples_doc: dict[str, Example | Reference] = {}
 
                 for index, example in enumerate(examples):
                     # support something that is not a ResponseExample,
@@ -1181,12 +1177,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return media_type
 
     def _get_content_from_response_info(
-        self, response_content: Optional[List[ContentInfo]]
-    ) -> Optional[Dict[str, Union[MediaType, Reference]]]:
+        self, response_content: list[ContentInfo | None]
+    ) -> dict[str, MediaType | Reference] | None:
         if not response_content:
             return None
 
-        oad_content: Dict[str, Union[MediaType, Reference]] = {}
+        oad_content: dict[str, MediaType | Reference] = {}
 
         for content in response_content:
             if content.content_type not in oad_content:
@@ -1199,8 +1195,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return oad_content
 
     def _get_headers_from_response_info(
-        self, headers: Optional[Dict[str, HeaderInfo]]
-    ) -> Optional[Dict[str, Union[Header, Reference]]]:
+        self, headers: dict[str, HeaderInfo | None]
+    ) -> dict[str, Header | Reference] | None:
         if headers is None:
             return None
 
@@ -1209,7 +1205,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             for key, value in headers.items()
         }
 
-    def get_responses(self, handler: Any) -> Optional[Dict[str, ResponseDoc]]:
+    def get_responses(self, handler: Any) -> dict[str, ResponseDoc | None]:
         docs = self.get_handler_docs(handler)
         data = docs.responses if docs else None
 
@@ -1322,7 +1318,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 ):
                     matching_parameter.value_type = param_info.value_type
 
-    def _apply_docstring(self, handler, docs: Optional[EndpointDocs]) -> None:
+    def _apply_docstring(self, handler, docs: EndpointDocs | None) -> None:
         if not self.use_docstrings:  # pragma: no cover
             return
         docstring_info = get_handler_docstring_info(handler)
@@ -1332,14 +1328,14 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 docs = self.get_handler_docs_or_set(handler)
             self._merge_documentation(handler, docs, docstring_info)
 
-    def get_operation_id(self, docs: Optional[EndpointDocs], handler) -> str:
+    def get_operation_id(self, docs: EndpointDocs | None, handler) -> str:
         return handler.__name__
 
     def get_routes_docs(
         self, router: Router, path_prefix: str = ""
-    ) -> Dict[str, PathItem]:
+    ) -> dict[str, PathItem]:
         """Obtains a documentation object from the routes defined in a router."""
-        paths_doc: Dict[str, PathItem] = {}
+        paths_doc: dict[str, PathItem] = {}
         raw_dict = self.router_to_paths_dict(router, lambda route: route)
 
         for path, conf in raw_dict.items():
@@ -1378,7 +1374,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def set_binder_docs(
         self,
         binder_type: Type[Binder],
-        params_docs: Iterable[Union[Parameter, Reference]],
+        params_docs: Iterable[Parameter | Reference],
     ):
         """
         Configures parameters documentation for a given binder type. A binder can
@@ -1390,7 +1386,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         self._binder_docs[binder_type] = params_docs
 
     def _handle_binder_docs(
-        self, binder: Binder, parameters: Dict[str, Union[Parameter, Reference]]
+        self, binder: Binder, parameters: dict[str, Parameter | Reference]
     ):
         params_docs = self._binder_docs[binder.__class__]
 
@@ -1404,10 +1400,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         operation where they are used.
         """
         new_dict = {}
-        params_docs: Iterable[Union[Parameter, Reference]]
+        params_docs: Iterable[Parameter | Reference]
 
         for key, params_docs in self._binder_docs.items():
-            new_docs: List[Reference] = []
+            new_docs: list[Reference] = []
 
             for param in params_docs:
                 if isinstance(param, Reference):

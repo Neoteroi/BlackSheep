@@ -1,7 +1,7 @@
 import asyncio
 import ssl
 import weakref
-from typing import Optional, Protocol
+from typing import Protocol
 
 import certifi
 
@@ -43,17 +43,17 @@ class IncomingContent(Content):
         self._body = bytearray()
         self._chunk = asyncio.Event()
         self.complete = asyncio.Event()
-        self._exc: Optional[Exception] = None
+        self._exc: Exception | None = None
 
     @property
-    def exc(self) -> Optional[Exception]:
+    def exc(self) -> Exception | None:
         """
         Gets an exception that was set on this content.
         """
         return self._exc
 
     @exc.setter
-    def exc(self, value: Optional[Exception]):
+    def exc(self, value: Exception | None):
         """
         Sets an exception on this content. The exception is used and raised if the
         caller code is handling a response stream.
@@ -168,7 +168,7 @@ class ClientConnection(asyncio.Protocol):
     )
 
     def __init__(
-        self, loop, pool, parser_impl: Optional[HTTPResponseParserProtocol] = None
+        self, loop, pool, parser_impl: HTTPResponseParserProtocol | None = None
     ) -> None:
         self.loop = loop
         self.pool = weakref.ref(pool)
@@ -266,7 +266,7 @@ class ClientConnection(asyncio.Protocol):
         self.response_ready.clear()
         return response
 
-    async def _write_chunks(self, request, method) -> Optional[Response]:
+    async def _write_chunks(self, request, method) -> Response | None:
         async for chunk in method(request):
             if self._can_release:
                 # the server returned a response before

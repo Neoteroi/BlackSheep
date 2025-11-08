@@ -26,7 +26,7 @@ import logging
 import os
 from contextlib import contextmanager
 from functools import wraps
-from typing import Awaitable, Callable, Dict, Optional
+from typing import Awaitable, Callable
 
 from opentelemetry import trace
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
@@ -151,7 +151,7 @@ def use_open_telemetry(
     app: Application,
     log_exporter: LogExporter,
     span_exporter: SpanExporter,
-    middleware: Optional[OTELMiddleware] = None,
+    middleware: OTELMiddleware | None = None,
 ):
     """
     Configures OpenTelemetry tracing and logging for a BlackSheep application.
@@ -211,7 +211,7 @@ def use_open_telemetry(
 
 @contextmanager
 def client_span_context(
-    operation_name: str, attributes: Dict[str, str], *args, **kwargs
+    operation_name: str, attributes: dict[str, str], *args, **kwargs
 ):
     tracer = trace.get_tracer(__name__)
     with tracer.start_as_current_span(operation_name, kind=SpanKind.CLIENT) as span:

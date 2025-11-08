@@ -2,7 +2,7 @@ import ntpath
 from enum import Enum
 from functools import lru_cache
 from io import BytesIO
-from typing import Any, AnyStr, AsyncIterable, Callable, Optional, Union
+from typing import Any, AnyStr, AsyncIterable, Callable
 
 from blacksheep import Content, JSONContent, Response, StreamedContent, TextContent
 from blacksheep.common.files.asyncfs import FilesHandler
@@ -220,7 +220,7 @@ def pretty_json(
     )
 
 
-FileInput = Union[Callable[[], AsyncIterable[bytes]], str, bytes, bytearray, BytesIO]
+FileInput = Callable[[], AsyncIterable[bytes]] | str | bytes | bytearray | BytesIO
 
 
 @lru_cache(2000)
@@ -236,7 +236,7 @@ def _file(
     value: FileInput,
     content_type: str,
     content_disposition_type: ContentDispositionType,
-    file_name: Optional[str] = None,
+    file_name: str | None = None,
 ) -> Response:
     if file_name:
         exact_file_name = ntpath.basename(file_name)
@@ -304,7 +304,7 @@ def file(
     value: FileInput,
     content_type: str,
     *,
-    file_name: Optional[str] = None,
+    file_name: str | None = None,
     content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,
 ) -> Response:
     """

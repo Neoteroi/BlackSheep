@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence
+from typing import Sequence
 
 from blacksheep.exceptions import BadRequest
 from blacksheep.messages import Request
@@ -13,9 +13,9 @@ class InvalidHostError(BadRequest):
 class TrustedHostsMiddleware:
     def __init__(
         self,
-        allowed_hosts: Optional[Sequence[str]] = None,
+        allowed_hosts: Sequence[str | None] = None,
     ) -> None:
-        self.allowed_hosts: List[str] = list(allowed_hosts) if allowed_hosts else []
+        self.allowed_hosts: list[str] = list(allowed_hosts) if allowed_hosts else []
 
     def is_valid_host(self, host: str) -> bool:
         if not self.allowed_hosts or "*" in self.allowed_hosts:

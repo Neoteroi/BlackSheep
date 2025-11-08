@@ -2,7 +2,6 @@ import logging
 import ssl
 from asyncio import AbstractEventLoop, Queue, QueueEmpty, QueueFull
 from ssl import SSLContext
-from typing import Dict, Optional, Tuple, Union
 
 from blacksheep.exceptions import InvalidArgument
 from blacksheep.utils.aio import get_running_loop
@@ -13,8 +12,8 @@ logger = logging.getLogger("blacksheep.client")
 
 
 def get_ssl_context(
-    scheme: bytes, ssl: Union[None, bool, ssl.SSLContext]
-) -> Optional[ssl.SSLContext]:
+    scheme: bytes, ssl: None | bool | ssl.SSLContext
+) -> ssl.SSLContext | None:
     if scheme == b"https":
         if ssl is None or ssl is True:
             return SECURE_SSLCONTEXT
@@ -40,7 +39,7 @@ class ConnectionPool:
         scheme: bytes,
         host: bytes,
         port: int,
-        ssl: Union[None, bool, ssl.SSLContext] = None,
+        ssl: None | bool | ssl.SSLContext = None,
         max_size: int = 0,
     ) -> None:
         self.loop = loop
@@ -113,9 +112,9 @@ class ConnectionPool:
 
 
 class ConnectionPools:
-    def __init__(self, loop: Optional[AbstractEventLoop] = None) -> None:
+    def __init__(self, loop: AbstractEventLoop | None = None) -> None:
         self.loop = loop or get_running_loop()
-        self._pools: Dict[Tuple[bytes, bytes, int], ConnectionPool] = {}
+        self._pools: dict[tuple[bytes, bytes, int], ConnectionPool] = {}
 
     def get_pool(self, scheme, host, port, ssl):
         assert scheme in (b"http", b"https"), "URL schema must be http or https"

@@ -38,8 +38,8 @@ from opentelemetry.trace import SpanKind
 
 from blacksheep import Application
 from blacksheep.messages import Request, Response
+from blacksheep.middlewares import MiddlewareCategory
 from blacksheep.server.env import get_env
-from blacksheep.server.middlewares import MiddlewareCategory
 
 ExceptionHandler = Callable[[Request, Exception], Awaitable[Response]]
 

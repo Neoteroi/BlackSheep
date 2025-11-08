@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Awaitable, Callable
 from rodi import ActivationScope, Container
 
 from blacksheep.messages import Request, Response
-from blacksheep.server.middlewares import MiddlewareCategory
+from blacksheep.middlewares import MiddlewareCategory
 
 if TYPE_CHECKING:
     from blacksheep.server.application import Application

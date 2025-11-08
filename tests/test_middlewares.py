@@ -1,9 +1,10 @@
 import pytest
+
 from blacksheep.messages import Response
-from blacksheep.server.middlewares import (
-    MiddlewareList,
-    MiddlewareCategory,
+from blacksheep.middlewares import (
     CategorizedMiddleware,
+    MiddlewareCategory,
+    MiddlewareList,
 )
 
 
@@ -94,7 +95,7 @@ class TestMiddlewareList:
         ml = MiddlewareList()
 
         # Add middlewares in reverse category order
-        ml.append(middleware_a, MiddlewareCategory.RESPONSE)  # 60
+        ml.append(middleware_a, MiddlewareCategory.MESSAGE)  # 60
         ml.append(middleware_b, MiddlewareCategory.AUTH)  # 30
         ml.append(middleware_c, MiddlewareCategory.INIT)  # 10
         ml.append(middleware_d, MiddlewareCategory.BUSINESS)  # 50
@@ -138,7 +139,7 @@ class TestMiddlewareList:
     def test_lazy_sorting(self):
         """Test that sorting only happens when needed"""
         ml = MiddlewareList()
-        ml.append(middleware_a, MiddlewareCategory.RESPONSE)
+        ml.append(middleware_a, MiddlewareCategory.MESSAGE)
 
         # After append, should not be sorted
         assert ml._is_sorted is False
@@ -178,7 +179,7 @@ class TestMiddlewareList:
     def test_iterator_behavior(self):
         """Test iterator returns middleware functions in sorted order"""
         ml = MiddlewareList()
-        ml.append(middleware_a, MiddlewareCategory.RESPONSE)
+        ml.append(middleware_a, MiddlewareCategory.MESSAGE)
         ml.append(middleware_b, MiddlewareCategory.INIT)
 
         middlewares = list(ml)
@@ -218,7 +219,7 @@ class TestMiddlewareList:
     def test_to_list_method(self):
         """Test to_list() method returns sorted middleware functions"""
         ml = MiddlewareList()
-        ml.append(middleware_a, MiddlewareCategory.RESPONSE)
+        ml.append(middleware_a, MiddlewareCategory.MESSAGE)
         ml.append(middleware_b, MiddlewareCategory.INIT)
 
         middlewares = ml.to_list()
@@ -229,7 +230,7 @@ class TestMiddlewareList:
     def test_mark_configured_sorts_middlewares(self):
         """Test that _mark_configured() triggers sorting"""
         ml = MiddlewareList()
-        ml.append(middleware_a, MiddlewareCategory.RESPONSE)
+        ml.append(middleware_a, MiddlewareCategory.MESSAGE)
         ml.append(middleware_b, MiddlewareCategory.INIT)
 
         assert ml._is_sorted is False

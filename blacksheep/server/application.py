@@ -36,7 +36,11 @@ from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.exceptions import NotFound
 from blacksheep.messages import Request, Response
-from blacksheep.middlewares import get_middlewares_chain
+from blacksheep.middlewares import (
+    MiddlewareCategory,
+    MiddlewareList,
+    get_middlewares_chain,
+)
 from blacksheep.scribe import send_asgi_response
 from blacksheep.server.asgi import get_request_url_from_scope
 from blacksheep.server.authentication import (
@@ -57,7 +61,6 @@ from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import DefaultFileOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
-from blacksheep.server.middlewares import MiddlewareCategory, MiddlewareList
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.process import use_shutdown_handler
 from blacksheep.server.responses import _ensure_bytes
@@ -705,15 +708,14 @@ class Application(BaseApplication):
         return self.get_http_exception_handler(NotFound()) is handle_not_found
 
     def configure_middlewares(self):
-        if self._middlewares_configured:
+        if self._middlewares._configured:
             return
-        self._middlewares_configured = True
 
         # TODO: find a more elegant way for the following
         if self._default_headers:
             self._middlewares.append(
                 get_default_headers_middleware(self._default_headers),
-                MiddlewareCategory.RESPONSE,
+                MiddlewareCategory.MESSAGE,
             )
 
         self.on_middlewares_configuration.fire_sync()
@@ -722,6 +724,8 @@ class Application(BaseApplication):
 
         if self.middlewares:
             self._apply_middlewares_in_routes()
+
+        self._middlewares._mark_configured()
 
     def extend(self, mixin) -> None:
         """

@@ -21,13 +21,13 @@ from jwt import InvalidTokenError
 from blacksheep.cookies import Cookie
 from blacksheep.exceptions import BadRequest, Unauthorized
 from blacksheep.messages import Request, Response, get_absolute_url_to_path
+from blacksheep.middlewares import MiddlewareCategory
 from blacksheep.server.application import Application, ApplicationEvent
 from blacksheep.server.authentication.cookie import CookieAuthentication
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import allow_anonymous
 from blacksheep.server.dataprotection import generate_secret, get_serializer
 from blacksheep.server.headers.cache import cache_control
-from blacksheep.server.middlewares import MiddlewareCategory
 from blacksheep.server.responses import accepted, bad_request, html, json, ok, redirect
 from blacksheep.utils import ensure_str
 from blacksheep.utils.aio import FailedRequestError, HTTPHandler

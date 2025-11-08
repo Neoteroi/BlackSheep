@@ -56,7 +56,7 @@ class Message:
         self._raw_headers = headers or []
 
     @property
-    def headers(self):
+    def headers(self) -> Headers:
         key = "_headers"
         if key in self.__dict__:
             return self.__dict__[key]

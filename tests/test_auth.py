@@ -365,10 +365,8 @@ async def test_authentication_challenge_response(app):
 
 
 async def test_authorization_strategy_without_authentication_raises(app):
-    app.use_authorization()
-
     with raises(AuthorizationWithoutAuthenticationError):
-        await app.start()
+        app.use_authorization()
 
 
 @pytest.mark.parametrize(
@@ -553,6 +551,7 @@ def test_set_authentication_strategy_more_than_once(app: Application):
 
 
 def test_set_authorization_strategy_more_than_once(app: Application):
+    app.use_authentication()
     auth_strategy = app.use_authorization()
     assert app.use_authorization() is auth_strategy
 

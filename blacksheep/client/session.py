@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response, __version__
 from blacksheep.common.types import HeadersType, ParamsType, URLType, normalize_headers
-from blacksheep.middlewares import get_middlewares_chain
+from blacksheep.middlewares import MiddlewareList, get_middlewares_chain
 from blacksheep.utils.aio import get_running_loop
 
 from .connection import ConnectionClosedError
@@ -84,7 +84,7 @@ class ClientSession:
         if middlewares is None:
             middlewares = []
 
-        if cookie_jar is None:
+        if cookie_jar is None or cookie_jar is True:
             cookie_jar = CookieJar()
 
         if cookie_jar is False:
@@ -109,7 +109,7 @@ class ClientSession:
         self.non_standard_handling_of_301_302_redirect_method = True
         self.maximum_redirects = maximum_redirects
         self._handler = None
-        self._middlewares: List[Callable[..., Any]]
+        self._middlewares: MiddlewareList
         self.middlewares = middlewares
         self.delay_before_retry = 0.5
 
@@ -122,12 +122,18 @@ class ClientSession:
         self._default_headers = normalize_headers(value)
 
     @property
-    def middlewares(self) -> List[Callable[..., Any]]:
+    def middlewares(self) -> MiddlewareList:
         return self._middlewares
 
     @middlewares.setter
-    def middlewares(self, value) -> None:
-        self._middlewares = list(value)
+    def middlewares(self, value: MiddlewareList | list[Callable[..., Any]]):
+        if isinstance(value, MiddlewareList):
+            self._middlewares = value
+        else:
+            self._middlewares = MiddlewareList()
+
+            for fn in value:
+                self._middlewares.append(fn)
         self._build_middlewares_chain()
 
     @property
@@ -145,7 +151,8 @@ class ClientSession:
         self._base_url = url
 
     def add_middlewares(self, middlewares: List[Callable]):
-        self._middlewares += middlewares
+        for middleware in middlewares:
+            self._middlewares.append(middleware)
         self._build_middlewares_chain()
 
     def _build_middlewares_chain(self):

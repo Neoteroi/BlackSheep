@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.4.4] - 2025-11-??
 
+- Introduce `MiddlewareList` and `MiddlewareCategory` to simplify middleware management
+  and ordering of middlewares (see [#620](https://github.com/Neoteroi/BlackSheep/issues/620)).
+  Middlewares are now automatically sorted by category (`INIT, SESSION, AUTH, AUTHZ, BUSINESS, MESSAGE`)
+  and optional priority within each category. This ensures proper execution order (e.g.,
+  CORS before authentication, authentication before authorization) without requiring
+  developers to manually manage middleware insertion order. The system maintains backward
+  compatibility while providing a more intuitive and error-resistant approach to
+  middleware configuration. The same improvement is applied both to the `Application`
+  and to the `ClientSession` classes.
 - Add support for `list[str]` as a value for `no-cache` and `private` directives in
   code handling cache control headers, by @karpetrosyan.
 - Fix bug [#619](https://github.com/Neoteroi/BlackSheep/issues/619), that caused
@@ -21,11 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (see [#614](https://github.com/Neoteroi/BlackSheep/issues/614)). Previously, extra
   properties were not ignored by default and required the user to explicitly code their
   input classes to allow extra properties.
-  This is also done for expected input body declared as `List[T]`, `Sequence[T]`, and
-  `Tuple[T]` where `T` is a dataclass, Pydantic model, or plain class.
+  This is also done for expected input body declared as `list[T]`, `Sequence[T]`, and
+  `tuple[T]` where `T` is a dataclass, Pydantic model, or plain class.
   The user can still control how input bodies from clients are converted using custom
   binders or altering `blacksheep.server.bindings.class_converters`.
-  **Note:** automatic type conversion from strings is not performed for sub-properties.
+  **Note:** automatic type conversion from strings is not performed for object properties.
   Use Pydantic models if you want this feature. Example: dates can require conversion
   when mapping JSON input, and everything is transmitted as text when using multipart
   form data.

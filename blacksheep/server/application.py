@@ -36,7 +36,11 @@ from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.contents import ASGIContent
 from blacksheep.exceptions import NotFound
 from blacksheep.messages import Request, Response
-from blacksheep.middlewares import get_middlewares_chain
+from blacksheep.middlewares import (
+    MiddlewareCategory,
+    MiddlewareList,
+    get_middlewares_chain,
+)
 from blacksheep.scribe import send_asgi_response
 from blacksheep.server.asgi import get_request_url_from_scope
 from blacksheep.server.authentication import (
@@ -196,7 +200,7 @@ class Application(BaseApplication):
 
         assert services is not None
         self._services: ContainerProtocol = services
-        self.middlewares: List[Callable[..., Awaitable[Response]]] = []
+        self._middlewares: MiddlewareList = MiddlewareList()
         self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
         self._middlewares_configured = False
         self._cors_strategy: Optional[CORSStrategy] = None
@@ -209,7 +213,6 @@ class Application(BaseApplication):
         self.started = False
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
-        self._session_middleware: Optional[SessionMiddleware] = None
         self.base_path: str = ""  # TODO: deprecate
         self._mount_registry = mount
         validate_router(self)
@@ -221,6 +224,22 @@ class Application(BaseApplication):
 
         if env_settings.add_signal_handler:
             use_shutdown_handler(self)
+
+    @property
+    def middlewares(self) -> MiddlewareList:
+        return self._middlewares
+
+    @middlewares.setter
+    def middlewares(
+        self, value: MiddlewareList | list[Callable[..., Awaitable[Response]]]
+    ):
+        if isinstance(value, MiddlewareList):
+            self._middlewares = value
+        else:
+            self._middlewares = MiddlewareList()
+
+            for fn in value:
+                self._middlewares.append(fn)
 
     @property
     def authentication_strategy(self) -> Optional[AuthenticationStrategy]:
@@ -246,11 +265,11 @@ class Application(BaseApplication):
         return self._services
 
     @property
-    def default_headers(self) -> Optional[Tuple[Tuple[str, str], ...]]:
+    def default_headers(self) -> None | tuple[tuple[str, str], ...]:
         return self._default_headers
 
     @default_headers.setter
-    def default_headers(self, value: Optional[Tuple[Tuple[str, str], ...]]) -> None:
+    def default_headers(self, value: None | tuple[tuple[str, str], ...]) -> None:
         self._default_headers = tuple(value) if value else None
 
     @property
@@ -350,7 +369,7 @@ class Application(BaseApplication):
         if isinstance(store, str):
             from blacksheep.sessions.cookies import CookieSessionStore
 
-            self._session_middleware = SessionMiddleware(
+            session_middleware = SessionMiddleware(
                 CookieSessionStore(
                     store,
                     session_cookie=session_cookie,
@@ -360,7 +379,9 @@ class Application(BaseApplication):
                 )
             )
         elif isinstance(store, SessionStore):
-            self._session_middleware = SessionMiddleware(store)
+            session_middleware = SessionMiddleware(store)
+
+        self.middlewares.append(session_middleware, MiddlewareCategory.SESSION)
 
     def use_cors(
         self,
@@ -398,6 +419,10 @@ class Application(BaseApplication):
         @self.router.options("*")
         async def options_handler(request: Request) -> Response:
             return Response(404)
+
+        self.middlewares.append(
+            get_cors_middleware(self, self._cors_strategy), MiddlewareCategory.INIT
+        )
 
         # User defined catch-all OPTIONS request handlers are not supported when the
         # built-in CORS handler is used.
@@ -467,6 +492,11 @@ class Application(BaseApplication):
             )
 
         self._authentication_strategy = strategy
+
+        self.middlewares.append(
+            get_authentication_middleware(self._authentication_strategy),
+            MiddlewareCategory.AUTH,
+        )
         return strategy
 
     def use_authorization(
@@ -477,6 +507,9 @@ class Application(BaseApplication):
                 "The application is already running, configure authorization "
                 "before starting the application"
             )
+
+        if not self._authentication_strategy:
+            raise AuthorizationWithoutAuthenticationError()
 
         if self._authorization_strategy:
             return self._authorization_strategy
@@ -499,6 +532,10 @@ class Application(BaseApplication):
                 ForbiddenError: handle_forbidden,
                 RateLimitExceededError: handle_rate_limited_auth,
             }
+        )
+
+        self.middlewares.append(
+            get_authorization_middleware(strategy), MiddlewareCategory.AUTHZ, 0
         )
         return strategy
 
@@ -600,10 +637,8 @@ class Application(BaseApplication):
             route.handler = get_middlewares_chain(self.middlewares, route.handler)
 
     def _normalize_middlewares(self):
-        self.middlewares = [
-            normalize_middleware(middleware, self.services)
-            for middleware in self.middlewares
-        ]
+        for item in self._middlewares.items():
+            item.middleware = normalize_middleware(item.middleware, self.services)
 
     def use_controllers(self):
         """
@@ -673,31 +708,14 @@ class Application(BaseApplication):
         return self.get_http_exception_handler(NotFound()) is handle_not_found
 
     def configure_middlewares(self):
-        if self._middlewares_configured:
+        if self._middlewares._configured:
             return
-        self._middlewares_configured = True
 
-        if self._authorization_strategy:
-            if not self._authentication_strategy:
-                raise AuthorizationWithoutAuthenticationError()
-            self.middlewares.insert(
-                0, get_authorization_middleware(self._authorization_strategy)
-            )
-
-        if self._authentication_strategy:
-            self.middlewares.insert(
-                0, get_authentication_middleware(self._authentication_strategy)
-            )
-
-        if self._session_middleware:
-            self.middlewares.insert(0, self._session_middleware)
-
-        if self._cors_strategy:
-            self.middlewares.insert(0, get_cors_middleware(self, self._cors_strategy))
-
+        # TODO: find a more elegant way for the following
         if self._default_headers:
-            self.middlewares.insert(
-                0, get_default_headers_middleware(self._default_headers)
+            self._middlewares.append(
+                get_default_headers_middleware(self._default_headers),
+                MiddlewareCategory.MESSAGE,
             )
 
         self.on_middlewares_configuration.fire_sync()
@@ -706,6 +724,8 @@ class Application(BaseApplication):
 
         if self.middlewares:
             self._apply_middlewares_in_routes()
+
+        self._middlewares._mark_configured()
 
     def extend(self, mixin) -> None:
         """

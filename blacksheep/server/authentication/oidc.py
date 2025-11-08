@@ -21,6 +21,7 @@ from jwt import InvalidTokenError
 from blacksheep.cookies import Cookie
 from blacksheep.exceptions import BadRequest, Unauthorized
 from blacksheep.messages import Request, Response, get_absolute_url_to_path
+from blacksheep.middlewares import MiddlewareCategory
 from blacksheep.server.application import Application, ApplicationEvent
 from blacksheep.server.authentication.cookie import CookieAuthentication
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
@@ -1096,9 +1097,10 @@ def use_openid_connect(
         return await handler.handle_refresh_token_request(request)
 
     if is_default:
-
-        @app.on_middlewares_configuration
-        def insert_challenge_middleware(app):
-            app.middlewares.insert(0, ChallengeMiddleware(handler.redirect_to_sign_in))
+        app.middlewares.append(
+            ChallengeMiddleware(handler.redirect_to_sign_in),
+            MiddlewareCategory.INIT,
+            100,
+        )
 
     return handler

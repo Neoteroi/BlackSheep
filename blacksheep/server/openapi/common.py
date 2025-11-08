@@ -9,6 +9,7 @@ potentially in the future v4, if it will be so different from v3.
 
 import inspect
 import json
+import os
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ from blacksheep.server.controllers import Controller
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.routing import Route, Router
 from blacksheep.url import join_prefix
+from blacksheep.utils import truthy
 from blacksheep.utils.time import utcnow
 
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
@@ -188,6 +190,12 @@ class DefaultSerializer(Serializer):
     This serializer ensures that $refs contain only allowed characters.
     """
 
+    def __init__(self, programming_names: bool = False) -> None:
+        super().__init__()
+        self._use_programming_names = programming_names or truthy(
+            os.environ.get("APP_OPENAPI_PROGRAMMING_NAMES", "0")
+        )
+
     def to_obj(self, item: Any) -> Any:
         data = super().to_obj(item)
         self.sanitize_refs(data)
@@ -240,18 +248,41 @@ class DefaultSerializer(Serializer):
     def get_type_name_for_generic(self, name: str) -> str:
         """
         This method returns a type name for a generic type.
-        The following is more for backward compatibility in BlackSheep.
         """
+        if self._use_programming_names:
+            return self._get_programming_name(name)
+        return self._get_descriptive_name(name)
+
+    def _get_programming_name(self, name: str) -> str:
+        """Programming-style names closer to actual type annotations"""
+        # Replace invalid characters with underscores, but keep structure
+        sanitized = (
+            name.replace("[", "_")
+            .replace("]", "")
+            .replace(", ", "_")
+            .replace(",", "_")
+            .replace(" | ", "_Or_")
+        )
+
+        # Remove any remaining invalid characters
+        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", sanitized)
+
+        # Ensure it starts with a letter or underscore
+        if sanitized and sanitized[0].isdigit():
+            sanitized = f"T_{sanitized}"
+
+        return sanitized
+
+    def _get_descriptive_name(self, name: str) -> str:
         # Note: by default returns a string respectful of this requirement:
         # $ref values must be RFC3986-compliant percent-encoded URIs
         # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
         # and C# or TypeScript Example<Foo, Bar>
         # Becomes here represented as: ExampleOfFooAndBar
-        if "[" not in name:
+        if "[" not in name and "|" not in name:
             return name
         name = name.replace("[", "Of").replace("]", "")
-        # TODO: handle pipes (|) as Union
-        return re.sub(r",\s?", "And", name)
+        return re.sub(r"\s?\|\s?", "Or", re.sub(r",\s?", "And", name))
 
 
 class APIDocsHandler(Generic[OpenAPIRootType], ABC):

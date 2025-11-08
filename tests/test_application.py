@@ -8,7 +8,7 @@ from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import wraps
-from typing import Annotated, Any, Dict, Generic, List, Optional, TypeVar
+from typing import Annotated, Any, Dict, Generic, List, TypeVar
 from uuid import UUID, uuid4
 
 import pytest

@@ -345,7 +345,7 @@ def test_check_union_or_none():
 
 
 def test_from_query_optional_list_type():
-    def handler(a: FromQuery[list[str]] | None): ...
+    def handler(a: FromQuery[list[str] | None]): ...
 
     binders = get_binders(Route(b"/", handler), Container())
     binder = binders[0]

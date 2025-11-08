@@ -25,7 +25,7 @@ class DefaultFileOptions:
     clients.
     """
 
-    on_response: Callable[[Request, Response], None] | None  = None
+    on_response: Callable[[Request, Response], None] | None = None
     cache_control: CacheControlHeaderValue | None = None
 
     def handle(self, request: Request, response: Response):

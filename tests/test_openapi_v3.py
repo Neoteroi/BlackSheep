@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
-from typing import Generic, Mapping, Sequence, TypeVar
+from typing import Generic, Mapping, Sequence, TypeVar, Union
 from uuid import UUID
 
 import pytest
@@ -3403,12 +3403,12 @@ class F:
 
 @dataclass
 class AnyOfTestClass:
-    sub_prop: A | B | C
+    sub_prop: Union[A, B, C]
 
 
 @dataclass
 class AnyOfResponseTestClass:
-    data: D | E | F
+    data: Union[D, E, F]
 
 
 class APyd(BaseModel):
@@ -3750,17 +3750,24 @@ components:
 
 
 @pytest.mark.parametrize(
-    "name,result",
+    "name,programming_result,descriptive_result",
     [
-        ("Example[Cat]", "ExampleOfCat"),
-        ("Union[A, B, C]", "UnionOfAAndBAndC"),
-        ("list[A | B | C]", "ListOfUnionOfAAndBAndC"),
-        ("dict[str, int]", "DictOfstrAndint"),
+        ("Example[Cat]", "Example_Cat", "ExampleOfCat"),
+        ("Union[A, B, C]", "Union_A_B_C", "UnionOfAAndBAndC"),
+        ("List[Union[A, B, C]]", "List_Union_A_B_C", "ListOfUnionOfAAndBAndC"),
+        ("Dict[str, int]", "Dict_str_int", "DictOfstrAndint"),
+        ("A | B | C", "A_Or_B_Or_C", "AOrBOrC"),
+        ("list[A | B | C]", "list_A_Or_B_Or_C", "listOfAOrBOrC"),
     ],
 )
-def test_default_serializer_sanitize_name(name, result):
-    serializer = DefaultSerializer()
-    assert serializer.get_type_name_for_generic(name) == result
+def test_serializer_naming_styles(name, programming_result, descriptive_result):
+    # Programming style
+    programming_serializer = DefaultSerializer(programming_names=True)
+    assert programming_serializer.get_type_name_for_generic(name) == programming_result
+
+    # Descriptive style (current default)
+    descriptive_serializer = DefaultSerializer(programming_names=False)
+    assert descriptive_serializer.get_type_name_for_generic(name) == descriptive_result
 
 
 async def test_tags_decorator(serializer: Serializer):

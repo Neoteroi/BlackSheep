@@ -48,7 +48,15 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .[dev]
+          VER='${{ matrix.python-version }}'
+
+          if [ $VER == "pypy-3.11" ]; then
+            echo "Install requirements for PyPy"
+            pip install -r requirements.pypy.txt
+          else
+            echo "Install requirements for CPython"
+            pip install -r requirements.txt
+          fi
           pip install flake8
 
       - name: Compile Cython extensions
@@ -263,7 +271,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .[dev]
+          pip install -r requirements.pypy.txt
       - name: Run tests with PyPy
         run: |
           echo "Running unit tests..."

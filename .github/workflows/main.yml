@@ -305,6 +305,91 @@ jobs:
       - name: Build sdist
         run: |
           python -m build --sdist
+
+      # Add verification steps here
+      - name: Verify sdist integrity
+        run: |
+          echo "=== Verifying .tar.gz files ==="
+
+          # Check if files exist and are not empty
+          for file in dist/*.tar.gz; do
+            if [ ! -f "$file" ]; then
+              echo "ERROR: $file does not exist"
+              exit 1
+            fi
+
+            size=$(stat -c%s "$file")
+            if [ "$size" -eq 0 ]; then
+              echo "ERROR: $file is empty (0 bytes)"
+              exit 1
+            fi
+
+            echo "✓ $file exists and has size: $size bytes"
+          done
+
+          # Test tar.gz integrity
+          echo "=== Testing archive integrity ==="
+          for file in dist/*.tar.gz; do
+            echo "Testing $file..."
+            if tar -tzf "$file" > /dev/null 2>&1; then
+              echo "✓ $file passed integrity check"
+            else
+              echo "ERROR: $file failed integrity check"
+              exit 1
+            fi
+          done
+
+          # Extract and verify contents
+          echo "=== Verifying archive contents ==="
+          for file in dist/*.tar.gz; do
+            echo "Extracting $file to verify contents..."
+            temp_dir=$(mktemp -d)
+            tar -xzf "$file" -C "$temp_dir"
+
+            # Check for essential files
+            extracted_dir=$(find "$temp_dir" -maxdepth 1 -type d -name "*blacksheep*" | head -1)
+            if [ -z "$extracted_dir" ]; then
+              echo "ERROR: No blacksheep directory found in $file"
+              rm -rf "$temp_dir"
+              exit 1
+            fi
+
+            # Verify essential files exist
+            essential_files=("setup.py" "blacksheep/__init__.py" "README.md")
+            for essential_file in "${essential_files[@]}"; do
+              if [ ! -f "$extracted_dir/$essential_file" ]; then
+                echo "ERROR: Missing essential file $essential_file in $file"
+                rm -rf "$temp_dir"
+                exit 1
+              fi
+            done
+
+            echo "✓ $file contains all essential files"
+            rm -rf "$temp_dir"
+          done
+
+      # Test installation from sdist
+      - name: Test installation from sdist
+        run: |
+          echo "=== Testing installation from sdist ==="
+          temp_venv=$(mktemp -d)
+          python -m venv "$temp_venv"
+          source "$temp_venv/bin/activate"
+
+          for file in dist/*.tar.gz; do
+            echo "Testing installation of $file..."
+            pip install "$file"
+
+            # Test basic import
+            python -c "import blacksheep; print(f'Successfully imported blacksheep version {blacksheep.__version__}')"
+
+            # Uninstall for next test
+            pip uninstall -y blacksheep
+          done
+
+          deactivate
+          rm -rf "$temp_venv"
+
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:

@@ -196,13 +196,16 @@ jobs:
           fetch-depth: 0
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.0
+        uses: pypa/cibuildwheel@v3.2.1
         env:
           CIBW_BUILD: cp310-* cp311-* cp312-* cp313-* cp314-*
           CIBW_ARCHS: "auto64"
 
           # Skip wheel repair on macOS to avoid file not found errors
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
+
+          # Disable GitHub step summary to avoid file not found errors in MacOS
+          CIBW_GITHUB_STEP_SUMMARY: false
 
           # Before build commands
           CIBW_BEFORE_BUILD_WINDOWS: >

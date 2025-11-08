@@ -68,7 +68,6 @@ jobs:
           pytest
 
   build:
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -174,6 +173,7 @@ jobs:
 
   # Build wheels with cibuildwheel
   build-wheels:
+    needs: build
     name: Build ${{ matrix.os }} wheels
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
@@ -228,6 +228,7 @@ jobs:
 
   # Separate macOS wheel building
   build-macos-wheels:
+    needs: build
     name: Build macOS wheels
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
@@ -265,6 +266,7 @@ jobs:
 
   # Build PyPy wheel (pure Python)
   build-pypy-wheels:
+    needs: build
     name: Build PyPy wheel
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
@@ -287,16 +289,20 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.pypy.txt
+
       - name: Run tests with PyPy
         run: |
           echo "Running unit tests..."
           pytest tests
+
       - name: Install build dependencies
         run: |
           pip install --upgrade build
+
       - name: Build wheels
         run: |
           python -m build
+
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.python-version }}
@@ -304,6 +310,7 @@ jobs:
 
   # Build source distribution
   build-sdist:
+    needs: build
     name: Build source distribution
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

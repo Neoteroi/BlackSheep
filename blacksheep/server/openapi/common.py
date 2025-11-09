@@ -102,7 +102,7 @@ class RequestBodyInfo:
         raise TypeError("Invalid type for RequestBodyInfo")
 
 
-class RequestBodyInfoDict(TypedDict):
+class RequestBodyInfoDict(TypedDict, total=False):
     description: str | None
     examples: dict[str, Any] | None
 
@@ -118,6 +118,9 @@ class ParameterExample:
 
     @classmethod
     def from_dict(cls, data: ParameterExampleDict) -> Self:
+        if "value" not in data:
+            raise ValueError("ParameterExample must have a 'value' field")
+
         return cls(
             value=data["value"],
             name=data.get("name"),
@@ -126,7 +129,7 @@ class ParameterExample:
         )
 
 
-class ParameterExampleDict(TypedDict):
+class ParameterExampleDict(TypedDict, total=False):
     value: Any
     name: str | None
     summary: str | None
@@ -150,18 +153,16 @@ class ParameterInfo:
         examples = None
         if "examples" in data and data["examples"] is not None:
             examples = {
-                key: ParameterExample(
-                    value=value["value"],
-                    name=value.get("name"),
-                    summary=value.get("summary"),
-                    description=value.get("description"),
-                )
+                key: ParameterExample.from_dict(value)
                 for key, value in data["examples"].items()
             }
 
         source = None
         if "source" in data and data["source"] is not None:
             source = ParameterSource(data["source"])
+
+        if "description" not in data:
+            raise ValueError("ParameterInfo must have a 'description' field")
 
         return cls(
             description=data["description"],
@@ -184,7 +185,7 @@ class ParameterInfo:
         raise TypeError("Invalid type for ParameterInfo")
 
 
-class ParameterInfoDict(TypedDict):
+class ParameterInfoDict(TypedDict, total=False):
     description: str
     value_type: Type[Any] | None
     source: str | None
@@ -204,6 +205,9 @@ class ResponseExample:
 
     @classmethod
     def from_dict(cls, data: ResponseExampleDict) -> Self:
+        if "value" not in data:
+            raise ValueError("ResponseExample must have a 'value' field")
+
         return cls(
             value=data["value"],
             name=data.get("name"),
@@ -212,7 +216,7 @@ class ResponseExample:
         )
 
 
-class ResponseExampleDict(TypedDict):
+class ResponseExampleDict(TypedDict, total=False):
     value: Any
     name: str | None
     summary: str | None
@@ -227,6 +231,9 @@ class ContentInfo:
 
     @classmethod
     def from_dict(cls, data: ContentInfoDict) -> Self:
+        if "type" not in data:
+            raise ValueError("ContentInfo must have a 'type' field")
+
         return cls(
             type=data["type"],
             examples=data.get("examples"),
@@ -234,7 +241,7 @@ class ContentInfo:
         )
 
 
-class ContentInfoDict(TypedDict):
+class ContentInfoDict(TypedDict, total=False):
     type: Type[Any]
     examples: list[ResponseExampleDict | Any] | None
     content_type: str
@@ -248,6 +255,9 @@ class HeaderInfo:
 
     @classmethod
     def from_dict(cls, data: HeaderInfoDict) -> Self:
+        if "type" not in data:
+            raise ValueError("HeaderInfo must have a 'type' field")
+
         return cls(
             type=data["type"],
             description=data.get("description"),
@@ -255,7 +265,7 @@ class HeaderInfo:
         )
 
 
-class HeaderInfoDict(TypedDict):
+class HeaderInfoDict(TypedDict, total=False):
     type: Type[Any]
     description: str | None
     example: Any
@@ -284,6 +294,9 @@ class ResponseInfo:
                     ContentInfo.from_dict(item)
                 )
 
+        if "description" not in data:
+            raise ValueError("ResponseInfo must have a 'description' field")
+
         return cls(
             description=data["description"],
             headers=headers,
@@ -300,7 +313,7 @@ class ResponseInfo:
         raise TypeError("Invalid type for ResponseInfo")
 
 
-class ResponseInfoDict(TypedDict):
+class ResponseInfoDict(TypedDict, total=False):
     description: str
     headers: dict[str, HeaderInfoDict] | None
     content: list[ContentInfoDict] | None
@@ -313,6 +326,12 @@ class SecurityInfo:
 
     @classmethod
     def from_dict(cls, data: SecurityInfoDict) -> Self:
+        if "name" not in data:
+            raise ValueError("SecurityInfo must have a 'name' field")
+
+        if "value" not in data:
+            raise ValueError("SecurityInfo must have a 'value' field")
+
         return cls(
             name=data["name"],
             value=data["value"],
@@ -328,7 +347,7 @@ class SecurityInfo:
         raise TypeError("Invalid type for SecurityInfo")
 
 
-class SecurityInfoDict(TypedDict):
+class SecurityInfoDict(TypedDict, total=False):
     name: str
     value: list[str]
 
@@ -355,7 +374,7 @@ class ControllerDocs:
         )
 
 
-class ControllerDocsDict(TypedDict):
+class ControllerDocsDict(TypedDict, total=False):
     tags: list[str] | None
 
 
@@ -419,7 +438,7 @@ class EndpointDocs:
         )
 
 
-class EndpointDocsDict(TypedDict):
+class EndpointDocsDict(TypedDict, total=False):
     summary: str | None
     description: str | None
     tags: list[str] | None

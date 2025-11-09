@@ -79,6 +79,11 @@ ParameterSourceLiteral = Literal[
 ]
 
 
+class RequestBodyInfoDict(TypedDict, total=False):
+    description: str | None
+    examples: dict[str, Any] | None
+
+
 @dataclass
 class RequestBodyInfo:
     description: Optional[str] = None
@@ -101,11 +106,11 @@ class RequestBodyInfo:
         raise TypeError("Invalid type for RequestBodyInfo")
 
 
-class RequestBodyInfoDict(TypedDict, total=False):
+class ParameterExampleDict(TypedDict, total=False):
+    value: Any
+    name: str | None
+    summary: str | None
     description: str | None
-    examples: dict[str, Any] | None
-
-
 
 
 @dataclass
@@ -128,11 +133,15 @@ class ParameterExample:
         )
 
 
-class ParameterExampleDict(TypedDict, total=False):
-    value: Any
-    name: str | None
-    summary: str | None
-    description: str | None
+class ParameterInfoDict(TypedDict, total=False):
+    description: str
+    value_type: Type[Any] | None
+    source: str | None
+    required: bool | None
+    deprecated: bool | None
+    allow_empty_value: bool | None
+    example: Any | None
+    examples: dict[str, ParameterExampleDict] | None
 
 
 @dataclass
@@ -184,15 +193,11 @@ class ParameterInfo:
         raise TypeError("Invalid type for ParameterInfo")
 
 
-class ParameterInfoDict(TypedDict, total=False):
-    description: str
-    value_type: Type[Any] | None
-    source: str | None
-    required: bool | None
-    deprecated: bool | None
-    allow_empty_value: bool | None
-    example: Any | None
-    examples: dict[str, ParameterExampleDict] | None
+class ResponseExampleDict(TypedDict, total=False):
+    value: Any
+    name: str | None
+    summary: str | None
+    description: str | None
 
 
 @dataclass
@@ -215,11 +220,10 @@ class ResponseExample:
         )
 
 
-class ResponseExampleDict(TypedDict, total=False):
-    value: Any
-    name: str | None
-    summary: str | None
-    description: str | None
+class ContentInfoDict(TypedDict, total=False):
+    type: Type[Any]
+    examples: list[ResponseExampleDict | Any] | None
+    content_type: str
 
 
 @dataclass
@@ -240,10 +244,10 @@ class ContentInfo:
         )
 
 
-class ContentInfoDict(TypedDict, total=False):
+class HeaderInfoDict(TypedDict, total=False):
     type: Type[Any]
-    examples: list[ResponseExampleDict | Any] | None
-    content_type: str
+    description: str | None
+    example: Any
 
 
 @dataclass
@@ -264,10 +268,10 @@ class HeaderInfo:
         )
 
 
-class HeaderInfoDict(TypedDict, total=False):
-    type: Type[Any]
-    description: str | None
-    example: Any
+class ResponseInfoDict(TypedDict, total=False):
+    description: str
+    headers: dict[str, HeaderInfoDict] | None
+    content: list[ContentInfoDict] | None
 
 
 @dataclass
@@ -312,10 +316,9 @@ class ResponseInfo:
         raise TypeError("Invalid type for ResponseInfo")
 
 
-class ResponseInfoDict(TypedDict, total=False):
-    description: str
-    headers: dict[str, HeaderInfoDict] | None
-    content: list[ContentInfoDict] | None
+class SecurityInfoDict(TypedDict, total=False):
+    name: str
+    value: list[str]
 
 
 @dataclass
@@ -346,11 +349,6 @@ class SecurityInfo:
         raise TypeError("Invalid type for SecurityInfo")
 
 
-class SecurityInfoDict(TypedDict, total=False):
-    name: str
-    value: list[str]
-
-
 ResponseStatusType = Union[int, str, HTTPStatus]
 
 
@@ -360,6 +358,10 @@ def response_status_to_str(value: ResponseStatusType) -> str:
     if isinstance(value, str):
         return value
     return str(value)
+
+
+class ControllerDocsDict(TypedDict, total=False):
+    tags: list[str] | None
 
 
 @dataclass
@@ -373,8 +375,17 @@ class ControllerDocs:
         )
 
 
-class ControllerDocsDict(TypedDict, total=False):
+class EndpointDocsDict(TypedDict, total=False):
+    summary: str | None
+    description: str | None
     tags: list[str] | None
+    parameters: Mapping[str, ParameterInfoDict] | None
+    request_body: RequestBodyInfoDict | None
+    responses: dict[ResponseStatusType, str | ResponseInfoDict | ResponseInfoDict] | None
+    ignored: bool | None
+    deprecated: bool | None
+    on_created: Callable[[Any, Any], None] | None
+    security: list[SecurityInfoDict] | None
 
 
 @dataclass
@@ -435,19 +446,6 @@ class EndpointDocs:
             on_created=data.get("on_created"),
             security=security,
         )
-
-
-class EndpointDocsDict(TypedDict, total=False):
-    summary: str | None
-    description: str | None
-    tags: list[str] | None
-    parameters: Mapping[str, ParameterInfoDict] | None
-    request_body: RequestBodyInfoDict | None
-    responses: dict[ResponseStatusType, str | ResponseInfoDict | ResponseInfoDict] | None
-    ignored: bool | None
-    deprecated: bool | None
-    on_created: Callable[[Any, Any], None] | None
-    security: list[SecurityInfoDict] | None
 
 
 OpenAPIRootType = TypeVar("OpenAPIRootType", bound=OpenAPIRoot)

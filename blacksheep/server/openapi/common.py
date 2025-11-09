@@ -22,7 +22,6 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Self,
     Type,
     TypedDict,
     TypeVar,
@@ -86,14 +85,14 @@ class RequestBodyInfo:
     examples: Optional[Dict[str, Any]] = None
 
     @classmethod
-    def from_dict(cls, data: RequestBodyInfoDict) -> Self:
+    def from_dict(cls, data: RequestBodyInfoDict) -> "RequestBodyInfo":
         return cls(
             description=data.get("description"),
             examples=data.get("examples"),
         )
 
     @classmethod
-    def from_any(cls, data: "RequestBodyInfo | RequestBodyInfoDict") -> "Self | RequestBodyInfo":
+    def from_any(cls, data: "RequestBodyInfo | RequestBodyInfoDict") -> "RequestBodyInfo":
         if isinstance(data, RequestBodyInfo):
             return data
         if isinstance(data, dict):
@@ -117,7 +116,7 @@ class ParameterExample:
     description: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: ParameterExampleDict) -> Self:
+    def from_dict(cls, data: ParameterExampleDict) -> "ParameterExample":
         if "value" not in data:
             raise ValueError("ParameterExample must have a 'value' field")
 
@@ -149,7 +148,7 @@ class ParameterInfo:
 
 
     @classmethod
-    def from_dict(cls, data: ParameterInfoDict) -> Self:
+    def from_dict(cls, data: ParameterInfoDict) -> "ParameterInfo":
         examples = None
         if "examples" in data and data["examples"] is not None:
             examples = {
@@ -176,7 +175,7 @@ class ParameterInfo:
         )
 
     @classmethod
-    def from_any(cls, data: "ParameterInfo | ParameterInfoDict") -> "Self | ParameterInfo":
+    def from_any(cls, data: "ParameterInfo | ParameterInfoDict") -> "ParameterInfo":
         if isinstance(data, ParameterInfo):
             return data
         if isinstance(data, dict):
@@ -204,7 +203,7 @@ class ResponseExample:
     description: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: ResponseExampleDict) -> Self:
+    def from_dict(cls, data: ResponseExampleDict) -> "ResponseExample":
         if "value" not in data:
             raise ValueError("ResponseExample must have a 'value' field")
 
@@ -230,7 +229,7 @@ class ContentInfo:
     content_type: str = "application/json"
 
     @classmethod
-    def from_dict(cls, data: ContentInfoDict) -> Self:
+    def from_dict(cls, data: ContentInfoDict) -> "ContentInfo":
         if "type" not in data:
             raise ValueError("ContentInfo must have a 'type' field")
 
@@ -254,7 +253,7 @@ class HeaderInfo:
     example: Any = None
 
     @classmethod
-    def from_dict(cls, data: HeaderInfoDict) -> Self:
+    def from_dict(cls, data: HeaderInfoDict) -> "HeaderInfo":
         if "type" not in data:
             raise ValueError("HeaderInfo must have a 'type' field")
 
@@ -278,7 +277,7 @@ class ResponseInfo:
     content: Optional[List[ContentInfo]] = None
 
     @classmethod
-    def from_dict(cls, data: ResponseInfoDict) -> Self:
+    def from_dict(cls, data: ResponseInfoDict) -> "ResponseInfo":
         headers = None
         if "headers" in data and data["headers"] is not None:
             headers = {
@@ -304,7 +303,7 @@ class ResponseInfo:
         )
 
     @classmethod
-    def from_any(cls, data: "ResponseInfo | ResponseInfoDict") -> "Self | ResponseInfo":
+    def from_any(cls, data: "ResponseInfo | ResponseInfoDict") -> "ResponseInfo":
         if isinstance(data, ResponseInfo):
             return data
         if isinstance(data, dict):
@@ -325,7 +324,7 @@ class SecurityInfo:
     value: List[str]
 
     @classmethod
-    def from_dict(cls, data: SecurityInfoDict) -> Self:
+    def from_dict(cls, data: SecurityInfoDict) -> "SecurityInfo":
         if "name" not in data:
             raise ValueError("SecurityInfo must have a 'name' field")
 
@@ -338,7 +337,7 @@ class SecurityInfo:
         )
 
     @classmethod
-    def from_any(cls, data: "SecurityInfo | SecurityInfoDict") -> "Self | SecurityInfo":
+    def from_any(cls, data: "SecurityInfo | SecurityInfoDict") -> "SecurityInfo":
         if isinstance(data, SecurityInfo):
             return data
         if isinstance(data, dict):
@@ -368,7 +367,7 @@ class ControllerDocs:
     tags: Optional[List[str]] = None
 
     @classmethod
-    def from_dict(cls, data: ControllerDocsDict) -> Self:
+    def from_dict(cls, data: ControllerDocsDict) -> "ControllerDocs":
         return cls(
             tags=data.get("tags"),
         )
@@ -394,7 +393,7 @@ class EndpointDocs:
     security: Optional[List[SecurityInfo]] = None
 
     @classmethod
-    def from_dict(cls, data: EndpointDocsDict) -> Self:
+    def from_dict(cls, data: EndpointDocsDict) -> "EndpointDocs":
         parameters = None
         if "parameters" in data and data["parameters"] is not None:
             parameters = {

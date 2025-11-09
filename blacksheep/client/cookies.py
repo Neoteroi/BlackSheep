@@ -1,7 +1,7 @@
 import logging
 from datetime import timedelta
 from ipaddress import ip_address
-from typing import Dict, Iterable, Optional, TypeVar
+from typing import Iterable, TypeVar
 
 from blacksheep import URL, Cookie
 from blacksheep.utils.time import MIN_DATETIME, utcnow
@@ -75,7 +75,7 @@ class StoredCookie:
 
 
 # cookies are stored by host name, path, and name
-StoredCookieContainer = Dict[str, Dict[str, Dict[str, StoredCookie]]]
+StoredCookieContainer = dict[str, dict[str, dict[str, StoredCookie]]]
 T = TypeVar("T")
 
 
@@ -195,7 +195,7 @@ class CookieJar:
         self,
         schema: str,
         path: str,
-        cookies_by_path: Dict[str, Dict[str, StoredCookie]],
+        cookies_by_path: dict[str, dict[str, StoredCookie]],
     ) -> Iterable[Cookie]:
         for cookie_path, cookies in cookies_by_path.items():
             if CookieJar.path_match(path, cookie_path):
@@ -204,7 +204,7 @@ class CookieJar:
 
     @staticmethod
     def _get_cookies_checking_exp(
-        schema: str, cookies: Dict[str, StoredCookie]
+        schema: str, cookies: dict[str, StoredCookie]
     ) -> Iterable[Cookie]:
         for cookie_name, stored_cookie in cookies.copy().items():
             if stored_cookie.is_expired():
@@ -229,8 +229,8 @@ class CookieJar:
 
     @staticmethod
     def _ensure_dict_container(
-        container: Dict[str, Dict[str, T]], key: str
-    ) -> Dict[str, T]:
+        container: dict[str, dict[str, T]], key: str
+    ) -> dict[str, T]:
         try:
             return container[key]
         except KeyError:
@@ -253,7 +253,7 @@ class CookieJar:
     @staticmethod
     def _get(
         container: dict, domain: str, path: str, cookie_name: str
-    ) -> Optional[StoredCookie]:
+    ) -> StoredCookie | None:
         try:
             return container[domain][path][cookie_name]
         except KeyError:
@@ -267,7 +267,7 @@ class CookieJar:
             return False
         return True
 
-    def get(self, domain: str, path: str, cookie_name: str) -> Optional[StoredCookie]:
+    def get(self, domain: str, path: str, cookie_name: str) -> StoredCookie | None:
         return self._get(
             self._host_only_cookies, domain, path, cookie_name
         ) or self._get(self._domain_cookies, domain, path, cookie_name)

@@ -1,5 +1,3 @@
-from typing import Dict, Optional, Tuple
-
 from guardpost import (
     AuthenticationHandler,
     AuthenticationStrategy,
@@ -30,7 +28,7 @@ class AuthenticateChallenge(AuthorizationError):
     header_name = b"WWW-Authenticate"
 
     def __init__(
-        self, scheme: str, realm: Optional[str], parameters: Optional[Dict[str, str]]
+        self, scheme: str, realm: str | None, parameters: dict[str, str | None]
     ):
         self.scheme = scheme
         self.realm = realm
@@ -56,7 +54,7 @@ class AuthenticateChallenge(AuthorizationError):
             )
         return bytes(parts)
 
-    def get_header(self) -> Tuple[bytes, bytes]:
+    def get_header(self) -> tuple[bytes, bytes]:
         return self.header_name, self._get_header_value()
 
 

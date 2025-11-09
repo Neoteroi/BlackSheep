@@ -18,17 +18,17 @@ class Example(BaseModel):
     name: str
 
 
-class ExampleCollection(FromJSON[List[Example]]):
+class ExampleCollection(FromJSON[list[Example]]):
 
     @staticmethod
-    def convert(obj) -> List[Example]:
+    def convert(obj) -> list[Example]:
         return [Example(**item) for item in obj]
 
 
-class JSONNestedList(FromJSON[List[List[str]]]):
+class JSONNestedList(FromJSON[list[List[str]]]):
 
     @staticmethod
-    def convert(obj) -> List[List[str]]:
+    def convert(obj) -> list[List[str]]:
         """
         This function is a custom converter for request bodies. It receives as input the
         already JSON-parsed Python object (not the raw JSON string), and can return any
@@ -72,7 +72,7 @@ async def test_custom_converter_in_class_definition_2(app):
     expected_result = [Example(id=1, name="Hello"), Example(id=2, name="World")]
 
     @app.router.post("/")
-    async def home(item: FromJSON[List[Example]]):
+    async def home(item: FromJSON[list[Example]]):
         assert item is not None
         value = item.value
         assert value == expected_result

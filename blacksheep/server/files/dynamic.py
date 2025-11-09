@@ -1,7 +1,7 @@
 import html
 import os
 from pathlib import Path
-from typing import Awaitable, Callable, Iterable, Optional, Sequence, Set, Union
+from typing import Awaitable, Callable, Iterable, Sequence, Set
 from urllib.parse import unquote
 
 from blacksheep import HTMLContent, Request, Response
@@ -22,7 +22,7 @@ from blacksheep.utils import join_fragments
 
 
 def get_files_to_serve(
-    source_folder: Path, extensions: Set[str], root_folder: Optional[Path] = None
+    source_folder: Path, extensions: Set[str], root_folder: Path | None = None
 ) -> Iterable[FilePathInfo]:
     assert source_folder.exists(), "The source folder path must exist"
     assert source_folder.is_dir(), "The source folder path must be a directory"
@@ -111,8 +111,8 @@ def get_response_for_resource_path(
     cache_time: int,
     extensions: Set[str],
     root_path: str,
-    index_document: Optional[str],
-    default_file_options: Optional[DefaultFileOptions] = None,
+    index_document: str | None,
+    default_file_options: DefaultFileOptions | None = None,
 ) -> Response:
     resource_path = os.path.join(source_folder_name, tail)
 
@@ -174,9 +174,9 @@ def get_files_route_handler(
     cache_time: int,
     extensions: Set[str],
     root_path: str,
-    index_document: Optional[str],
-    fallback_document: Optional[str],
-    default_file_options: Optional[DefaultFileOptions] = None,
+    index_document: str | None,
+    fallback_document: str | None,
+    default_file_options: DefaultFileOptions | None = None,
 ) -> Callable[[Request], Awaitable[Response]]:
     files_list_html = get_resource_file_content("fileslist.html")
     source_folder_full_path = os.path.abspath(str(source_folder_name))
@@ -240,16 +240,16 @@ def get_static_files_route(path_prefix: str) -> bytes:
 def serve_files_dynamic(
     router: Router,
     files_handler: FilesHandler,
-    source_folder: Union[str, Path],
+    source_folder: str | Path,
     *,
     discovery: bool,
     cache_time: int,
-    extensions: Optional[Set[str]],
+    extensions: Set[str | None],
     root_path: str,
-    index_document: Optional[str],
-    fallback_document: Optional[str],
+    index_document: str | None,
+    fallback_document: str | None,
     anonymous_access: bool = True,
-    default_file_options: Optional[DefaultFileOptions] = None,
+    default_file_options: DefaultFileOptions | None = None,
 ) -> None:
     """
     Configures a route to serve files dynamically, using the given files handler and

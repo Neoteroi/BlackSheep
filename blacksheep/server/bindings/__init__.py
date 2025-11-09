@@ -18,13 +18,9 @@ from typing import (
     Dict,
     ForwardRef,
     Generic,
-    List,
-    Optional,
     Sequence,
-    Tuple,
     Type,
     TypeVar,
-    Union,
 )
 
 from guardpost import Identity
@@ -38,7 +34,7 @@ from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
 
 T = TypeVar("T")
-TypeOrName = Union[Type, str]
+TypeOrName = Type | str
 
 
 empty = object()
@@ -84,8 +80,8 @@ class BinderNotRegisteredForValueType(BindingException):
 
 
 class BinderMeta(type):
-    handlers: Dict[Type[Any], Type["Binder"]] = {}
-    aliases: Dict[Any, Callable[[ContainerProtocol], "Binder"]] = {}
+    handlers: dict[Type[Any], Type["Binder"]] = {}
+    aliases: dict[Any, Callable[[ContainerProtocol], "Binder"]] = {}
 
     def __init__(cls, name, bases, attr_dict):
         super().__init__(name, bases, attr_dict)
@@ -112,7 +108,7 @@ class BinderMeta(type):
 class BoundValue(Generic[T]):
     """Base class for parameters that are bound for a web request."""
 
-    name: Optional[str] = None
+    name: str | None = None
 
     def __init__(self, value: T) -> None:
         self._value = value
@@ -181,7 +177,7 @@ class FromForm(BoundValue[T]):
     default_value_type = dict
 
 
-class FromFiles(BoundValue[List[FormPart]]):
+class FromFiles(BoundValue[list[FormPart]]):
     """
     A parameter obtained from multipart/form-data files.
     """
@@ -193,13 +189,13 @@ class FromRoute(BoundValue[T]):
     """
 
 
-class ClientInfo(BoundValue[Tuple[str, int]]):
+class ClientInfo(BoundValue[tuple[str, int]]):
     """
     Client ip and port information obtained from a request scope.
     """
 
 
-class ServerInfo(BoundValue[Tuple[str, int]]):
+class ServerInfo(BoundValue[tuple[str, int]]):
     """
     Server ip and port information obtained from a request scope.
     """
@@ -242,7 +238,7 @@ class Binder(metaclass=BinderMeta):  # type: ignore
         name: str = "",
         implicit: bool = False,
         required: bool = True,
-        converter: Optional[Callable] = None,
+        converter: Callable | None = None,
     ):
         self._implicit = implicit or not _implicit_default(self)
         self.parameter_name = name
@@ -335,7 +331,7 @@ class Binder(metaclass=BinderMeta):  # type: ignore
 
         if self.root_required is False and value is None:
             # This is the case of:
-            # Optional[BoundValue[T]]
+            # BoundValue[T | None]
             return None
 
         return self.handle(value)
@@ -418,7 +414,7 @@ class BodyBinder(Binder):
         name: str = "body",
         implicit: bool = False,
         required: bool = False,
-        converter: Optional[Callable] = None,
+        converter: Callable | None = None,
     ):
         super().__init__(expected_type, name, implicit, required, None)
 
@@ -478,7 +474,7 @@ class BodyBinder(Binder):
     async def read_data(self, request: Request) -> Any:
         raise NotImplementedError()
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> T | None:
         if request.method not in self._excluded_methods and self.matches_content_type(
             request
         ):
@@ -572,7 +568,7 @@ class TextBinder(BodyBinder):
 class BytesBinder(Binder):
     handle = FromBytes
 
-    async def get_value(self, request: Request) -> Optional[bytes]:
+    async def get_value(self, request: Request) -> bytes | None:
         return await request.read()
 
 
@@ -584,11 +580,11 @@ class SyncBinder(Binder):
 
     def __init__(
         self,
-        expected_type: Any = List[str],
+        expected_type: Any = list[str],
         name: str = "",
         implicit: bool = False,
         required: bool = False,
-        converter: Optional[Callable[[Sequence[str]], Any]] = None,
+        converter: Callable[[Sequence[str]], Any] | None = None,
     ):
         super().__init__(
             expected_type,
@@ -642,7 +638,7 @@ class SyncBinder(Binder):
     def _empty_iterable(self, value):
         return value in self._empty_iterables
 
-    async def get_value(self, request: Request) -> Optional[Any]:
+    async def get_value(self, request: Request) -> Any | None:
         raw_value = self.get_raw_value(request)
         try:
             value = self.converter(raw_value)
@@ -709,10 +705,10 @@ class RouteBinder(SyncBinder):
     def __init__(
         self,
         expected_type: T = str,
-        name: Optional[str] = None,
+        name: str | None = None,
         implicit: bool = False,
         required: bool = True,
-        converter: Optional[Callable] = None,
+        converter: Callable | None = None,
     ):
         super().__init__(expected_type, name or "route", implicit, required, converter)
 
@@ -732,7 +728,7 @@ class ServiceBinder(Binder):
         service,
         name: str = "",
         implicit: bool = False,
-        services: Optional[ContainerProtocol] = None,
+        services: ContainerProtocol | None = None,
     ):
         super().__init__(service, name, implicit, False, None)
         self.services = services
@@ -770,7 +766,7 @@ class ControllerBinder(ServiceBinder):
 
     handle = ControllerParameter
 
-    async def get_value(self, request: Request) -> Optional[T]:
+    async def get_value(self, request: Request) -> T | None:
         return await super().get_value(request)
 
 
@@ -792,14 +788,14 @@ class WebSocketBinder(Binder):
     def __init__(self, implicit: bool = True):
         super().__init__(WebSocket, implicit=implicit)
 
-    async def get_value(self, websocket: WebSocket) -> Optional[WebSocket]:
+    async def get_value(self, websocket: WebSocket) -> WebSocket | None:
         return websocket
 
 
 class IdentityBinder(Binder):
     handle = RequestUser
 
-    async def get_value(self, request: Request) -> Optional[Identity]:
+    async def get_value(self, request: Request) -> Identity | None:
         return getattr(request, "identity", None)
 
 
@@ -823,14 +819,14 @@ class ServicesBinder(ExactBinder):
 class ClientInfoBinder(Binder):
     handle = ClientInfo
 
-    async def get_value(self, request: Request) -> Tuple[str, int]:
+    async def get_value(self, request: Request) -> tuple[str, int]:
         return tuple(request.scope["client"])
 
 
 class ServerInfoBinder(Binder):
     handle = ServerInfo
 
-    async def get_value(self, request: Request) -> Tuple[str, int]:
+    async def get_value(self, request: Request) -> tuple[str, int]:
         return tuple(request.scope["server"])
 
 
@@ -857,5 +853,5 @@ class RequestMethodBinder(Binder):
 class FilesBinder(Binder):
     handle = FromFiles
 
-    async def get_value(self, request: Request) -> List[FormPart]:
+    async def get_value(self, request: Request) -> list[FormPart]:
         return await request.files()

@@ -2,7 +2,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
-from typing import Any, AsyncIterable, Callable, Dict, Optional
+from typing import Any, AsyncIterable, Callable
 from uuid import UUID, uuid4
 
 import pytest
@@ -508,7 +508,7 @@ async def test_html_response_with_status(content, status, app):
 
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
-async def test_json_response(obj: Any, values: Dict[str, Any], app):
+async def test_json_response(obj: Any, values: dict[str, Any], app):
     @app.router.get("/")
     async def home():
         return json(obj)
@@ -537,7 +537,7 @@ async def test_json_response(obj: Any, values: Dict[str, Any], app):
 
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
-async def test_pretty_json_response(obj: Any, values: Dict[str, Any], app):
+async def test_pretty_json_response(obj: Any, values: dict[str, Any], app):
     @app.router.get("/")
     async def home():
         return pretty_json(obj)
@@ -646,7 +646,7 @@ async def test_file_response_from_generator(app):
 
 
 async def test_file_response_from_bytes_io(app):
-    bytes_io: Optional[BytesIO] = None
+    bytes_io: BytesIO | None = None
 
     @app.router.get("/")
     async def home():
@@ -956,7 +956,7 @@ async def test_view_methods_in_controller_throw_if_sys_get_frame_is_not_defined(
 
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
-async def test_json_response_in_controller(obj: Any, values: Dict[str, Any], app):
+async def test_json_response_in_controller(obj: Any, values: dict[str, Any], app):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get
 
@@ -992,7 +992,7 @@ async def test_json_response_in_controller(obj: Any, values: Dict[str, Any], app
 
 @pytest.mark.parametrize("obj,values", JSON_OBJECTS)
 async def test_pretty_json_response_in_controller(
-    obj: Any, values: Dict[str, Any], app
+    obj: Any, values: dict[str, Any], app
 ):
     app.controllers_router = RoutesRegistry()
     get = app.controllers_router.get

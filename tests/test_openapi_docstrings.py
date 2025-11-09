@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 
 from blacksheep.server.openapi.common import ParameterInfo
@@ -20,7 +18,7 @@ from blacksheep.server.openapi.docstrings import (
             """
             Example with lists of values.
 
-            @param List[str] a: list of str
+            @param list[str] a: list of str
             @param int[] b: list of int
             @param str[] c: list of str
             """,
@@ -28,9 +26,9 @@ from blacksheep.server.openapi.docstrings import (
                 summary="Example with lists of values.",
                 description="Example with lists of values.",
                 parameters={
-                    "a": ParameterInfo("list of str", value_type=List[str]),
-                    "b": ParameterInfo("list of int", value_type=List[int]),
-                    "c": ParameterInfo("list of str", value_type=List[str]),
+                    "a": ParameterInfo("list of str", value_type=list[str]),
+                    "b": ParameterInfo("list of int", value_type=list[int]),
+                    "c": ParameterInfo("list of str", value_type=list[str]),
                 },
             ),
             True,
@@ -42,7 +40,7 @@ from blacksheep.server.openapi.docstrings import (
             @param a: list of str
             @param b: list of int
             @param c: list of str
-            @type a: List[str]
+            @type a: list[str]
             @type b: int[]
             @type c: str[]
             """,
@@ -50,9 +48,9 @@ from blacksheep.server.openapi.docstrings import (
                 summary="Example with lists of values.",
                 description="Example with lists of values.",
                 parameters={
-                    "a": ParameterInfo("list of str", value_type=List[str]),
-                    "b": ParameterInfo("list of int", value_type=List[int]),
-                    "c": ParameterInfo("list of str", value_type=List[str]),
+                    "a": ParameterInfo("list of str", value_type=list[str]),
+                    "b": ParameterInfo("list of int", value_type=list[int]),
+                    "c": ParameterInfo("list of str", value_type=list[str]),
                 },
             ),
             True,
@@ -255,7 +253,7 @@ def test_epytext_dialect(docstring, expected_info, match):
             """
             Example with lists of values.
 
-            :param List[str] a: list of str
+            :param list[str] a: list of str
             :param int[] b: list of int
             :param str[] c: list of str
             """,
@@ -263,9 +261,9 @@ def test_epytext_dialect(docstring, expected_info, match):
                 summary="Example with lists of values.",
                 description="Example with lists of values.",
                 parameters={
-                    "a": ParameterInfo("list of str", value_type=List[str]),
-                    "b": ParameterInfo("list of int", value_type=List[int]),
-                    "c": ParameterInfo("list of str", value_type=List[str]),
+                    "a": ParameterInfo("list of str", value_type=list[str]),
+                    "b": ParameterInfo("list of int", value_type=list[int]),
+                    "c": ParameterInfo("list of str", value_type=list[str]),
                 },
             ),
         ),
@@ -290,7 +288,7 @@ def test_epytext_dialect(docstring, expected_info, match):
             :param a: list of str
             :param b: list of int
             :param c: list of str
-            :type a: List[str]
+            :type a: list[str]
             :type b: int[]
             :type c: str[]
             """,
@@ -298,9 +296,9 @@ def test_epytext_dialect(docstring, expected_info, match):
                 summary="Example with lists of values.",
                 description="Example with lists of values.",
                 parameters={
-                    "a": ParameterInfo("list of str", value_type=List[str]),
-                    "b": ParameterInfo("list of int", value_type=List[int]),
-                    "c": ParameterInfo("list of str", value_type=List[str]),
+                    "a": ParameterInfo("list of str", value_type=list[str]),
+                    "b": ParameterInfo("list of int", value_type=list[int]),
+                    "c": ParameterInfo("list of str", value_type=list[str]),
                 },
             ),
         ),
@@ -443,7 +441,7 @@ def test_rest_dialect(docstring, expected_info):
 
             Parameters
             ----------
-            a : List[str]
+            a : list[str]
                 list of str
             b : int[]
                 list of int
@@ -454,9 +452,9 @@ def test_rest_dialect(docstring, expected_info):
                 summary="Example with lists of values.",
                 description="Example with lists of values.",
                 parameters={
-                    "a": ParameterInfo("list of str", value_type=List[str]),
-                    "b": ParameterInfo("list of int", value_type=List[int]),
-                    "c": ParameterInfo("list of str", value_type=List[str]),
+                    "a": ParameterInfo("list of str", value_type=list[str]),
+                    "b": ParameterInfo("list of int", value_type=list[int]),
+                    "c": ParameterInfo("list of str", value_type=list[str]),
                 },
             ),
             True,

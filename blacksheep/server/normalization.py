@@ -1,17 +1,15 @@
 import inspect
 from functools import partial, wraps
 from inspect import Signature, _empty, _ParameterKind  # type: ignore
+from types import UnionType
 from typing import (
     Any,
     Awaitable,
     Callable,
     ForwardRef,
-    List,
     Mapping,
-    Optional,
     Sequence,
     Set,
-    Tuple,
     Type,
     TypeVar,
     Union,
@@ -44,14 +42,6 @@ from .bindings import (
 )
 
 _next_handler_binder = object()
-
-
-# region PEP 604
-try:
-    # Python >= 3.10
-    from types import UnionType
-except ImportError:  # pragma: no cover
-    UnionType = ...
 
 
 def _is_union_type(annotation):
@@ -95,7 +85,7 @@ def _get_method_annotations_or_throw(method):
         raise  # pragma: no cover
 
 
-def _get_method_annotations_base(method, signature: Optional[Signature] = None):
+def _get_method_annotations_base(method, signature: Signature | None = None):
     if signature is None:
         signature = Signature.from_callable(method)
     params = {
@@ -230,10 +220,6 @@ _types_handled_with_query = {
     set[float],
     set[bool],
     set[UUID],
-    List[str],
-    List[int],
-    List[float],
-    List[bool],
     Sequence[str],
     Sequence[int],
     Sequence[float],
@@ -242,22 +228,18 @@ _types_handled_with_query = {
     Set[int],
     Set[float],
     Set[bool],
-    Tuple[str],
-    Tuple[int],
-    Tuple[float],
-    Tuple[bool],
     UUID,
-    List[UUID],
+    list[UUID],
     Set[UUID],
-    Tuple[UUID],
+    tuple[UUID],
 }
 
 
 def _check_union(
     parameter: ParamInfo, annotation: Any, method: Callable[..., Any]
-) -> Tuple[bool, Any]:
+) -> tuple[bool, Any]:
     """
-    Checks if the given annotation is Optional[] - in such case unwraps it
+    Checks if the given annotation is T | None - in such case unwraps it
     and returns its value.
 
     An exception is thrown if other kinds of Union[] are used, since they are
@@ -269,7 +251,7 @@ def _check_union(
     if (
         hasattr(annotation, "__origin__") and annotation.__origin__ is Union
     ) or _is_union_type(annotation):
-        # support only Union[None, Type] - that is equivalent of Optional[Type],
+        # support only Union[None, Type] - that is equivalent of Type | None,
         # and also PEP 604 T | Non; None | T
         if type(None) not in annotation.__args__ or len(annotation.__args__) > 2:
             raise NormalizationError(
@@ -289,7 +271,7 @@ def _check_union(
 
 def _get_parameter_binder_without_annotation(
     services: ContainerProtocol,
-    route: Optional[Route],
+    route: Route | None,
     name: str,
 ) -> Binder:
     if route:
@@ -302,7 +284,7 @@ def _get_parameter_binder_without_annotation(
         return ServiceBinder(name, name, True, services)
 
     # 3. default to query parameter
-    return QueryBinder(List[str], name, True)
+    return QueryBinder(list[str], name, True)
 
 
 def _is_bound_value_annotation(annotation: Any) -> bool:
@@ -334,7 +316,7 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
         #   def foo(x: FromQuery): ...
         if hasattr(bound_type, "default_value_type"):
             return getattr(bound_type, "default_value_type")
-        return List[str]
+        return list[str]
 
     return value_type
 
@@ -342,7 +324,7 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
 def _get_parameter_binder(
     parameter: ParamInfo,
     services: ContainerProtocol,
-    route: Optional[Route],
+    route: Route | None,
     method: Callable[..., Any],
 ) -> Binder:
     name = parameter.name
@@ -434,7 +416,7 @@ def _get_parameter_binder(
 def get_parameter_binder(
     parameter: ParamInfo,
     services: ContainerProtocol,
-    route: Optional[Route],
+    route: Route | None,
     method: Callable[..., Any],
 ) -> Binder:
     binder = _get_parameter_binder(parameter, services, route, method)
@@ -446,8 +428,8 @@ def get_parameter_binder(
 
 
 def _get_binders_for_function(
-    method: Callable[..., Any], services: ContainerProtocol, route: Optional[Route]
-) -> List[Binder]:
+    method: Callable[..., Any], services: ContainerProtocol, route: Route | None
+) -> list[Binder]:
     parameters = _get_method_annotations_base(method)
     body_binder = None
 
@@ -475,7 +457,7 @@ def _get_binders_for_function(
     return binders
 
 
-def get_binders(route: Route, services: ContainerProtocol) -> List[Binder]:
+def get_binders(route: Route, services: ContainerProtocol) -> list[Binder]:
     """
     Returns a list of binders to extract parameters
     for a request handler.

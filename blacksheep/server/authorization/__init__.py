@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable, Optional, Sequence, Tuple
+from typing import Any, Awaitable, Callable, Sequence
 
 from guardpost.authorization import (
     AuthorizationStrategy,
@@ -22,10 +22,10 @@ __all__ = (
 
 
 def auth(
-    policy: Optional[str] = "authenticated",
+    policy: str | None = "authenticated",
     *,
-    roles: Optional[Sequence[str]] = None,
-    authentication_schemes: Optional[Sequence[str]] = None,
+    roles: Sequence[str | None] = None,
+    authentication_schemes: Sequence[str | None] = None,
 ) -> Callable[..., Any]:
     """
     Configures authorization for a decorated request handler, optionally with a policy.
@@ -99,7 +99,7 @@ class AuthorizationWithoutAuthenticationError(RuntimeError):
 
 def get_www_authenticated_header_from_generic_unauthorized_error(
     error: UnauthorizedError,
-) -> Optional[Tuple[bytes, bytes]]:
+) -> tuple[bytes, bytes | None]:
     if not error.scheme:
         return None
 

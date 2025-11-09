@@ -5,11 +5,8 @@ from typing import (
     AsyncIterable,
     Callable,
     ClassVar,
-    List,
-    Optional,
     Sequence,
     Type,
-    Union,
 )
 
 from blacksheep.common.types import HeadersType, ParamsType
@@ -131,9 +128,9 @@ def abstract():
 
 def filters(
     *filters: RouteFilter,
-    host: Optional[str] = None,
-    headers: Optional[HeadersType] = None,
-    params: Optional[ParamsType] = None,
+    host: str | None = None,
+    headers: HeadersType | None = None,
+    params: ParamsType | None = None,
 ):
     """
     Configures a set of filters for a decorated controller type.
@@ -183,7 +180,7 @@ class Controller(metaclass=ControllerMeta):
     _filters_: ClassVar[Sequence[RouteFilter]] = []
 
     @classmethod
-    def route(cls) -> Optional[str]:
+    def route(cls) -> str | None:
         """
         The base route to be used by all request handlers defined on a
         controller type.
@@ -349,12 +346,10 @@ class Controller(metaclass=ControllerMeta):
 
     def file(
         self,
-        value: Union[
-            Callable[[], AsyncIterable[bytes]], str, bytes, bytearray, BytesIO
-        ],
+        value: Callable[[], AsyncIterable[bytes]] | str | bytes | bytearray | BytesIO,
         content_type: str,
         *,
-        file_name: Optional[str] = None,
+        file_name: str | None = None,
         content_disposition: ContentDispositionType = ContentDispositionType.ATTACHMENT,
     ) -> Response:
         """
@@ -435,8 +430,8 @@ class Controller(metaclass=ControllerMeta):
 
     def view(
         self,
-        name: Optional[str] = None,
-        model: Optional[Any] = None,
+        name: str | None = None,
+        model: Any | None = None,
         status: int = 200,
         **kwargs,
     ) -> Response:
@@ -456,7 +451,7 @@ class Controller(metaclass=ControllerMeta):
 
     async def view_async(
         self,
-        name: Optional[str] = None,
+        name: str | None = None,
         model: Any = None,
         status: int = 200,
         **kwargs,
@@ -478,7 +473,7 @@ class Controller(metaclass=ControllerMeta):
 
 class APIController(Controller):
     @classmethod
-    def version(cls) -> Optional[str]:
+    def version(cls) -> str | None:
         """
         The version of this api controller. If specified, it is included in
         the base route for this controller.
@@ -497,7 +492,7 @@ class APIController(Controller):
         return None
 
     @classmethod
-    def route(cls) -> Optional[str]:
+    def route(cls) -> str | None:
         cls_name = cls.class_name()
         cls_version = cls.version() or ""
         if cls_version and cls_name.endswith(cls_version.lower()):
@@ -511,7 +506,7 @@ class ControllersManager:
     inheritance of routes.
     """
 
-    def prepare_controllers(self, router: Router) -> List[Type]:
+    def prepare_controllers(self, router: Router) -> list[Type]:
         self._unify_controllers(router.controllers_routes)
         controller_types = []
         for route in router.controllers_routes:

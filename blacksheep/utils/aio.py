@@ -4,7 +4,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from asyncio import AbstractEventLoop
-from typing import Any, Optional
+from typing import Any
 
 
 class FailedRequestError(Exception):
@@ -54,7 +54,7 @@ def post(url: str, data) -> Any:
 
 
 class HTTPHandler:
-    def __init__(self, loop: Optional[AbstractEventLoop] = None) -> None:
+    def __init__(self, loop: AbstractEventLoop | None = None) -> None:
         self._loop = loop
 
     @property

@@ -2,14 +2,14 @@
 Common types annotations and functions.
 """
 
-from typing import AnyStr, Dict, Iterable, List, Optional, Tuple, Union
+from typing import AnyStr, Iterable
 
 from blacksheep.url import URL
 
-KeyValuePair = Tuple[AnyStr, AnyStr]
-HeadersType = Union[Dict[AnyStr, AnyStr], Iterable[KeyValuePair]]
-ParamsType = Union[Dict[AnyStr, AnyStr], Iterable[KeyValuePair]]
-URLType = Union[str, bytes, URL]
+KeyValuePair = tuple[AnyStr, AnyStr]
+HeadersType = dict[AnyStr, AnyStr] | Iterable[KeyValuePair]
+ParamsType = dict[AnyStr, AnyStr] | Iterable[KeyValuePair]
+URLType = str | bytes | URL
 
 
 def _ensure_header_bytes(value: AnyStr) -> bytes:
@@ -21,8 +21,8 @@ def _ensure_param_str(value: AnyStr) -> str:
 
 
 def normalize_headers(
-    headers: Optional[HeadersType],
-) -> Optional[List[Tuple[bytes, bytes]]]:
+    headers: HeadersType | None,
+) -> list[tuple[bytes, bytes]] | None:
     if headers is None:
         return None
     if isinstance(headers, dict):
@@ -36,7 +36,7 @@ def normalize_headers(
     ]
 
 
-def normalize_params(params: Optional[ParamsType]) -> Optional[List[Tuple[str, str]]]:
+def normalize_params(params: ParamsType | None) -> list[tuple[str, str]] | None:
     if params is None:
         return None
     if isinstance(params, dict):

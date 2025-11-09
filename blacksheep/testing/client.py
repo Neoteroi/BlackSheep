@@ -1,5 +1,4 @@
 import asyncio
-from typing import Optional
 
 from blacksheep.contents import Content
 from blacksheep.server.application import Application
@@ -16,7 +15,7 @@ class TestClient:
     __test__ = False
 
     def __init__(
-        self, app: Application, test_simulator: Optional[AbstractTestSimulator] = None
+        self, app: Application, test_simulator: AbstractTestSimulator | None = None
     ):
         self._test_simulator = test_simulator or TestSimulator(app)
 
@@ -42,7 +41,7 @@ class TestClient:
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> Response:
         """Simulates HTTP POST method"""
@@ -60,7 +59,7 @@ class TestClient:
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> Response:
         """Simulates HTTP PATCH method"""
@@ -78,7 +77,7 @@ class TestClient:
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> Response:
         """Simulates HTTP PUT method"""
@@ -96,7 +95,7 @@ class TestClient:
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> Response:
         """Simulates HTTP DELETE method"""

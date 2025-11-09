@@ -1,5 +1,4 @@
 from collections.abc import Mapping, MutableSequence
-from typing import Dict, List, Tuple, Union
 
 
 class Header:
@@ -21,12 +20,12 @@ class Header:
 
 
 class Headers:
-    def __init__(self, values: List[Tuple[bytes, bytes]] = None):
+    def __init__(self, values: list[tuple[bytes, bytes]] = None):
         if values is None:
             values = []
         self.values = values
 
-    def get(self, name: bytes) -> Tuple[bytes, ...]:
+    def get(self, name: bytes) -> tuple[bytes, ...]:
         results = []
         name = name.lower()
         for header in self.values:
@@ -34,7 +33,7 @@ class Headers:
                 results.append(header[1])
         return tuple(results)
 
-    def get_tuples(self, name: bytes) -> List[Tuple[bytes, bytes]]:
+    def get_tuples(self, name: bytes) -> list[tuple[bytes, bytes]]:
         results = []
         name = name.lower()
         for header in self.values:
@@ -42,7 +41,7 @@ class Headers:
                 results.append(header)
         return results
 
-    def get_first(self, key: bytes) -> Union[bytes, None]:
+    def get_first(self, key: bytes) -> bytes | None:
         key = key.lower()
         for header in self.values:
             if header[0].lower() == key:
@@ -57,13 +56,13 @@ class Headers:
             raise ValueError("Headers does not contain one header with the given key")
         return results[0]
 
-    def merge(self, values: List[Tuple[bytes, bytes]]):
+    def merge(self, values: list[tuple[bytes, bytes]]):
         for header in values:
             if header is None:
                 continue
             self.values.append(header)
 
-    def update(self, values: Dict[bytes, bytes]):
+    def update(self, values: dict[bytes, bytes]):
         for key, value in values.items():
             self[key] = value
 
@@ -76,7 +75,7 @@ class Headers:
             values.append((name, value))
         return Headers(values)
 
-    def add_many(self, values: Union[Dict[bytes, bytes], List[Tuple[bytes, bytes]]]):
+    def add_many(self, values: dict[bytes, bytes] | list[tuple[bytes, bytes]]):
         if isinstance(values, MutableSequence):
             for item in values:
                 self.add(*item)
@@ -85,7 +84,7 @@ class Headers:
             for key, value in values.items():
                 self.add(key, value)
             return
-        raise ValueError("values must be Dict[bytes, bytes] or List[Header]")
+        raise ValueError("values must be dict[bytes, bytes] or list[Header]")
 
     @staticmethod
     def _add_to_instance(instance, other):
@@ -131,7 +130,7 @@ class Headers:
     def __getitem__(self, item: bytes):
         return self.get(item)
 
-    def keys(self) -> Tuple[bytes, ...]:
+    def keys(self) -> tuple[bytes, ...]:
         results = []
         for name, value in self.values:
             if name not in results:

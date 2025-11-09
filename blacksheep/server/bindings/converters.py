@@ -334,7 +334,7 @@ class PydanticConverter(TypeConverter):
 # Add this new converter class after the existing converters
 class ListConverter(TypeConverter):
     """
-    Converter for List[T], Sequence[T], and Tuple[T] where T
+    Converter for list[T], Sequence[T], and tuple[T] where T
     is handled by class_converters (DataClass, Pydantic models, plain classes).
     """
 
@@ -398,7 +398,7 @@ class ListConverter(TypeConverter):
             return converted_items
 
 
-converters: List[TypeConverter] = [
+converters: list[TypeConverter] = [
     BoolConverter(),
     BytesConverter(),
     DateConverter(),
@@ -417,7 +417,7 @@ if StrEnum is not None and IntEnum is not None:
     converters.append(StrEnumConverter())
 
 
-class_converters: List[TypeConverter] = [
+class_converters: list[TypeConverter] = [
     DataClassConverter(),
     ClassConverter(),
     ListConverter(),

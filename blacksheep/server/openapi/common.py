@@ -9,6 +9,7 @@ potentially in the future v4, if it will be so different from v3.
 
 import inspect
 import json
+import os
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -17,14 +18,10 @@ from http import HTTPStatus
 from typing import (
     Any,
     Callable,
-    Dict,
     Generic,
-    List,
     Mapping,
-    Optional,
     Type,
     TypeVar,
-    Union,
 )
 
 from essentials.json import dumps
@@ -37,6 +34,7 @@ from blacksheep.server.controllers import Controller
 from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.routing import Route, Router
 from blacksheep.url import join_prefix
+from blacksheep.utils import truthy
 from blacksheep.utils.time import utcnow
 
 from .ui import SwaggerUIProvider, UIOptions, UIProvider
@@ -71,66 +69,66 @@ class ParameterSource(Enum):
 
 @dataclass
 class RequestBodyInfo:
-    description: Optional[str] = None
-    examples: Optional[Dict[str, Any]] = None
+    description: str | None = None
+    examples: dict[str, Any | None] = None
 
 
 @dataclass
 class ParameterExample:
     value: Any
-    name: Optional[str] = None
-    summary: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    summary: str | None = None
+    description: str | None = None
 
 
 @dataclass
 class ParameterInfo:
     description: str
-    value_type: Optional[Type] = None
-    source: Optional[ParameterSource] = None
-    required: Optional[bool] = None
-    deprecated: Optional[bool] = None
-    allow_empty_value: Optional[bool] = None
-    example: Optional[Any] = None
-    examples: Optional[Dict[str, ParameterExample]] = None
+    value_type: Type | None = None
+    source: ParameterSource | None = None
+    required: bool | None = None
+    deprecated: bool | None = None
+    allow_empty_value: bool | None = None
+    example: Any | None = None
+    examples: dict[str, ParameterExample | None] = None
 
 
 @dataclass
 class ResponseExample:
     value: Any
-    name: Optional[str] = None
-    summary: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    summary: str | None = None
+    description: str | None = None
 
 
 @dataclass
 class ContentInfo:
     type: Type[Any]
-    examples: Optional[List[Union[ResponseExample, Any]]] = None
+    examples: list[ResponseExample | Any] | None = None
     content_type: str = "application/json"
 
 
 @dataclass
 class HeaderInfo:
     type: Type
-    description: Optional[str] = None
+    description: str | None = None
     example: Any = None
 
 
 @dataclass
 class ResponseInfo:
     description: str
-    headers: Optional[Dict[str, HeaderInfo]] = None
-    content: Optional[List[ContentInfo]] = None
+    headers: dict[str, HeaderInfo | None] = None
+    content: list[ContentInfo | None] = None
 
 
 @dataclass
 class SecurityInfo:
     name: str
-    value: List[str]
+    value: list[str]
 
 
-ResponseStatusType = Union[int, str, HTTPStatus]
+ResponseStatusType = int | str | HTTPStatus
 
 
 def response_status_to_str(value: ResponseStatusType) -> str:
@@ -143,21 +141,21 @@ def response_status_to_str(value: ResponseStatusType) -> str:
 
 @dataclass
 class ControllerDocs:
-    tags: Optional[List[str]] = None
+    tags: list[str | None] = None
 
 
 @dataclass
 class EndpointDocs:
-    summary: Optional[str] = None
-    description: Optional[str] = None
-    tags: Optional[List[str]] = None
-    parameters: Optional[Mapping[str, ParameterInfo]] = None
-    request_body: Optional[RequestBodyInfo] = None
-    responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None
-    ignored: Optional[bool] = None
-    deprecated: Optional[bool] = None
-    on_created: Optional[Callable[[Any, Any], None]] = None
-    security: Optional[List[SecurityInfo]] = None
+    summary: str | None = None
+    description: str | None = None
+    tags: list[str | None] = None
+    parameters: Mapping[str, ParameterInfo | None] = None
+    request_body: RequestBodyInfo | None = None
+    responses: dict[ResponseStatusType, str | ResponseInfo] | None = None
+    ignored: bool | None = None
+    deprecated: bool | None = None
+    on_created: Callable[[Any, Any], None] | None = None
+    security: list[SecurityInfo | None] = None
 
 
 OpenAPIRootType = TypeVar("OpenAPIRootType", bound=OpenAPIRoot)
@@ -191,6 +189,12 @@ class DefaultSerializer(Serializer):
     defined in the same specification document).
     This serializer ensures that $refs contain only allowed characters.
     """
+
+    def __init__(self, programming_names: bool = False) -> None:
+        super().__init__()
+        self._use_programming_names = programming_names or truthy(
+            os.environ.get("APP_OPENAPI_PROGRAMMING_NAMES", "0")
+        )
 
     def to_obj(self, item: Any) -> Any:
         data = super().to_obj(item)
@@ -244,17 +248,41 @@ class DefaultSerializer(Serializer):
     def get_type_name_for_generic(self, name: str) -> str:
         """
         This method returns a type name for a generic type.
-        The following is more for backward compatibility in BlackSheep.
         """
+        if self._use_programming_names:
+            return self._get_programming_name(name)
+        return self._get_descriptive_name(name)
+
+    def _get_programming_name(self, name: str) -> str:
+        """Programming-style names closer to actual type annotations"""
+        # Replace invalid characters with underscores, but keep structure
+        sanitized = (
+            name.replace("[", "_")
+            .replace("]", "")
+            .replace(", ", "_")
+            .replace(",", "_")
+            .replace(" | ", "_Or_")
+        )
+
+        # Remove any remaining invalid characters
+        sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", sanitized)
+
+        # Ensure it starts with a letter or underscore
+        if sanitized and sanitized[0].isdigit():
+            sanitized = f"T_{sanitized}"
+
+        return sanitized
+
+    def _get_descriptive_name(self, name: str) -> str:
         # Note: by default returns a string respectful of this requirement:
         # $ref values must be RFC3986-compliant percent-encoded URIs
         # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
         # and C# or TypeScript Example<Foo, Bar>
         # Becomes here represented as: ExampleOfFooAndBar
-        if "[" not in name:
+        if "[" not in name and "|" not in name:
             return name
         name = name.replace("[", "Of").replace("]", "")
-        return re.sub(r",\s?", "And", name)
+        return re.sub(r"\s?\|\s?", "Or", re.sub(r",\s?", "And", name))
 
 
 class APIDocsHandler(Generic[OpenAPIRootType], ABC):
@@ -270,19 +298,19 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         yaml_spec_path: str = "openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
-        serializer: Optional[Serializer] = None,
+        serializer: Serializer | None = None,
     ) -> None:
-        self._handlers_docs: Dict[Any, EndpointDocs] = {}
-        self._controllers_docs: Dict[Any, ControllerDocs] = {}
+        self._handlers_docs: dict[Any, EndpointDocs] = {}
+        self._controllers_docs: dict[Any, ControllerDocs] = {}
         self.use_docstrings: bool = True
-        self.include: Optional[Callable[[str, Route], bool]] = None
+        self.include: Callable[[str, Route | None, bool]] = None
         self.json_spec_path = json_spec_path
         self.yaml_spec_path = yaml_spec_path
         self._json_docs: bytes = b""
         self._yaml_docs: bytes = b""
         self.preferred_format = preferred_format
         self.anonymous_access = anonymous_access
-        self.ui_providers: List[UIProvider] = [SwaggerUIProvider(ui_path)]
+        self.ui_providers: list[UIProvider] = [SwaggerUIProvider(ui_path)]
         self._types_schemas = {}
         self.events = OpenAPIEvents(self)
         self.handle_optional_response_with_404 = True
@@ -290,18 +318,18 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
     def __call__(
         self,
-        doc: Optional[EndpointDocs] = None,
+        doc: EndpointDocs | None = None,
         *,
-        summary: Optional[str] = None,
-        description: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        parameters: Optional[Mapping[str, ParameterInfo]] = None,
-        request_body: Optional[RequestBodyInfo] = None,
-        responses: Optional[Dict[ResponseStatusType, Union[str, ResponseInfo]]] = None,
-        ignored: Optional[bool] = None,
-        deprecated: Optional[bool] = None,
-        on_created: Optional[Callable[[Any, Any], None]] = None,
-        security: Optional[List[SecurityInfo]] = None,
+        summary: str | None = None,
+        description: str | None = None,
+        tags: list[str | None] = None,
+        parameters: Mapping[str, ParameterInfo | None] = None,
+        request_body: RequestBodyInfo | None = None,
+        responses: dict[ResponseStatusType, str | ResponseInfo] | None = None,
+        ignored: bool | None = None,
+        deprecated: bool | None = None,
+        on_created: Callable[[Any, Any], None] | None = None,
+        security: list[SecurityInfo | None] = None,
     ) -> Any:
         def decorator(fn):
             if doc:
@@ -348,7 +376,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         else:
             self._types_schemas[object_type] = schema
 
-    def get_controller_docs(self, obj: Any) -> Optional[ControllerDocs]:
+    def get_controller_docs(self, obj: Any) -> ControllerDocs | None:
         return self._controllers_docs.get(obj)
 
     def get_controller_docs_or_set(self, obj: Any) -> ControllerDocs:
@@ -358,7 +386,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._controllers_docs[obj] = docs
         return docs
 
-    def get_handler_docs(self, obj: Any) -> Optional[EndpointDocs]:
+    def get_handler_docs(self, obj: Any) -> EndpointDocs | None:
         return self._handlers_docs.get(obj)
 
     def get_handler_docs_or_set(self, obj: Any) -> EndpointDocs:
@@ -368,11 +396,11 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._handlers_docs[obj] = docs
         return docs
 
-    def get_summary(self, handler: Any) -> Optional[str]:
+    def get_summary(self, handler: Any) -> str | None:
         docs = self.get_handler_docs(handler)
         return docs.summary if docs else None
 
-    def get_description(self, handler: Any) -> Optional[str]:
+    def get_description(self, handler: Any) -> str | None:
         docs = self.get_handler_docs(handler)
         return docs.description if docs else None
 
@@ -420,7 +448,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         # any normalization
         return route.handler  # pragma: no cover
 
-    def get_handler_tags(self, handler: Any) -> Optional[List[str]]:
+    def get_handler_tags(self, handler: Any) -> list[str | None]:
         docs = self.get_handler_docs(handler)
         if docs and docs.tags:
             return docs.tags
@@ -435,14 +463,14 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
         return None
 
-    def is_deprecated(self, handler: Any) -> Optional[bool]:
+    def is_deprecated(self, handler: Any) -> bool | None:
         docs = self.get_handler_docs(handler)
         return docs.deprecated if docs else None
 
     def router_to_paths_dict(
         self, router: Router, mapper: Callable[[Route], T]
-    ) -> Dict[str, Dict[str, T]]:
-        routes_dictionary: Dict[str, Dict[str, T]] = {}
+    ) -> dict[str, dict[str, T]]:
+        routes_dictionary: dict[str, dict[str, T]] = {}
 
         for method, routes in router.routes.items():
             if b"_" in method:

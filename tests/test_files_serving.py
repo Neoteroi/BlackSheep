@@ -1,7 +1,6 @@
 from asyncio import AbstractEventLoop
 from datetime import datetime
 from pathlib import Path
-from typing import List
 from unittest.mock import create_autospec
 
 import pytest
@@ -252,7 +251,7 @@ async def test_invalid_range_request_range_not_satisfiable(range_value):
     ],
 )
 async def test_text_file_range_request_multi_part(
-    range_value: bytes, expected_bytes_lines: List[bytes]
+    range_value: bytes, expected_bytes_lines: list[bytes]
 ):
     file_path = get_file_path("example.txt")
     response = get_response_for_file(

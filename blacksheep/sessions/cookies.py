@@ -1,5 +1,4 @@
 import base64
-from typing import Optional
 
 from itsdangerous import (
     BadSignature,
@@ -43,9 +42,9 @@ class CookieSessionStore(SessionStore):
         secret_key: str,
         *,
         session_cookie: str = "session",
-        serializer: Optional[SessionSerializer] = None,
-        signer: Optional[Serializer] = None,
-        session_max_age: Optional[int] = None,
+        serializer: SessionSerializer | None = None,
+        signer: Serializer | None = None,
+        session_max_age: int | None = None,
     ) -> None:
         self._signer = signer or URLSafeTimedSerializer(secret_key)
         self._serializer = serializer or JSONSerializer()

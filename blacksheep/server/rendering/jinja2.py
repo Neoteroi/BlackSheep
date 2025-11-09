@@ -1,6 +1,5 @@
 import os
 from functools import lru_cache
-from typing import Optional
 
 from jinja2 import (
     BaseLoader,
@@ -38,7 +37,7 @@ async def render_template_async(template: Template, *args, **kwargs):
 
 
 class AntiForgeryBaseExtension(Extension):
-    af_handler: Optional[AntiForgeryHandler] = None
+    af_handler: AntiForgeryHandler | None = None
 
     def __init__(self, environment):
         super().__init__(environment)
@@ -92,7 +91,7 @@ class AntiForgeryValueExtension(AntiForgeryBaseExtension):
 class JinjaRenderer(Renderer):
     def __init__(
         self,
-        loader: Optional[BaseLoader] = None,
+        loader: BaseLoader | None = None,
         debug: bool = False,
         enable_async: bool = False,
     ) -> None:

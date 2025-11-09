@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
-from typing import Generic, List, Mapping, Optional, Sequence, TypeVar, Union
+from typing import Generic, Mapping, Sequence, TypeVar, Union
 from uuid import UUID
 
 import pytest
@@ -88,7 +88,7 @@ class PydCat(BaseModel):
 
 
 class PydPaginatedSetOfCat(BaseModel):
-    items: List[PydCat]
+    items: list[PydCat]
     total: int
 
 
@@ -123,12 +123,12 @@ class CatOwner:
 @dataclass
 class CatDetails(Cat):
     owner: CatOwner
-    friends: List[int]
+    friends: list[int]
 
 
 @dataclass
 class CreateCatImages:
-    images: List[str]
+    images: list[str]
 
 
 @dataclass
@@ -139,7 +139,7 @@ class Combo(Generic[T, U]):
 
 @dataclass
 class PaginatedSet(Generic[T]):
-    items: List[T]
+    items: list[T]
     total: int
 
 
@@ -164,14 +164,14 @@ class FooLevel(IntEnum):
 class Foo:
     a: str
     b: bool
-    level: Optional[FooLevel] = None
+    level: FooLevel | None = None
 
 
 @dataclass
 class CreateFooInput:
     a: str
     b: bool
-    level: Optional[FooLevel] = None
+    level: FooLevel | None = None
 
 
 @dataclass
@@ -197,13 +197,13 @@ class Error(BaseModel):
 
 
 class DataModel(BaseModel):
-    numbers: List[int]
-    people: List[str]
+    numbers: list[int]
+    people: list[str]
 
 
 class PydResponse(GenericModel, Generic[T]):
-    data: Optional[T]
-    error: Optional[Error]
+    data: T | None
+    error: Error | None
 
     @field_validator("error")
     def check_consistency(cls, v, values):
@@ -263,7 +263,7 @@ def docs() -> OpenAPIHandler:
 
 
 class CapitalizeOperationDocs(OpenAPIHandler):
-    def get_operation_id(self, docs: Optional[EndpointDocs], handler) -> str:
+    def get_operation_id(self, docs: EndpointDocs | None, handler) -> str:
         return handler.__name__.capitalize().replace("_", " ")
 
 
@@ -306,9 +306,9 @@ async def test_raises_for_duplicated_content_example(docs):
     "annotation,expected_result",
     [
         (Foo, [False, Foo]),
-        (Optional[Foo], [True, Foo]),
-        (Union[Foo, None], [True, Foo]),
-        (Union[None, Foo], [True, Foo]),
+        (Foo | None, [True, Foo]),
+        (Foo | None, [True, Foo]),
+        (None | Foo, [True, Foo]),
     ],
 )
 def test_check_union(annotation, expected_result):
@@ -1535,7 +1535,7 @@ async def test_handling_of_mapping(docs: OpenAPIHandler, serializer: Serializer)
     app = get_app()
 
     @app.router.route("/")
-    def home() -> Mapping[str, Mapping[int, List[Cat]]]: ...
+    def home() -> Mapping[str, Mapping[int, list[Cat]]]: ...
 
     docs.bind_app(app)
     await app.start()
@@ -2466,7 +2466,7 @@ async def test_handles_ref_for_optional_type(
     def one() -> PaginatedSet[Cat]: ...
 
     @app.router.route("/cats/{cat_id}")
-    def two(cat_id: int) -> Optional[Cat]: ...
+    def two(cat_id: int) -> Cat | None: ...
 
     @app.router.route("/cats_alt/{cat_id}")
     def three(cat_id: int) -> Cat: ...
@@ -3183,7 +3183,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
 
     class Parrots(APIController):
         @get()
-        def get_parrots(self) -> List[Parrot]:
+        def get_parrots(self) -> list[Parrot]:
             """Return the list of configured Parrots."""
 
         @post()
@@ -3192,7 +3192,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
 
     class Dogs(APIController):
         @get()
-        def get_dogs(self) -> List[Dog]:
+        def get_dogs(self) -> list[Dog]:
             """Return the list of configured dogs."""
 
         @post()
@@ -3201,7 +3201,7 @@ async def test_sorting_api_controllers_tags(serializer: Serializer):
 
     class Cats(APIController):
         @get()
-        def get_cats(self) -> List[Cat]:
+        def get_cats(self) -> list[Cat]:
             """Return the list of configured cats."""
 
         @post()
@@ -3437,11 +3437,11 @@ class FPyd(BaseModel):
 
 
 class AnyOfTestClassPyd(BaseModel):
-    sub_prop: Union[APyd, BPyd, CPyd]
+    sub_prop: APyd | BPyd | CPyd
 
 
 class AnyOfResponseTestClassPyd(BaseModel):
-    data: Union[DPyd, EPyd, FPyd]
+    data: DPyd | EPyd | FPyd
 
 
 async def test_any_of_dataclasses(docs: OpenAPIHandler, serializer: Serializer):
@@ -3750,17 +3750,24 @@ components:
 
 
 @pytest.mark.parametrize(
-    "name,result",
+    "name,programming_result,descriptive_result",
     [
-        ("Example[Cat]", "ExampleOfCat"),
-        ("Union[A, B, C]", "UnionOfAAndBAndC"),
-        ("List[Union[A, B, C]]", "ListOfUnionOfAAndBAndC"),
-        ("Dict[str, int]", "DictOfstrAndint"),
+        ("Example[Cat]", "Example_Cat", "ExampleOfCat"),
+        ("Union[A, B, C]", "Union_A_B_C", "UnionOfAAndBAndC"),
+        ("List[Union[A, B, C]]", "List_Union_A_B_C", "ListOfUnionOfAAndBAndC"),
+        ("Dict[str, int]", "Dict_str_int", "DictOfstrAndint"),
+        ("A | B | C", "A_Or_B_Or_C", "AOrBOrC"),
+        ("list[A | B | C]", "list_A_Or_B_Or_C", "listOfAOrBOrC"),
     ],
 )
-def test_default_serializer_sanitize_name(name, result):
-    serializer = DefaultSerializer()
-    assert serializer.get_type_name_for_generic(name) == result
+def test_serializer_naming_styles(name, programming_result, descriptive_result):
+    # Programming style
+    programming_serializer = DefaultSerializer(programming_names=True)
+    assert programming_serializer.get_type_name_for_generic(name) == programming_result
+
+    # Descriptive style (current default)
+    descriptive_serializer = DefaultSerializer(programming_names=False)
+    assert descriptive_serializer.get_type_name_for_generic(name) == descriptive_result
 
 
 async def test_tags_decorator(serializer: Serializer):
@@ -3783,7 +3790,7 @@ async def test_tags_decorator(serializer: Serializer):
     @docs.tags("TagExample")
     class Parrots(APIController):
         @get()
-        def get_parrots(self) -> List[Parrot]:
+        def get_parrots(self) -> list[Parrot]:
             """Return the list of configured Parrots."""
             ...
 

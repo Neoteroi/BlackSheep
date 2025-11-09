@@ -1,7 +1,7 @@
 import asyncio
 import gzip
 from concurrent.futures import Executor
-from typing import Awaitable, Callable, Iterable, List, Optional
+from typing import Awaitable, Callable, Iterable
 
 from blacksheep import Content, Request, Response
 from blacksheep.server.application import Application
@@ -20,7 +20,7 @@ class GzipMiddleware:
         The minimum size of the response body to compress.
     comp_level: int
         The compression level to use.
-    handled_types: Optional[Iterable[bytes]]
+    handled_types: Iterable[bytes | None]
         The list of content types to compress.
     executor: Executor
         The executor instance to use for compression. If not specified, a
@@ -28,7 +28,7 @@ class GzipMiddleware:
         for shutting it down.
     """
 
-    handled_types: List[bytes] = [
+    handled_types: list[bytes] = [
         b"json",
         b"xml",
         b"yaml",
@@ -43,8 +43,8 @@ class GzipMiddleware:
         self,
         min_size: int = 500,
         comp_level: int = 5,
-        handled_types: Optional[Iterable[bytes]] = None,
-        executor: Optional[Executor] = None,
+        handled_types: Iterable[bytes | None] = None,
+        executor: Executor | None = None,
     ):
         self.min_size = min_size
         self.comp_level = comp_level
@@ -53,7 +53,7 @@ class GzipMiddleware:
         if handled_types is not None:
             self.handled_types = self._normalize_types(handled_types)
 
-    def _normalize_types(self, types: Iterable[bytes]) -> List[bytes]:
+    def _normalize_types(self, types: Iterable[bytes]) -> list[bytes]:
         """
         Normalizes the types to bytes.
         """
@@ -97,7 +97,7 @@ class GzipMiddleware:
 
     async def __call__(
         self, request: Request, handler: Callable[[Request], Awaitable[Response]]
-    ) -> Optional[Response]:
+    ) -> Response | None:
         response = ensure_response(await handler(request))
 
         if response is None or response.content is None:
@@ -126,7 +126,7 @@ class GzipMiddleware:
 
 def use_gzip_compression(
     app: Application,
-    handler: Optional[GzipMiddleware] = None,
+    handler: GzipMiddleware | None = None,
 ) -> GzipMiddleware:
     """
     Configures the application to use gzip compression for all responses with gzip

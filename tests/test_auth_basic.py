@@ -1,5 +1,4 @@
 import base64
-from typing import List, Optional
 
 import pytest
 from essentials.secrets import Secret
@@ -37,15 +36,15 @@ def admin_credentials():
 
 
 class MockCredentialsProvider(BasicCredentialsProvider):
-    def __init__(self, credentials: List[BasicCredentials]):
+    def __init__(self, credentials: list[BasicCredentials]):
         self._credentials = credentials
 
-    async def get_credentials(self) -> List[BasicCredentials]:
+    async def get_credentials(self) -> list[BasicCredentials]:
         return self._credentials
 
 
 class FailingCredentialsProvider(BasicCredentialsProvider):
-    async def get_credentials(self) -> List[BasicCredentials]:
+    async def get_credentials(self) -> list[BasicCredentials]:
         raise Exception("Database connection failed")
 
 
@@ -151,7 +150,7 @@ def test_basic_authentication_creation_requires_credentials_or_provider():
 async def test_basic_authentication_success(app: FakeApplication, basic_credentials):
     app.use_authentication().add(BasicAuthentication(basic_credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -186,7 +185,7 @@ async def test_basic_authentication_success(app: FakeApplication, basic_credenti
 async def test_basic_authentication_no_header(app: FakeApplication, basic_credentials):
     app.use_authentication().add(BasicAuthentication(basic_credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -212,7 +211,7 @@ async def test_basic_authentication_wrong_scheme(
 ):
     app.use_authentication().add(BasicAuthentication(basic_credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -242,7 +241,7 @@ async def test_basic_authentication_invalid_base64(
 ):
     app.use_authentication().add(BasicAuthentication(basic_credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -272,7 +271,7 @@ async def test_basic_authentication_malformed_credentials(
 ):
     app.use_authentication().add(BasicAuthentication(basic_credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -305,7 +304,7 @@ async def test_basic_authentication_wrong_credentials(
 ):
     app.use_authentication().add(BasicAuthentication(basic_credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -340,7 +339,7 @@ async def test_basic_authentication_multiple_credentials(
         BasicAuthentication(basic_credentials, admin_credentials)
     )
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -390,7 +389,7 @@ async def test_basic_authentication_with_provider(
     provider = MockCredentialsProvider([basic_credentials])
     app.use_authentication().add(BasicAuthentication(credentials_provider=provider))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -422,7 +421,7 @@ async def test_basic_authentication_with_failing_provider(app: FakeApplication):
     provider = FailingCredentialsProvider()
     app.use_authentication().add(BasicAuthentication(credentials_provider=provider))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -452,7 +451,7 @@ async def test_basic_authentication_empty_provider(app: FakeApplication):
     provider = MockCredentialsProvider([])
     app.use_authentication().add(BasicAuthentication(credentials_provider=provider))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -499,7 +498,7 @@ async def test_basic_authentication_unicode_credentials(app: FakeApplication):
 
     app.use_authentication().add(BasicAuthentication(unicode_credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):
@@ -537,7 +536,7 @@ async def test_basic_authentication_password_with_colon(app: FakeApplication):
 
     app.use_authentication().add(BasicAuthentication(credentials))
 
-    identity: Optional[Identity] = None
+    identity: Identity | None = None
 
     @app.router.get("/")
     async def home(request):

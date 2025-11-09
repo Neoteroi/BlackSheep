@@ -3,7 +3,7 @@ This module provides classes to handle JWT Bearer authentication.
 """
 
 import warnings
-from typing import Optional, Sequence
+from typing import Sequence
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity, InvalidCredentialsError
@@ -38,16 +38,16 @@ class JWTBearerAuthentication(AuthenticationHandler):
         self,
         *,
         valid_audiences: Sequence[str],
-        valid_issuers: Optional[Sequence[str]] = None,
-        authority: Optional[str] = None,
-        algorithms: Optional[Sequence[str]] = None,
+        valid_issuers: Sequence[str | None] = None,
+        authority: str | None = None,
+        algorithms: Sequence[str | None] = None,
         require_kid: bool = True,
-        keys_provider: Optional[KeysProvider] = None,
-        keys_url: Optional[str] = None,
+        keys_provider: KeysProvider | None = None,
+        keys_url: str | None = None,
         cache_time: float = 10800,
         auth_mode: str = "JWT Bearer",
         scheme: str = "",
-        secret_key: Optional[Secret] = None,
+        secret_key: Secret | None = None,
     ):
         """
         Creates a new instance of JWTBearerAuthentication, which tries to
@@ -59,11 +59,11 @@ class JWTBearerAuthentication(AuthenticationHandler):
         ----------
         valid_audiences : Sequence[str]
             Sequence of acceptable audiences (aud).
-        valid_issuers : Optional[Sequence[str]]
+        valid_issuers : Sequence[str | None]
             Sequence of acceptable issuers (iss). Required if `authority` is not
             provided. If authority is specified and issuers are not, then valid
             issuers are set as [authority].
-        authority : Optional[str], optional
+        authority : str | None, optional
             If provided, keys are obtained from a standard well-known endpoint.
             This parameter is ignored if `keys_provider` is given.
         algorithms : Sequence[str], optional
@@ -74,10 +74,10 @@ class JWTBearerAuthentication(AuthenticationHandler):
             this parameter lets control whether access tokens missing `kid` in their
             headers should be handled or rejected. By default True, thus only JWTs
             having `kid` header are accepted. Only applies to asymmetric validation.
-        keys_provider : Optional[KeysProvider], optional
+        keys_provider : KeysProvider | None, optional
             If provided, the exact `KeysProvider` to be used when fetching JWKS for
             validation. Only applies to asymmetric validation. By default None.
-        keys_url : Optional[str], optional
+        keys_url : str | None, optional
             If provided, keys are obtained from the given URL through HTTP GET.
             This parameter is ignored if `keys_provider` is given or if `secret_key`
             is provided. Only applies to asymmetric validation.
@@ -90,7 +90,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         auth_mode : str, optional
             Deprecated parameter, use `scheme` instead. When authentication succeeds,
             the declared authentication mode. By default, "JWT Bearer".
-        secret_key : Optional[Secret], optional
+        secret_key : Secret | None, optional
             If provided, enables symmetric JWT validation (HS256/HS384/HS512).
             Cannot be used together with asymmetric validation parameters.
         """
@@ -182,7 +182,7 @@ class JWTBearerAuthentication(AuthenticationHandler):
         self._scheme = scheme or auth_mode
         self._validator.logger = self.logger
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Identity | None:
         authorization_value = context.get_first_header(b"Authorization")
 
         if not authorization_value:

@@ -1,5 +1,5 @@
 import secrets
-from typing import Any, Dict
+from typing import Any
 
 from blacksheep.cookies import Cookie
 from blacksheep.messages import Request, Response
@@ -29,7 +29,7 @@ class InMemorySessionStore(SessionStore):
 
     def __init__(self, cookie_name: str = "session"):
         self._session_cookie_name = cookie_name
-        self._sessions: Dict[str, Any] = {}
+        self._sessions: dict[str, Any] = {}
 
     async def load(self, request: Request) -> Session:
         session_id = request.cookies.get(self._session_cookie_name)

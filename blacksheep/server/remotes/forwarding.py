@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network, ip_address
-from typing import AnyStr, Iterable, List, Optional, Sequence, Union
+from typing import AnyStr, Iterable, Sequence
 
 from blacksheep.exceptions import BadRequest
 from blacksheep.headers import Headers
@@ -8,8 +8,8 @@ from blacksheep.messages import Request
 
 from .hosts import TrustedHostsMiddleware
 
-IPAddress = Union[IPv4Address, IPv6Address]
-IPNetwork = Union[IPv4Network, IPv6Network]
+IPAddress = IPv4Address | IPv6Address
+IPNetwork = IPv4Network | IPv6Network
 
 
 class TooManyHeaders(BadRequest):
@@ -31,17 +31,17 @@ class InvalidProxyIPError(BadRequest):
 class BaseForwardedHeadersMiddleware(TrustedHostsMiddleware, ABC):
     def __init__(
         self,
-        allowed_hosts: Optional[Sequence[str]] = None,
-        known_proxies: Optional[Sequence[IPAddress]] = None,
-        known_networks: Optional[Sequence[IPNetwork]] = None,
+        allowed_hosts: Sequence[str | None] = None,
+        known_proxies: Sequence[IPAddress | None] = None,
+        known_networks: Sequence[IPNetwork | None] = None,
         forward_limit: int = 1,
         accept_only_proxied_requests: bool = True,
     ) -> None:
         super().__init__(allowed_hosts)
-        self.known_proxies: List[IPAddress] = (
+        self.known_proxies: list[IPAddress] = (
             list(known_proxies) if known_proxies else [ip_address("127.0.0.1")]
         )
-        self.known_networks: List[IPNetwork] = (
+        self.known_networks: list[IPNetwork] = (
             list(known_networks) if known_networks else []
         )
         self.accept_only_proxied_requests = accept_only_proxied_requests
@@ -79,7 +79,7 @@ class BaseForwardedHeadersMiddleware(TrustedHostsMiddleware, ABC):
 
         raise InvalidProxyIPError(proxy_ip)
 
-    def validate_proxies_ips(self, proxies: List[IPAddress]) -> None:
+    def validate_proxies_ips(self, proxies: list[IPAddress]) -> None:
         for proxy_ip in proxies:
             self.validate_proxy_ip(proxy_ip)
 
@@ -159,9 +159,9 @@ class ForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
 
     def __init__(
         self,
-        allowed_hosts: Optional[Sequence[str]] = None,
-        known_proxies: Optional[Sequence[IPAddress]] = None,
-        known_networks: Optional[Sequence[IPNetwork]] = None,
+        allowed_hosts: Sequence[str | None] = None,
+        known_proxies: Sequence[IPAddress | None] = None,
+        known_networks: Sequence[IPNetwork | None] = None,
         forward_limit: int = 1,
         accept_only_proxied_requests: bool = True,
     ) -> None:
@@ -234,9 +234,9 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
 
     def __init__(
         self,
-        allowed_hosts: Optional[Sequence[str]] = None,
-        known_proxies: Optional[Sequence[IPAddress]] = None,
-        known_networks: Optional[Sequence[IPNetwork]] = None,
+        allowed_hosts: Sequence[str | None] = None,
+        known_proxies: Sequence[IPAddress | None] = None,
+        known_networks: Sequence[IPNetwork | None] = None,
         forward_limit: int = 1,
         accept_only_proxied_requests: bool = True,
     ) -> None:
@@ -251,13 +251,13 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
 
         Parameters
         ----------
-        allowed_hosts : Optional[Sequence[str]], optional
+        allowed_hosts : Sequence[str | None], optional
             If provided, enables validation of the request's direct host value and of
             forwarded-host header values, by default None
-        known_proxies : Optional[Sequence[IPAddress]], optional
+        known_proxies : Sequence[IPAddress | None], optional
             If provided, enables validation of proxy IP addresses through IP list
             configuration, by default None
-        known_networks : Optional[Sequence[IPNetwork]], optional
+        known_networks : Sequence[IPNetwork | None], optional
             If provided, enables validation of proxy IP addresses through networks
             configuration, by default None
         forward_limit : int, optional
@@ -274,9 +274,9 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
         self.forwarded_host_header_name = b"X-Forwarded-Host"
         self.forwarded_proto_header_name = b"X-Forwarded-Proto"
 
-    def get_forwarded_for(self, headers: Headers) -> List[IPAddress]:
+    def get_forwarded_for(self, headers: Headers) -> list[IPAddress]:
         # X-Forwarded-For: <client>, <proxy1>, <proxy2>
-        forwarded_for_headers: List[bytes] = list(
+        forwarded_for_headers: list[bytes] = list(
             headers[self.forwarded_for_header_name]
         )
 
@@ -291,9 +291,9 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
             self.parse_ip(addr) for addr in (a.strip() for a in forwarded_for) if addr
         ]
 
-    def get_forwarded_proto(self, headers: Headers) -> List[str]:
+    def get_forwarded_proto(self, headers: Headers) -> list[str]:
         # X-Forwarded-Proto: https
-        forwarded_proto_headers: List[bytes] = list(
+        forwarded_proto_headers: list[bytes] = list(
             headers[self.forwarded_proto_header_name]
         )
 
@@ -306,7 +306,7 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
         forwarded_proto = forwarded_proto_headers[0].decode().split(",")
         return [p.strip() for p in forwarded_proto]
 
-    def get_forwarded_host(self, headers: Headers) -> Optional[str]:
+    def get_forwarded_host(self, headers: Headers) -> str | None:
         # X-Forwarded-Host: id42.example-cdn.com
         # original host requested by the client in the Host HTTP request header.
         forwarded_hosts = headers[self.forwarded_host_header_name]
@@ -319,7 +319,7 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
 
         return forwarded_hosts[0].decode()
 
-    def validate_forwarded_for(self, values: List[IPAddress]) -> None:
+    def validate_forwarded_for(self, values: list[IPAddress]) -> None:
         if len(values) > self.forward_limit:
             raise TooManyForwardValues(len(values))
 
@@ -328,7 +328,7 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
 
         self.validate_proxies_ips(proxies)
 
-    def validate_forwarded_proto(self, values: List[str]) -> None:
+    def validate_forwarded_proto(self, values: list[str]) -> None:
         if len(values) > self.forward_limit:
             raise TooManyForwardValues(len(values))
 

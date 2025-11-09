@@ -1,7 +1,6 @@
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from enum import Enum
-from typing import Optional
 from urllib.parse import quote, unquote
 
 
@@ -39,9 +38,9 @@ class Cookie:
         self,
         name: str,
         value: str,
-        expires: Optional[datetime] = None,
-        domain: Optional[str] = None,
-        path: Optional[str] = None,
+        expires: datetime | None = None,
+        domain: str | None = None,
+        path: str | None = None,
         http_only: bool = False,
         secure: bool = False,
         max_age: int = -1,

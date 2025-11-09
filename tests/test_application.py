@@ -8,7 +8,7 @@ from collections.abc import AsyncIterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import wraps
-from typing import Annotated, Any, Dict, Generic, List, Optional, TypeVar
+from typing import Annotated, Any, Dict, Generic, List, TypeVar
 from uuid import UUID, uuid4
 
 import pytest
@@ -406,7 +406,7 @@ async def test_application_middlewares_as_classes(app):
     calls = []
 
     class MiddlewareExample:
-        def __init__(self, calls: List[int], seed: int) -> None:
+        def __init__(self, calls: list[int], seed: int) -> None:
             self.seed = seed
             self.calls = calls
 
@@ -984,7 +984,7 @@ async def test_handler_query_value_binding_single(query, expected_value, app):
 )
 async def test_handler_query_value_binding_optional_int(query, expected_value, app):
     @app.router.get("/")
-    async def home(request, a: Optional[int]):
+    async def home(request, a: int | None):
         assert a == expected_value
 
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
@@ -1003,7 +1003,7 @@ async def test_handler_query_value_binding_optional_int(query, expected_value, a
 )
 async def test_handler_query_value_binding_optional_float(query, expected_value, app):
     @app.router.get("/")
-    async def home(request, a: Optional[float]):
+    async def home(request, a: float | None):
         assert a == expected_value
 
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
@@ -1023,7 +1023,7 @@ async def test_handler_query_value_binding_optional_float(query, expected_value,
 )
 async def test_handler_query_value_binding_optional_list(query, expected_value, app):
     @app.router.get("/")
-    async def home(request, a: Optional[List[float]]):
+    async def home(request, a: list[float] | None):
         assert a == expected_value
 
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
@@ -1075,7 +1075,7 @@ async def test_handler_query_value_binding_list(query, expected_value, app):
 )
 async def test_handler_query_value_binding_list_of_ints(query, expected_value, app):
     @app.router.get("/")
-    async def home(request, a: List[int]):
+    async def home(request, a: list[int]):
         assert a == expected_value
 
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
@@ -1092,7 +1092,7 @@ async def test_handler_query_value_binding_list_of_ints(query, expected_value, a
 )
 async def test_handler_query_value_binding_list_of_floats(query, expected_value, app):
     @app.router.get("/")
-    async def home(a: List[float]):
+    async def home(a: list[float]):
         assert a == expected_value
 
     await app(get_example_scope("GET", "/", query=query), MockReceive(), MockSend())
@@ -1250,9 +1250,9 @@ async def test_handler_normalize_sync_method_from_query_default(app):
 async def test_handler_normalize_list_sync_method_from_query_default(app):
     @app.router.get("/")
     def example(
-        a: FromQuery[List[int]] = FromQuery([1, 2, 3]),
-        b: FromQuery[List[int]] = FromQuery([4, 5, 6]),
-        c: FromQuery[List[str]] = FromQuery(["x"]),
+        a: FromQuery[list[int]] = FromQuery([1, 2, 3]),
+        b: FromQuery[list[int]] = FromQuery([4, 5, 6]),
+        c: FromQuery[list[str]] = FromQuery(["x"]),
     ):
         return text(f"A: {a.value}; B: {b.value}; C: {c.value}")
 
@@ -1308,7 +1308,7 @@ async def test_handler_normalize_sync_method_without_arguments(app):
 
 async def test_handler_normalize_sync_method_from_query_optional(app):
     @app.router.get("/")
-    def home(xx: FromQuery[Optional[int]], yy: FromQuery[Optional[int]]):
+    def home(xx: FromQuery[int | None], yy: FromQuery[int | None]):
         assert xx.value is None
         assert yy.value == 20
 
@@ -1318,17 +1318,17 @@ async def test_handler_normalize_sync_method_from_query_optional(app):
 
 async def test_handler_normalize_optional_binder(app):
     @app.router.get("/1")
-    def home1(xx: Optional[FromQuery[int]], yy: Optional[FromQuery[int]]):
+    def home1(xx: FromQuery[int] | None, yy: FromQuery[int] | None):
         assert xx is None
         assert yy.value == 20
 
     @app.router.get("/2")
-    def home2(xx: Optional[FromQuery[int]]):
+    def home2(xx: FromQuery[int] | None):
         assert xx is not None
         assert xx.value == 10
 
     @app.router.get("/3")
-    def home3(xx: Optional[FromQuery[Optional[int]]]):
+    def home3(xx: FromQuery[int | None] | None):
         assert xx is not None
         assert xx.value == 10
 
@@ -1344,7 +1344,7 @@ async def test_handler_normalize_optional_binder(app):
 
 async def test_handler_normalize_sync_method_from_query_optional_list(app):
     @app.router.get("/")
-    def home(xx: FromQuery[Optional[List[int]]], yy: FromQuery[Optional[List[int]]]):
+    def home(xx: FromQuery[list[int] | None], yy: FromQuery[list[int] | None]):
         assert xx.value is None
         assert yy.value == [20, 55, 64]
 
@@ -1555,7 +1555,7 @@ async def test_handler_from_json_parameter_dict_unannotated(app):
 
 async def test_handler_from_json_parameter_dict_annotated(app):
     @app.router.post("/")
-    async def home(item: FromJSON[Dict[str, Any]]):
+    async def home(item: FromJSON[dict[str, Any]]):
         assert item is not None
         assert isinstance(item.value, dict)
         value = item.value
@@ -1747,8 +1747,8 @@ async def test_handler_from_files_and_form(app):
         def __init__(
             self,
             textfield: str,
-            checkbox1: Optional[str],
-            checkbox2: Optional[str] = None,
+            checkbox1: str | None,
+            checkbox2: str | None = None,
             **kwargs,
         ):
             self.textfield = textfield
@@ -1788,9 +1788,9 @@ async def test_handler_from_form_handling_whole_multipart_with_class(app):
         def __init__(
             self,
             textfield: str,
-            checkbox1: Optional[str] = None,
-            checkbox2: Optional[str] = None,
-            files: Optional[List[FormPart]] = None,
+            checkbox1: str | None = None,
+            checkbox2: str | None = None,
+            files: list[FormPart | None] = None,
             **kwargs,
         ):
             self.textfield = textfield
@@ -1988,7 +1988,7 @@ async def test_handler_from_json_parameter_missing_property_complex_type(app):
 
 async def test_handler_from_json_parameter_missing_property_array(app):
     @app.router.post("/")
-    async def home(item: FromJSON[List[Item]]): ...
+    async def home(item: FromJSON[list[Item]]): ...
 
     # Note: the following example missing one of the properties
     # required by the constructor
@@ -2028,7 +2028,7 @@ async def test_handler_from_json_parameter_handles_request_without_body(app):
 
 async def test_handler_from_json_list_of_objects(app):
     @app.router.post("/")
-    async def home(item: FromJSON[List[Item]]):
+    async def home(item: FromJSON[list[Item]]):
         assert item is not None
         value = item.value
 
@@ -2068,32 +2068,32 @@ async def test_handler_from_json_list_of_objects(app):
             ["one", "two", "three"],
         ],
         [
-            List[bytes],
+            list[bytes],
             b'["lorem ipsum", "hello world", "Three"]',
             [b"lorem ipsum", b"hello world", b"Three"],
         ],
         [
-            List[str],
+            list[str],
             b'["one","two","three"]',
             ["one", "two", "three"],
         ],
         [
-            List[int],
+            list[int],
             b"[20, 10, 0, 200, 12, 64]",
             [20, 10, 0, 200, 12, 64],
         ],
         [
-            List[float],
+            list[float],
             b"[20.4, 10.23, 0.12, 200.00, 12.12, 64.01]",
             [20.4, 10.23, 0.12, 200.00, 12.12, 64.01],
         ],
         [
-            List[bool],
+            list[bool],
             b"[true, false, true, true, 1, 0]",
             [True, False, True, True, True, False],
         ],
         [
-            List[datetime],
+            list[datetime],
             b'["2020-10-24", "2020-10-24T18:46:19.313346", "2019-05-30"]',
             [
                 datetime(2020, 10, 24),
@@ -2102,12 +2102,12 @@ async def test_handler_from_json_list_of_objects(app):
             ],
         ],
         [
-            List[date],
+            list[date],
             b'["2020-10-24", "2020-10-24", "2019-05-30"]',
             [date(2020, 10, 24), date(2020, 10, 24), date(2019, 5, 30)],
         ],
         [
-            List[UUID],
+            list[UUID],
             b'["d1e7745f-2a20-4181-8249-b7fef73592dd",'
             + b'"0bf95cca-3299-4cc0-93d1-ec8e041f5d3e",'
             + b'"d2d52dde-b174-47e0-8a8e-a07d6a559a3a"]',
@@ -2255,7 +2255,7 @@ async def test_handler_from_json_parameter_implicit_default(app):
 
 async def test_handler_from_wrong_method_json_parameter_gets_null_if_optional(app):
     @app.router.get("/")  # <--- NB: wrong http method for posting payloads
-    async def home(item: FromJSON[Optional[Item]]):
+    async def home(item: FromJSON[Item | None]):
         assert item.value is None
 
     await app(
@@ -2300,13 +2300,13 @@ async def test_handler_from_wrong_method_json_parameter_gets_bad_request(app):
         [float, "13.2", 13.2],
         [bool, "True", True],
         [bool, "1", True],
-        [Optional[bool], "1", True],
-        [Optional[bool], "", None],
+        [bool | None, "1", True],
+        [bool | None, "", None],
         [bool, "False", False],
-        [Optional[bool], "False", False],
+        [bool | None, "False", False],
         [date, "2020-5-30", date(2020, 5, 30)],
         [date, "2020-1-1", date(2020, 1, 1)],
-        [Optional[date], "", None],
+        [date | None, "", None],
         [
             datetime,
             "2020-10-24T18:46:19.313346",
@@ -2346,13 +2346,13 @@ async def test_valid_query_parameter_parse(
         [float, "13.2", 13.2],
         [bool, "True", True],
         [bool, "1", True],
-        [Optional[bool], "1", True],
-        [Optional[bool], "", None],
+        [bool | None, "1", True],
+        [bool | None, "", None],
         [bool, "False", False],
-        [Optional[bool], "False", False],
+        [bool | None, "False", False],
         [date, "2020-5-30", date(2020, 5, 30)],
         [date, "2020-1-1", date(2020, 1, 1)],
-        [Optional[date], "", None],
+        [date | None, "", None],
         [
             datetime,
             "2020-10-24T18:46:19.313346",
@@ -2387,18 +2387,18 @@ async def test_valid_cookie_parameter_parse(
     "parameter_type,parameters,expected_value",
     [
         [List, ["Hello", "World"], ["Hello", "World"]],
-        [List[str], ["Hello", "World"], ["Hello", "World"]],
-        [List[int], ["1349"], [1349]],
-        [List[int], ["1", "2", "3"], [1, 2, 3]],
-        [List[float], ["1.12", "2.30", "3.55"], [1.12, 2.30, 3.55]],
-        [List[bool], ["1", "0", "0", "1"], [True, False, False, True]],
+        [list[str], ["Hello", "World"], ["Hello", "World"]],
+        [list[int], ["1349"], [1349]],
+        [list[int], ["1", "2", "3"], [1, 2, 3]],
+        [list[float], ["1.12", "2.30", "3.55"], [1.12, 2.30, 3.55]],
+        [list[bool], ["1", "0", "0", "1"], [True, False, False, True]],
         [
-            List[date],
+            list[date],
             ["2020-5-30", "2019-5-30", "2018-1-1"],
             [date(2020, 5, 30), date(2019, 5, 30), date(2018, 1, 1)],
         ],
         [
-            List[datetime],
+            list[datetime],
             ["2020-10-24T18:46:19.313346", "2019-10-24T18:46:19.313346"],
             [
                 datetime(2020, 10, 24, 18, 46, 19, 313346),
@@ -2433,7 +2433,7 @@ async def test_valid_query_parameter_list_parse(
         [int, "nope"],
         [float, "nope"],
         [date, "nope"],
-        [Optional[date], "nope"],
+        [date | None, "nope"],
         [datetime, "nope"],
         [UUID, "nope"],
     ],
@@ -2646,7 +2646,7 @@ async def test_valid_query_parameter_list_of_int(app):
     expected_values_2 = [1349, 164]
 
     @app.router.get("/")
-    async def home(foo: FromQuery[List[int]]):
+    async def home(foo: FromQuery[list[int]]):
         return text(f"Got: {foo.value}")
 
     await app(
@@ -2865,7 +2865,7 @@ async def test_valid_route_parameter_uuid_2(app):
 
 async def test_valid_header_parameter_uuid_list(app):
     @app.router.get("/")
-    async def home(request, x_foo: FromHeader[List[UUID]]):
+    async def home(request, x_foo: FromHeader[list[UUID]]):
         return text(f"Got: {x_foo.value}")
 
     value_1 = uuid4()
@@ -3060,7 +3060,7 @@ async def test_di_middleware_enables_scoped_services_in_handle_signature():
 
     container.add_scoped(OperationContext)
 
-    first_operation: Optional[OperationContext] = None
+    first_operation: OperationContext | None = None
 
     app = FakeApplication(services=container)
     app.middlewares.append(di_scope_middleware)
@@ -3966,7 +3966,7 @@ async def test_pep_593(app):
         age: int | None
 
     @app.router.get("/pets")
-    def pets() -> List[Pet]:
+    def pets() -> list[Pet]:
         return [
             Pet(name="Ren", age=None),
             Pet(name="Stimpy", age=3),
@@ -4027,7 +4027,7 @@ async def test_application_sub_router_normalization():
     # https://github.com/Neoteroi/BlackSheep/issues/466
     @dataclass
     class Person:
-        id: Optional[int] = None
+        id: int | None = None
         name: str = ""
 
     @router.post("/")

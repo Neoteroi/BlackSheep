@@ -19,9 +19,9 @@ class Cookie:
         self,
         name: str,
         value: str,
-        expires: Optional[datetime] = None,
-        domain: Optional[str] = None,
-        path: Optional[str] = None,
+        expires: datetime | None = None,
+        domain: str | None = None,
+        path: str | None = None,
         http_only: bool = False,
         secure: bool = False,
         max_age: int = -1,
@@ -38,7 +38,7 @@ class Cookie:
         self.same_site = same_site
 
     def clone(self) -> "Cookie": ...
-    def __eq__(self, other: Union[str, bytes, "Cookie"]) -> bool: ...
+    def __eq__(self, other: str | bytes | "Cookie") -> bool: ...
     def __repr__(self) -> str:
         return f"<Cookie {self.name}: {self.value}>"
 

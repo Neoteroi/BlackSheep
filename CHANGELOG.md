@@ -42,6 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for documentation ([#616](https://github.com/Neoteroi/BlackSheep/issues/616)).
 - Improve the build matrix to build wheels for `arm64` architecture for Linux and
   Windows, and use `cibuildwheel` for Ubuntu and Windows, by @bymoye and @RobertoPrevato.
+- Update type annotations to Python >= 3.10.
+- Fix bug that would prevent union types described using pipes from being properly
+  represented in OpenAPI specification.
+- Add support for alternative programming-style naming for generic types in OpenAPI
+  specification files. When enabled, type names use underscore notation closer to
+  actual type annotations (e.g., `PaginatedSet_Address` instead of
+  `PaginatedSetOfAddress`, `Dict_str_int` instead of `DictOfstrAndint`). This can be
+  controlled via the `programming_names` parameter in `DefaultSerializer` or the
+  `APP_OPENAPI_PROGRAMMING_NAMES` environment variable, setting it to a truthy value
+  ('1' or 'true').
 
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 
@@ -922,12 +932,12 @@ if __name__ == "__main__":
   (issue [#173](https://github.com/Neoteroi/BlackSheep/issues/173)), updating
   the dependency on `essentials-openapi` to [v1.0.4](https://github.com/Neoteroi/essentials-openapi/blob/v0.1.4/CHANGELOG.md#014---2021-06-19-droplet)
 - Corrects a bug causing duplicate components definitions in generated OpenAPI
-  documentation, when handling `Optional[T]`
+  documentation, when handling `T | None`
 - Minor corrections to the `TestClient` class: HTTP HEAD, OPTIONS, and TRACE
   should not allow request content body, therefore the corresponding methods
   are updated to not support a `content` parameter
 - Automatically generates `404` response documentation when a request handler
-  defines an `Optional[T]` return type (this happens only when the user doesn't
+  defines an `T | None` return type (this happens only when the user doesn't
   specify the documentation for an endpoint)
 
 ## [1.0.7] - 2021-06-11 🍉

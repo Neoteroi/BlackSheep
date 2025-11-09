@@ -1,4 +1,4 @@
-from typing import Dict, Generator, Iterable, Optional, Tuple
+from typing import Generator, Iterable
 
 from blacksheep.contents import FormPart
 
@@ -30,7 +30,7 @@ def split_multipart(value: bytes) -> Iterable[bytes]:
         yield part
 
 
-def split_headers(value: bytes) -> Iterable[Tuple[bytes, bytes]]:
+def split_headers(value: bytes) -> Iterable[tuple[bytes, bytes]]:
     """
     Splits a whole portion of multipart form data representing headers
     into name, value pairs.
@@ -49,7 +49,7 @@ def split_headers(value: bytes) -> Iterable[Tuple[bytes, bytes]]:
 
 def split_content_disposition_values(
     value: bytes,
-) -> Iterable[Tuple[bytes, Optional[bytes]]]:
+) -> Iterable[tuple[bytes, bytes]] | None:
     """
     Parses a single header into key, value pairs.
     """
@@ -61,7 +61,7 @@ def split_content_disposition_values(
             yield b"type", part
 
 
-def parse_content_disposition_values(value: bytes) -> Dict[bytes, Optional[bytes]]:
+def parse_content_disposition_values(value: bytes) -> dict[bytes, bytes | None]:
     return dict(split_content_disposition_values(value))
 
 
@@ -70,7 +70,7 @@ class CharsetPart(Exception):
         self.default_charset = default_charset
 
 
-def parse_part(value: bytes, default_charset: Optional[bytes]) -> FormPart:
+def parse_part(value: bytes, default_charset: bytes | None) -> FormPart:
     """Parses a single multipart/form-data part."""
     raw_headers, data = value.split(b"\r\n\r\n", 1)
 

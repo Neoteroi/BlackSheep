@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 
 from blacksheep.messages import Request
@@ -978,7 +976,7 @@ def test_normalize_filters():
         def handle(self, request: Request) -> bool:
             return True
 
-    input_filters: List[RouteFilter] = [CustomFilter()]
+    input_filters: list[RouteFilter] = [CustomFilter()]
     all_filters = normalize_filters(
         host="www.neoteroi.dev", headers={"X-Foo": "foo"}, filters=input_filters
     )

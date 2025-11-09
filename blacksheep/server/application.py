@@ -8,13 +8,10 @@ from typing import (
     Awaitable,
     Callable,
     Iterable,
-    List,
-    Optional,
     Sequence,
     Set,
     Tuple,
     Type,
-    Union,
 )
 
 from guardpost import (
@@ -76,7 +73,7 @@ from blacksheep.utils.meta import get_parent_file, import_child_modules
 
 
 def get_default_headers_middleware(
-    headers: Sequence[Tuple[str, str]],
+    headers: Sequence[tuple[str, str]],
 ) -> Callable[..., Awaitable[Response]]:
     raw_headers = tuple((name.encode(), value.encode()) for name, value in headers)
 
@@ -97,7 +94,7 @@ async def default_fallback(request: Request) -> Response:
 
 class ApplicationEvent:
     def __init__(self, context: Any) -> None:
-        self._handlers: List[Callable[..., Any]] = []
+        self._handlers: list[Callable[..., Any]] = []
         self.context = context
 
     def __iadd__(self, handler: Callable[..., Any]) -> "ApplicationEvent":
@@ -183,10 +180,10 @@ class Application(BaseApplication):
     def __init__(
         self,
         *,
-        router: Optional[Router] = None,
-        services: Optional[ContainerProtocol] = None,
+        router: Router | None = None,
+        services: ContainerProtocol | None = None,
         show_error_details: bool = False,
-        mount: Optional[MountRegistry] = None,
+        mount: MountRegistry | None = None,
     ):
         env_settings = EnvironmentSettings()
         if router is None:
@@ -201,11 +198,11 @@ class Application(BaseApplication):
         assert services is not None
         self._services: ContainerProtocol = services
         self._middlewares: MiddlewareList = MiddlewareList()
-        self._default_headers: Optional[Tuple[Tuple[str, str], ...]] = None
+        self._default_headers: tuple[Tuple[str, str | None, ...]] = None
         self._middlewares_configured = False
-        self._cors_strategy: Optional[CORSStrategy] = None
-        self._authentication_strategy: Optional[AuthenticationStrategy] = None
-        self._authorization_strategy: Optional[AuthorizationStrategy] = None
+        self._cors_strategy: CORSStrategy | None = None
+        self._authentication_strategy: AuthenticationStrategy | None = None
+        self._authorization_strategy: AuthorizationStrategy | None = None
         self.on_start = ApplicationEvent(self)
         self.after_start = ApplicationEvent(self)
         self.on_stop = ApplicationEvent(self)
@@ -242,11 +239,11 @@ class Application(BaseApplication):
                 self._middlewares.append(fn)
 
     @property
-    def authentication_strategy(self) -> Optional[AuthenticationStrategy]:
+    def authentication_strategy(self) -> AuthenticationStrategy | None:
         return self._authentication_strategy
 
     @property
-    def authorization_strategy(self) -> Optional[AuthorizationStrategy]:
+    def authorization_strategy(self) -> AuthorizationStrategy | None:
         return self._authorization_strategy
 
     @property
@@ -337,12 +334,12 @@ class Application(BaseApplication):
 
     def use_sessions(
         self,
-        store: Union[str, SessionStore],
+        store: str | SessionStore,
         *,
         session_cookie: str = "session",
-        serializer: Optional[SessionSerializer] = None,
-        signer: Optional[Serializer] = None,
-        session_max_age: Optional[int] = None,
+        serializer: SessionSerializer | None = None,
+        signer: Serializer | None = None,
+        session_max_age: int | None = None,
     ) -> None:
         """
         Configures session support for the application.
@@ -353,7 +350,7 @@ class Application(BaseApplication):
         custom SessionStore.
 
         Args:
-            store (Union[str, SessionStore]): A secret key for cookie-based sessions,
+            store (str | SessionStore): A secret key for cookie-based sessions,
                 or an instance of SessionStore for custom session storage.
             session_cookie (str, optional): Name of the session cookie. Defaults to
                 session".
@@ -386,12 +383,12 @@ class Application(BaseApplication):
     def use_cors(
         self,
         *,
-        allow_methods: Union[None, str, Iterable[str]] = None,
-        allow_headers: Union[None, str, Iterable[str]] = None,
-        allow_origins: Union[None, str, Iterable[str]] = None,
+        allow_methods: str | Iterable[str] | None = None,
+        allow_headers: str | Iterable[str] | None = None,
+        allow_origins: str | Iterable[str] | None = None,
         allow_credentials: bool = False,
         max_age: int = 5,
-        expose_headers: Union[None, str, Iterable[str]] = None,
+        expose_headers: str | Iterable[str] | None = None,
     ) -> CORSStrategy:
         """
         Enables CORS for the application, specifying the default rules to be applied
@@ -432,12 +429,12 @@ class Application(BaseApplication):
         self,
         policy_name,
         *,
-        allow_methods: Union[None, str, Iterable[str]] = None,
-        allow_headers: Union[None, str, Iterable[str]] = None,
-        allow_origins: Union[None, str, Iterable[str]] = None,
+        allow_methods: str | Iterable[str] | None = None,
+        allow_headers: str | Iterable[str] | None = None,
+        allow_origins: str | Iterable[str] | None = None,
         allow_credentials: bool = False,
         max_age: int = 5,
-        expose_headers: Union[None, str, Iterable[str]] = None,
+        expose_headers: str | Iterable[str] | None = None,
     ) -> None:
         """
         Configures a set of CORS rules that can later be applied to specific request
@@ -472,8 +469,8 @@ class Application(BaseApplication):
 
     def use_authentication(
         self,
-        strategy: Optional[AuthenticationStrategy] = None,
-        rate_limiter: Optional[RateLimiter] = None,
+        strategy: AuthenticationStrategy | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> AuthenticationStrategy:
         if self.started:
             raise RuntimeError(
@@ -500,7 +497,7 @@ class Application(BaseApplication):
         return strategy
 
     def use_authorization(
-        self, strategy: Optional[AuthorizationStrategy] = None
+        self, strategy: AuthorizationStrategy | None = None
     ) -> AuthorizationStrategy:
         if self.started:
             raise RuntimeError(
@@ -540,7 +537,7 @@ class Application(BaseApplication):
         return strategy
 
     def exception_handler(
-        self, exception_type: Union[int, Type[Exception]]
+        self, exception_type: int | Type[Exception]
     ) -> Callable[..., Any]:
         """
         Registers an exception handler function in the application exception handler.
@@ -585,16 +582,16 @@ class Application(BaseApplication):
 
     def serve_files(
         self,
-        source_folder: Union[str, Path],
+        source_folder: str | Path,
         *,
         discovery: bool = False,
         cache_time: int = 10800,
-        extensions: Optional[Set[str]] = None,
+        extensions: Set[str | None] = None,
         root_path: str = "",
-        index_document: Optional[str] = "index.html",
-        fallback_document: Optional[str] = None,
+        index_document: str | None = "index.html",
+        fallback_document: str | None = None,
         allow_anonymous: bool = True,
-        default_file_options: Optional[DefaultFileOptions] = None,
+        default_file_options: DefaultFileOptions | None = None,
     ):
         """
         Configures dynamic file serving from a given folder, relative to the server cwd.
@@ -648,7 +645,7 @@ class Application(BaseApplication):
         controllers_manager = ControllersManager()
         self.register_controllers(controllers_manager.prepare_controllers(self.router))
 
-    def register_controllers(self, controller_types: List[Type]):
+    def register_controllers(self, controller_types: list[Type]):
         """
         Registers controller types as transient services in the application service
         container.

@@ -5,7 +5,7 @@ This module provides classes to handle API Keys authentication.
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import Literal
 
 from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
@@ -27,8 +27,8 @@ class APIKey:
     def __init__(
         self,
         secret: Secret,
-        claims: Optional[dict] = None,
-        roles: Optional[List[str]] = None,
+        claims: dict | None = None,
+        roles: list[str | None] = None,
     ) -> None:
         """
         Creates an instance of API Key for authentication.
@@ -37,9 +37,9 @@ class APIKey:
         ----------
         secret : Secret
             The secret value of the API key.
-        claims : Optional[dict], optional
+        claims : dict | None, optional
             Additional claims to include in the authenticated identity, by default None.
-        roles : Optional[List[str]], optional
+        roles : list[str | None], optional
             List of roles to assign to the authenticated identity, by default None.
 
         Raises
@@ -57,11 +57,11 @@ class APIKey:
         return self._claims
 
     @property
-    def roles(self) -> List[str]:
+    def roles(self) -> list[str]:
         """Returns the roles associated with this API Key."""
         return self._roles
 
-    def match(self, secret: Union[Secret, str]) -> bool:
+    def match(self, secret: Secret | str) -> bool:
         """
         Returns a value indicating if the provided secret matches this API Key secret.
         """
@@ -80,7 +80,7 @@ class APIKeysProvider(ABC):
     Examples
     --------
     >>> class DatabaseAPIKeysProvider(APIKeysProvider):
-    ...     async def get_keys(self) -> List[APIKey]:
+    ...     async def get_keys(self) -> list[APIKey]:
     ...         # Fetch keys from database…
     ...         api_keys = await self.fetch_api_keys_from_db()
     ...         return [APIKey(key.name, Secret(key.secret, direct_value=True))
@@ -88,7 +88,7 @@ class APIKeysProvider(ABC):
     """
 
     @abstractmethod
-    async def get_keys(self) -> List[APIKey]:
+    async def get_keys(self) -> list[APIKey]:
         """
         Retrieve a list of valid API keys.
 
@@ -98,7 +98,7 @@ class APIKeysProvider(ABC):
 
         Returns
         -------
-        List[APIKey]
+        list[APIKey]
             A list of APIKey instances representing all valid keys for authentication.
             An empty list indicates no valid keys are available.
 
@@ -122,9 +122,9 @@ class APIKeyAuthentication(AuthenticationHandler):
         *keys: APIKey,
         param_name: str,
         scheme: str = "APIKey",
-        location: Union[APIKeyLocationValue, APIKeyLocation] = "header",
-        keys_provider: Optional[APIKeysProvider] = None,
-        description: Optional[str] = None,
+        location: APIKeyLocationValue | APIKeyLocation = "header",
+        keys_provider: APIKeysProvider | None = None,
+        description: str | None = None,
     ) -> None:
         """
         Creates a new instance of APIKeyAuthentication.
@@ -138,13 +138,13 @@ class APIKeyAuthentication(AuthenticationHandler):
             parameter or a keys_provider.
         scheme : str, optional
             The authentication scheme name, by default "APIKey".
-        location : Union[APIKeyLocationValue, APIKeyLocation], optional
+        location : APIKeyLocationValue | APIKeyLocation, optional
             Where to look for the API key in the request (header, query, or cookie), by
             default "header".
-        keys_provider : Optional[APIKeysProvider]
+        keys_provider : APIKeysProvider | None
             An optional provider that can be used to retrieve keys dynamically.
             If not provided, the keys passed as parameters will be used.
-        description : Optional[str]
+        description : str | None
             An optional description for this authentication scheme.
         """
         super().__init__()
@@ -175,7 +175,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         """Returns the location of the API Key."""
         return self._location
 
-    async def authenticate(self, context: Request) -> Optional[Identity]:
+    async def authenticate(self, context: Request) -> Identity | None:
         """
         Tries to authenticate the request using API Keys.
         If authentication succeeds, returns an Identity with the authentication mode set
@@ -201,7 +201,7 @@ class APIKeyAuthentication(AuthenticationHandler):
         claims.update({"roles": [role for role in key.roles]})
         return Identity(claims, authentication_mode=self.scheme)
 
-    def _get_input_secret(self, context: Request) -> Optional[str]:
+    def _get_input_secret(self, context: Request) -> str | None:
         value = None
         if self.location == APIKeyLocation.HEADER:
             bytes_value = context.get_first_header(self._param_name.encode())
@@ -218,7 +218,7 @@ class APIKeyAuthentication(AuthenticationHandler):
             raise TypeError("APIKeyLocation not supported.")
         return value
 
-    async def _match_key(self, context: Request) -> Optional[APIKey]:
+    async def _match_key(self, context: Request) -> APIKey | None:
         """
         Tries to find a matching API Key in the request context.
         Returns the matching API Key if found, otherwise None.

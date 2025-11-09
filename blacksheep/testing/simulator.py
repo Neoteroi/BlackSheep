@@ -1,6 +1,6 @@
 import abc
 import asyncio
-from typing import Dict, Optional
+from typing import Dict
 
 from blacksheep.contents import Content
 from blacksheep.messages import Request
@@ -54,7 +54,7 @@ class AbstractTestSimulator:
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> Response:
         """Entrypoint for all HTTP methods
@@ -74,7 +74,7 @@ class AbstractTestSimulator:
         path,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> TestWebSocket:
         """Entrypoint for WebSocket"""
@@ -98,7 +98,7 @@ class TestSimulator(AbstractTestSimulator):
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> Response:
         scope = _create_scope(method, path, headers, query, cookies=cookies)
@@ -129,7 +129,7 @@ class TestSimulator(AbstractTestSimulator):
         path: str,
         headers: HeadersType = None,
         query: QueryType = None,
-        content: Optional[Content] = None,
+        content: Content | None = None,
         cookies: CookiesType = None,
     ) -> TestWebSocket:
         scope = _create_scope("GET_WS", path, headers, query, cookies=cookies)

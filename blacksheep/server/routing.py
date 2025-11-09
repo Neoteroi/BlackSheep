@@ -8,12 +8,8 @@ from typing import (
     Any,
     AnyStr,
     Callable,
-    Dict,
-    List,
-    Optional,
     Sequence,
     Set,
-    Tuple,
     Union,
 )
 from urllib.parse import unquote
@@ -123,17 +119,17 @@ class InvalidValuePatternName(RouteException):
 class RouteMatch:
     __slots__ = ("_values", "pattern", "handler")
 
-    def __init__(self, route: "Route", values: Optional[Dict[str, bytes]]):
+    def __init__(self, route: "Route", values: dict[str, bytes | None]):
         self.handler = route.handler
         self.pattern = route.pattern
-        self._values: Optional[Dict[str, str]] = (
+        self._values: dict[str, str | None] = (
             {k: unquote(v.decode("utf8")) for k, v in values.items()}
             if values
             else None
         )
 
     @property
-    def values(self) -> Optional[Dict[str, str]]:
+    def values(self) -> dict[str, str | None]:
         return self._values
 
 
@@ -203,11 +199,11 @@ class HostFilter(RouteFilter):
 
 
 def normalize_filters(
-    host: Optional[str] = None,
-    headers: Optional[HeadersType] = None,
-    params: Optional[ParamsType] = None,
-    filters: Optional[List[RouteFilter]] = None,
-) -> List[RouteFilter]:
+    host: str | None = None,
+    headers: HeadersType | None = None,
+    params: ParamsType | None = None,
+    filters: list[RouteFilter | None] = None,
+) -> list[RouteFilter]:
     if filters:
         filters = filters.copy()
     else:
@@ -253,7 +249,7 @@ class Route:
 
     def __init__(
         self,
-        pattern: Union[str, bytes],
+        pattern: str | bytes,
         handler: Any,
     ):
         raw_pattern = self.normalize_pattern(pattern)
@@ -368,7 +364,7 @@ class Route:
             )
         return _get_parameter_pattern_fragment(matched_parameter)
 
-    def normalize_pattern(self, pattern: Union[str, bytes]) -> bytes:
+    def normalize_pattern(self, pattern: str | bytes) -> bytes:
         if isinstance(pattern, str):
             raw_pattern = pattern.encode("utf8")
         else:
@@ -408,10 +404,10 @@ class Route:
     def full_pattern(self) -> bytes:
         return self._rx.pattern
 
-    def match(self, request: Request) -> Optional[RouteMatch]:
+    def match(self, request: Request) -> RouteMatch | None:
         return self.match_by_path(ensure_bytes(request._path))
 
-    def match_by_path(self, path: bytes) -> Optional[RouteMatch]:
+    def match_by_path(self, path: bytes) -> RouteMatch | None:
         """
         Returns a match by path - this method can be used only when the route does not
         define any filter.
@@ -442,14 +438,14 @@ class FilterRoute(Route):
 
     def __init__(
         self,
-        pattern: Union[str, bytes],
+        pattern: str | bytes,
         handler: Any,
-        filters: List[RouteFilter],
+        filters: list[RouteFilter],
     ):
         super().__init__(pattern, handler)
         self.filters = filters
 
-    def match(self, request: Request) -> Optional[RouteMatch]:
+    def match(self, request: Request) -> RouteMatch | None:
         match = super().match(request)
 
         if not match:
@@ -469,10 +465,10 @@ class RouterBase(ABC):
     def __init__(
         self,
         *,
-        host: Optional[str] = None,
-        headers: Optional[HeadersType] = None,
-        params: Optional[ParamsType] = None,
-        filters: Optional[List[RouteFilter]] = None,
+        host: str | None = None,
+        headers: HeadersType | None = None,
+        params: ParamsType | None = None,
+        filters: list[RouteFilter | None] = None,
     ):
         self._filters = normalize_filters(host, headers, params, filters)
 
@@ -494,7 +490,7 @@ class RouterBase(ABC):
     def _get_decorator(
         self,
         method: str,
-        pattern: Optional[str] = "/",
+        pattern: str | None = "/",
     ) -> Callable[..., Any]:
         def decorator(fn):
             nonlocal pattern
@@ -545,38 +541,38 @@ class RouterBase(ABC):
     def add_ws(self, pattern: str, handler: Callable[..., Any]) -> None:
         self.add(RouteMethod.GET_WS, pattern, handler)
 
-    def head(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def head(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.HEAD, pattern)
 
-    def get(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def get(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.GET, pattern)
 
-    def post(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def post(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.POST, pattern)
 
-    def put(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def put(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.PUT, pattern)
 
-    def delete(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def delete(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.DELETE, pattern)
 
-    def trace(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def trace(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.TRACE, pattern)
 
-    def options(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def options(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.OPTIONS, pattern)
 
-    def connect(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def connect(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.CONNECT, pattern)
 
-    def patch(self, pattern: Optional[str] = "/") -> Callable[..., Any]:
+    def patch(self, pattern: str | None = "/") -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.PATCH, pattern)
 
     def ws(self, pattern) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.GET_WS, pattern)
 
     def route(
-        self, pattern: str, methods: Optional[Sequence[str]] = None
+        self, pattern: str, methods: Sequence[str | None] = None
     ) -> Callable[..., Any]:
         if methods is None:
             methods = ["GET"]
@@ -594,7 +590,7 @@ class MultiRouterMixin:
     This mixin is activate automatically when a Router defines sub-routers.
     """
 
-    _sub_routers: List["Router"]
+    _sub_routers: list["Router"]
 
     def __iter__(self):
         yield from super().__iter__()  # type: ignore
@@ -612,7 +608,7 @@ class MultiRouterMixin:
         for router in self._sub_routers:
             yield from router.iter_with_methods()
 
-    def get_match(self, request: Request) -> Optional[RouteMatch]:
+    def get_match(self, request: Request) -> RouteMatch | None:
         for router in self._sub_routers:
             match = router.get_match(request)
 
@@ -629,10 +625,10 @@ class RouterFiltersMixin:
     incurs a performance fee, and fees should only be paid when using features.
     """
 
-    routes: Dict[bytes, List[Route]]
+    routes: dict[bytes, list[Route]]
     _fallback: Any
 
-    def get_match(self, request: Request) -> Optional[RouteMatch]:
+    def get_match(self, request: Request) -> RouteMatch | None:
         for route in self.routes[ensure_bytes(request.method)]:
             match = route.match(request)
 
@@ -645,7 +641,7 @@ class RouterFiltersMixin:
         return RouteMatch(self._fallback, None)
 
 
-RouteConfig = Union[Dict[str, Any], "Router"]
+RouteConfig = Union[dict[str, Any], "Router"]
 
 
 def _combine_with_global_prefix(prefix: str) -> str:
@@ -679,11 +675,11 @@ class Router(RouterBase):
     def __init__(
         self,
         *,
-        host: Optional[str] = None,
-        headers: Optional[HeadersType] = None,
-        params: Optional[ParamsType] = None,
-        filters: Optional[List[RouteFilter]] = None,
-        sub_routers: Optional[List["Router"]] = None,
+        host: str | None = None,
+        headers: HeadersType | None = None,
+        params: ParamsType | None = None,
+        filters: list[RouteFilter | None] = None,
+        sub_routers: list["Router"] | None = None,
         prefix: str = "",
     ):
         super().__init__(
@@ -698,7 +694,7 @@ class Router(RouterBase):
         self._prefix: bytes = self._normalize_prefix(
             _combine_with_global_prefix(prefix)
         )
-        self.routes: Dict[bytes, List[Route]] = defaultdict(list)  # final routes
+        self.routes: dict[bytes, list[Route]] = defaultdict(list)  # final routes
         self.controllers_routes = RoutesRegistry()  # used during controllers setup
         self._sub_routers = sub_routers
         self._registered_routes = []  # used during setup
@@ -710,7 +706,7 @@ class Router(RouterBase):
             extend(self, MultiRouterMixin)
 
     @property
-    def registered_routes(self) -> List[Tuple[str, Route]]:
+    def registered_routes(self) -> list[tuple[str, Route]]:
         return self._registered_routes
 
     def reset(self):
@@ -822,7 +818,7 @@ class Router(RouterBase):
         method: str,
         pattern: AnyStr,
         handler: Any,
-        filters: Optional[List[RouteFilter]] = None,
+        filters: list[RouteFilter | None] = None,
     ):
         new_route = self.create_route(pattern, handler, filters)
         self._registered_routes.append((method, new_route))
@@ -831,7 +827,7 @@ class Router(RouterBase):
         self,
         pattern: AnyStr,
         handler: Any,
-        filters: Optional[List[RouteFilter]] = None,
+        filters: list[RouteFilter | None] = None,
     ) -> Route:
         if filters and not isinstance(self, RouterFiltersMixin):
             extend(self, RouterFiltersMixin)
@@ -925,7 +921,7 @@ class Router(RouterBase):
             for sub_router in self._sub_routers:
                 sub_router.sort_routes()
 
-    def get_match(self, request: Request) -> Optional[RouteMatch]:
+    def get_match(self, request: Request) -> RouteMatch | None:
         """
         Gets a match for the given request, by method and request path.
         """
@@ -934,7 +930,7 @@ class Router(RouterBase):
     @lru_cache(maxsize=1200)
     def get_match_by_method_and_path(
         self, method: AnyStr, path: AnyStr
-    ) -> Optional[RouteMatch]:
+    ) -> RouteMatch | None:
         bytes_value = ensure_bytes(path)
         for route in self.routes[ensure_bytes(method)]:
             match = route.match_by_path(bytes_value)
@@ -946,7 +942,7 @@ class Router(RouterBase):
         return RouteMatch(self._fallback, None)
 
     @lru_cache(maxsize=1200)
-    def get_matching_route(self, method: AnyStr, value: AnyStr) -> Optional[Route]:
+    def get_matching_route(self, method: AnyStr, value: AnyStr) -> Route | None:
         for route in self.routes[ensure_bytes(method)]:
             match = route.match_by_path(ensure_bytes(value))
             if match:
@@ -985,13 +981,13 @@ class RoutesRegistry(RouterBase):
     def __init__(
         self,
         *,
-        host: Optional[str] = None,
-        headers: Optional[HeadersType] = None,
-        params: Optional[ParamsType] = None,
-        filters: Optional[List[RouteFilter]] = None,
+        host: str | None = None,
+        headers: HeadersType | None = None,
+        params: ParamsType | None = None,
+        filters: list[RouteFilter | None] = None,
     ):
         super().__init__(host=host, headers=headers, params=params, filters=filters)
-        self.routes: List[RegisteredRoute] = []
+        self.routes: list[RegisteredRoute] = []
 
     def reset(self):
         """Resets this routes registry to its initial state."""
@@ -1027,7 +1023,7 @@ class MountRegistry:
         self.handle_docs = handle_docs
 
     @property
-    def mounted_apps(self) -> List[Route]:
+    def mounted_apps(self) -> list[Route]:
         return self._mounted_apps
 
     @property

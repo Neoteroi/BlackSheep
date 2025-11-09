@@ -24,7 +24,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, datetime
 from textwrap import dedent
-from typing import Any, Dict, List, Optional, Sequence, Type
+from typing import Any, Sequence, Type
 from uuid import UUID
 from weakref import WeakKeyDictionary
 
@@ -47,9 +47,9 @@ class ReturnInfo:
 class DocstringInfo:
     summary: str
     description: str
-    parameters: Dict[str, ParameterInfo]
-    return_type: Optional[Type] = None
-    return_description: Optional[str] = None
+    parameters: dict[str, ParameterInfo]
+    return_type: Type | None = None
+    return_description: str | None = None
 
 
 class DocstringDialect(ABC):
@@ -89,7 +89,7 @@ _array_rx = re.compile(
 )
 
 
-def type_repr_to_type(type_repr: str) -> Optional[Type]:
+def type_repr_to_type(type_repr: str) -> Type | None:
     array_match = _array_rx.match(type_repr)
 
     if array_match:
@@ -97,7 +97,7 @@ def type_repr_to_type(type_repr: str) -> Optional[Type]:
 
         if type_repr in TYPE_REPRS:
             value_type = TYPE_REPRS[type_repr]
-            return List[value_type]
+            return list[value_type]
 
     if type_repr in TYPE_REPRS:
         return TYPE_REPRS[type_repr]
@@ -154,9 +154,9 @@ class PatternsDocstringDialect(DocstringDialect):
         super().__init__()
         self._options = options
 
-    def get_parameters_info(self, docstring: str) -> Dict[str, ParameterInfo]:
-        parameters: Dict[str, ParameterInfo] = {}
-        types: Dict[str, Any] = {}
+    def get_parameters_info(self, docstring: str) -> dict[str, ParameterInfo]:
+        parameters: dict[str, ParameterInfo] = {}
+        types: dict[str, Any] = {}
 
         for m in self._options.param_rx.finditer(docstring):
             param_name = m.group("param_name").strip()
@@ -239,12 +239,12 @@ class IndentDocstringDialect(DocstringDialect):
     def is_section_separator(self, line: str) -> bool:
         return False
 
-    def get_section(self, docstring: str, section_name: str) -> List[SectionFragment]:
-        fragments: List[SectionFragment] = []
+    def get_section(self, docstring: str, section_name: str) -> list[SectionFragment]:
+        fragments: list[SectionFragment] = []
 
         section_started = False
         current_indentation = -1  # indentation of the current section
-        open_fragment: Optional[SectionFragment] = None
+        open_fragment: SectionFragment | None = None
 
         for line in docstring.splitlines():
             if line == "":
@@ -283,9 +283,7 @@ class IndentDocstringDialect(DocstringDialect):
 
 
 class EpytextDialect(PatternsDocstringDialect):
-    def __init__(
-        self, options: Optional[PatternsDocstringDialectOptions] = None
-    ) -> None:
+    def __init__(self, options: PatternsDocstringDialectOptions | None = None) -> None:
         super().__init__(options or self._default_options)
 
     _default_options = PatternsDocstringDialectOptions(
@@ -305,9 +303,7 @@ class EpytextDialect(PatternsDocstringDialect):
 
 
 class ReStructuredTextDialect(PatternsDocstringDialect):
-    def __init__(
-        self, options: Optional[PatternsDocstringDialectOptions] = None
-    ) -> None:
+    def __init__(self, options: PatternsDocstringDialectOptions | None = None) -> None:
         super().__init__(options or self._default_options)
 
     _default_options = PatternsDocstringDialectOptions(
@@ -338,7 +334,7 @@ class NumpydocDialect(IndentDocstringDialect):
         return re.match(r"^[-\s\t]+$", line) is not None
 
     def get_description(self, docstring: str) -> FunctionInfo:
-        lines: List[str] = []
+        lines: list[str] = []
 
         for line in docstring.splitlines():
             if self.is_section_separator(line.strip()):
@@ -352,7 +348,7 @@ class NumpydocDialect(IndentDocstringDialect):
 
         return FunctionInfo(summary=get_summary(description), description=description)
 
-    def get_return_info(self, docstring: str) -> Optional[ReturnInfo]:
+    def get_return_info(self, docstring: str) -> ReturnInfo | None:
         section = self.get_section(docstring, "Returns") or self.get_section(
             docstring, "Return"
         )
@@ -367,8 +363,8 @@ class NumpydocDialect(IndentDocstringDialect):
             return_description=collapse(fragment.value),
         )
 
-    def get_parameters_info(self, docstring: str) -> Dict[str, ParameterInfo]:
-        parameters: Dict[str, ParameterInfo] = {}
+    def get_parameters_info(self, docstring: str) -> dict[str, ParameterInfo]:
+        parameters: dict[str, ParameterInfo] = {}
 
         parameters_section = self.get_section(
             docstring, "Parameters"
@@ -418,7 +414,7 @@ class GoogleDocDialect(IndentDocstringDialect):
         return line.strip(" :") in self._sections
 
     def get_description(self, docstring: str) -> FunctionInfo:
-        lines: List[str] = []
+        lines: list[str] = []
 
         for line in docstring.splitlines():
             if self.is_section_start(line):
@@ -430,8 +426,8 @@ class GoogleDocDialect(IndentDocstringDialect):
 
         return FunctionInfo(summary=get_summary(description), description=description)
 
-    def get_parameters_info(self, docstring: str) -> Dict[str, ParameterInfo]:
-        parameters: Dict[str, ParameterInfo] = {}
+    def get_parameters_info(self, docstring: str) -> dict[str, ParameterInfo]:
+        parameters: dict[str, ParameterInfo] = {}
 
         parameters_section = self.get_section(docstring, "Args")
 
@@ -458,7 +454,7 @@ class GoogleDocDialect(IndentDocstringDialect):
 
         return parameters
 
-    def get_return_info(self, docstring: str) -> Optional[ReturnInfo]:
+    def get_return_info(self, docstring: str) -> ReturnInfo | None:
         section = self.get_section(docstring, "Returns")
 
         if not section:
@@ -499,7 +495,7 @@ default_dialects = [
 
 def parse_docstring(
     docstring: str,
-    dialects: Optional[Sequence[DocstringDialect]] = None,
+    dialects: Sequence[DocstringDialect | None] = None,
 ) -> DocstringInfo:
     assert bool(docstring), "a docstring is required"
 

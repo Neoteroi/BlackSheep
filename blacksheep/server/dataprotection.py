@@ -1,7 +1,7 @@
 import os
 import secrets
 import string
-from typing import List, Optional, Sequence
+from typing import Sequence
 
 from itsdangerous import Serializer
 from itsdangerous.url_safe import URLSafeSerializer
@@ -16,7 +16,7 @@ def generate_secret(length: int = 60) -> str:
     return "".join(secrets.choice(alphabet) for i in range(length))
 
 
-def get_keys() -> List[str]:
+def get_keys() -> list[str]:
     # if there are environmental variables with keys, use them;
     # by default this kind of env variables would be used:
     # APP_SECRET_1="***"
@@ -45,7 +45,7 @@ def get_keys() -> List[str]:
 
 
 def get_serializer(
-    secret_keys: Optional[Sequence[str]] = None, purpose: str = "dataprotection"
+    secret_keys: Sequence[str | None] = None, purpose: str = "dataprotection"
 ) -> Serializer:
     if not secret_keys:
         secret_keys = get_keys()

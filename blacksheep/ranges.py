@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence, Union
+from typing import Sequence
 
 from .utils import AnyStr, ensure_str
 
@@ -8,8 +8,8 @@ class InvalidRangeValue(ValueError):
         super().__init__(message)
 
 
-RangeValueType = Optional[int]
-RangeInputValueType = Union[None, str, int]
+RangeValueType = int | None
+RangeInputValueType = None | str | int
 
 
 class RangePart:
@@ -127,7 +127,7 @@ class Range:
 
     def __init__(self, unit: str, parts: Sequence[RangePart]):
         self._unit: str
-        self._parts: List[RangePart]
+        self._parts: list[RangePart]
         self.unit = unit
         self.parts = parts
 
@@ -162,7 +162,7 @@ class Range:
         return len(self.parts) > 1
 
     @property
-    def parts(self) -> List[RangePart]:
+    def parts(self) -> list[RangePart]:
         return self._parts
 
     @parts.setter

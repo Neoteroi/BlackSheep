@@ -1,5 +1,5 @@
 import weakref
-from typing import Optional, Sequence, Tuple
+from typing import Sequence
 
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
@@ -56,9 +56,9 @@ class AntiForgeryHandler:
         cookie_name: str = "aftoken",
         form_name: str = "__RequestVerificationToken",
         header_name: str = "RequestVerificationToken",
-        secret_keys: Optional[Sequence[str]] = None,
-        serializer: Optional[Serializer] = None,
-        security_handler: Optional[SecurityPolicyHandler] = None,
+        secret_keys: Sequence[str | None] = None,
+        serializer: Serializer | None = None,
+        security_handler: SecurityPolicyHandler | None = None,
     ) -> None:
         """
         Creates a new instance of AntiForgeryHandler, that validates incoming
@@ -78,10 +78,10 @@ class AntiForgeryHandler:
         secret_key : str, optional
             If specified, the key used by a default serializer (when no serializer is
             specified), by default None
-        serializer : Optional[Serializer], optional
+        serializer : Serializer | None, optional
             If specified, controls the serializer used to sign and verify the values
             of cookies used for identities, by default None
-        security_handler : Optional[SecurityPolicyHandler], optional
+        security_handler : SecurityPolicyHandler | None, optional
             Object used to protect responses that contain anti-forgery tokens. By
             default documents are protected against click-jacking allowing iframes only
             from the same site. Provide a custom object to control security rules.
@@ -210,7 +210,7 @@ class AntiForgeryHandler:
 
         raise AntiForgeryTokenError("Missing anti-forgery token control value")
 
-    def get_tokens(self, request: Request) -> Tuple[str, str]:
+    def get_tokens(self, request: Request) -> tuple[str, str]:
         """
         Gets a pair of anti-forgery tokens for the given request.
         If tokens were already generated for this request, it returns them, otherwise
@@ -258,7 +258,7 @@ class AntiForgeryHandler:
         assert isinstance(control_value, str)
         return control_value
 
-    def _generate_tokens(self) -> Tuple[str, str]:
+    def _generate_tokens(self) -> tuple[str, str]:
         """
         Generates two different tokens that can be matched later:
         * one is set as HTTPOnly cookie
@@ -303,7 +303,7 @@ def ignore_anti_forgery(value: bool = True):
 
 
 def use_anti_forgery(
-    app: Application, handler: Optional[AntiForgeryHandler] = None
+    app: Application, handler: AntiForgeryHandler | None = None
 ) -> AntiForgeryHandler:
     """
     Configures Anti-Forgery validation on the given application, to protect against

@@ -17,8 +17,6 @@ Usage:
     use_open_telemetry_otlp(app)
 """
 
-from typing import Optional
-
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
@@ -29,9 +27,7 @@ from . import OTELMiddleware, use_open_telemetry
 __all__ = ["use_open_telemetry_otlp"]
 
 
-def use_open_telemetry_otlp(
-    app: Application, middleware: Optional[OTELMiddleware] = None
-):
+def use_open_telemetry_otlp(app: Application, middleware: OTELMiddleware | None = None):
     """
     Configures OpenTelemetry for a BlackSheep application using OTLP exporters.
 

@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 
 from blacksheep import JSONContent, Request
@@ -142,7 +140,7 @@ def test_parse_multipart_two_fields():
         b"--------28cbeda4cdd04d1595b71933e31928cd--\r\n"
     )
 
-    data = list(parse_multipart(content))  # type: List[FormPart]
+    data = list(parse_multipart(content))  # type: list[FormPart]
 
     assert data is not None
     assert len(data) == 2
@@ -187,7 +185,7 @@ def test_parse_multipart():
         ]
     )
 
-    data = list(parse_multipart(content))  # type: List[FormPart]
+    data = list(parse_multipart(content))  # type: list[FormPart]
 
     assert data is not None
     assert len(data) == 5
@@ -314,7 +312,7 @@ def test_text_content_data(text):
         ),
     ],
 )
-async def test_write_request_body_only(req: Request, expected_chunks: List[bytes]):
+async def test_write_request_body_only(req: Request, expected_chunks: list[bytes]):
     received_chunks = []
 
     async for chunk in write_request_body_only(req):

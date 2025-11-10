@@ -1,5 +1,4 @@
 from collections.abc import Mapping, MutableSequence
-from typing import Dict, List, Tuple, Union
 
 
 cdef class Header:
@@ -82,7 +81,7 @@ cdef class Headers:
             values.append((name, value))
         return Headers(values)
 
-    def add_many(self, values: Union[dict[bytes, bytes], list[tuple[bytes, bytes]]]):
+    def add_many(self, values):
         if isinstance(values, MutableSequence):
             for item in values:
                 self.add(*item)

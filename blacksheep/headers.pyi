@@ -1,5 +1,5 @@
 from collections.abc import MutableSequence
-from typing import Dict, Generator, List, Optional, Tuple, Union
+from typing import Generator, Union
 
 class Header:
     def __init__(self, name: bytes, value: bytes):

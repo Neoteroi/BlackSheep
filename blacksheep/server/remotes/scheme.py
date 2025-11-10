@@ -1,7 +1,11 @@
+import typing
+
 from blacksheep.messages import Request
 from blacksheep.middlewares import MiddlewareCategory
-from blacksheep.server.application import Application
 from blacksheep.server.security.hsts import HSTSMiddleware
+
+if typing.TYPE_CHECKING:
+    from blacksheep.server.application import Application
 
 
 class ForceSchemeMiddleware:
@@ -24,7 +28,7 @@ class ForceSchemeMiddleware:
         return await handler(request)
 
 
-def configure_scheme_middleware(app: Application):
+def configure_scheme_middleware(app: "Application"):
     """
     Automatically configures request scheme handling based on environment variables.
 

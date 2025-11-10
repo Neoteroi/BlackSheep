@@ -1,5 +1,5 @@
 import logging
-from typing import Awaitable, Callable, Dict, Optional, Type, TypeVar, Union
+from typing import Awaitable, Callable, Type, TypeVar
 
 from blacksheep.exceptions import HTTPException
 from blacksheep.messages import Request, Response
@@ -8,8 +8,8 @@ from blacksheep.server.routing import RouteMatch, Router
 
 ExcT = TypeVar("ExcT", bound=Exception)
 
-ExceptionHandlersType = Dict[
-    Union[int, Type[Exception]],
+ExceptionHandlersType = dict[
+    int | Type[Exception],
     Callable[[Application, Request, ExcT], Awaitable[Response]],
 ]
 
@@ -35,9 +35,9 @@ class BaseApplication:
     def get_route_match(self, request: Request) -> RouteMatch | None: ...
     def get_http_exception_handler(
         self, exc: HTTPException
-    ) -> Optional[
-        Callable[[Application, Request, HTTPException], Awaitable[Response]]
-    ]: ...
+    ) -> (
+        Callable[[Application, Request, HTTPException], Awaitable[Response]] | None
+    ): ...
 
 def get_logger() -> logging.Logger: ...
 def handle_not_found(

@@ -56,7 +56,7 @@ class AntiForgeryHandler:
         cookie_name: str = "aftoken",
         form_name: str = "__RequestVerificationToken",
         header_name: str = "RequestVerificationToken",
-        secret_keys: Sequence[str | None] = None,
+        secret_keys: Sequence[str] | None = None,
         serializer: Serializer | None = None,
         security_handler: SecurityPolicyHandler | None = None,
     ) -> None:

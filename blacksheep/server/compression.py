@@ -43,7 +43,7 @@ class GzipMiddleware:
         self,
         min_size: int = 500,
         comp_level: int = 5,
-        handled_types: Iterable[bytes | None] = None,
+        handled_types: Iterable[bytes] | None = None,
         executor: Executor | None = None,
     ):
         self.min_size = min_size

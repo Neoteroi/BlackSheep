@@ -26,7 +26,7 @@ class Session:
         to_dict(): Returns a shallow copy of the session data as a dictionary.
     """
 
-    def __init__(self, values: Mapping[str, Any | None] = None) -> None:
+    def __init__(self, values: Mapping[str, Any] | None = None) -> None:
         if values is None:
             values = {}
         self._modified = False

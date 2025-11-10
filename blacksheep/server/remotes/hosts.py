@@ -13,7 +13,7 @@ class InvalidHostError(BadRequest):
 class TrustedHostsMiddleware:
     def __init__(
         self,
-        allowed_hosts: Sequence[str | None] = None,
+        allowed_hosts: Sequence[str] | None = None,
     ) -> None:
         self.allowed_hosts: list[str] = list(allowed_hosts) if allowed_hosts else []
 

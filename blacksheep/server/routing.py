@@ -202,7 +202,7 @@ def normalize_filters(
     host: str | None = None,
     headers: HeadersType | None = None,
     params: ParamsType | None = None,
-    filters: list[RouteFilter | None] = None,
+    filters: list[RouteFilter] | None = None,
 ) -> list[RouteFilter]:
     if filters:
         filters = filters.copy()
@@ -468,7 +468,7 @@ class RouterBase(ABC):
         host: str | None = None,
         headers: HeadersType | None = None,
         params: ParamsType | None = None,
-        filters: list[RouteFilter | None] = None,
+        filters: list[RouteFilter] | None = None,
     ):
         self._filters = normalize_filters(host, headers, params, filters)
 
@@ -572,7 +572,7 @@ class RouterBase(ABC):
         return self._get_decorator(RouteMethod.GET_WS, pattern)
 
     def route(
-        self, pattern: str, methods: Sequence[str | None] = None
+        self, pattern: str, methods: Sequence[str] | None = None
     ) -> Callable[..., Any]:
         if methods is None:
             methods = ["GET"]
@@ -678,7 +678,7 @@ class Router(RouterBase):
         host: str | None = None,
         headers: HeadersType | None = None,
         params: ParamsType | None = None,
-        filters: list[RouteFilter | None] = None,
+        filters: list[RouteFilter] | None = None,
         sub_routers: list["Router"] | None = None,
         prefix: str = "",
     ):
@@ -818,7 +818,7 @@ class Router(RouterBase):
         method: str,
         pattern: AnyStr,
         handler: Any,
-        filters: list[RouteFilter | None] = None,
+        filters: list[RouteFilter] | None = None,
     ):
         new_route = self.create_route(pattern, handler, filters)
         self._registered_routes.append((method, new_route))
@@ -827,7 +827,7 @@ class Router(RouterBase):
         self,
         pattern: AnyStr,
         handler: Any,
-        filters: list[RouteFilter | None] = None,
+        filters: list[RouteFilter] | None = None,
     ) -> Route:
         if filters and not isinstance(self, RouterFiltersMixin):
             extend(self, RouterFiltersMixin)
@@ -984,7 +984,7 @@ class RoutesRegistry(RouterBase):
         host: str | None = None,
         headers: HeadersType | None = None,
         params: ParamsType | None = None,
-        filters: list[RouteFilter | None] = None,
+        filters: list[RouteFilter] | None = None,
     ):
         super().__init__(host=host, headers=headers, params=params, filters=filters)
         self.routes: list[RegisteredRoute] = []

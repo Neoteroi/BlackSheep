@@ -60,7 +60,7 @@ def method_without_body(method: str) -> bool: ...
 
 class Request(Message):
     def __init__(
-        self, method: str, url: bytes, headers: list[HeaderType | None]
+        self, method: str, url: bytes, headers: list[HeaderType] | None
     ) -> None:
         self.method: str = ...
         self._url: URL = ...
@@ -151,7 +151,7 @@ class Response(Message):
     def __init__(
         self,
         status: int,
-        headers: list[HeaderType | None] = None,
+        headers: list[HeaderType] | None = None,
         content: Content | None = None,
     ) -> None:
         self.status = status

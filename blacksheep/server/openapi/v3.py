@@ -176,7 +176,7 @@ class FieldInfo:
 
     name: str
     type: Type | Schema
-    schema: dict[str, Any | None] = None  # New property to store Pydantic schema
+    schema: dict[str, Any] | None = None  # New property to store Pydantic schema
 
 
 class ObjectTypeHandler(ABC):
@@ -424,9 +424,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         yaml_spec_path: str = "openapi.yaml",
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
-        tags: list[Tag | None] = None,
-        security_schemes: dict[str, SecurityScheme | None] = None,
-        servers: Sequence[Server | None] = None,
+        tags: list[Tag] | None = None,
+        security_schemes: dict[str, SecurityScheme] | None = None,
+        servers: Sequence[Server] | None = None,
         serializer: Serializer | None = None,
     ) -> None:
         super().__init__(
@@ -534,7 +534,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_type_name_for_generic(
         self,
         object_type: GenericAlias,
-        context_type_args: dict[Any, Type | None] = None,
+        context_type_args: dict[Any, Type] | None = None,
     ) -> str:
         """
         This method returns a type name for a generic type.
@@ -555,7 +555,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return f"{self.get_type_name(origin)}Of{args_repr}"
 
     def get_type_name(
-        self, object_type, context_type_args: dict[Any, Type | None] = None
+        self, object_type, context_type_args: dict[Any, Type] | None = None
     ) -> str:
         if context_type_args and object_type in context_type_args:
             object_type = context_type_args.get(object_type)
@@ -724,7 +724,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         object_type: Type,
         properties: dict[str, Schema | Reference],
         required: list[str],
-        context_type_args: dict[Any, Type | None] = None,
+        context_type_args: dict[Any, Type] | None = None,
     ) -> Reference:
         return self._handle_object_type_schema(
             object_type,
@@ -746,7 +746,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return reference
 
     def _get_stored_reference(
-        self, object_type: Type[Any], type_args: dict[Any, Type | None] = None
+        self, object_type: Type[Any], type_args: dict[Any, Type] | None = None
     ) -> Reference | None:
         if object_type in self._objects_references:
             # if object_type is a generic, it can be like
@@ -764,7 +764,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_schema_by_type(
         self,
         object_type: Type | Schema,
-        type_args: dict[Any, Type | None] = None,
+        type_args: dict[Any, Type] | None = None,
         *,
         root_optional: bool | None = None,
     ) -> Schema | Reference:
@@ -785,7 +785,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return schema
 
     def _get_schema_by_type(
-        self, object_type: Type[Any], type_args: dict[Any, Type | None] = None
+        self, object_type: Type[Any], type_args: dict[Any, Type] | None = None
     ) -> Schema | Reference:
         stored_ref = self._get_stored_reference(object_type, type_args)
         if stored_ref:  # pragma: no cover
@@ -849,7 +849,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return None
 
     def _try_get_schema_for_iterable(
-        self, object_type: Type, context_type_args: dict[Any, Type | None] = None
+        self, object_type: Type, context_type_args: dict[Any, Type] | None = None
     ) -> Schema | None:
         if object_type in {list, set, tuple}:
             # the user didn't specify the item type
@@ -878,7 +878,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         )
 
     def _try_get_schema_for_mapping(
-        self, object_type: Type, context_type_args: dict[Any, Type | None] = None
+        self, object_type: Type, context_type_args: dict[Any, Type] | None = None
     ) -> Schema | None:
         if object_type in {dict, defaultdict, OrderedDict}:
             # the user didn't specify the key and value types
@@ -925,7 +925,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         return []
 
     def _try_get_schema_for_generic(
-        self, object_type: Type, context_type_args: dict[Any, Type | None] = None
+        self, object_type: Type, context_type_args: dict[Any, Type] | None = None
     ) -> Reference | None:
         origin = get_origin(object_type)
 

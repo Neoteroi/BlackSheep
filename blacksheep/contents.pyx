@@ -2,7 +2,6 @@ import json
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
-from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.settings.json import json_settings

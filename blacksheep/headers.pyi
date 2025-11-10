@@ -13,7 +13,7 @@ class Header:
 HeaderType = tuple[bytes, bytes]
 
 class Headers:
-    def __init__(self, values: list[HeaderType | None] = None):
+    def __init__(self, values: list[HeaderType] | None = None):
         self.values = values
 
     def get(self, name: bytes) -> tuple[HeaderType]: ...

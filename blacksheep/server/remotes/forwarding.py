@@ -31,9 +31,9 @@ class InvalidProxyIPError(BadRequest):
 class BaseForwardedHeadersMiddleware(TrustedHostsMiddleware, ABC):
     def __init__(
         self,
-        allowed_hosts: Sequence[str | None] = None,
-        known_proxies: Sequence[IPAddress | None] = None,
-        known_networks: Sequence[IPNetwork | None] = None,
+        allowed_hosts: Sequence[str] | None = None,
+        known_proxies: Sequence[IPAddress] | None = None,
+        known_networks: Sequence[IPNetwork] | None = None,
         forward_limit: int = 1,
         accept_only_proxied_requests: bool = True,
     ) -> None:
@@ -159,9 +159,9 @@ class ForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
 
     def __init__(
         self,
-        allowed_hosts: Sequence[str | None] = None,
-        known_proxies: Sequence[IPAddress | None] = None,
-        known_networks: Sequence[IPNetwork | None] = None,
+        allowed_hosts: Sequence[str] | None = None,
+        known_proxies: Sequence[IPAddress] | None = None,
+        known_networks: Sequence[IPNetwork] | None = None,
         forward_limit: int = 1,
         accept_only_proxied_requests: bool = True,
     ) -> None:
@@ -234,9 +234,9 @@ class XForwardedHeadersMiddleware(BaseForwardedHeadersMiddleware):
 
     def __init__(
         self,
-        allowed_hosts: Sequence[str | None] = None,
-        known_proxies: Sequence[IPAddress | None] = None,
-        known_networks: Sequence[IPNetwork | None] = None,
+        allowed_hosts: Sequence[str] | None = None,
+        known_proxies: Sequence[IPAddress] | None = None,
+        known_networks: Sequence[IPNetwork] | None = None,
         forward_limit: int = 1,
         accept_only_proxied_requests: bool = True,
     ) -> None:

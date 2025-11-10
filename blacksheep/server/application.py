@@ -177,7 +177,7 @@ class Application(BaseApplication):
         show_error_details: bool = False,
         mount: MountRegistry | None = None,
     ):
-        env_settings = EnvironmentSettings()
+        env_settings = EnvironmentSettings.from_env()
         if router is None:
             router = default_router if env_settings.use_default_router else Router()
         if services is None:

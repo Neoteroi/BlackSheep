@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   controlled via the `programming_names` parameter in `DefaultSerializer` or the
   `APP_OPENAPI_PROGRAMMING_NAMES` environment variable, setting it to a truthy value
   ('1' or 'true').
-- Make `EnvironmentSettings` frozen.
+- Make `EnvironmentSettings` read-only, refactor to not use `dataclass`.
 - Attach `EnvironmentSettings` to the `Application` object for runtime inspection, which
   is useful for: transparency and debugging, testing
   (`assert app.env_settings.force_https is True`), health check endpoints or admin tools

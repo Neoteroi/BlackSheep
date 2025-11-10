@@ -3,7 +3,7 @@ import pytest
 from blacksheep import Request, Response
 from blacksheep.contents import TextContent
 from blacksheep.server.remotes.scheme import (
-    ForceSchemeMiddleware,
+    HTTPSchemeMiddleware,
     configure_scheme_middleware,
 )
 from blacksheep.server.security.hsts import HSTSMiddleware
@@ -12,23 +12,23 @@ from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
 
 
-class TestForceSchemeMiddleware:
-    """Tests for ForceSchemeMiddleware"""
+class TestHTTPSchemeMiddleware:
+    """Tests for HTTPSchemeMiddleware"""
 
     def test_middleware_accepts_http_scheme(self):
-        middleware = ForceSchemeMiddleware("http")
+        middleware = HTTPSchemeMiddleware("http")
         assert middleware.scheme == "http"
 
     def test_middleware_accepts_https_scheme(self):
-        middleware = ForceSchemeMiddleware("https")
+        middleware = HTTPSchemeMiddleware("https")
         assert middleware.scheme == "https"
 
     def test_middleware_rejects_invalid_scheme(self):
         with pytest.raises(TypeError, match="Invalid scheme, expected http | https"):
-            ForceSchemeMiddleware("ftp")
+            HTTPSchemeMiddleware("ftp")
 
     async def test_middleware_forces_http_scheme(self):
-        middleware = ForceSchemeMiddleware("http")
+        middleware = HTTPSchemeMiddleware("http")
         request = Request("GET", b"/", None)
         request.scheme = "https"  # Original scheme
 
@@ -40,7 +40,7 @@ class TestForceSchemeMiddleware:
         assert response.status == 200
 
     async def test_middleware_forces_https_scheme(self):
-        middleware = ForceSchemeMiddleware("https")
+        middleware = HTTPSchemeMiddleware("https")
         request = Request("GET", b"/", None)
         request.scheme = "http"  # Original scheme
 
@@ -71,9 +71,9 @@ class TestConfigureSchemeMiddleware:
 
         configure_scheme_middleware(app)
 
-        # Check that ForceSchemeMiddleware with https is added
+        # Check that HTTPSchemeMiddleware with https is added
         force_scheme_middlewares = [
-            m for m in app.middlewares if isinstance(m, ForceSchemeMiddleware)
+            m for m in app.middlewares if isinstance(m, HTTPSchemeMiddleware)
         ]
         assert len(force_scheme_middlewares) == 1
         assert force_scheme_middlewares[0].scheme == "https"
@@ -87,9 +87,9 @@ class TestConfigureSchemeMiddleware:
 
         configure_scheme_middleware(app)
 
-        # Check that ForceSchemeMiddleware is added with http
+        # Check that HTTPSchemeMiddleware is added with http
         force_scheme_middlewares = [
-            m for m in app.middlewares if isinstance(m, ForceSchemeMiddleware)
+            m for m in app.middlewares if isinstance(m, HTTPSchemeMiddleware)
         ]
         assert len(force_scheme_middlewares) == 1
         assert force_scheme_middlewares[0].scheme == "http"
@@ -103,9 +103,9 @@ class TestConfigureSchemeMiddleware:
 
         configure_scheme_middleware(app)
 
-        # Check that ForceSchemeMiddleware is added with https
+        # Check that HTTPSchemeMiddleware is added with https
         force_scheme_middlewares = [
-            m for m in app.middlewares if isinstance(m, ForceSchemeMiddleware)
+            m for m in app.middlewares if isinstance(m, HTTPSchemeMiddleware)
         ]
         assert len(force_scheme_middlewares) == 1
         assert force_scheme_middlewares[0].scheme == "https"
@@ -121,7 +121,7 @@ class TestConfigureSchemeMiddleware:
 
         # Check that no middleware is added
         force_scheme_middlewares = [
-            m for m in app.middlewares if isinstance(m, ForceSchemeMiddleware)
+            m for m in app.middlewares if isinstance(m, HTTPSchemeMiddleware)
         ]
         assert len(force_scheme_middlewares) == 0
 
@@ -135,7 +135,7 @@ class TestConfigureSchemeMiddleware:
 
         # Check that https is used despite http_scheme="http"
         force_scheme_middlewares = [
-            m for m in app.middlewares if isinstance(m, ForceSchemeMiddleware)
+            m for m in app.middlewares if isinstance(m, HTTPSchemeMiddleware)
         ]
         assert len(force_scheme_middlewares) == 1
         assert force_scheme_middlewares[0].scheme == "https"

@@ -64,7 +64,7 @@ async def config_info():
     return {"env": app.env_settings.env, ...}
 ```
 
-- Add `ForceSchemeMiddleware` to force request scheme when running behind reverse
+- Add `HTTPSchemeMiddleware` to set request scheme when running behind reverse
   proxies or load balancers with TLS termination.
   See [#631](https://github.com/Neoteroi/BlackSheep/issues/631).
 - Add support for `APP_HTTP_SCHEME` environment variable to explicitly set the request

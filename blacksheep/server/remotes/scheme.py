@@ -8,7 +8,7 @@ if typing.TYPE_CHECKING:
     from blacksheep.server.application import Application
 
 
-class ForceSchemeMiddleware:
+class HTTPSchemeMiddleware:
     """
     Middleware that forces request.scheme based on configuration.
     Useful when the application is deployed behind proxies that do TLS termination, and
@@ -52,14 +52,14 @@ def configure_scheme_middleware(app: "Application"):
     if app.env_settings.force_https:
         # Apply middleware that configures request.scheme to match env settings
         app.middlewares.append(
-            ForceSchemeMiddleware("https"), MiddlewareCategory.INIT, -100
+            HTTPSchemeMiddleware("https"), MiddlewareCategory.INIT, -100
         )
 
         # Apply HTTP Strict Transport Security header by default
         app.middlewares.append(HSTSMiddleware(), MiddlewareCategory.MESSAGE)
     elif app.env_settings.http_scheme:
         app.middlewares.append(
-            ForceSchemeMiddleware(app.env_settings.http_scheme),
+            HTTPSchemeMiddleware(app.env_settings.http_scheme),
             MiddlewareCategory.INIT,
             -100,
         )

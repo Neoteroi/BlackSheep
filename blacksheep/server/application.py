@@ -3,15 +3,7 @@ from contextlib import asynccontextmanager
 from functools import wraps
 from inspect import signature, unwrap
 from pathlib import Path
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Iterable,
-    Sequence,
-    Set,
-    Type,
-)
+from typing import Any, Awaitable, Callable, Iterable, Sequence, Set, Type
 
 from guardpost import (
     AuthenticationStrategy,
@@ -59,6 +51,7 @@ from blacksheep.server.files import DefaultFileOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.process import use_shutdown_handler
+from blacksheep.server.remotes.scheme import configure_scheme_middleware
 from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import MountRegistry, RouteMethod, Router, RoutesRegistry
 from blacksheep.server.routing import router as default_router
@@ -210,6 +203,7 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self.base_path: str = ""  # TODO: deprecate
+        self._env_settings = env_settings
         self._mount_registry = mount
         validate_router(self)
         parent_file = get_parent_file()
@@ -220,6 +214,12 @@ class Application(BaseApplication):
 
         if env_settings.add_signal_handler:
             use_shutdown_handler(self)
+
+        configure_scheme_middleware(self)
+
+    @property
+    def env_settings(self) -> EnvironmentSettings:
+        return self._env_settings
 
     @property
     def middlewares(self) -> MiddlewareList:

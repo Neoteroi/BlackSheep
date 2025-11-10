@@ -52,7 +52,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   controlled via the `programming_names` parameter in `DefaultSerializer` or the
   `APP_OPENAPI_PROGRAMMING_NAMES` environment variable, setting it to a truthy value
   ('1' or 'true').
+- Make `EnvironmentSettings` frozen.
+- Attach `EnvironmentSettings` to the `Application` object for runtime inspection, which
+  is useful for: transparency and debugging, testing
+  (`assert app.env_settings.force_https is True`), health check endpoints or admin tools
+  can expose configuration:
 
+```python
+@get("/health/config")
+async def config_info():
+    return {"env": app.env_settings.env, ...}
+```
+
+- Add `ForceSchemeMiddleware` to force request scheme when running behind reverse
+  proxies or load balancers with TLS termination.
+  See [#631](https://github.com/Neoteroi/BlackSheep/issues/631).
+- Add support for `APP_HTTP_SCHEME` environment variable to explicitly set the request
+  scheme to `http` or `https`.
+- Add support for `APP_FORCE_HTTPS` environment variable to force HTTPS scheme and
+  automatically enable HSTS (HTTP Strict Transport Security) headers.
+- Add automatic scheme middleware configuration via `configure_scheme_middleware()` -
+  applied during application startup when either `APP_HTTP_SCHEME` or `APP_FORCE_HTTPS`
+  is set.
+- `EnvironmentSettings` now includes `http_scheme` and `force_https` properties that are
+  automatically populated from environment variables.
+- Request scheme is now automatically configured based on environment settings, to
+  simplify correct URL generation in proxied environments (e.g. OIDC redirections).
+s
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 
 - Add Python `3.14` and remove `3.9` from the build matrix.

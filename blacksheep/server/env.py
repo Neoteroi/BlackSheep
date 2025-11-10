@@ -35,17 +35,43 @@ def get_global_route_prefix() -> str:
     return os.environ.get("APP_ROUTE_PREFIX", "")
 
 
-@dataclass(init=False)
+@dataclass(init=False, frozen=True)
 class EnvironmentSettings:
     env: str
     show_error_details: bool
     mount_auto_events: bool
     use_default_router: bool
     add_signal_handler: bool
+    http_scheme: str | None
+    force_https: bool
 
     def __init__(self) -> None:
-        self.env = get_env()
-        self.show_error_details = truthy(os.environ.get("APP_SHOW_ERROR_DETAILS", ""))
-        self.mount_auto_events = truthy(os.environ.get("APP_MOUNT_AUTO_EVENTS", "1"))
-        self.use_default_router = truthy(os.environ.get("APP_DEFAULT_ROUTER", "1"))
-        self.add_signal_handler = truthy(os.environ.get("APP_SIGNAL_HANDLER", ""))
+        object.__setattr__(self, "env", get_env())
+        object.__setattr__(
+            self,
+            "show_error_details",
+            truthy(os.environ.get("APP_SHOW_ERROR_DETAILS", "")),
+        )
+        object.__setattr__(
+            self,
+            "mount_auto_events",
+            truthy(os.environ.get("APP_MOUNT_AUTO_EVENTS", "1")),
+        )
+        object.__setattr__(
+            self,
+            "use_default_router",
+            truthy(os.environ.get("APP_DEFAULT_ROUTER", "1")),
+        )
+        object.__setattr__(
+            self, "add_signal_handler", truthy(os.environ.get("APP_SIGNAL_HANDLER", ""))
+        )
+        object.__setattr__(
+            self, "force_https", truthy(os.environ.get("APP_FORCE_HTTPS", ""))
+        )
+
+        http_scheme = os.environ.get("APP_HTTP_SCHEME")
+        if http_scheme is not None and http_scheme not in {"http", "https"}:
+            raise ValueError(
+                f"Invalid APP_HTTP_SCHEME: '{http_scheme}'. Must be 'http' or 'https'."
+            )
+        object.__setattr__(self, "http_scheme", http_scheme)

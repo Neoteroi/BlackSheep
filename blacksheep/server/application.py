@@ -215,8 +215,6 @@ class Application(BaseApplication):
         if env_settings.add_signal_handler:
             use_shutdown_handler(self)
 
-        configure_scheme_middleware(self)
-
     @property
     def env_settings(self) -> EnvironmentSettings:
         return self._env_settings
@@ -750,6 +748,7 @@ class Application(BaseApplication):
 
         validate_default_router()
         self._check_prefix()
+        configure_scheme_middleware(self)
         self.use_controllers()
         self.normalize_handlers()
         self.configure_middlewares()

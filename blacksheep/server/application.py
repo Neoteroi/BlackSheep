@@ -3,15 +3,7 @@ from contextlib import asynccontextmanager
 from functools import wraps
 from inspect import signature, unwrap
 from pathlib import Path
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Iterable,
-    Sequence,
-    Set,
-    Type,
-)
+from typing import Any, Awaitable, Callable, Iterable, Sequence, Set, Type
 
 from guardpost import (
     AuthenticationStrategy,
@@ -59,6 +51,7 @@ from blacksheep.server.files import DefaultFileOptions
 from blacksheep.server.files.dynamic import serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.process import use_shutdown_handler
+from blacksheep.server.remotes.scheme import configure_scheme_middleware
 from blacksheep.server.responses import _ensure_bytes
 from blacksheep.server.routing import MountRegistry, RouteMethod, Router, RoutesRegistry
 from blacksheep.server.routing import router as default_router
@@ -184,7 +177,7 @@ class Application(BaseApplication):
         show_error_details: bool = False,
         mount: MountRegistry | None = None,
     ):
-        env_settings = EnvironmentSettings()
+        env_settings = EnvironmentSettings.from_env()
         if router is None:
             router = default_router if env_settings.use_default_router else Router()
         if services is None:
@@ -210,6 +203,7 @@ class Application(BaseApplication):
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self.base_path: str = ""  # TODO: deprecate
+        self._env_settings = env_settings
         self._mount_registry = mount
         validate_router(self)
         parent_file = get_parent_file()
@@ -220,6 +214,10 @@ class Application(BaseApplication):
 
         if env_settings.add_signal_handler:
             use_shutdown_handler(self)
+
+    @property
+    def env_settings(self) -> EnvironmentSettings:
+        return self._env_settings
 
     @property
     def middlewares(self) -> MiddlewareList:
@@ -750,6 +748,7 @@ class Application(BaseApplication):
 
         validate_default_router()
         self._check_prefix()
+        configure_scheme_middleware(self)
         self.use_controllers()
         self.normalize_handlers()
         self.configure_middlewares()

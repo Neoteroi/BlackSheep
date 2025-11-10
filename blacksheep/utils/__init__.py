@@ -42,4 +42,4 @@ def get_class_instance_hierarchy(instance: T):
 def truthy(value: str, default: bool = False) -> bool:
     if not value:
         return default
-    return value.upper() in {"1", "TRUE"}
+    return value.upper() in {"1", "TRUE", "Y", "YES"}

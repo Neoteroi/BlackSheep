@@ -638,7 +638,7 @@ class CookiesTokensStore(TokensStore):
     def __init__(
         self,
         scheme_name: str = "OpenIDConnect",
-        secret_keys: Sequence[str | None] = None,
+        secret_keys: Sequence[str] | None = None,
         serializer: Serializer | None = None,
         refresh_token_path: str = "/refresh-token",
     ) -> None:

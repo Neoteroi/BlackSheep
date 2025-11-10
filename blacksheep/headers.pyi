@@ -1,5 +1,5 @@
 from collections.abc import MutableSequence
-from typing import Dict, Generator, List, Optional, Tuple, Union
+from typing import Generator, Union
 
 class Header:
     def __init__(self, name: bytes, value: bytes):
@@ -13,7 +13,7 @@ class Header:
 HeaderType = tuple[bytes, bytes]
 
 class Headers:
-    def __init__(self, values: list[HeaderType | None] = None):
+    def __init__(self, values: list[HeaderType] | None = None):
         self.values = values
 
     def get(self, name: bytes) -> tuple[HeaderType]: ...

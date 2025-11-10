@@ -10,7 +10,6 @@ from typing import (
     Iterable,
     Sequence,
     Set,
-    Tuple,
     Type,
 )
 
@@ -198,7 +197,7 @@ class Application(BaseApplication):
         assert services is not None
         self._services: ContainerProtocol = services
         self._middlewares: MiddlewareList = MiddlewareList()
-        self._default_headers: tuple[Tuple[str, str | None, ...]] = None
+        self._default_headers: tuple[tuple[str, str], ...] | None = None
         self._middlewares_configured = False
         self._cors_strategy: CORSStrategy | None = None
         self._authentication_strategy: AuthenticationStrategy | None = None
@@ -586,7 +585,7 @@ class Application(BaseApplication):
         *,
         discovery: bool = False,
         cache_time: int = 10800,
-        extensions: Set[str | None] = None,
+        extensions: Set[str] | None = None,
         root_path: str = "",
         index_document: str | None = "index.html",
         fallback_document: str | None = None,

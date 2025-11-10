@@ -507,7 +507,7 @@ async def test_from_query_binding_iterables(
 
 
 @pytest.mark.parametrize(
-    "declared_type", [list[List[str]], tuple[Tuple[str]], list[list]]
+    "declared_type", [list[list[str]], tuple[tuple[str]], list[list]]
 )
 async def test_nested_iterables_raise_missing_converter_from_header(declared_type):
     with raises(MissingConverterError):
@@ -515,7 +515,7 @@ async def test_nested_iterables_raise_missing_converter_from_header(declared_typ
 
 
 @pytest.mark.parametrize(
-    "declared_type", [list[List[str]], tuple[Tuple[str]], list[list]]
+    "declared_type", [list[list[str]], tuple[tuple[str]], list[list]]
 )
 async def test_nested_iterables_raise_missing_converter_from_query(declared_type):
     with raises(MissingConverterError):

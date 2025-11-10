@@ -495,7 +495,7 @@ default_dialects = [
 
 def parse_docstring(
     docstring: str,
-    dialects: Sequence[DocstringDialect | None] = None,
+    dialects: Sequence[DocstringDialect] | None = None,
 ) -> DocstringInfo:
     assert bool(docstring), "a docstring is required"
 

@@ -22,7 +22,7 @@ class MockReceive:
         }
     """
 
-    def __init__(self, messages: list[MessageType | None] = None):
+    def __init__(self, messages: list[MessageType] | None = None):
         self.messages = messages or []
         self.index = 0
 

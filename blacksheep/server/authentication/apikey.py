@@ -28,7 +28,7 @@ class APIKey:
         self,
         secret: Secret,
         claims: dict | None = None,
-        roles: list[str | None] = None,
+        roles: list[str] | None = None,
     ) -> None:
         """
         Creates an instance of API Key for authentication.
@@ -39,7 +39,7 @@ class APIKey:
             The secret value of the API key.
         claims : dict | None, optional
             Additional claims to include in the authenticated identity, by default None.
-        roles : list[str | None], optional
+        roles : list[str] | None, optional
             List of roles to assign to the authenticated identity, by default None.
 
         Raises

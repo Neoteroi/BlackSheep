@@ -1,5 +1,3 @@
-from typing import List
-
 from pydantic import BaseModel
 
 from blacksheep.server.bindings import FromJSON
@@ -25,10 +23,10 @@ class ExampleCollection(FromJSON[list[Example]]):
         return [Example(**item) for item in obj]
 
 
-class JSONNestedList(FromJSON[list[List[str]]]):
+class JSONNestedList(FromJSON[list[list[str]]]):
 
     @staticmethod
-    def convert(obj) -> list[List[str]]:
+    def convert(obj) -> list[list[str]]:
         """
         This function is a custom converter for request bodies. It receives as input the
         already JSON-parsed Python object (not the raw JSON string), and can return any

@@ -5,7 +5,6 @@ request handlers, including a decorator and a middleware.
 
 import inspect
 from functools import wraps
-from typing import Union
 
 from blacksheep import Request, Response
 from blacksheep.server.normalization import ensure_response
@@ -15,11 +14,11 @@ def write_cache_control_response_header(
     *,
     max_age: int | None = None,
     shared_max_age: int | None = None,
-    no_cache: Union[bool, list[str], None] = None,
+    no_cache: bool | list[str] | None = None,
     no_store: bool | None = None,
     must_revalidate: bool | None = None,
     proxy_revalidate: bool | None = None,
-    private: Union[bool, list[str], None] = None,
+    private: bool | list[str] | None = None,
     public: bool | None = None,
     must_understand: bool | None = None,
     no_transform: bool | None = None,
@@ -168,11 +167,11 @@ class CacheControlHeaderValue:
         *,
         max_age: int | None = None,
         shared_max_age: int | None = None,
-        no_cache: Union[bool, list[str], None] = None,
+        no_cache: bool | list[str] | None = None,
         no_store: bool | None = None,
         must_revalidate: bool | None = None,
         proxy_revalidate: bool | None = None,
-        private: Union[bool, list[str], None] = None,
+        private: bool | list[str] | None = None,
         public: bool | None = None,
         must_understand: bool | None = None,
         no_transform: bool | None = None,
@@ -200,11 +199,11 @@ class CacheControlHeaderValue:
 def cache_control(
     max_age: int | None = None,
     shared_max_age: int | None = None,
-    no_cache: Union[bool, list[str], None] = None,
+    no_cache: bool | list[str] | None = None,
     no_store: bool | None = None,
     must_revalidate: bool | None = None,
     proxy_revalidate: bool | None = None,
-    private: Union[bool, list[str], None] = None,
+    private: bool | list[str] | None = None,
     public: bool | None = None,
     must_understand: bool | None = None,
     no_transform: bool | None = None,
@@ -332,11 +331,11 @@ class CacheControlMiddleware:
         *,
         max_age: int | None = None,
         shared_max_age: int | None = None,
-        no_cache: Union[bool, list[str], None] = None,
+        no_cache: bool | list[str] | None = None,
         no_store: bool | None = None,
         must_revalidate: bool | None = None,
         proxy_revalidate: bool | None = None,
-        private: Union[bool, list[str], None] = None,
+        private: bool | list[str] | None = None,
         public: bool | None = None,
         must_understand: bool | None = None,
         no_transform: bool | None = None,

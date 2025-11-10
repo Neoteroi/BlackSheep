@@ -24,7 +24,7 @@ class BasicCredentials:
         username: str,
         password: Secret,
         claims: dict | None = None,
-        roles: list[str | None] = None,
+        roles: list[str] | None = None,
     ) -> None:
         """
         Initialize Basic Authentication credentials.
@@ -37,7 +37,7 @@ class BasicCredentials:
             The password for authentication, stored securely.
         claims : dict | None, optional
             Additional claims to include in the authenticated identity, by default None.
-        roles : list[str | None], optional
+        roles : list[str] | None, optional
             List of roles to assign to the authenticated identity, by default None.
         """
         self._username = username

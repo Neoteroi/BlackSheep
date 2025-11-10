@@ -70,7 +70,7 @@ class ParameterSource(Enum):
 @dataclass
 class RequestBodyInfo:
     description: str | None = None
-    examples: dict[str, Any | None] = None
+    examples: dict[str, Any] | None = None
 
 
 @dataclass
@@ -90,7 +90,7 @@ class ParameterInfo:
     deprecated: bool | None = None
     allow_empty_value: bool | None = None
     example: Any | None = None
-    examples: dict[str, ParameterExample | None] = None
+    examples: dict[str, ParameterExample] | None = None
 
 
 @dataclass
@@ -118,8 +118,8 @@ class HeaderInfo:
 @dataclass
 class ResponseInfo:
     description: str
-    headers: dict[str, HeaderInfo | None] = None
-    content: list[ContentInfo | None] = None
+    headers: dict[str, HeaderInfo] | None = None
+    content: list[ContentInfo] | None = None
 
 
 @dataclass
@@ -141,21 +141,21 @@ def response_status_to_str(value: ResponseStatusType) -> str:
 
 @dataclass
 class ControllerDocs:
-    tags: list[str | None] = None
+    tags: list[str] | None = None
 
 
 @dataclass
 class EndpointDocs:
     summary: str | None = None
     description: str | None = None
-    tags: list[str | None] = None
-    parameters: Mapping[str, ParameterInfo | None] = None
+    tags: list[str] | None = None
+    parameters: Mapping[str, ParameterInfo] | None = None
     request_body: RequestBodyInfo | None = None
     responses: dict[ResponseStatusType, str | ResponseInfo] | None = None
     ignored: bool | None = None
     deprecated: bool | None = None
     on_created: Callable[[Any, Any], None] | None = None
-    security: list[SecurityInfo | None] = None
+    security: list[SecurityInfo] | None = None
 
 
 OpenAPIRootType = TypeVar("OpenAPIRootType", bound=OpenAPIRoot)
@@ -322,14 +322,14 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         *,
         summary: str | None = None,
         description: str | None = None,
-        tags: list[str | None] = None,
-        parameters: Mapping[str, ParameterInfo | None] = None,
+        tags: list[str] | None = None,
+        parameters: Mapping[str, ParameterInfo] | None = None,
         request_body: RequestBodyInfo | None = None,
         responses: dict[ResponseStatusType, str | ResponseInfo] | None = None,
         ignored: bool | None = None,
         deprecated: bool | None = None,
         on_created: Callable[[Any, Any], None] | None = None,
-        security: list[SecurityInfo | None] = None,
+        security: list[SecurityInfo] | None = None,
     ) -> Any:
         def decorator(fn):
             if doc:

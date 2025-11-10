@@ -45,7 +45,7 @@ def get_keys() -> list[str]:
 
 
 def get_serializer(
-    secret_keys: Sequence[str | None] = None, purpose: str = "dataprotection"
+    secret_keys: Sequence[str] | None = None, purpose: str = "dataprotection"
 ) -> Serializer:
     if not secret_keys:
         secret_keys = get_keys()

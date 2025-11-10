@@ -31,7 +31,7 @@ class CookieAuthentication(AuthenticationHandler):
     def __init__(
         self,
         cookie_name: str = "identity",
-        secret_keys: Sequence[str | None] = None,
+        secret_keys: Sequence[str] | None = None,
         serializer: Serializer | None = None,
         auth_scheme: str | None = None,
     ) -> None:

@@ -24,8 +24,8 @@ __all__ = (
 def auth(
     policy: str | None = "authenticated",
     *,
-    roles: Sequence[str | None] = None,
-    authentication_schemes: Sequence[str | None] = None,
+    roles: Sequence[str] | None = None,
+    authentication_schemes: Sequence[str] | None = None,
 ) -> Callable[..., Any]:
     """
     Configures authorization for a decorated request handler, optionally with a policy.

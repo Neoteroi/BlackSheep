@@ -1790,7 +1790,7 @@ async def test_handler_from_form_handling_whole_multipart_with_class(app):
             textfield: str,
             checkbox1: str | None = None,
             checkbox2: str | None = None,
-            files: list[FormPart | None] = None,
+            files: list[FormPart] | None = None,
             **kwargs,
         ):
             self.textfield = textfield

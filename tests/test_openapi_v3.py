@@ -3756,6 +3756,7 @@ components:
         ("Union[A, B, C]", "Union_A_B_C", "UnionOfAAndBAndC"),
         ("List[Union[A, B, C]]", "List_Union_A_B_C", "ListOfUnionOfAAndBAndC"),
         ("Dict[str, int]", "Dict_str_int", "DictOfstrAndint"),
+        ("dict[str, str]", "dict_str_str", "dictOfstrAndstr"),
         ("A | B | C", "A_Or_B_Or_C", "AOrBOrC"),
         ("list[A | B | C]", "list_A_Or_B_Or_C", "listOfAOrBOrC"),
     ],

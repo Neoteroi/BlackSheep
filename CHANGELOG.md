@@ -78,7 +78,11 @@ async def config_info():
   automatically populated from environment variables.
 - Request scheme is now automatically configured based on environment settings, to
   simplify correct URL generation in proxied environments (e.g. OIDC redirections).
-s
+- Improve the `generate_secret` to use `secrets.token_urlsafe(48)` by default.
+- Improve `OpenIDSettings`, `CookieAuthentication`, and `AntiForgeryHandler` to handle
+  secrets using the `Secret` class from `essentials.secrets`. Passing secrets as `str`
+  directly issues a deprecation warning and won't be supported in `2.5.x` or `2.6.x`.
+
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 
 - Add Python `3.14` and remove `3.9` from the build matrix.

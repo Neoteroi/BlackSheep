@@ -12,6 +12,7 @@ except ImportError:
     UTC = timezone.utc
 from typing import Any, Sequence
 
+from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
@@ -31,7 +32,7 @@ class CookieAuthentication(AuthenticationHandler):
     def __init__(
         self,
         cookie_name: str = "identity",
-        secret_keys: Sequence[str] | None = None,
+        secret_keys: Sequence[str | Secret] | None = None,
         serializer: Serializer | None = None,
         auth_scheme: str | None = None,
     ) -> None:
@@ -44,9 +45,11 @@ class CookieAuthentication(AuthenticationHandler):
         cookie_name : str, optional
             The name of the cookie used to restore user's identity, by default
             "identity"
-        secret_key : str, optional
+        secret_keys : Sequence[str | Secret], optional
             If specified, the key used by a default serializer (when no serializer is
-            specified), by default None
+            specified), by default None.
+            Passing secrets as plain strings issues a deprecation warning and will be
+            disallowed in a future version. Use `essentials.secrets.Secret` instead.
         serializer : Serializer | None, optional
             If specified, controls the serializer used to sign and verify the values
             of cookies used for identities, by default None

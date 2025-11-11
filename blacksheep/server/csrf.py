@@ -1,6 +1,7 @@
 import weakref
 from typing import Sequence
 
+from essentials.secrets import Secret
 from itsdangerous import Serializer
 from itsdangerous.exc import BadSignature
 
@@ -8,6 +9,7 @@ from blacksheep.baseapp import get_logger
 from blacksheep.cookies import Cookie
 from blacksheep.exceptions import Unauthorized
 from blacksheep.messages import Request, Response
+from blacksheep.middlewares import MiddlewareCategory
 from blacksheep.server.application import Application
 from blacksheep.server.dataprotection import generate_secret, get_serializer
 from blacksheep.server.security import SecurityPolicyHandler
@@ -56,7 +58,7 @@ class AntiForgeryHandler:
         cookie_name: str = "aftoken",
         form_name: str = "__RequestVerificationToken",
         header_name: str = "RequestVerificationToken",
-        secret_keys: Sequence[str] | None = None,
+        secret_keys: Sequence[str | Secret] | None = None,
         serializer: Serializer | None = None,
         security_handler: SecurityPolicyHandler | None = None,
     ) -> None:
@@ -75,9 +77,11 @@ class AntiForgeryHandler:
         form_name : str, optional
             The name of the form input that can be used to send the control value, by
             default "__RequestVerificationToken"
-        secret_key : str, optional
-            If specified, the key used by a default serializer (when no serializer is
-            specified), by default None
+        secret_keys : Sequence[str | Secret], optional
+            If specified, the keys used by a default serializer (when no serializer is
+            specified), by default None.
+            Passing secrets as plain strings issues a deprecation warning and will be
+            disallowed in a future version. Use `essentials.secrets.Secret` instead.
         serializer : Serializer | None, optional
             If specified, controls the serializer used to sign and verify the values
             of cookies used for identities, by default None
@@ -343,6 +347,8 @@ def use_anti_forgery(
             "anti-forgery extensions to render anti-forgery tokens in views."
         )
 
-    app.middlewares.append(handler)
+    # Add middleware early in the middleware pipeline, but after other init
+    # middlewares like CORS
+    app.middlewares.append(handler, MiddlewareCategory.INIT, 20)
 
     return handler

@@ -1,20 +1,21 @@
 import logging
+import warnings
 from contextlib import asynccontextmanager
 from functools import wraps
 from inspect import signature, unwrap
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Iterable, Sequence, Set, Type
-
-from guardpost import (
-    AuthenticationStrategy,
-    AuthorizationStrategy,
-    ForbiddenError,
-    Policy,
-    RateLimiter,
-    RateLimitExceededError,
-    UnauthorizedError,
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Iterable,
+    Sequence,
+    Set,
+    Type,
 )
-from guardpost.common import AuthenticatedRequirement
+
+from guardpost import AuthenticationStrategy, AuthorizationStrategy, RateLimiter
 from itsdangerous import Serializer
 from rodi import ContainerProtocol
 
@@ -31,20 +32,7 @@ from blacksheep.middlewares import (
 )
 from blacksheep.scribe import send_asgi_response
 from blacksheep.server.asgi import get_request_url_from_scope
-from blacksheep.server.authentication import (
-    AuthenticateChallenge,
-    get_authentication_middleware,
-    handle_authentication_challenge,
-    handle_rate_limited_auth,
-)
-from blacksheep.server.authorization import (
-    AuthorizationWithoutAuthenticationError,
-    get_authorization_middleware,
-    handle_forbidden,
-    handle_unauthorized,
-)
 from blacksheep.server.controllers import ControllersManager
-from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import DefaultFileOptions
@@ -62,6 +50,9 @@ from blacksheep.sessions.abc import SessionStore
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import join_fragments
 from blacksheep.utils.meta import get_parent_file, import_child_modules
+
+if TYPE_CHECKING:
+    from blacksheep.server.cors import CORSPolicy, CORSStrategy
 
 
 def get_default_headers_middleware(
@@ -154,14 +145,6 @@ class ApplicationSyncEvent(ApplicationEvent):
 
 class ApplicationStartupError(RuntimeError):
     """Base class for errors occurring when an application starts."""
-
-
-class ApplicationAlreadyStartedCORSError(TypeError):
-    def __init__(self) -> None:
-        super().__init__(
-            "The application is already running, configure CORS rules "
-            "before starting the application"
-        )
 
 
 class Application(BaseApplication):
@@ -267,12 +250,20 @@ class Application(BaseApplication):
         self._default_headers = tuple(value) if value else None
 
     @property
-    def cors(self) -> CORSStrategy:
+    def cors(self) -> "CORSStrategy":
         if not self._cors_strategy:
             raise TypeError(
                 "CORS settings are not initialized for the application. "
                 + "Use `app.use_cors()` method before using this property."
             )
+
+        warnings.warn(
+            "This method is deprecated and will be removed in 2.5.x or 2.6.x."
+            "Instead use: `from blacksheep.server.cors import use_cors` and use the "
+            "returned CORS strategy object as decorator.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._cors_strategy
 
     @property
@@ -386,40 +377,29 @@ class Application(BaseApplication):
         allow_credentials: bool = False,
         max_age: int = 5,
         expose_headers: str | Iterable[str] | None = None,
-    ) -> CORSStrategy:
+    ) -> "CORSStrategy":
         """
         Enables CORS for the application, specifying the default rules to be applied
         for all request handlers.
         """
-        if self.started:
-            raise ApplicationAlreadyStartedCORSError()
-        self._cors_strategy = CORSStrategy(
-            CORSPolicy(
-                allow_methods=allow_methods,
-                allow_headers=allow_headers,
-                allow_origins=allow_origins,
-                allow_credentials=allow_credentials,
-                max_age=max_age,
-                expose_headers=expose_headers,
-            ),
-            self.router,
+        from blacksheep.server.cors import use_cors
+
+        warnings.warn(
+            "This method is deprecated and will be removed in 2.5.x or 2.6.x."
+            "Instead use: `from blacksheep.server.cors import use_cors`",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
-        # Note: the following is a no-op request handler, necessary to activate handling
-        # of OPTIONS preflight requests.
-        # However, preflight requests are handled by the CORS middleware. This is to
-        # stop the chain of middlewares and prevent extra logic from executing for
-        # preflight requests (e.g. authentication logic)
-        @self.router.options("*")
-        async def options_handler(request: Request) -> Response:
-            return Response(404)
-
-        self.middlewares.append(
-            get_cors_middleware(self, self._cors_strategy), MiddlewareCategory.INIT
+        self._cors_strategy = use_cors(
+            self,
+            allow_methods=allow_methods,
+            allow_headers=allow_headers,
+            allow_origins=allow_origins,
+            allow_credentials=allow_credentials,
+            max_age=max_age,
+            expose_headers=expose_headers,
         )
-
-        # User defined catch-all OPTIONS request handlers are not supported when the
-        # built-in CORS handler is used.
         return self._cors_strategy
 
     def add_cors_policy(
@@ -445,8 +425,20 @@ class Application(BaseApplication):
         async def foo():
             ....
         """
+        from blacksheep.server.cors import (
+            ApplicationAlreadyStartedCORSError,
+            CORSPolicy
+        )
+
         if self.started:
             raise ApplicationAlreadyStartedCORSError()
+
+        warnings.warn(
+            "This method is deprecated and will be removed in 2.5.x or 2.6.x."
+            "Instead use: `from blacksheep.server.cors import add_cors_policy`",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         if not self._cors_strategy:
             self.use_cors()
@@ -469,69 +461,30 @@ class Application(BaseApplication):
         strategy: AuthenticationStrategy | None = None,
         rate_limiter: RateLimiter | None = None,
     ) -> AuthenticationStrategy:
-        if self.started:
-            raise RuntimeError(
-                "The application is already running, configure authentication "
-                "before starting the application"
-            )
+        from blacksheep.server.authentication import use_authentication
 
-        if self._authentication_strategy:
-            return self._authentication_strategy
-
-        if not strategy:
-            strategy = AuthenticationStrategy(
-                container=self.services,
-                rate_limiter=rate_limiter,
-                logger=self.logger,
-            )
-
-        self._authentication_strategy = strategy
-
-        self.middlewares.append(
-            get_authentication_middleware(self._authentication_strategy),
-            MiddlewareCategory.AUTH,
+        warnings.warn(
+            "This method is deprecated and will be removed in 2.5.x or 2.6.x. Instead "
+            "use: `from blacksheep.server.authentication import use_authentication`.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        return strategy
+
+        return use_authentication(self, strategy=strategy, rate_limiter=rate_limiter)
 
     def use_authorization(
         self, strategy: AuthorizationStrategy | None = None
     ) -> AuthorizationStrategy:
-        if self.started:
-            raise RuntimeError(
-                "The application is already running, configure authorization "
-                "before starting the application"
-            )
+        from blacksheep.server.authorization import use_authorization
 
-        if not self._authentication_strategy:
-            raise AuthorizationWithoutAuthenticationError()
-
-        if self._authorization_strategy:
-            return self._authorization_strategy
-
-        if not strategy:
-            strategy = AuthorizationStrategy(container=self.services)
-
-        if strategy.default_policy is None:
-            # by default, a default policy is configured with no requirements,
-            # meaning that request handlers allow anonymous users by default, unless
-            # they are decorated with @auth()
-            strategy.default_policy = Policy("default")
-            strategy.add(Policy("authenticated", AuthenticatedRequirement()))
-
-        self._authorization_strategy = strategy
-        self.exceptions_handlers.update(
-            {  # type: ignore
-                AuthenticateChallenge: handle_authentication_challenge,
-                UnauthorizedError: handle_unauthorized,
-                ForbiddenError: handle_forbidden,
-                RateLimitExceededError: handle_rate_limited_auth,
-            }
+        warnings.warn(
+            "This method is deprecated and will be removed in 2.5.x or 2.6.x. Instead "
+            "use: `from blacksheep.server.authorization import use_authorization`.",
+            DeprecationWarning,
+            stacklevel=2,
         )
 
-        self.middlewares.append(
-            get_authorization_middleware(strategy), MiddlewareCategory.AUTHZ, 0
-        )
-        return strategy
+        return use_authorization(self, strategy=strategy)
 
     def exception_handler(
         self, exception_type: int | Type[Exception]

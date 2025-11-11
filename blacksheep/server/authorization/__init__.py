@@ -1,13 +1,26 @@
-from typing import Any, Awaitable, Callable, Sequence
+from typing import Any, Awaitable, Callable, Sequence, TYPE_CHECKING
 
+from guardpost import ForbiddenError, RateLimitExceededError
 from guardpost.authorization import (
     AuthorizationStrategy,
     Policy,
     Requirement,
     UnauthorizedError,
 )
+from guardpost.common import AuthenticatedRequirement
 
 from blacksheep import Request, Response, TextContent
+from blacksheep.middlewares import MiddlewareCategory
+from blacksheep.server.authentication import (
+    AuthenticateChallenge,
+    handle_authentication_challenge,
+    handle_rate_limited_auth,
+)
+
+
+if TYPE_CHECKING:
+    from blacksheep.server.application import Application
+
 
 __all__ = (
     "auth",
@@ -18,6 +31,7 @@ __all__ = (
     "Requirement",
     "handle_unauthorized",
     "Policy",
+    "use_authorization",
 )
 
 
@@ -127,3 +141,44 @@ async def handle_forbidden(
         None,
         content=TextContent("Forbidden"),
     )
+
+
+def use_authorization(
+    app: "Application", strategy: AuthorizationStrategy | None = None
+) -> AuthorizationStrategy:
+    if app.started:
+        raise RuntimeError(
+            "The application is already running, configure authorization "
+            "before starting the application"
+        )
+
+    if not app._authentication_strategy:
+        raise AuthorizationWithoutAuthenticationError()
+
+    if app._authorization_strategy:
+        return app._authorization_strategy
+
+    if not strategy:
+        strategy = AuthorizationStrategy(container=app.services)
+
+    if strategy.default_policy is None:
+        # by default, a default policy is configured with no requirements,
+        # meaning that request handlers allow anonymous users by default, unless
+        # they are decorated with @auth()
+        strategy.default_policy = Policy("default")
+        strategy.add(Policy("authenticated", AuthenticatedRequirement()))
+
+    app._authorization_strategy = strategy
+    app.exceptions_handlers.update(
+        {  # type: ignore
+            AuthenticateChallenge: handle_authentication_challenge,
+            UnauthorizedError: handle_unauthorized,
+            ForbiddenError: handle_forbidden,
+            RateLimitExceededError: handle_rate_limited_auth,
+        }
+    )
+
+    app.middlewares.append(
+        get_authorization_middleware(strategy), MiddlewareCategory.AUTHZ, 0
+    )
+    return strategy

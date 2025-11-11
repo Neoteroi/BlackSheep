@@ -4,10 +4,20 @@ from typing import Any, Awaitable, Callable, FrozenSet, Iterable
 
 from blacksheep.baseapp import BaseApplication
 from blacksheep.messages import Request, Response
+from blacksheep.middlewares import MiddlewareCategory
+from blacksheep.server.application import Application
 from blacksheep.server.routing import Route, Router
 from blacksheep.server.websocket import WebSocket
 
 from .responses import not_found, ok, status_code
+
+
+class ApplicationAlreadyStartedCORSError(TypeError):
+    def __init__(self) -> None:
+        super().__init__(
+            "The application is already running, configure CORS rules "
+            "before starting the application"
+        )
 
 
 class CORSPolicy:
@@ -350,3 +360,91 @@ def get_cors_middleware(
         return response
 
     return cors_middleware
+
+
+def use_cors(
+    app: Application,
+    *,
+    allow_methods: str | Iterable[str] | None = None,
+    allow_headers: str | Iterable[str] | None = None,
+    allow_origins: str | Iterable[str] | None = None,
+    allow_credentials: bool = False,
+    max_age: int = 5,
+    expose_headers: str | Iterable[str] | None = None,
+) -> CORSStrategy:
+    """
+    Enables CORS for the application, specifying the default rules to be applied
+    for all request handlers.
+    """
+    if app.started:
+        raise ApplicationAlreadyStartedCORSError()
+
+    strategy = CORSStrategy(
+        CORSPolicy(
+            allow_methods=allow_methods,
+            allow_headers=allow_headers,
+            allow_origins=allow_origins,
+            allow_credentials=allow_credentials,
+            max_age=max_age,
+            expose_headers=expose_headers,
+        ),
+        app.router,
+    )
+
+    # Note: the following is a no-op request handler, necessary to activate handling
+    # of OPTIONS preflight requests.
+    # However, preflight requests are handled by the CORS middleware. This is to
+    # stop the chain of middlewares and prevent extra logic from executing for
+    # preflight requests (e.g. authentication logic)
+    @app.router.options("*")
+    async def options_handler(request: Request) -> Response:
+        return Response(404)
+
+    app.middlewares.append(get_cors_middleware(app, strategy), MiddlewareCategory.INIT)
+
+    # User defined catch-all OPTIONS request handlers are not supported when the
+    # built-in CORS handler is used.
+    return strategy
+
+
+def add_cors_policy(
+    app: Application,
+    policy_name,
+    *,
+    allow_methods: str | Iterable[str] | None = None,
+    allow_headers: str | Iterable[str] | None = None,
+    allow_origins: str | Iterable[str] | None = None,
+    allow_credentials: bool = False,
+    max_age: int = 5,
+    expose_headers: str | Iterable[str] | None = None,
+) -> None:
+    """
+    Configures a set of CORS rules that can later be applied to specific request
+    handlers, by name.
+
+    The CORS policy can then be associated to specific request handlers,
+    using the instance of `CORSStrategy` as a function decorator:
+
+    @app.cors("example")
+    @app.route("/")
+    async def foo():
+        ....
+    """
+    if app.started:
+        raise ApplicationAlreadyStartedCORSError()
+
+    if not app._cors_strategy:
+        app.use_cors()
+
+    assert app._cors_strategy is not None
+    app._cors_strategy.add_policy(
+        policy_name,
+        CORSPolicy(
+            allow_methods=allow_methods,
+            allow_headers=allow_headers,
+            allow_origins=allow_origins,
+            allow_credentials=allow_credentials,
+            max_age=max_age,
+            expose_headers=expose_headers,
+        ),
+    )

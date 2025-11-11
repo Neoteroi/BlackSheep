@@ -1,8 +1,8 @@
 import pytest
 
 from blacksheep.exceptions import BadRequest
-from blacksheep.server.application import ApplicationAlreadyStartedCORSError
 from blacksheep.server.cors import (
+    ApplicationAlreadyStartedCORSError,
     CORSConfigurationError,
     CORSPolicy,
     CORSPolicyNotConfiguredError,

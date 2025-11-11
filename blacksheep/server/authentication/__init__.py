@@ -1,11 +1,18 @@
+from typing import TYPE_CHECKING
+
 from guardpost import (
     AuthenticationHandler,
     AuthenticationStrategy,
     AuthorizationError,
+    RateLimiter,
     RateLimitExceededError,
 )
 
 from blacksheep import Response, TextContent
+from blacksheep.middlewares import MiddlewareCategory
+
+if TYPE_CHECKING:
+    from blacksheep.server.application import Application
 
 __all__ = (
     "AuthenticationStrategy",
@@ -73,3 +80,33 @@ async def handle_rate_limited_auth(app, request, exception: RateLimitExceededErr
             "too many authentication attempts. Try again later."
         ),
     )
+
+
+def use_authentication(
+    app: "Application",
+    strategy: AuthenticationStrategy | None = None,
+    rate_limiter: RateLimiter | None = None,
+) -> AuthenticationStrategy:
+    if app.started:
+        raise RuntimeError(
+            "The application is already running, configure authentication "
+            "before starting the application"
+        )
+
+    if app._authentication_strategy:
+        return app._authentication_strategy
+
+    if not strategy:
+        strategy = AuthenticationStrategy(
+            container=app.services,
+            rate_limiter=rate_limiter,
+            logger=app.logger,
+        )
+
+    app._authentication_strategy = strategy
+
+    app.middlewares.append(
+        get_authentication_middleware(strategy),
+        MiddlewareCategory.AUTH,
+    )
+    return strategy

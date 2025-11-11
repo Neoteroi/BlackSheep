@@ -1,8 +1,9 @@
 import os
 import secrets
-import string
-from typing import Sequence
+import warnings
+from typing import Iterable, Sequence
 
+from essentials.secrets import Secret
 from itsdangerous import Serializer
 from itsdangerous.url_safe import URLSafeSerializer
 
@@ -11,9 +12,8 @@ from blacksheep.baseapp import get_logger
 logger = get_logger()
 
 
-def generate_secret(length: int = 60) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for i in range(length))
+def generate_secret(length: int = 48) -> str:
+    return secrets.token_urlsafe(length)
 
 
 def get_keys() -> list[str]:
@@ -45,8 +45,54 @@ def get_keys() -> list[str]:
 
 
 def get_serializer(
-    secret_keys: Sequence[str] | None = None, purpose: str = "dataprotection"
-) -> Serializer:
+    secret_keys: Sequence[str | Secret] | None = None, purpose: str = "dataprotection"
+) -> Serializer[str]:
+    secrets: list[str]
+    if secret_keys:
+        secrets = [secret.get_value() for secret in normalize_secrets(secret_keys)]
     if not secret_keys:
-        secret_keys = get_keys()
-    return URLSafeSerializer(list(secret_keys), salt=purpose.encode())
+        # secrets obtained from env variables or generated on the fly
+        secrets = get_keys()
+    return URLSafeSerializer(list(secrets), salt=purpose.encode())
+
+
+def issue_deprecation_warning_for_secret_str():
+    warnings.warn(
+        "Passing secrets as plain text strings is deprecated and will "
+        "be removed in 2.5.x or 2.6.x. Use essentials.secrets.Secret instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
+def normalize_secrets(secrets: Sequence[str | Secret]) -> Iterable[Secret]:
+    """
+    Normalize a sequence of secrets into Secret objects.
+
+    Converts plain text strings to Secret objects while preserving existing
+    Secret instances. Issues a deprecation warning when plain text strings
+    are encountered.
+
+    Args:
+        secrets: A sequence of secrets as either plain strings or Secret objects.
+
+    Yields:
+        Secret: Normalized Secret objects.
+
+    Raises:
+        TypeError: If a secret is neither a string nor a Secret object.
+
+    Warning:
+        Passing secrets as plain text strings is deprecated and will be removed
+        in a future version. Use essentials.secrets.Secret instead.
+    """
+    for secret in secrets:
+        if isinstance(secret, str):
+            issue_deprecation_warning_for_secret_str()
+            yield Secret.from_plain_text(secret)
+        elif isinstance(secret, Secret):
+            yield secret
+        else:
+            raise TypeError(
+                f"Expected secret to be str or Secret, got {type(secret).__name__}"
+            )

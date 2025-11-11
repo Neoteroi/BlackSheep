@@ -1,5 +1,6 @@
 from typing import Any
 
+from essentials.secrets import Secret
 from guardpost import Identity
 
 from blacksheep.messages import Request, Response
@@ -61,7 +62,9 @@ async def test_cookie_authentication_handles_invalid_signature():
         ],
     )
 
-    other_handler = CookieAuthentication(secret_keys=[generate_secret()])
+    other_handler = CookieAuthentication(
+        secret_keys=[Secret.from_plain_text(generate_secret())]
+    )
     await other_handler.authenticate(request)
 
     assert request.user is not None

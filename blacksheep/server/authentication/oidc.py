@@ -12,6 +12,7 @@ from typing import Any, AnyStr, Awaitable, Callable, Sequence
 from urllib.parse import urlencode
 
 import jwt
+from essentials.secrets import Secret
 from guardpost import AuthenticationHandler, Identity, UnauthorizedError
 from guardpost.jwts import InvalidAccessToken, JWTValidator
 from itsdangerous import Serializer
@@ -26,7 +27,11 @@ from blacksheep.server.application import Application, ApplicationEvent
 from blacksheep.server.authentication.cookie import CookieAuthentication
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import allow_anonymous
-from blacksheep.server.dataprotection import generate_secret, get_serializer
+from blacksheep.server.dataprotection import (
+    generate_secret,
+    get_serializer,
+    issue_deprecation_warning_for_secret_str,
+)
 from blacksheep.server.headers.cache import cache_control
 from blacksheep.server.responses import accepted, bad_request, html, json, ok, redirect
 from blacksheep.utils import ensure_str
@@ -91,7 +96,7 @@ class OpenIDSettings:
     client_id: str
     authority: str | None = None
     audience: str | None = None
-    client_secret: str | None = None
+    client_secret: str | Secret | None = None
     discovery_endpoint: str | None = None
     entry_path: str = "/sign-in"
     logout_path: str = "/sign-out"
@@ -104,6 +109,17 @@ class OpenIDSettings:
     scheme_name: str = "OpenIDConnect"
     error_redirect_path: str | None = None
     end_session_endpoint: str | None = None
+
+    def __post_init__(self):
+        if self.client_secret is not None and isinstance(self.client_secret, str):
+            issue_deprecation_warning_for_secret_str()
+
+    def get_client_secret_value(self) -> str:
+        if self.client_secret is None:
+            raise ValueError("Missing client secret")
+        if isinstance(self.client_secret, str):
+            return self.client_secret
+        return self.client_secret.get_value()
 
 
 class OpenIDSettingsError(TypeError):
@@ -201,7 +217,7 @@ class ParametersBuilder:
             "redirect_uri": self._settings.redirect_uri
             or self.get_redirect_url(request),
             "client_id": self._settings.client_id,
-            "client_secret": self._settings.client_secret,
+            "client_secret": self._settings.get_client_secret_value(),
         }
 
     def build_refresh_token_parameters(self, refresh_token: str):
@@ -211,7 +227,7 @@ class ParametersBuilder:
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
             "client_id": self._settings.client_id,
-            "client_secret": self._settings.client_secret,
+            "client_secret": self._settings.get_client_secret_value(),
         }
 
 

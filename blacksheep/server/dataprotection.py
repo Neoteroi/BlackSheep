@@ -44,6 +44,10 @@ def get_keys() -> list[str]:
     return [generate_secret() for _ in range(3)]
 
 
+def get_secrets() -> list[Secret]:
+    return [Secret.from_plain_text(value) for value in get_keys()]
+
+
 def get_serializer(
     secret_keys: Sequence[str | Secret] | None = None, purpose: str = "dataprotection"
 ) -> Serializer[str]:

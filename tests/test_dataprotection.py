@@ -2,10 +2,14 @@ import os
 from unittest.mock import patch
 
 import pytest
-from essentials.secrets import Secret
 from itsdangerous import BadSignature
 
-from blacksheep.server.dataprotection import generate_secret, get_keys, get_serializer
+from blacksheep.server.dataprotection import (
+    generate_secret,
+    get_keys,
+    get_secrets,
+    get_serializer,
+)
 
 
 def test_get_keys_creates_default_keys():
@@ -31,7 +35,7 @@ def test_get_keys_returns_keys_configured_as_env_variables():
 
 
 def test_get_serializer():
-    serializer = get_serializer([Secret.from_plain_text(value) for value in get_keys()])
+    serializer = get_serializer(get_secrets())
 
     data = {"id": "0000"}
     secret = serializer.dumps(data)
@@ -42,7 +46,7 @@ def test_get_serializer():
 
 
 def test_get_serializer_with_different_purpose():
-    keys = [Secret.from_plain_text(value) for value in get_keys()]
+    keys = get_secrets()
     serializer = get_serializer(keys)
     other_serializer = get_serializer(keys, purpose="test")
 

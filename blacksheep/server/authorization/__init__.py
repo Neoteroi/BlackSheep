@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Sequence
 
 from guardpost import ForbiddenError, RateLimitExceededError
 from guardpost.authorization import (
@@ -16,7 +16,6 @@ from blacksheep.server.authentication import (
     handle_authentication_challenge,
     handle_rate_limited_auth,
 )
-
 
 if TYPE_CHECKING:
     from blacksheep.server.application import Application

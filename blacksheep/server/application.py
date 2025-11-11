@@ -45,14 +45,14 @@ from blacksheep.server.routing import MountRegistry, RouteMethod, Router, Routes
 from blacksheep.server.routing import router as default_router
 from blacksheep.server.routing import validate_default_router, validate_router
 from blacksheep.server.websocket import WebSocket, format_reason
-from blacksheep.sessions import SessionMiddleware, SessionSerializer
+from blacksheep.sessions import SessionSerializer
 from blacksheep.sessions.abc import SessionStore
 from blacksheep.settings.di import di_settings
 from blacksheep.utils import join_fragments
 from blacksheep.utils.meta import get_parent_file, import_child_modules
 
 if TYPE_CHECKING:
-    from blacksheep.server.cors import CORSPolicy, CORSStrategy
+    from blacksheep.server.cors import CORSStrategy
 
 
 def get_default_headers_middleware(
@@ -351,22 +351,23 @@ class Application(BaseApplication):
             # or
             app.use_sessions(MyCustomSessionStore())
         """
-        if isinstance(store, str):
-            from blacksheep.sessions.cookies import CookieSessionStore
+        from blacksheep.sessions import use_sessions
 
-            session_middleware = SessionMiddleware(
-                CookieSessionStore(
-                    store,
-                    session_cookie=session_cookie,
-                    serializer=serializer,
-                    signer=signer,
-                    session_max_age=session_max_age,
-                )
-            )
-        elif isinstance(store, SessionStore):
-            session_middleware = SessionMiddleware(store)
+        warnings.warn(
+            "This method is deprecated and will be removed in 2.5.x or 2.6.x."
+            "Instead use: `from blacksheep.sessions import use_sessions`",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        self.middlewares.append(session_middleware, MiddlewareCategory.SESSION)
+        use_sessions(
+            self,
+            store=store,
+            session_cookie=session_cookie,
+            serializer=serializer,
+            signer=signer,
+            session_max_age=session_max_age,
+        )
 
     def use_cors(
         self,
@@ -427,7 +428,7 @@ class Application(BaseApplication):
         """
         from blacksheep.server.cors import (
             ApplicationAlreadyStartedCORSError,
-            CORSPolicy
+            CORSPolicy,
         )
 
         if self.started:

@@ -2,14 +2,26 @@ import os
 from unittest.mock import patch
 
 import pytest
+from essentials.secrets import Secret
 from itsdangerous import BadSignature
 
-from blacksheep.server.dataprotection import (
-    generate_secret,
-    get_keys,
-    get_secrets,
-    get_serializer,
-)
+from blacksheep.server.dataprotection import generate_secret, get_keys, get_serializer
+
+
+def get_secrets() -> list[Secret]:
+    """
+    Retrieve application secret keys as Secret objects.
+
+    This is a wrapper around get_keys() that converts plain text secret strings
+    into Secret objects from the essentials.secrets module for enhanced security.
+
+    Returns:
+        list[Secret]: A list of Secret objects containing the application's secret keys.
+
+    See Also:
+        get_keys(): The underlying function that retrieves or generates the keys.
+    """
+    return [Secret.from_plain_text(value) for value in get_keys()]
 
 
 def test_get_keys_creates_default_keys():

@@ -7,12 +7,15 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from types import UnionType
-from typing import Any, Dict, Iterable, Sequence, Type, Union
+from types import UnionType, GenericAlias as GenericAlias_
+from typing import Any, Dict, Iterable, Sequence, Type, Union, TypeAlias
 from typing import _AnnotatedAlias as AnnotatedAlias
-from typing import _GenericAlias as GenericAlias
+from typing import _GenericAlias
 from typing import get_type_hints
 from uuid import UUID
+
+# Alias to support both typing List[T]/list[T] as GenericAlias
+GenericAlias: TypeAlias = _GenericAlias | GenericAlias_
 
 from guardpost import AuthenticationHandler
 from guardpost.common import AuthenticatedRequirement
@@ -531,6 +534,33 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         return own_paths
 
+    def get_type_name_for_annotated(
+        self,
+        object_type: AnnotatedAlias,
+        context_type_args: dict[Any, Type] | None = None,
+    ) -> str:
+        """
+        This method returns a type name for an annotated type.
+        """
+        assert isinstance(
+            object_type, AnnotatedAlias
+        ), "This method requires an annotated type"
+        # Note: by default returns a string respectful of this requirement:
+        # $ref values must be RFC3986-compliant percent-encoded URIs
+        # Therefore, a generic that would be expressed in Python: Example[Foo, Bar]
+        # and C# or TypeScript Example<Foo, Bar>
+        # Becomes here represented as: ExampleOfFooAndBar
+        # For typing.Annotated[T, ...], the underlying annotated type T is the
+        # first element of typing.get_args(object_type). Using get_origin here
+        # would return 'Annotated' itself; we want the actual base type.
+        args = typing.get_args(object_type)
+        origin = args[0] if args else get_origin(object_type)
+        annotations = object_type.__metadata__
+        annotations_repr = "And".join(
+            self.get_type_name(annotation, context_type_args) for annotation in annotations
+        )
+        return f"{self.get_type_name(origin)}Of{annotations_repr}"
+
     def get_type_name_for_generic(
         self,
         object_type: GenericAlias,
@@ -559,8 +589,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> str:
         if context_type_args and object_type in context_type_args:
             object_type = context_type_args.get(object_type)
+        if isinstance(object_type, AnnotatedAlias):
+            return self.get_type_name_for_annotated(object_type, context_type_args)
         if isinstance(object_type, GenericAlias) or isinstance(object_type, UnionType):
             return self.get_type_name_for_generic(object_type, context_type_args)
+        # Workaround for built-in collection types in Python 3.9+ to have them capitalized in schema names
+        if object_type in (list, tuple, set, dict) and hasattr(object_type, "__name__"):
+            return object_type.__name__.capitalize()
         if hasattr(object_type, "__name__"):
             return object_type.__name__
         if object_type is Union:
@@ -791,10 +826,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if stored_ref:  # pragma: no cover
             return stored_ref
 
-        if isinstance(object_type, AnnotatedAlias):
-            # Replace Annotated object type with the original type
-            object_type = typing.get_origin(object_type)
-
+        # # If this is an Annotated type, try to build a schema from its metadata
+        # # first. The Annotated alias carries extra information (in __metadata__)
+        # # that may describe the actual response/content type (for example
+        # # Annotated[Response, PaginatedSet[Cat]]). If we replace the object
+        # # with its origin too early we lose that metadata and produce an
+        # # empty/default Schema.
         if self._can_handle_class_type(object_type):
             return self._get_schema_for_class(object_type)
 
@@ -811,6 +848,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         schema = self._try_get_schema_for_iterable(object_type, type_args)
         if schema:
             return schema
+
+        if isinstance(object_type, AnnotatedAlias):
+            schema = self._try_get_schema_for_annotated(object_type, type_args)
+            if schema:
+                return schema
 
         if isinstance(object_type, GenericAlias) or isinstance(object_type, UnionType):
             schema = self._try_get_schema_for_generic(object_type, type_args)
@@ -923,6 +965,24 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 )
 
         return []
+
+    def _try_get_schema_for_annotated(
+        self, object_type: Type, context_type_args: dict[Any, Type] | None = None
+    ) -> Schema | Reference | None:
+        annotations = [child for child in getattr(object_type, "__metadata__", [])]
+        if len(annotations) == 1:
+            return self.get_schema_by_type(annotations[0], context_type_args)
+        assert (
+            None not in annotations
+        ), "None is not a valid type for an annotated type with multiple annotations"
+        schema = Schema(
+            ValueType.OBJECT,
+            any_of=[
+                self.get_schema_by_type(annotation, context_type_args)
+                for annotation in annotations
+            ],
+        )
+        return self._handle_object_type_schema(object_type, context_type_args, schema)
 
     def _try_get_schema_for_generic(
         self, object_type: Type, context_type_args: dict[Any, Type] | None = None
@@ -1226,6 +1286,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 # responses[response_status_to_str(200)] = return_type
                 if data is None:
                     data = {}
+
+                if (
+                    isinstance(return_type, AnnotatedAlias)
+                    and return_type.__metadata__[0] is None
+                ):
+                    return_type = None
 
                 if return_type is None:
                     # the user explicitly marked the request handler as returning None,

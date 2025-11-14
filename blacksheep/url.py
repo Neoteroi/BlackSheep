@@ -112,7 +112,7 @@ class URL:
         return NotImplemented
 
 
-def build_absolute_url(scheme: bytes, host: bytes, base_path: bytes, path: bytes):
+def build_absolute_url(scheme: bytes, host: bytes, base_path: bytes, path: bytes) -> URL:
     scheme_str = scheme.decode() if isinstance(scheme, bytes) else scheme
     valid_schema(scheme_str)
     url = (

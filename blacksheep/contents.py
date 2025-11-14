@@ -14,7 +14,7 @@ class Content:
         self.body = data
         self.length = len(data)
 
-    async def read(self):
+    async def read(self) -> bytes:
         return self.body
 
 

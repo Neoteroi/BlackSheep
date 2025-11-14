@@ -20,7 +20,7 @@ class Header:
 
 
 class Headers:
-    def __init__(self, values: list[tuple[bytes, bytes]] = None):
+    def __init__(self, values: list[tuple[bytes, bytes]] | None = None):
         if values is None:
             values = []
         self.values = values

@@ -270,7 +270,7 @@ class Request(Message):
         self._raw_headers = headers or []
         self.method = method
         self._url = _url
-        self._session: Session | None = None
+        self._session: "Session | None" = None
         if _url:
             self._path = _url.path
             self._raw_query = _url.query
@@ -369,7 +369,7 @@ class Request(Message):
         self.__dict__["original_client_ip"] = value
 
     @property
-    def session(self) -> Session:
+    def session(self) -> "Session":
         if self._session is None:
             raise TypeError(
                 "A session is not configured for this request, activate "
@@ -378,7 +378,7 @@ class Request(Message):
         return self._session
 
     @session.setter
-    def session(self, value: Session):
+    def session(self, value: "Session"):
         self._session = value
 
     @classmethod

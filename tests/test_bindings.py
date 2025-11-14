@@ -95,6 +95,81 @@ class ExamplePydanticModel(BaseModel):
     b: int
 
 
+# Example plain classes
+class PlainAddress:
+    def __init__(self, street: str, city: str, zip_code: str):
+        self.street = street
+        self.city = city
+        self.zip_code = zip_code
+
+
+class PlainUser:
+    def __init__(self, name: str, email: str, age: int, address: PlainAddress):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.address = address
+
+
+class PlainUser2:
+    def __init__(self, name: str, email: str, age: int, addresses: list[PlainAddress]):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.addresses = addresses
+
+
+class AddressModel(BaseModel):
+    street: str
+    city: str
+    zip_code: str
+
+
+class UserModel(BaseModel):
+    name: str
+    email: str
+    age: int
+    address: AddressModel
+
+
+class UserModel2(BaseModel):
+    name: str
+    email: str
+    age: int
+    addresses: list[AddressModel]
+
+
+@dataclass
+class AddressDc:
+    street: str
+    city: str
+    zip_code: str
+
+
+@dataclass
+class UserDc:
+    name: str
+    email: str
+    age: int
+    address: AddressDc
+
+
+@dataclass
+class UserDc2:
+    name: str
+    email: str
+    age: int
+    addresses: list[AddressDc]
+
+
+@dataclass
+class UserDc2Mix:
+    name: str
+    email: str
+    age: int
+    addresses: list[AddressModel]  # mix pydantic model and dataclass — weird if done!
+
+
 async def test_from_body_json_binding():
     request = Request("POST", b"/", [JSONContentType]).with_content(
         JSONContent({"a": "world", "b": 9000})
@@ -802,6 +877,74 @@ async def test_from_body_json_binding_ignore_extra_parameters(
     assert isinstance(value, model_class)
     assert value.a == expected_a
     assert value.b == expected_b
+
+
+@pytest.mark.parametrize("expected_type", [PlainUser, UserModel, UserDc])
+async def test_from_body_json_binding_ignore_extra_parameters_nested_1(expected_type):
+    # Test that extra properties are ignored also in child properties
+    plain_data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "extra_field": "ignored",
+        "address": {
+            "street": "456 Oak Ave",
+            "city": "Seattle",
+            "zip_code": "98101",
+            "extra_address_field": "ignored",
+        },
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(
+        JSONContent(plain_data)
+    )
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.address.street == "456 Oak Ave"
+
+
+@pytest.mark.parametrize("expected_type", [PlainUser2, UserModel2, UserDc2, UserDc2Mix])
+async def test_from_body_json_binding_ignore_extra_parameters_nested_2(expected_type):
+    # Test that extra properties are ignored also in child properties
+    plain_data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "extra_field": "ignored",
+        "addresses": [
+            {
+                "street": "456 Oak Ave",
+                "city": "Seattle",
+                "zip_code": "98101",
+                "extra_address_field": "ignored",
+            },
+            {
+                "street": "Foo",
+                "city": "Foo City",
+                "zip_code": "00888",
+                "extra_address_field": "ignored",
+                "some_other_field": 3,
+            },
+        ],
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(
+        JSONContent(plain_data)
+    )
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.addresses[0].street == "456 Oak Ave"
+    assert value.addresses[1].street == "Foo"
 
 
 @pytest.mark.parametrize(

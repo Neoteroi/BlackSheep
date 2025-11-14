@@ -2,7 +2,7 @@ import sys
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
-from typing import Generic, List, Mapping, Sequence, TypeVar, Union
+from typing import Generic, Mapping, Sequence, TypeVar, Union
 from uuid import UUID
 
 if sys.version_info >= (3, 9):
@@ -268,28 +268,24 @@ def get_cats_annotated_api() -> Application:
     delete = app.router.delete
 
     @get("/api/cats")
-    def get_cats_annotated() -> Annotated[Response, PaginatedSet[Cat]]:
-        ...
+    def get_cats_annotated() -> Annotated[Response, PaginatedSet[Cat]]: ...
 
     @get("/api/cats_2")
-    def get_cats_annotated_2() -> Annotated[Response, PaginatedSet[Cat], list[Cat]]:
-        ...
+    def get_cats_annotated_2() -> Annotated[Response, PaginatedSet[Cat], list[Cat]]: ...
 
     @get("/api/cats_3")
-    def get_cats_annotated_3() -> Annotated[Response, PaginatedSet[Cat] | list[Cat]]:
-        ...
+    def get_cats_annotated_3() -> (
+        Annotated[Response, PaginatedSet[Cat] | list[Cat]]
+    ): ...
 
     @get("/api/cats/{cat_id}")
-    def get_cat_details_annotated(cat_id: int) -> Annotated[Response, CatDetails]:
-        ...
+    def get_cat_details_annotated(cat_id: int) -> Annotated[Response, CatDetails]: ...
 
     @post("/api/cats")
-    def create_cat_annotated(input: CreateCatInput) -> Annotated[Response, Cat]:
-        ...
+    def create_cat_annotated(input: CreateCatInput) -> Annotated[Response, Cat]: ...
 
     @delete("/api/cats/{cat_id}")
-    def delete_cat_annotated(cat_id: int) -> Annotated[Response, None]:
-        ...
+    def delete_cat_annotated(cat_id: int) -> Annotated[Response, None]: ...
 
     return app
 

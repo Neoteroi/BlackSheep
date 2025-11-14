@@ -13,7 +13,16 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence as SequenceABC
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
-from typing import Any, Callable, List, Literal, Sequence, get_args, get_origin
+from typing import (
+    Any,
+    Callable,
+    List,
+    Literal,
+    Sequence,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -216,13 +225,105 @@ class LiteralConverter(TypeConverter):
 
 
 class ClassConverter(TypeConverter):
-    def __init__(self):
-        self._valid_params_cache = {}
+    """
+    Converts dictionaries to plain Python classes and dataclasses.
+
+    This converter handles common scenarios for basic type conversion from dictionaries
+    to class instances. It supports:
+    - Dataclasses with simple field types
+    - Plain classes with __init__ parameters
+    - Nested classes and dataclasses
+
+    Important limitations:
+    - This converter is NOT designed to support all possible type conversion scenarios
+    - It handles only straightforward cases with basic type annotations
+    - Complex type validation, nested generics, and advanced typing constructs
+      are not fully supported
+
+    For complex type conversion scenarios, use:
+    - Pydantic models (recommended): Provides comprehensive validation,
+      advanced typing support, and better error messages
+    - Custom type converters: Define explicit conversion logic for your specific needs
+    - Explicit conversion in your input types classes
+
+    This converter ignores extra fields in the input dictionary that don't match
+    class parameters or dataclass fields.
+    """
+
+    def _from_dict_plain(self, cls, data: dict | list):
+        """Convert dict to plain class or dataclass, ignoring extra fields"""
+
+        if isinstance(data, list):
+            # require a type hint to work
+            obj_type_hint = get_args(cls)
+            if obj_type_hint:
+                # good…
+                return [
+                    self._from_dict_plain(obj_type_hint[0], datum) for datum in data
+                ]
+            else:
+                # return data as-is (let if fail if it must)
+                return data
+
+        if not isinstance(data, dict):
+            return data
+
+        # Handle dataclasses
+        if hasattr(cls, "__dataclass_fields__"):
+            field_values = {}
+            for field in fields(cls):
+                if field.name in data:
+                    field_type = field.type
+                    value = data[field.name]
+
+                    # Handle nested classes
+                    if hasattr(field_type, "__init__"):
+                        field_values[field.name] = self._from_dict_plain(
+                            field_type, value
+                        )
+                    else:
+                        field_values[field.name] = value
+            return cls(**field_values)
+
+        # Handle plain classes
+        try:
+            # Get type hints from __init__
+            sig = inspect.signature(cls.__init__)
+            type_hints = get_type_hints(cls.__init__)
+
+            init_params = {}
+            for param_name, _ in sig.parameters.items():
+                if param_name == "self":
+                    continue
+
+                if param_name in data:
+                    value = data[param_name]
+
+                    # Check if parameter has a type hint that's a class
+                    if param_name in type_hints:
+                        param_type = type_hints[param_name]
+                        if hasattr(param_type, "__init__") and not isinstance(
+                            param_type, type(None)
+                        ):
+                            init_params[param_name] = self._from_dict_plain(
+                                param_type, value
+                            )
+                        else:
+                            init_params[param_name] = value
+                    else:
+                        init_params[param_name] = value
+
+            return cls(**init_params)
+        except Exception:
+            return data
 
     def can_convert(self, expected_type) -> bool:
         # Must be a class
         if not inspect.isclass(expected_type):
             return False
+
+        if is_dataclass(expected_type):
+            return True
 
         # Exclude built-in types
         if expected_type.__module__ == "builtins":
@@ -232,85 +333,17 @@ class ClassConverter(TypeConverter):
         if get_origin(expected_type) is not None:
             return False
 
-        # Exclude types that already have specific converters
-        # (this prevents conflicts with existing converters)
-        for converter in converters:
-            if converter != self and converter.can_convert(expected_type):
-                return False
-
         # Must have a callable __init__ method
         if not hasattr(expected_type, "__init__"):
             return False
 
         return True
 
-    def _get_valid_params(self, expected_type):
-        # Check cache first
-        if expected_type not in self._valid_params_cache:
-            # Filter out unknown parameters to ignore extra properties
-            try:
-                sig = inspect.signature(expected_type.__init__)
-                valid_params = set(sig.parameters.keys()) - {"self"}
-                self._valid_params_cache[expected_type] = valid_params
-            except (ValueError, TypeError):
-                # Cache None to indicate fallback behavior
-                self._valid_params_cache[expected_type] = None
-
-        return self._valid_params_cache[expected_type]
-
     def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
 
-        if isinstance(value, dict):
-            valid_params = self._get_valid_params(expected_type)
-
-            if valid_params is not None:
-                filtered_data = {k: v for k, v in value.items() if k in valid_params}
-                return expected_type(**filtered_data)
-            else:
-                # Fallback if signature inspection failed
-                return expected_type(**value)
-        else:
-            # Try to construct from single value
-            return expected_type(value)
-
-
-class DataClassConverter(TypeConverter):
-    def __init__(self):
-        self._valid_fields_cache = {}
-
-    def can_convert(self, expected_type) -> bool:
-        return is_dataclass(expected_type) and inspect.isclass(expected_type)
-
-    def _get_valid_fields(self, expected_type):
-        # Check cache first
-        if expected_type not in self._valid_fields_cache:
-            try:
-                field_names = {field.name for field in fields(expected_type)}
-                self._valid_fields_cache[expected_type] = field_names
-            except (ValueError, TypeError):
-                # Cache None to indicate fallback behavior
-                self._valid_fields_cache[expected_type] = None
-
-        return self._valid_fields_cache[expected_type]
-
-    def convert(self, value, expected_type) -> Any:
-        if value is None:
-            return None
-
-        if isinstance(value, dict):
-            valid_fields = self._get_valid_fields(expected_type)
-
-            if valid_fields is not None:
-                filtered_data = {k: v for k, v in value.items() if k in valid_fields}
-                return expected_type(**filtered_data)
-            else:
-                # Fallback if field inspection failed
-                return expected_type(**value)
-        else:
-            # Try to construct from single value
-            return expected_type(value)
+        return self._from_dict_plain(expected_type, value)
 
 
 class PydanticConverter(TypeConverter):
@@ -324,7 +357,8 @@ class PydanticConverter(TypeConverter):
             return None
 
         if isinstance(value, dict):
-            # Use Pydantic's model_validate for proper validation and conversion
+            # Note: By default, Pydantic will raise ValidationError for extra fields
+            # unless the model is configured with extra='ignore' or extra='allow'
             return expected_type.model_validate(value)
         else:
             # Try to construct from single value
@@ -418,11 +452,10 @@ if StrEnum is not None and IntEnum is not None:
 
 
 class_converters: list[TypeConverter] = [
-    DataClassConverter(),
     ClassConverter(),
     ListConverter(),
 ]
 
 if BaseModel is not None:
     # Insert PydanticConverter before ClassConverter to give it priority
-    class_converters.insert(-2, PydanticConverter())
+    class_converters.insert(0, PydanticConverter())

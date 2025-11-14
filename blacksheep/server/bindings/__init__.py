@@ -383,13 +383,6 @@ class MissingConverterError(Exception):
         )
 
 
-def _try_get_type_name(expected_type) -> str:
-    try:
-        return expected_type.__name__
-    except AttributeError:  # pragma: no cover
-        return expected_type
-
-
 def get_default_class_converter(expected_type):
     for converter in class_converters:
         if converter.can_convert(expected_type):

@@ -3,7 +3,7 @@ import http
 import re
 from datetime import timedelta
 from json.decoder import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Self, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
@@ -42,7 +42,7 @@ def parse_charset(value: bytes) -> str | None:
     return None
 
 
-async def _read_stream(request: Request):
+async def _read_stream(request: "Request"):
     async for _ in request.content.stream():
         pass
 
@@ -382,7 +382,7 @@ class Request(Message):
         self._session = value
 
     @classmethod
-    def incoming(cls, method: str, path: bytes, query: bytes, headers) -> Self:
+    def incoming(cls, method: str, path: bytes, query: bytes, headers) -> "Request":
         request = cls(method, None, headers)
         request._path = path
         request._raw_query = query

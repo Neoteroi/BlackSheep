@@ -155,6 +155,14 @@ class UserDc:
 
 
 @dataclass
+class UserDcMix:
+    name: str
+    email: str
+    age: int
+    address: AddressModel
+
+
+@dataclass
 class UserDc2:
     name: str
     email: str
@@ -879,7 +887,7 @@ async def test_from_body_json_binding_ignore_extra_parameters(
     assert value.b == expected_b
 
 
-@pytest.mark.parametrize("expected_type", [PlainUser, UserModel, UserDc])
+@pytest.mark.parametrize("expected_type", [PlainUser, UserModel, UserDc, UserDcMix])
 async def test_from_body_json_binding_ignore_extra_parameters_nested_1(expected_type):
     # Test that extra properties are ignored also in child properties
     plain_data = {

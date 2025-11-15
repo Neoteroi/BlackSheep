@@ -226,7 +226,8 @@ class LiteralConverter(TypeConverter):
 
 class ClassConverter(TypeConverter):
     """
-    Converts dictionaries to plain Python classes and dataclasses.
+    Converts dictionaries to instances of desired types, supporting Pydantic models,
+    Python dataclasses or plain user-defined classes.
 
     This converter handles common scenarios for basic type conversion from dictionaries
     to class instances. It supports:
@@ -250,17 +251,34 @@ class ClassConverter(TypeConverter):
     class parameters or dataclass fields.
     """
 
-    def _from_dict_plain(self, cls, data: dict | list):
+    @staticmethod
+    def _is_pydantic_model(expected_type):
+        return (
+            BaseModel is not None
+            and inspect.isclass(expected_type)
+            and issubclass(expected_type, BaseModel)
+        )
+
+    def _from_dict(self, cls, data: dict | list):
         """Convert dict to plain class or dataclass, ignoring extra fields"""
 
+        if self._is_pydantic_model(cls):
+            return cls.model_validate(data)
+
+        # here it is sufficient to handle list because input from client can only
+        # be parsed as list in most cases (like after parsing JSON or XML), not other
+        # types of sequences like tuple
         if isinstance(data, list):
             # require a type hint to work
             obj_type_hint = get_args(cls)
             if obj_type_hint:
                 # good…
-                return [
-                    self._from_dict_plain(obj_type_hint[0], datum) for datum in data
-                ]
+                for converter in class_converters:
+                    if converter.can_convert(obj_type_hint[0]):
+                        return [
+                            converter.convert(datum, obj_type_hint[0]) for datum in data
+                        ]
+                return [datum for datum in data]
             else:
                 # return data as-is (let if fail if it must)
                 return data
@@ -275,54 +293,45 @@ class ClassConverter(TypeConverter):
                 if field.name in data:
                     field_type = field.type
                     value = data[field.name]
-
                     # Handle nested classes
                     if hasattr(field_type, "__init__"):
-                        field_values[field.name] = self._from_dict_plain(
-                            field_type, value
-                        )
+                        field_values[field.name] = self._from_dict(field_type, value)
                     else:
                         field_values[field.name] = value
             return cls(**field_values)
 
         # Handle plain classes
-        try:
-            # Get type hints from __init__
-            sig = inspect.signature(cls.__init__)
-            type_hints = get_type_hints(cls.__init__)
+        # Get type hints from __init__
+        sig = inspect.signature(cls.__init__)
+        type_hints = get_type_hints(cls.__init__)
 
-            init_params = {}
-            for param_name, _ in sig.parameters.items():
-                if param_name == "self":
-                    continue
+        init_params = {}
+        for param_name, _ in sig.parameters.items():
+            if param_name == "self":
+                continue
 
-                if param_name in data:
-                    value = data[param_name]
+            if param_name in data:
+                value = data[param_name]
 
-                    # Check if parameter has a type hint that's a class
-                    if param_name in type_hints:
-                        param_type = type_hints[param_name]
-                        if hasattr(param_type, "__init__") and not isinstance(
-                            param_type, type(None)
-                        ):
-                            init_params[param_name] = self._from_dict_plain(
-                                param_type, value
-                            )
-                        else:
-                            init_params[param_name] = value
+                # Check if parameter has a type hint that's a class
+                if param_name in type_hints:
+                    param_type = type_hints[param_name]
+                    if hasattr(param_type, "__init__") and not isinstance(
+                        param_type, type(None)
+                    ):
+                        init_params[param_name] = self._from_dict(param_type, value)
                     else:
                         init_params[param_name] = value
-
-            return cls(**init_params)
-        except Exception:
-            return data
+                else:
+                    init_params[param_name] = value
+        return cls(**init_params)
 
     def can_convert(self, expected_type) -> bool:
         # Must be a class
         if not inspect.isclass(expected_type):
             return False
 
-        if is_dataclass(expected_type):
+        if is_dataclass(expected_type) or self._is_pydantic_model(expected_type):
             return True
 
         # Exclude built-in types
@@ -343,26 +352,7 @@ class ClassConverter(TypeConverter):
         if value is None:
             return None
 
-        return self._from_dict_plain(expected_type, value)
-
-
-class PydanticConverter(TypeConverter):
-    def can_convert(self, expected_type) -> bool:
-        if BaseModel is None:
-            return False
-        return inspect.isclass(expected_type) and issubclass(expected_type, BaseModel)
-
-    def convert(self, value, expected_type) -> Any:
-        if value is None:
-            return None
-
-        if isinstance(value, dict):
-            # Note: By default, Pydantic will raise ValidationError for extra fields
-            # unless the model is configured with extra='ignore' or extra='allow'
-            return expected_type.model_validate(value)
-        else:
-            # Try to construct from single value
-            return expected_type.model_validate(value)
+        return self._from_dict(expected_type, value)
 
 
 # Add this new converter class after the existing converters
@@ -455,7 +445,3 @@ class_converters: list[TypeConverter] = [
     ClassConverter(),
     ListConverter(),
 ]
-
-if BaseModel is not None:
-    # Insert PydanticConverter before ClassConverter to give it priority
-    class_converters.insert(0, PydanticConverter())

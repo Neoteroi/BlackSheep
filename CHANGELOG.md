@@ -7,9 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.4.4] - 2025-11-??
 
-- Add support for annotated types in `OpenAPIHandler` return types, by @tyzhnenko. This
-  feature is important to support automatic generation of OpenAPI Documentation when
-  returning instances of `Response`  (e.g. `Annotated[Response, CatDetails]`).
 - Introduce `MiddlewareList` and `MiddlewareCategory` to simplify middleware management
   and ordering of middlewares (see [#620](https://github.com/Neoteroi/BlackSheep/issues/620)).
   Middlewares are now automatically sorted by category (`INIT, SESSION, AUTH, AUTHZ, BUSINESS, MESSAGE`)
@@ -32,10 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when mapping to user-defined dataclasses, Pydantic v2 models, or classes
   (see [#614](https://github.com/Neoteroi/BlackSheep/issues/614)). Previously, extra
   properties were not ignored by default and required the user to explicitly code their
-  input classes to allow extra properties.
-  This is also done for sub-properties, lists, and dictionaries.
-  The user can still control how exactly input bodies from clients are converted using
-  custom binders or altering `blacksheep.server.bindings.class_converters`.
+  input classes to allow extra properties. This is also done for sub-properties, lists,
+  and dictionaries. The user can still control how exactly input bodies from clients are
+  converted using custom binders or altering
+  `blacksheep.server.bindings.class_converters`.
 - Add support for specifying OpenAPI tags for controllers. This simplifies handling tags
   for documentation ([#616](https://github.com/Neoteroi/BlackSheep/issues/616)).
 - Improve the build matrix to build wheels for `arm64` architecture for Linux and
@@ -73,6 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve `OpenIDSettings`, `CookieAuthentication`, and `AntiForgeryHandler` to handle
   secrets using the `Secret` class from `essentials.secrets`. Passing secrets as `str`
   directly issues a deprecation warning and won't be supported in `2.5.x` or `2.6.x`.
+- Add support for annotated types in `OpenAPIHandler` return types, by @tyzhnenko. This
+  feature is important to support automatic generation of OpenAPI Documentation when
+  returning instances of `Response`  (e.g. `Annotated[Response, ProductDetails]`).
 
 ## [2.4.3] - 2025-10-19 :musical_keyboard:
 

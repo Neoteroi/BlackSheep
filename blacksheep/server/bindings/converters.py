@@ -224,6 +224,109 @@ class LiteralConverter(TypeConverter):
         raise ValueError(f"{value!r} is not a valid {expected_type}")
 
 
+class _AsIsConverter(TypeConverter):
+    def can_convert(self, expected_type) -> bool:
+        return True
+
+    def convert(self, value, expected_type) -> Any:
+        return value
+
+
+class DictConverter(TypeConverter):
+    """
+    Converter for dict[K, V] where both K and V can be handled by converters.
+    Supports string keys and hashable class keys.
+    """
+
+    def can_convert(self, expected_type) -> bool:
+        origin = get_origin(expected_type)
+        if origin not in {dict, dict}:
+            return False
+
+        args = get_args(expected_type)
+        if not args or len(args) != 2:
+            return False
+
+        key_type, value_type = args
+
+        # Check if we can convert the key type (str or hashable class)
+        can_convert_key = key_type is str
+        if not can_convert_key:
+            # Check if any converter can handle the key type
+            for converter in converters:
+                if converter.can_convert(key_type):
+                    can_convert_key = True
+                    break
+            # Also check class converters for custom classes as keys
+            if not can_convert_key:
+                for converter in class_converters:
+                    if converter.can_convert(key_type):
+                        can_convert_key = True
+                        break
+
+        if not can_convert_key:
+            return False
+
+        # Check if any class converter can handle the value type
+        for converter in class_converters:
+            if converter.can_convert(value_type):
+                return True
+
+        return False
+
+    def convert(self, value, expected_type) -> Any:
+        if value is None:
+            return None
+
+        if not isinstance(value, dict):
+            raise ValueError(f"Expected a dict for {expected_type}, got {type(value)}")
+
+        key_type, value_type = get_args(expected_type)
+
+        # Find the appropriate converter for the key type
+        key_converter = None
+        if key_type is not str:
+            for converter in converters:
+                if converter.can_convert(key_type):
+                    key_converter = converter
+                    break
+            # Also check class converters
+            if key_converter is None:
+                for converter in class_converters:
+                    if converter.can_convert(key_type):
+                        key_converter = converter
+                        break
+
+        # Find the appropriate converter for the value type
+        value_converter = None
+        for converter in class_converters:
+            if converter.can_convert(value_type):
+                value_converter = converter
+                break
+
+        if value_converter is None:
+            value_converter = _AsIsConverter()
+            # raise ValueError(f"No converter found for value type {value_type}")
+
+        # Convert each key-value pair in the dict
+        converted_dict = {}
+        for k, v in value.items():
+            # Convert the key if needed
+            if key_converter is not None:
+                converted_key = key_converter.convert(k, key_type)
+            else:
+                converted_key = k
+
+            # Convert the value
+            converted_value = value_converter.convert(v, value_type)
+            converted_dict[converted_key] = converted_value
+
+        return converted_dict
+
+
+_dict_converter = DictConverter()
+
+
 class ClassConverter(TypeConverter):
     """
     Converts dictionaries to instances of desired types, supporting Pydantic models,
@@ -250,6 +353,29 @@ class ClassConverter(TypeConverter):
     This converter ignores extra fields in the input dictionary that don't match
     class parameters or dataclass fields.
     """
+
+    def __init__(self):
+        self._signature_cache = {}
+        self._type_hints_cache = {}
+        self._dataclass_fields_cache = {}
+
+    def _get_dataclass_fields(self, cls):
+        """Get cached dataclass fields for a class"""
+        if cls not in self._dataclass_fields_cache:
+            self._dataclass_fields_cache[cls] = fields(cls)
+        return self._dataclass_fields_cache[cls]
+
+    def _get_signature(self, cls):
+        """Get cached signature for a class"""
+        if cls not in self._signature_cache:
+            self._signature_cache[cls] = inspect.signature(cls.__init__)
+        return self._signature_cache[cls]
+
+    def _get_type_hints(self, cls):
+        """Get cached type hints for a class"""
+        if cls not in self._type_hints_cache:
+            self._type_hints_cache[cls] = get_type_hints(cls.__init__)
+        return self._type_hints_cache[cls]
 
     @staticmethod
     def _is_pydantic_model(expected_type):
@@ -280,8 +406,11 @@ class ClassConverter(TypeConverter):
                         ]
                 return [datum for datum in data]
             else:
-                # return data as-is (let if fail if it must)
+                # return data as-is (let if fail downstream if it must)
                 return data
+
+        if _dict_converter.can_convert(cls):
+            return _dict_converter.convert(data, cls)
 
         if not isinstance(data, dict):
             return data
@@ -289,21 +418,23 @@ class ClassConverter(TypeConverter):
         # Handle dataclasses
         if hasattr(cls, "__dataclass_fields__"):
             field_values = {}
-            for field in fields(cls):
+            for field in self._get_dataclass_fields(cls):
                 if field.name in data:
                     field_type = field.type
                     value = data[field.name]
                     # Handle nested classes
-                    if hasattr(field_type, "__init__"):
-                        field_values[field.name] = self._from_dict(field_type, value)
+                    if value is None:
+                        field_values[field.name] = None
+                    elif self.can_convert(field_type):
+                        field_values[field.name] = self.convert(field_type, value)
                     else:
                         field_values[field.name] = value
             return cls(**field_values)
 
         # Handle plain classes
         # Get type hints from __init__
-        sig = inspect.signature(cls.__init__)
-        type_hints = get_type_hints(cls.__init__)
+        sig = self._get_signature(cls)
+        type_hints = self._get_type_hints(cls)
 
         init_params = {}
         for param_name, _ in sig.parameters.items():
@@ -316,10 +447,8 @@ class ClassConverter(TypeConverter):
                 # Check if parameter has a type hint that's a class
                 if param_name in type_hints:
                     param_type = type_hints[param_name]
-                    if hasattr(param_type, "__init__") and not isinstance(
-                        param_type, type(None)
-                    ):
-                        init_params[param_name] = self._from_dict(param_type, value)
+                    if self.can_convert(param_type):
+                        init_params[param_name] = self.convert(value, param_type)
                     else:
                         init_params[param_name] = value
                 else:
@@ -444,4 +573,5 @@ if StrEnum is not None and IntEnum is not None:
 class_converters: list[TypeConverter] = [
     ClassConverter(),
     ListConverter(),
+    DictConverter()
 ]

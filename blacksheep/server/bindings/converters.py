@@ -432,7 +432,6 @@ class ClassConverter(TypeConverter):
         return self._from_dict(expected_type, value)
 
 
-# Add this new converter class after the existing converters
 class ListConverter(TypeConverter):
     """
     Converter for list[T], Sequence[T], and tuple[T] where T
@@ -463,16 +462,13 @@ class ListConverter(TypeConverter):
         origin = _get_origin(expected_type)
         item_type = _get_args(expected_type)[0]
 
-        # Find the appropriate converter for the item type
         item_converter = get_converter(item_type)
 
-        # Convert each item in the list
         converted_items = [item_converter.convert(item, item_type) for item in value]
 
-        # Return the appropriate collection type
         if origin in {list, List}:
             return converted_items
-        elif origin in {tuple}:
+        elif origin is tuple:
             return tuple(converted_items)
         else:
             return converted_items
@@ -504,11 +500,10 @@ class_converters: list[TypeConverter] = [
 ]
 
 
-_all_converters = converters + class_converters
-
-
 @lru_cache(maxsize=None)
 def get_converter(cls) -> TypeConverter:
+    _all_converters = converters + class_converters
+
     for converter in _all_converters:
         if converter.can_convert(cls):
             return converter

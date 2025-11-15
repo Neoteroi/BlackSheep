@@ -1152,11 +1152,17 @@ async def test_from_body_json_binding_dict_uuid_custom_class(expected_type):
     assert UUID(uuid_mobile) in value.contacts
     assert value.contacts[UUID(uuid_home)].phone == "555-1234"
     assert value.contacts[UUID(uuid_home)].email == "jane.home@example.com"
-    assert value.contacts[UUID(uuid_home)].created_at == datetime(2023, 1, 15, 10, 30, 0)
+    assert value.contacts[UUID(uuid_home)].created_at == datetime(
+        2023, 1, 15, 10, 30, 0
+    )
     assert value.contacts[UUID(uuid_work)].phone == "555-5678"
     assert value.contacts[UUID(uuid_work)].email == "jane.work@example.com"
-    assert value.contacts[UUID(uuid_work)].created_at == datetime(2023, 2, 20, 14, 45, 0)
-    assert value.contacts[UUID(uuid_mobile)].created_at == datetime(2023, 3, 25, 8, 15, 0)
+    assert value.contacts[UUID(uuid_work)].created_at == datetime(
+        2023, 2, 20, 14, 45, 0
+    )
+    assert value.contacts[UUID(uuid_mobile)].created_at == datetime(
+        2023, 3, 25, 8, 15, 0
+    )
 
 
 @pytest.mark.parametrize(
@@ -1174,9 +1180,21 @@ async def test_from_body_json_binding_dict_str_custom_class(expected_type):
         "email": "jane@example.com",
         "age": 25,
         "contacts": {
-            "home": {"phone": "555-1234", "email": "jane.home@example.com", "created_at": "2023-01-15T10:30:00"},
-            "work": {"phone": "555-5678", "email": "jane.work@example.com", "created_at": "2023-02-20T14:45:00"},
-            "mobile": {"phone": "555-9999", "email": "jane.mobile@example.com", "created_at": "2023-03-25T08:15:00"},
+            "home": {
+                "phone": "555-1234",
+                "email": "jane.home@example.com",
+                "created_at": "2023-01-15T10:30:00",
+            },
+            "work": {
+                "phone": "555-5678",
+                "email": "jane.work@example.com",
+                "created_at": "2023-02-20T14:45:00",
+            },
+            "mobile": {
+                "phone": "555-9999",
+                "email": "jane.mobile@example.com",
+                "created_at": "2023-03-25T08:15:00",
+            },
         },
     }
 

@@ -247,8 +247,7 @@ class DictConverter(TypeConverter):
     """
 
     def can_convert(self, expected_type) -> bool:
-        origin = _get_origin(expected_type)
-        return origin is dict
+        return _get_origin(expected_type) is dict
 
     def convert(self, value, expected_type) -> Any:
         if value is None:

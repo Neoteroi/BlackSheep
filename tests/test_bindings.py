@@ -1,5 +1,6 @@
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, List, Literal, Sequence, Set, Tuple, Type
 from uuid import UUID
 
@@ -93,6 +94,161 @@ class ExampleIntEnum(IntEnum):
 class ExamplePydanticModel(BaseModel):
     a: str
     b: int
+
+
+# Example plain classes
+
+
+class ContactInfo:
+    def __init__(self, phone: str, email: str, created_at: datetime):
+        self.phone = phone
+        self.email = email
+        self.created_at = created_at
+
+
+class PlainAddress:
+    def __init__(self, street: str, city: str, zip_code: str):
+        self.street = street
+        self.city = city
+        self.zip_code = zip_code
+
+
+class PlainUser:
+    def __init__(self, name: str, email: str, age: int, address: PlainAddress):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.address = address
+
+
+class PlainUser2:
+    def __init__(self, name: str, email: str, age: int, addresses: list[PlainAddress]):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.addresses = addresses
+
+
+class PlainUserWithContacts:
+    def __init__(
+        self, name: str, email: str, age: int, contacts: dict[str, ContactInfo]
+    ):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.contacts = contacts
+
+
+class PlainUserWithContactsUUID:
+    def __init__(
+        self, name: str, email: str, age: int, contacts: dict[UUID, ContactInfo]
+    ):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.contacts = contacts
+
+
+class ContactInfoModel(BaseModel):
+    phone: str
+    email: str
+    created_at: datetime
+
+
+class AddressModel(BaseModel):
+    street: str
+    city: str
+    zip_code: str
+
+
+class UserModel(BaseModel):
+    name: str
+    email: str
+    age: int
+    address: AddressModel
+
+
+class UserModel2(BaseModel):
+    name: str
+    email: str
+    age: int
+    addresses: list[AddressModel]
+
+
+class UserModelWithContacts(BaseModel):
+    name: str
+    email: str
+    age: int
+    contacts: dict[str, ContactInfoModel]
+
+
+class UserModelWithContactsUUID(BaseModel):
+    name: str
+    email: str
+    age: int
+    contacts: dict[UUID, ContactInfoModel]
+
+
+@dataclass
+class AddressDc:
+    street: str
+    city: str
+    zip_code: str
+
+
+@dataclass
+class ContactInfoDc:
+    phone: str
+    email: str
+    created_at: datetime
+
+
+@dataclass
+class UserDc:
+    name: str
+    email: str
+    age: int
+    address: AddressDc
+
+
+@dataclass
+class UserDcMix:
+    name: str
+    email: str
+    age: int
+    address: AddressModel
+
+
+@dataclass
+class UserDcWithContacts:
+    name: str
+    email: str
+    age: int
+    contacts: dict[str, ContactInfoDc]
+
+
+@dataclass
+class UserDcWithContactsUUID:
+    name: str
+    email: str
+    age: int
+    contacts: dict[UUID, ContactInfoDc]
+
+
+@dataclass
+class UserDc2:
+    name: str
+    email: str
+    age: int
+    addresses: list[AddressDc]
+
+
+@dataclass
+class UserDc2Mix:
+    name: str
+    email: str
+    age: int
+    addresses: list[AddressModel]  # mix pydantic model and dataclass — weird if done!
 
 
 async def test_from_body_json_binding():
@@ -804,6 +960,74 @@ async def test_from_body_json_binding_ignore_extra_parameters(
     assert value.b == expected_b
 
 
+@pytest.mark.parametrize("expected_type", [PlainUser, UserModel, UserDc, UserDcMix])
+async def test_from_body_json_binding_ignore_extra_parameters_nested_1(expected_type):
+    # Test that extra properties are ignored also in child properties
+    plain_data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "extra_field": "ignored",
+        "address": {
+            "street": "456 Oak Ave",
+            "city": "Seattle",
+            "zip_code": "98101",
+            "extra_address_field": "ignored",
+        },
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(
+        JSONContent(plain_data)
+    )
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.address.street == "456 Oak Ave"
+
+
+@pytest.mark.parametrize("expected_type", [PlainUser2, UserModel2, UserDc2, UserDc2Mix])
+async def test_from_body_json_binding_ignore_extra_parameters_nested_2(expected_type):
+    # Test that extra properties are ignored also in child properties
+    plain_data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "extra_field": "ignored",
+        "addresses": [
+            {
+                "street": "456 Oak Ave",
+                "city": "Seattle",
+                "zip_code": "98101",
+                "extra_address_field": "ignored",
+            },
+            {
+                "street": "Foo",
+                "city": "Foo City",
+                "zip_code": "00888",
+                "extra_address_field": "ignored",
+                "some_other_field": 3,
+            },
+        ],
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(
+        JSONContent(plain_data)
+    )
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.addresses[0].street == "456 Oak Ave"
+    assert value.addresses[1].street == "Foo"
+
+
 @pytest.mark.parametrize(
     "collection_type,model_class,expected_type",
     [
@@ -863,3 +1087,166 @@ async def test_from_body_json_binding_collections(
             expected_values = [("first", 100), ("second", 200), ("third", 300)]
             assert item.a == expected_values[i][0]
             assert item.b == expected_values[i][1]
+
+
+@pytest.mark.parametrize(
+    "expected_type",
+    [
+        PlainUserWithContactsUUID,
+        UserModelWithContactsUUID,
+        UserDcWithContactsUUID,
+    ],
+)
+async def test_from_body_json_binding_dict_uuid_custom_class(expected_type):
+    """Test conversion of dict[UUID, CustomClass] from JSON body"""
+    uuid_home = "b0c1f822-b63c-475e-9f2e-b6406bafcc2b"
+    uuid_work = "d5fd0cde-4ad6-4b61-a5b1-5b8e6d48cebe"
+    uuid_mobile = "00000000-0000-0000-0000-000000000000"
+
+    data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "contacts": {
+            uuid_home: {
+                "phone": "555-1234",
+                "email": "jane.home@example.com",
+                "created_at": "2023-01-15T10:30:00",
+                "extra_field": "should be ignored",
+            },
+            uuid_work: {
+                "phone": "555-5678",
+                "email": "jane.work@example.com",
+                "created_at": "2023-02-20T14:45:00",
+                "extra_field": "should be ignored",
+            },
+            uuid_mobile: {
+                "phone": "555-9999",
+                "email": "jane.mobile@example.com",
+                "created_at": "2023-03-25T08:15:00",
+                "extra_field": "should be ignored",
+            },
+        },
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(JSONContent(data))
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.email == "jane@example.com"
+    assert value.age == 25
+    assert isinstance(value.contacts, dict)
+    assert len(value.contacts) == 3
+
+    # Check that keys are UUIDs
+    for key in value.contacts.keys():
+        assert isinstance(key, UUID)
+
+    # Check specific values
+    assert UUID(uuid_home) in value.contacts
+    assert UUID(uuid_work) in value.contacts
+    assert UUID(uuid_mobile) in value.contacts
+    assert value.contacts[UUID(uuid_home)].phone == "555-1234"
+    assert value.contacts[UUID(uuid_home)].email == "jane.home@example.com"
+    assert value.contacts[UUID(uuid_home)].created_at == datetime(
+        2023, 1, 15, 10, 30, 0
+    )
+    assert value.contacts[UUID(uuid_work)].phone == "555-5678"
+    assert value.contacts[UUID(uuid_work)].email == "jane.work@example.com"
+    assert value.contacts[UUID(uuid_work)].created_at == datetime(
+        2023, 2, 20, 14, 45, 0
+    )
+    assert value.contacts[UUID(uuid_mobile)].created_at == datetime(
+        2023, 3, 25, 8, 15, 0
+    )
+
+
+@pytest.mark.parametrize(
+    "expected_type",
+    [
+        PlainUserWithContacts,
+        UserModelWithContacts,
+        UserDcWithContacts,
+    ],
+)
+async def test_from_body_json_binding_dict_str_custom_class(expected_type):
+    """Test conversion of dict[str, CustomClass] from JSON body"""
+    data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "contacts": {
+            "home": {
+                "phone": "555-1234",
+                "email": "jane.home@example.com",
+                "created_at": "2023-01-15T10:30:00",
+            },
+            "work": {
+                "phone": "555-5678",
+                "email": "jane.work@example.com",
+                "created_at": "2023-02-20T14:45:00",
+            },
+            "mobile": {
+                "phone": "555-9999",
+                "email": "jane.mobile@example.com",
+                "created_at": "2023-03-25T08:15:00",
+            },
+        },
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(JSONContent(data))
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.email == "jane@example.com"
+    assert value.age == 25
+    assert isinstance(value.contacts, dict)
+    assert len(value.contacts) == 3
+    assert "home" in value.contacts
+    assert "work" in value.contacts
+    assert "mobile" in value.contacts
+    assert value.contacts["home"].phone == "555-1234"
+    assert value.contacts["home"].email == "jane.home@example.com"
+    assert value.contacts["home"].created_at == datetime(2023, 1, 15, 10, 30, 0)
+    assert value.contacts["work"].phone == "555-5678"
+    assert value.contacts["work"].email == "jane.work@example.com"
+    assert value.contacts["work"].created_at == datetime(2023, 2, 20, 14, 45, 0)
+
+
+@pytest.mark.parametrize(
+    "expected_type",
+    [
+        PlainUserWithContactsUUID,
+        UserModelWithContactsUUID,
+        UserDcWithContactsUUID,
+    ],
+)
+async def test_from_body_json_binding_empty_dict(expected_type):
+    """Test conversion with empty dict"""
+    data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "contacts": {},
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(JSONContent(data))
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.email == "jane@example.com"
+    assert value.age == 25
+    assert isinstance(value.contacts, dict)
+    assert len(value.contacts) == 0

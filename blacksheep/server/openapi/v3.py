@@ -7,15 +7,12 @@ from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, fields, is_dataclass
 from datetime import date, datetime
 from enum import Enum, IntEnum
-from types import UnionType, GenericAlias as GenericAlias_
-from typing import Any, Dict, Iterable, Sequence, Type, Union, TypeAlias
+from types import GenericAlias as GenericAlias_
+from types import UnionType
+from typing import Any, Dict, Iterable, Sequence, Type, TypeAlias, Union
 from typing import _AnnotatedAlias as AnnotatedAlias
-from typing import _GenericAlias
-from typing import get_type_hints
+from typing import _GenericAlias, get_type_hints
 from uuid import UUID
-
-# Alias to support both typing List[T]/list[T] as GenericAlias
-GenericAlias: TypeAlias = _GenericAlias | GenericAlias_
 
 from guardpost import AuthenticationHandler
 from guardpost.common import AuthenticatedRequirement
@@ -106,6 +103,10 @@ except ImportError:  # pragma: no cover
     # noqa
     TypeAdapter = ...
     is_pydantic_dataclass = ...
+
+
+# Alias to support both typing List[T]/list[T] as GenericAlias
+GenericAlias: TypeAlias = _GenericAlias | GenericAlias_
 
 
 def _is_union_type(annotation):
@@ -557,7 +558,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         origin = args[0] if args else get_origin(object_type)
         annotations = object_type.__metadata__
         annotations_repr = "And".join(
-            self.get_type_name(annotation, context_type_args) for annotation in annotations
+            self.get_type_name(annotation, context_type_args)
+            for annotation in annotations
         )
         return f"{self.get_type_name(origin)}Of{annotations_repr}"
 
@@ -593,7 +595,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return self.get_type_name_for_annotated(object_type, context_type_args)
         if isinstance(object_type, GenericAlias) or isinstance(object_type, UnionType):
             return self.get_type_name_for_generic(object_type, context_type_args)
-        # Workaround for built-in collection types in Python 3.9+ to have them capitalized in schema names
+        # Workaround for built-in collection types in Python 3.9+ to have them
+        # capitalized in schema names
         if object_type in (list, tuple, set, dict) and hasattr(object_type, "__name__"):
             return object_type.__name__.capitalize()
         if hasattr(object_type, "__name__"):

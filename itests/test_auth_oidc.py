@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock
 from urllib.parse import parse_qs, urlencode
 
 import pytest
+from essentials.secrets import Secret
 from guardpost import Identity, Policy
 from guardpost.common import AuthenticatedRequirement
 
@@ -128,7 +129,7 @@ def configure_test_oidc_cookie_auth_id_token(
         app,
         OpenIDSettings(
             client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
-            client_secret=secret,
+            client_secret=Secret.from_plain_text(secret) if secret else None,
             authority=MOCKED_AUTHORITY,
         ),
     )
@@ -140,7 +141,7 @@ def configure_test_oidc_jwt_auth_id_token(app: Application, secret: str | None =
         app,
         OpenIDSettings(
             client_id=CLIENT_ID,
-            client_secret=secret,
+            client_secret=Secret.from_plain_text(secret) if secret else None,
             authority=MOCKED_AUTHORITY,
         ),
         auth_handler=JWTOpenIDTokensHandler(
@@ -157,7 +158,7 @@ def configure_test_oidc_with_secret(app: Application):
         app,
         OpenIDSettings(
             client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
-            client_secret="JUST_AN_EXAMPLE",
+            client_secret=Secret.from_plain_text("JUST_AN_EXAMPLE"),
             authority=MOCKED_AUTHORITY,
         ),
     )
@@ -939,7 +940,7 @@ async def test_oidc_handler_with_secret_and_audience_no_id_token(
         app,
         OpenIDSettings(
             client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
-            client_secret="JUST_AN_EXAMPLE",
+            client_secret=Secret.from_plain_text("JUST_AN_EXAMPLE"),
             audience="api://default",
             authority=MOCKED_AUTHORITY,
             scope="read:todos",
@@ -1084,7 +1085,7 @@ async def test_cookies_tokens_store_restoring_context(
         app,
         OpenIDSettings(
             client_id="067cee45-faf3-4c75-9fef-09f050bcc3ae",
-            client_secret="JUST_AN_EXAMPLE",
+            client_secret=Secret.from_plain_text("JUST_AN_EXAMPLE"),
             authority=MOCKED_AUTHORITY,
         ),
         auth_handler=CookiesOpenIDTokensHandler(

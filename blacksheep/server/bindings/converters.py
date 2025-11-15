@@ -13,7 +13,17 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence as SequenceABC
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
-from typing import Any, Callable, List, Literal, Sequence, get_args, get_origin
+from functools import lru_cache
+from typing import (
+    Any,
+    Callable,
+    List,
+    Literal,
+    Sequence,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 from urllib.parse import unquote
 from uuid import UUID
 
@@ -56,7 +66,11 @@ class StrConverter(TypeConverter):
         return expected_type is str or str(expected_type) == "~T"
 
     def convert(self, value, expected_type) -> Any:
-        return unquote(value) if value else None
+        if value is None:
+            return None
+        if "%" in value:
+            return unquote(value)
+        return value
 
 
 class InitTypeConverter(TypeConverter):
@@ -215,14 +229,186 @@ class LiteralConverter(TypeConverter):
         raise ValueError(f"{value!r} is not a valid {expected_type}")
 
 
-class ClassConverter(TypeConverter):
-    def __init__(self):
-        self._valid_params_cache = {}
+class _AsIsConverter(TypeConverter):
+    def can_convert(self, expected_type) -> bool:
+        return True
 
+    def convert(self, value, expected_type) -> Any:
+        return value
+
+
+_as_is_converter = _AsIsConverter()
+
+
+class DictConverter(TypeConverter):
+    """
+    Converter for dict[K, V] where both K and V can be handled by converters.
+    Supports string keys and hashable class keys.
+    """
+
+    def can_convert(self, expected_type) -> bool:
+        return _get_origin(expected_type) is dict
+
+    def convert(self, value, expected_type) -> Any:
+        if value is None:
+            return None
+
+        key_type, value_type = _get_args(expected_type)
+
+        # Find the appropriate converters
+        key_converter = get_converter(key_type)
+        value_converter = get_converter(value_type)
+
+        return {
+            key_converter.convert(k, key_type): value_converter.convert(v, value_type)
+            for k, v in value.items()
+        }
+
+
+_dict_converter = DictConverter()
+
+
+@lru_cache(maxsize=None)
+def _get_signature(cls):
+    return inspect.signature(cls.__init__)
+
+
+@lru_cache(maxsize=None)
+def _get_type_hints(cls):
+    return get_type_hints(cls.__init__)
+
+
+@lru_cache(maxsize=None)
+def _get_dataclass_fields(cls):
+    return fields(cls)
+
+
+@lru_cache(maxsize=None)
+def _is_pydantic_model(cls):
+    return BaseModel is not None and inspect.isclass(cls) and issubclass(cls, BaseModel)
+
+
+@lru_cache(maxsize=None)
+def _get_args(cls):
+    return get_args(cls)
+
+
+@lru_cache(maxsize=None)
+def _get_origin(cls):
+    return get_origin(cls)
+
+
+@lru_cache(maxsize=None)
+def _is_dataclass(cls):
+    return is_dataclass(cls)
+
+
+class ClassConverter(TypeConverter):
+    """
+    Converts dictionaries to instances of desired types, supporting Pydantic models,
+    Python dataclasses or plain user-defined classes.
+
+    This converter handles common scenarios for basic type conversion from dictionaries
+    to class instances. It supports:
+    - Dataclasses with simple field types
+    - Plain classes with __init__ parameters
+    - Nested classes and dataclasses
+
+    Important limitations:
+    - This converter is NOT designed to support all possible type conversion scenarios
+    - It handles only straightforward cases with basic type annotations
+    - Complex type validation, nested generics, and advanced typing constructs
+      are not fully supported
+
+    For complex type conversion scenarios, use:
+    - Pydantic models (recommended): Provides comprehensive validation,
+      advanced typing support, and better error messages
+    - Custom type converters: Define explicit conversion logic for your specific needs
+    - Explicit conversion in your input types classes
+
+    This converter ignores extra fields in the input dictionary that don't match
+    class parameters or dataclass fields.
+    """
+
+    def _from_dict(self, cls, data: dict | list):
+        """Convert dict to plain class or dataclass, ignoring extra fields"""
+
+        if _is_pydantic_model(cls):
+            return cls.model_validate(data)
+
+        # here it is sufficient to handle list because input from client can only
+        # be parsed as list in most cases (like after parsing JSON or XML), not other
+        # types of sequences like tuple
+        if isinstance(data, list):
+            # require a type hint to work
+            obj_type_hint = _get_args(cls)
+            if obj_type_hint:
+                # good…
+                obj_type_converter = get_converter(obj_type_hint[0])
+                return [
+                    obj_type_converter.convert(datum, obj_type_hint[0])
+                    for datum in data
+                ]
+            else:
+                # return data as-is (let if fail downstream if it must)
+                return data
+
+        if _dict_converter.can_convert(cls):
+            return _dict_converter.convert(data, cls)
+
+        if not isinstance(data, dict):
+            return data
+
+        # Handle dataclasses
+        if _is_dataclass(cls):
+            return self._handle_dataclass(cls, data)
+
+        # Handle plain classes
+        return self._handle_plain_class(cls, data)
+
+    def _handle_dataclass(self, cls, data):
+        field_values = {}
+        for field in _get_dataclass_fields(cls):
+            if field.name in data:
+                field_type = field.type
+                value = data[field.name]
+                if value is None:
+                    field_values[field.name] = None
+                else:
+                    converter = get_converter(field_type)
+                    field_values[field.name] = converter.convert(value, field_type)
+        return cls(**field_values)
+
+    def _handle_plain_class(self, cls, data):
+        # Get type hints from __init__
+        sig = _get_signature(cls)
+        type_hints = _get_type_hints(cls)
+
+        init_params = {}
+        for param_name, _ in sig.parameters.items():
+            if param_name == "self":
+                continue
+
+            if param_name in data:
+                value = data[param_name]
+
+                # Check if parameter has a type hint that's a class
+                if param_name in type_hints:
+                    param_type = type_hints[param_name]
+                    converter = get_converter(param_type)
+                    init_params[param_name] = converter.convert(value, param_type)
+                else:
+                    init_params[param_name] = value
+        return cls(**init_params)
+
+    @lru_cache(maxsize=None)
     def can_convert(self, expected_type) -> bool:
         # Must be a class
         if not inspect.isclass(expected_type):
             return False
+
+        if is_dataclass(expected_type) or _is_pydantic_model(expected_type):
+            return True
 
         # Exclude built-in types
         if expected_type.__module__ == "builtins":
@@ -232,106 +418,19 @@ class ClassConverter(TypeConverter):
         if get_origin(expected_type) is not None:
             return False
 
-        # Exclude types that already have specific converters
-        # (this prevents conflicts with existing converters)
-        for converter in converters:
-            if converter != self and converter.can_convert(expected_type):
-                return False
-
         # Must have a callable __init__ method
         if not hasattr(expected_type, "__init__"):
             return False
 
         return True
 
-    def _get_valid_params(self, expected_type):
-        # Check cache first
-        if expected_type not in self._valid_params_cache:
-            # Filter out unknown parameters to ignore extra properties
-            try:
-                sig = inspect.signature(expected_type.__init__)
-                valid_params = set(sig.parameters.keys()) - {"self"}
-                self._valid_params_cache[expected_type] = valid_params
-            except (ValueError, TypeError):
-                # Cache None to indicate fallback behavior
-                self._valid_params_cache[expected_type] = None
-
-        return self._valid_params_cache[expected_type]
-
     def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
 
-        if isinstance(value, dict):
-            valid_params = self._get_valid_params(expected_type)
-
-            if valid_params is not None:
-                filtered_data = {k: v for k, v in value.items() if k in valid_params}
-                return expected_type(**filtered_data)
-            else:
-                # Fallback if signature inspection failed
-                return expected_type(**value)
-        else:
-            # Try to construct from single value
-            return expected_type(value)
+        return self._from_dict(expected_type, value)
 
 
-class DataClassConverter(TypeConverter):
-    def __init__(self):
-        self._valid_fields_cache = {}
-
-    def can_convert(self, expected_type) -> bool:
-        return is_dataclass(expected_type) and inspect.isclass(expected_type)
-
-    def _get_valid_fields(self, expected_type):
-        # Check cache first
-        if expected_type not in self._valid_fields_cache:
-            try:
-                field_names = {field.name for field in fields(expected_type)}
-                self._valid_fields_cache[expected_type] = field_names
-            except (ValueError, TypeError):
-                # Cache None to indicate fallback behavior
-                self._valid_fields_cache[expected_type] = None
-
-        return self._valid_fields_cache[expected_type]
-
-    def convert(self, value, expected_type) -> Any:
-        if value is None:
-            return None
-
-        if isinstance(value, dict):
-            valid_fields = self._get_valid_fields(expected_type)
-
-            if valid_fields is not None:
-                filtered_data = {k: v for k, v in value.items() if k in valid_fields}
-                return expected_type(**filtered_data)
-            else:
-                # Fallback if field inspection failed
-                return expected_type(**value)
-        else:
-            # Try to construct from single value
-            return expected_type(value)
-
-
-class PydanticConverter(TypeConverter):
-    def can_convert(self, expected_type) -> bool:
-        if BaseModel is None:
-            return False
-        return inspect.isclass(expected_type) and issubclass(expected_type, BaseModel)
-
-    def convert(self, value, expected_type) -> Any:
-        if value is None:
-            return None
-
-        if isinstance(value, dict):
-            # Use Pydantic's model_validate for proper validation and conversion
-            return expected_type.model_validate(value)
-        else:
-            # Try to construct from single value
-            return expected_type.model_validate(value)
-
-
-# Add this new converter class after the existing converters
 class ListConverter(TypeConverter):
     """
     Converter for list[T], Sequence[T], and tuple[T] where T
@@ -341,60 +440,36 @@ class ListConverter(TypeConverter):
     def __init__(self, supported_origins=None):
         if supported_origins is None:
             supported_origins = {list, List, Sequence, SequenceABC, tuple}
-        self.supported_origins = supported_origins
+        self.supported_origins = frozenset(supported_origins)
 
     def can_convert(self, expected_type) -> bool:
-        origin = get_origin(expected_type)
+        origin = _get_origin(expected_type)
         if origin not in self.supported_origins:
             return False
 
         # Get the item type
-        args = get_args(expected_type)
+        args = _get_args(expected_type)
         if not args:
             return False
 
-        item_type = args[0]
-
-        # Check if any class converter can handle the item type
-        for converter in class_converters:
-            if converter.can_convert(item_type):
-                return True
-
-        return False
+        return True
 
     def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
 
-        if not isinstance(value, list):
-            raise ValueError(f"Expected a list for {expected_type}, got {type(value)}")
+        origin = _get_origin(expected_type)
+        item_type = _get_args(expected_type)[0]
 
-        origin = get_origin(expected_type)
-        item_type = get_args(expected_type)[0]
+        item_converter = get_converter(item_type)
 
-        # Find the appropriate converter for the item type
-        item_converter = None
-        for converter in class_converters:
-            if converter.can_convert(item_type):
-                item_converter = converter
-                break
+        converted_items = [item_converter.convert(item, item_type) for item in value]
 
-        if item_converter is None:
-            raise ValueError(f"No converter found for item type {item_type}")
-
-        # Convert each item in the list
-        converted_items = []
-        for item in value:
-            converted_item = item_converter.convert(item, item_type)
-            converted_items.append(converted_item)
-
-        # Return the appropriate collection type
         if origin in {list, List}:
             return converted_items
-        elif origin in {tuple}:
+        elif origin is tuple:
             return tuple(converted_items)
         else:
-            # For Sequence and other abstract types, default to list
             return converted_items
 
 
@@ -418,11 +493,17 @@ if StrEnum is not None and IntEnum is not None:
 
 
 class_converters: list[TypeConverter] = [
-    DataClassConverter(),
     ClassConverter(),
     ListConverter(),
+    DictConverter(),
 ]
 
-if BaseModel is not None:
-    # Insert PydanticConverter before ClassConverter to give it priority
-    class_converters.insert(-2, PydanticConverter())
+
+@lru_cache(maxsize=None)
+def get_converter(cls) -> TypeConverter:
+    _all_converters = converters + class_converters
+
+    for converter in _all_converters:
+        if converter.can_convert(cls):
+            return converter
+    return _as_is_converter

@@ -1741,8 +1741,8 @@ async def test_handler_from_files_and_form(app):
     @dataclass(init=False)
     class OtherInput:
         textfield: str
-        checkbox1: bool
-        checkbox2: bool
+        checkbox1: str
+        checkbox2: str
 
         def __init__(
             self,
@@ -1752,8 +1752,8 @@ async def test_handler_from_files_and_form(app):
             **kwargs,
         ):
             self.textfield = textfield
-            self.checkbox1 = checkbox1 == "on"
-            self.checkbox2 = checkbox2 == "on"
+            self.checkbox1 = checkbox1
+            self.checkbox2 = checkbox2
 
     @app.router.post("/")
     async def home(files: FromFiles, other: FromForm[OtherInput]):
@@ -1765,8 +1765,8 @@ async def test_handler_from_files_and_form(app):
         assert file1.name == b"files"
         assert file1.file_name == b"red-dot.png"
 
-        assert other.value.checkbox1 is True
-        assert other.value.checkbox2 is False
+        assert other.value.checkbox1 == "on"
+        assert other.value.checkbox2 is None
         assert other.value.textfield == "Hello World!"
 
     await _multipart_mix_scenario(app)
@@ -1781,8 +1781,8 @@ async def test_handler_from_form_handling_whole_multipart_with_class(app):
     @dataclass(init=False)
     class WholeInput:
         textfield: str
-        checkbox1: bool
-        checkbox2: bool
+        checkbox1: str
+        checkbox2: str
         files: list
 
         def __init__(
@@ -1794,8 +1794,8 @@ async def test_handler_from_form_handling_whole_multipart_with_class(app):
             **kwargs,
         ):
             self.textfield = textfield
-            self.checkbox1 = checkbox1 == "on"
-            self.checkbox2 = checkbox2 == "on"
+            self.checkbox1 = checkbox1
+            self.checkbox2 = checkbox2
             self.files = files or []
 
     @app.router.post("/")
@@ -1808,8 +1808,8 @@ async def test_handler_from_form_handling_whole_multipart_with_class(app):
         assert file1.name == b"files"
         assert file1.file_name == b"red-dot.png"
 
-        assert data.value.checkbox1 is True
-        assert data.value.checkbox2 is False
+        assert data.value.checkbox1 == "on"
+        assert data.value.checkbox2 is None
         assert data.value.textfield == "Hello World!"
 
     await _multipart_mix_scenario(app)

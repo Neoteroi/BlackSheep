@@ -396,11 +396,8 @@ class ClassConverter(TypeConverter):
                 # Check if parameter has a type hint that's a class
                 if param_name in type_hints:
                     param_type = type_hints[param_name]
-                    if self.can_convert(param_type):
-                        init_params[param_name] = self.convert(value, param_type)
-                    else:
-                        converter = get_converter(param_type)
-                        init_params[param_name] = converter.convert(value, param_type)
+                    converter = get_converter(param_type)
+                    init_params[param_name] = converter.convert(value, param_type)
                 else:
                     init_params[param_name] = value
         return cls(**init_params)

@@ -96,6 +96,14 @@ class ExamplePydanticModel(BaseModel):
 
 
 # Example plain classes
+
+
+class ContactInfo:
+    def __init__(self, phone: str, email: str):
+        self.phone = phone
+        self.email = email
+
+
 class PlainAddress:
     def __init__(self, street: str, city: str, zip_code: str):
         self.street = street
@@ -119,6 +127,31 @@ class PlainUser2:
         self.addresses = addresses
 
 
+class PlainUserWithContacts:
+    def __init__(
+        self, name: str, email: str, age: int, contacts: dict[str, ContactInfo]
+    ):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.contacts = contacts
+
+
+class PlainUserWithContactsUUID:
+    def __init__(
+        self, name: str, email: str, age: int, contacts: dict[UUID, ContactInfo]
+    ):
+        self.name = name
+        self.email = email
+        self.age = age
+        self.contacts = contacts
+
+
+class ContactInfoModel(BaseModel):
+    phone: str
+    email: str
+
+
 class AddressModel(BaseModel):
     street: str
     city: str
@@ -139,11 +172,31 @@ class UserModel2(BaseModel):
     addresses: list[AddressModel]
 
 
+class UserModelWithContacts(BaseModel):
+    name: str
+    email: str
+    age: int
+    contacts: dict[str, ContactInfoModel]
+
+
+class UserModelWithContactsUUID(BaseModel):
+    name: str
+    email: str
+    age: int
+    contacts: dict[UUID, ContactInfoModel]
+
+
 @dataclass
 class AddressDc:
     street: str
     city: str
     zip_code: str
+
+
+@dataclass
+class ContactInfoDc:
+    phone: str
+    email: str
 
 
 @dataclass
@@ -160,6 +213,22 @@ class UserDcMix:
     email: str
     age: int
     address: AddressModel
+
+
+@dataclass
+class UserDcWithContacts:
+    name: str
+    email: str
+    age: int
+    contacts: dict[str, ContactInfoDc]
+
+
+@dataclass
+class UserDcWithContactsUUID:
+    name: str
+    email: str
+    age: int
+    contacts: dict[UUID, ContactInfoDc]
 
 
 @dataclass
@@ -1014,3 +1083,140 @@ async def test_from_body_json_binding_collections(
             expected_values = [("first", 100), ("second", 200), ("third", 300)]
             assert item.a == expected_values[i][0]
             assert item.b == expected_values[i][1]
+
+
+@pytest.mark.parametrize(
+    "expected_type",
+    [
+        PlainUserWithContactsUUID,
+        UserModelWithContactsUUID,
+        UserDcWithContactsUUID,
+    ],
+)
+async def test_from_body_json_binding_dict_uuid_custom_class(expected_type):
+    """Test conversion of dict[UUID, CustomClass] from JSON body"""
+    uuid_home = "b0c1f822-b63c-475e-9f2e-b6406bafcc2b"
+    uuid_work = "d5fd0cde-4ad6-4b61-a5b1-5b8e6d48cebe"
+    uuid_mobile = "00000000-0000-0000-0000-000000000000"
+
+    data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "contacts": {
+            uuid_home: {
+                "phone": "555-1234",
+                "email": "jane.home@example.com",
+                "extra_field": "should be ignored",
+            },
+            uuid_work: {
+                "phone": "555-5678",
+                "email": "jane.work@example.com",
+                "extra_field": "should be ignored",
+            },
+            uuid_mobile: {
+                "phone": "555-9999",
+                "email": "jane.mobile@example.com",
+                "extra_field": "should be ignored",
+            },
+        },
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(JSONContent(data))
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.email == "jane@example.com"
+    assert value.age == 25
+    assert isinstance(value.contacts, dict)
+    assert len(value.contacts) == 3
+
+    # Check that keys are UUIDs
+    for key in value.contacts.keys():
+        assert isinstance(key, UUID)
+
+    # Check specific values
+    assert UUID(uuid_home) in value.contacts
+    assert UUID(uuid_work) in value.contacts
+    assert UUID(uuid_mobile) in value.contacts
+    assert value.contacts[UUID(uuid_home)].phone == "555-1234"
+    assert value.contacts[UUID(uuid_home)].email == "jane.home@example.com"
+    assert value.contacts[UUID(uuid_work)].phone == "555-5678"
+    assert value.contacts[UUID(uuid_work)].email == "jane.work@example.com"
+
+
+@pytest.mark.parametrize(
+    "expected_type",
+    [
+        PlainUserWithContacts,
+        UserModelWithContacts,
+        UserDcWithContacts,
+    ],
+)
+async def test_from_body_json_binding_dict_str_custom_class(expected_type):
+    """Test conversion of dict[str, CustomClass] from JSON body"""
+    data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "contacts": {
+            "home": {"phone": "555-1234", "email": "jane.home@example.com"},
+            "work": {"phone": "555-5678", "email": "jane.work@example.com"},
+            "mobile": {"phone": "555-9999", "email": "jane.mobile@example.com"},
+        },
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(JSONContent(data))
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.email == "jane@example.com"
+    assert value.age == 25
+    assert isinstance(value.contacts, dict)
+    assert len(value.contacts) == 3
+    assert "home" in value.contacts
+    assert "work" in value.contacts
+    assert "mobile" in value.contacts
+    assert value.contacts["home"].phone == "555-1234"
+    assert value.contacts["home"].email == "jane.home@example.com"
+    assert value.contacts["work"].phone == "555-5678"
+    assert value.contacts["work"].email == "jane.work@example.com"
+
+
+@pytest.mark.parametrize(
+    "expected_type",
+    [
+        PlainUserWithContactsUUID,
+        UserModelWithContactsUUID,
+        UserDcWithContactsUUID,
+    ],
+)
+async def test_from_body_json_binding_empty_dict(expected_type):
+    """Test conversion with empty dict"""
+    data = {
+        "name": "Jane",
+        "email": "jane@example.com",
+        "age": 25,
+        "contacts": {},
+    }
+
+    request = Request("POST", b"/", [JSONContentType]).with_content(JSONContent(data))
+
+    parameter = JSONBinder(expected_type)
+
+    value = await parameter.get_value(request)
+
+    assert isinstance(value, expected_type)
+    assert value.name == "Jane"
+    assert value.email == "jane@example.com"
+    assert value.age == 25
+    assert isinstance(value.contacts, dict)
+    assert len(value.contacts) == 0

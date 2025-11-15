@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence as SequenceABC
 from dataclasses import fields, is_dataclass
 from datetime import date, datetime
+from functools import lru_cache
 from typing import (
     Any,
     Callable,
@@ -65,7 +66,11 @@ class StrConverter(TypeConverter):
         return expected_type is str or str(expected_type) == "~T"
 
     def convert(self, value, expected_type) -> Any:
-        return unquote(value) if value else None
+        if value is None:
+            return None
+        if "%" in value:
+            return unquote(value)
+        return value
 
 
 class InitTypeConverter(TypeConverter):
@@ -232,6 +237,9 @@ class _AsIsConverter(TypeConverter):
         return value
 
 
+_as_is_converter = _AsIsConverter()
+
+
 class DictConverter(TypeConverter):
     """
     Converter for dict[K, V] where both K and V can be handled by converters.
@@ -239,92 +247,61 @@ class DictConverter(TypeConverter):
     """
 
     def can_convert(self, expected_type) -> bool:
-        origin = get_origin(expected_type)
-        if origin not in {dict, dict}:
-            return False
-
-        args = get_args(expected_type)
-        if not args or len(args) != 2:
-            return False
-
-        key_type, value_type = args
-
-        # Check if we can convert the key type (str or hashable class)
-        can_convert_key = key_type is str
-        if not can_convert_key:
-            # Check if any converter can handle the key type
-            for converter in converters:
-                if converter.can_convert(key_type):
-                    can_convert_key = True
-                    break
-            # Also check class converters for custom classes as keys
-            if not can_convert_key:
-                for converter in class_converters:
-                    if converter.can_convert(key_type):
-                        can_convert_key = True
-                        break
-
-        if not can_convert_key:
-            return False
-
-        # Check if any class converter can handle the value type
-        for converter in class_converters:
-            if converter.can_convert(value_type):
-                return True
-
-        return False
+        origin = _get_origin(expected_type)
+        return origin is dict
 
     def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
 
-        if not isinstance(value, dict):
-            raise ValueError(f"Expected a dict for {expected_type}, got {type(value)}")
+        key_type, value_type = _get_args(expected_type)
 
-        key_type, value_type = get_args(expected_type)
+        # Find the appropriate converters
+        key_converter = get_converter(key_type)
+        value_converter = get_converter(value_type)
 
-        # Find the appropriate converter for the key type
-        key_converter = None
-        if key_type is not str:
-            for converter in converters:
-                if converter.can_convert(key_type):
-                    key_converter = converter
-                    break
-            # Also check class converters
-            if key_converter is None:
-                for converter in class_converters:
-                    if converter.can_convert(key_type):
-                        key_converter = converter
-                        break
-
-        # Find the appropriate converter for the value type
-        value_converter = None
-        for converter in class_converters:
-            if converter.can_convert(value_type):
-                value_converter = converter
-                break
-
-        if value_converter is None:
-            value_converter = _AsIsConverter()
-            # raise ValueError(f"No converter found for value type {value_type}")
-
-        # Convert each key-value pair in the dict
-        converted_dict = {}
-        for k, v in value.items():
-            # Convert the key if needed
-            if key_converter is not None:
-                converted_key = key_converter.convert(k, key_type)
-            else:
-                converted_key = k
-
-            # Convert the value
-            converted_value = value_converter.convert(v, value_type)
-            converted_dict[converted_key] = converted_value
-
-        return converted_dict
+        return {
+            key_converter.convert(k, key_type): value_converter.convert(v, value_type)
+            for k, v in value.items()
+        }
 
 
 _dict_converter = DictConverter()
+
+
+@lru_cache(maxsize=None)
+def _get_signature(cls):
+    return inspect.signature(cls.__init__)
+
+
+@lru_cache(maxsize=None)
+def _get_type_hints(cls):
+    return get_type_hints(cls.__init__)
+
+
+@lru_cache(maxsize=None)
+def _get_dataclass_fields(cls):
+    return fields(cls)
+
+
+@lru_cache(maxsize=None)
+def _is_pydantic_model(cls):
+    return BaseModel is not None and inspect.isclass(cls) and issubclass(cls, BaseModel)
+
+
+@lru_cache(maxsize=None)
+def _get_args(cls):
+    return get_args(cls)
+
+
+@lru_cache(maxsize=None)
+def _get_origin(cls):
+    return get_origin(cls)
+
+
+@lru_cache(maxsize=None)
+def _is_dataclass(cls):
+    return is_dataclass(cls)
 
 
 class ClassConverter(TypeConverter):
@@ -354,41 +331,10 @@ class ClassConverter(TypeConverter):
     class parameters or dataclass fields.
     """
 
-    def __init__(self):
-        self._signature_cache = {}
-        self._type_hints_cache = {}
-        self._dataclass_fields_cache = {}
-
-    def _get_dataclass_fields(self, cls):
-        """Get cached dataclass fields for a class"""
-        if cls not in self._dataclass_fields_cache:
-            self._dataclass_fields_cache[cls] = fields(cls)
-        return self._dataclass_fields_cache[cls]
-
-    def _get_signature(self, cls):
-        """Get cached signature for a class"""
-        if cls not in self._signature_cache:
-            self._signature_cache[cls] = inspect.signature(cls.__init__)
-        return self._signature_cache[cls]
-
-    def _get_type_hints(self, cls):
-        """Get cached type hints for a class"""
-        if cls not in self._type_hints_cache:
-            self._type_hints_cache[cls] = get_type_hints(cls.__init__)
-        return self._type_hints_cache[cls]
-
-    @staticmethod
-    def _is_pydantic_model(expected_type):
-        return (
-            BaseModel is not None
-            and inspect.isclass(expected_type)
-            and issubclass(expected_type, BaseModel)
-        )
-
     def _from_dict(self, cls, data: dict | list):
         """Convert dict to plain class or dataclass, ignoring extra fields"""
 
-        if self._is_pydantic_model(cls):
+        if _is_pydantic_model(cls):
             return cls.model_validate(data)
 
         # here it is sufficient to handle list because input from client can only
@@ -396,15 +342,14 @@ class ClassConverter(TypeConverter):
         # types of sequences like tuple
         if isinstance(data, list):
             # require a type hint to work
-            obj_type_hint = get_args(cls)
+            obj_type_hint = _get_args(cls)
             if obj_type_hint:
                 # good…
-                for converter in class_converters:
-                    if converter.can_convert(obj_type_hint[0]):
-                        return [
-                            converter.convert(datum, obj_type_hint[0]) for datum in data
-                        ]
-                return [datum for datum in data]
+                obj_type_converter = get_converter(obj_type_hint[0])
+                return [
+                    obj_type_converter.convert(datum, obj_type_hint[0])
+                    for datum in data
+                ]
             else:
                 # return data as-is (let if fail downstream if it must)
                 return data
@@ -416,25 +361,29 @@ class ClassConverter(TypeConverter):
             return data
 
         # Handle dataclasses
-        if hasattr(cls, "__dataclass_fields__"):
-            field_values = {}
-            for field in self._get_dataclass_fields(cls):
-                if field.name in data:
-                    field_type = field.type
-                    value = data[field.name]
-                    # Handle nested classes
-                    if value is None:
-                        field_values[field.name] = None
-                    elif self.can_convert(field_type):
-                        field_values[field.name] = self.convert(field_type, value)
-                    else:
-                        field_values[field.name] = value
-            return cls(**field_values)
+        if _is_dataclass(cls):
+            return self._handle_dataclass(cls, data)
 
         # Handle plain classes
+        return self._handle_plain_class(cls, data)
+
+    def _handle_dataclass(self, cls, data):
+        field_values = {}
+        for field in _get_dataclass_fields(cls):
+            if field.name in data:
+                field_type = field.type
+                value = data[field.name]
+                if value is None:
+                    field_values[field.name] = None
+                else:
+                    converter = get_converter(field_type)
+                    field_values[field.name] = converter.convert(value, field_type)
+        return cls(**field_values)
+
+    def _handle_plain_class(self, cls, data):
         # Get type hints from __init__
-        sig = self._get_signature(cls)
-        type_hints = self._get_type_hints(cls)
+        sig = _get_signature(cls)
+        type_hints = _get_type_hints(cls)
 
         init_params = {}
         for param_name, _ in sig.parameters.items():
@@ -450,17 +399,19 @@ class ClassConverter(TypeConverter):
                     if self.can_convert(param_type):
                         init_params[param_name] = self.convert(value, param_type)
                     else:
-                        init_params[param_name] = value
+                        converter = get_converter(param_type)
+                        init_params[param_name] = converter.convert(value, param_type)
                 else:
                     init_params[param_name] = value
         return cls(**init_params)
 
+    @lru_cache(maxsize=None)
     def can_convert(self, expected_type) -> bool:
         # Must be a class
         if not inspect.isclass(expected_type):
             return False
 
-        if is_dataclass(expected_type) or self._is_pydantic_model(expected_type):
+        if is_dataclass(expected_type) or _is_pydantic_model(expected_type):
             return True
 
         # Exclude built-in types
@@ -494,52 +445,32 @@ class ListConverter(TypeConverter):
     def __init__(self, supported_origins=None):
         if supported_origins is None:
             supported_origins = {list, List, Sequence, SequenceABC, tuple}
-        self.supported_origins = supported_origins
+        self.supported_origins = frozenset(supported_origins)
 
     def can_convert(self, expected_type) -> bool:
-        origin = get_origin(expected_type)
+        origin = _get_origin(expected_type)
         if origin not in self.supported_origins:
             return False
 
         # Get the item type
-        args = get_args(expected_type)
+        args = _get_args(expected_type)
         if not args:
             return False
 
-        item_type = args[0]
-
-        # Check if any class converter can handle the item type
-        for converter in class_converters:
-            if converter.can_convert(item_type):
-                return True
-
-        return False
+        return True
 
     def convert(self, value, expected_type) -> Any:
         if value is None:
             return None
 
-        if not isinstance(value, list):
-            raise ValueError(f"Expected a list for {expected_type}, got {type(value)}")
-
-        origin = get_origin(expected_type)
-        item_type = get_args(expected_type)[0]
+        origin = _get_origin(expected_type)
+        item_type = _get_args(expected_type)[0]
 
         # Find the appropriate converter for the item type
-        item_converter = None
-        for converter in class_converters:
-            if converter.can_convert(item_type):
-                item_converter = converter
-                break
-
-        if item_converter is None:
-            raise ValueError(f"No converter found for item type {item_type}")
+        item_converter = get_converter(item_type)
 
         # Convert each item in the list
-        converted_items = []
-        for item in value:
-            converted_item = item_converter.convert(item, item_type)
-            converted_items.append(converted_item)
+        converted_items = [item_converter.convert(item, item_type) for item in value]
 
         # Return the appropriate collection type
         if origin in {list, List}:
@@ -547,7 +478,6 @@ class ListConverter(TypeConverter):
         elif origin in {tuple}:
             return tuple(converted_items)
         else:
-            # For Sequence and other abstract types, default to list
             return converted_items
 
 
@@ -573,5 +503,16 @@ if StrEnum is not None and IntEnum is not None:
 class_converters: list[TypeConverter] = [
     ClassConverter(),
     ListConverter(),
-    DictConverter()
+    DictConverter(),
 ]
+
+
+_all_converters = converters + class_converters
+
+
+@lru_cache(maxsize=None)
+def get_converter(cls) -> TypeConverter:
+    for converter in _all_converters:
+        if converter.can_convert(cls):
+            return converter
+    return _as_is_converter

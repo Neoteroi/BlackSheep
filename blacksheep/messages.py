@@ -8,6 +8,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
 
+from blacksheep.client.connection import IncomingContent
 from blacksheep.multipart import parse_multipart
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
@@ -157,7 +158,7 @@ class Message:
         return None
 
     async def stream(self):
-        if hasattr(self, "content") and self.content and isinstance(self.content, StreamedContent):
+        if hasattr(self, "content") and self.content and isinstance(self.content, (StreamedContent, IncomingContent)):
             async for chunk in self.content.stream():
                 yield chunk
         else:

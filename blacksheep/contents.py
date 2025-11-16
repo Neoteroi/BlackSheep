@@ -1,3 +1,4 @@
+from typing import AsyncGenerator
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
@@ -27,7 +28,7 @@ class StreamedContent(Content):
         if not isasyncgenfunction(data_provider):
             raise ValueError("Data provider must be an async generator")
 
-    async def read(self):
+    async def read(self) -> bytes:
         value = bytearray()
         async for chunk in self.generator():
             value.extend(chunk)
@@ -35,11 +36,11 @@ class StreamedContent(Content):
         self.length = len(self.body)
         return self.body
 
-    async def stream(self):
+    async def stream(self) -> AsyncGenerator[bytes, None]:
         async for chunk in self.generator():
             yield chunk
 
-    async def get_parts(self):
+    async def get_parts(self) -> AsyncGenerator[bytes, None]:
         async for chunk in self.generator():
             yield chunk
 

@@ -98,7 +98,7 @@ class BaseApplication:
 
     async def log_unhandled_exc(
         self,
-        request: Request,
+        request: "Request",
         exc: Exception,
     ):
         self.logger.error(
@@ -110,7 +110,7 @@ class BaseApplication:
 
     async def log_handled_exc(
         self,
-        request: Request,
+        request: "Request",
         exc: Exception,
     ):
         if isinstance(exc, HTTPException):
@@ -129,7 +129,7 @@ class BaseApplication:
                 str(exc),
             )
 
-    async def handle(self, request: Request) -> Response:
+    async def handle(self, request: "Request") -> Response:
         route = self.router.get_match(request)
 
         if not route:
@@ -147,7 +147,7 @@ class BaseApplication:
 
     async def handle_request_handler_exception(
         self,
-        request: Request,
+        request: "Request",
         exc: Exception,
     ) -> Response:
         if isinstance(exc, HTTPException):
@@ -162,7 +162,7 @@ class BaseApplication:
     def get_http_exception_handler(
         self, http_exception: HTTPException
     ) -> typing.Callable[
-        ["BaseApplication", Request, Exception], typing.Awaitable[Response]
+        ["BaseApplication", "Request", Exception], typing.Awaitable[Response]
     ]:
         handler = self.get_exception_handler(http_exception, stop_at=HTTPException)
         if handler:
@@ -183,7 +183,7 @@ class BaseApplication:
         stop_at: type | None,
     ) -> (
         typing.Callable[
-            ["BaseApplication", Request, Exception], typing.Awaitable[Response]
+            ["BaseApplication", "Request", Exception], typing.Awaitable[Response]
         ]
         | None
     ):
@@ -196,7 +196,7 @@ class BaseApplication:
 
     async def handle_internal_server_error(
         self,
-        request: Request,
+        request: "Request",
         exc,
     ) -> Response:
         if self.show_error_details:
@@ -214,10 +214,10 @@ class BaseApplication:
 
     async def _apply_exception_handler(
         self,
-        request: Request,
+        request: "Request",
         exc: Exception,
         exception_handler: typing.Callable[
-            ["BaseApplication", Request, Exception], typing.Awaitable[Response]
+            ["BaseApplication", "Request", Exception], typing.Awaitable[Response]
         ],
     ):
         try:
@@ -236,7 +236,7 @@ class BaseApplication:
 
     async def handle_http_exception(
         self,
-        request: Request,
+        request: "Request",
         http_exception: HTTPException,
     ) -> Response:
         exception_handler = self.get_http_exception_handler(http_exception)
@@ -246,7 +246,7 @@ class BaseApplication:
             )
         return await self.handle_exception(request, http_exception)
 
-    async def handle_exception(self, request: Request, exc: Exception) -> Response:
+    async def handle_exception(self, request: "Request", exc: Exception) -> Response:
         exception_handler = self.get_exception_handler(exc, None)
         if exception_handler:
             return await self._apply_exception_handler(request, exc, exception_handler)

@@ -1,4 +1,5 @@
 from collections.abc import Mapping, MutableSequence
+from typing import Generator
 
 
 class Header:
@@ -6,10 +7,10 @@ class Header:
         self.name = name
         self.value = value
 
-    def __repr__(self):
-        return f"<Header {self.name}: {self.value}>"
+    def __repr__(self) -> str:
+        return f"<Header {self.name!r}: {self.value!r}>"
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[bytes, None, None]:
         yield self.name
         yield self.value
 
@@ -66,16 +67,16 @@ class Headers:
         for key, value in values.items():
             self[key] = value
 
-    def items(self):
+    def items(self) -> Generator[tuple[bytes, bytes], None, None]:
         yield from self.values
 
-    def clone(self):
-        values = []
+    def clone(self) -> "Headers":
+        values: list[tuple[bytes, bytes]] = []
         for name, value in self.values:
             values.append((name, value))
         return Headers(values)
 
-    def add_many(self, values: dict[bytes, bytes] | list[tuple[bytes, bytes]]):
+    def add_many(self, values: dict[bytes, bytes] | list[tuple[bytes, bytes]] | list[Header]):
         if isinstance(values, MutableSequence):
             for item in values:
                 self.add(*item)
@@ -87,7 +88,7 @@ class Headers:
         raise ValueError("values must be dict[bytes, bytes] or list[Header]")
 
     @staticmethod
-    def _add_to_instance(instance, other):
+    def _add_to_instance(instance, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
         if isinstance(other, Headers):
             for value in other:
                 instance.add(*value)
@@ -112,22 +113,22 @@ class Headers:
             return instance
         return NotImplemented
 
-    def __add__(self, other):
+    def __add__(self, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
         return self._add_to_instance(self.clone(), other)
 
-    def __radd__(self, other):
+    def __radd__(self, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
         return self._add_to_instance(self.clone(), other)
 
-    def __iadd__(self, other):
+    def __iadd__(self, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
         return self._add_to_instance(self, other)
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[tuple[bytes, bytes], None, None]:
         yield from self.values
 
     def __setitem__(self, key: bytes, value: bytes):
         self.set(key, value)
 
-    def __getitem__(self, item: bytes):
+    def __getitem__(self, item: bytes) -> tuple[bytes, ...]:
         return self.get(item)
 
     def keys(self) -> tuple[bytes, ...]:
@@ -167,5 +168,5 @@ class Headers:
     def __contains__(self, key: bytes) -> bool:
         return self.contains(key)
 
-    def __repr__(self):
-        return f"<Headers {self.values}>"
+    def __repr__(self) -> str:
+        return f"<Headers {self.values!r}>"

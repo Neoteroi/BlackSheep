@@ -57,21 +57,21 @@ class Cookie:
         self.same_site = same_site
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @name.setter
-    def name(self, value):
+    def name(self, value: str):
         if not value:
             raise ValueError("A cookie name is required")
         self._name = value
 
     @property
-    def value(self):
+    def value(self) -> str:
         return self._value
 
     @value.setter
-    def value(self, value):
+    def value(self, value: str):
         if value and len(value.encode()) > 4096:
             raise CookieValueExceedsMaximumLength()
         self._value = value
@@ -98,11 +98,11 @@ class Cookie:
             return other.name == self.name and other.value == self.value
         return NotImplemented
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Cookie {self.name}: {self.value}>"
 
 
-def split_value(raw_value: bytes, separator: bytes):
+def split_value(raw_value: bytes, separator: bytes) -> tuple[bytes, bytes]:
     try:
         index = raw_value.index(separator)
     except ValueError:
@@ -111,7 +111,7 @@ def split_value(raw_value: bytes, separator: bytes):
     return raw_value[:index], raw_value[index + 1 :]
 
 
-def same_site_mode_from_bytes(raw_value: bytes) -> CookieSameSiteMode:
+def same_site_mode_from_bytes(raw_value: bytes | None) -> CookieSameSiteMode:
     if not raw_value:
         return CookieSameSiteMode.UNDEFINED
     raw_value_lower = raw_value.lower()
@@ -132,7 +132,7 @@ def parse_cookie(raw_value: bytes) -> Cookie:
         try:
             name, value = split_value(raw_value, eq)
         except ValueError:
-            raise ValueError(f"Invalid name=value fragment: {parts[0]}")
+            raise ValueError(f"Invalid name=value fragment: {parts[0]!r}")
         else:
             return Cookie(name.decode(), value.decode())
     if len(parts) == 1:
@@ -141,7 +141,7 @@ def parse_cookie(raw_value: bytes) -> Cookie:
     try:
         name, value = split_value(parts[0], eq)
     except ValueError:
-        raise ValueError(f"Invalid name=value fragment: {parts[0]}")
+        raise ValueError(f"Invalid name=value fragment: {parts[0]!r}")
     if b" " in value and value.startswith(b'"'):
         value = value.strip(b'"')
     expires = None

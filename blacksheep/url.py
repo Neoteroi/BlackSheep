@@ -6,7 +6,7 @@ class InvalidURL(Exception):
         super().__init__(message)
 
 
-def valid_schema(schema):
+def valid_schema(schema: str) -> None:
     if schema and schema != "https" and schema != "http":
         raise InvalidURL(f"Expected http or https schema; got instead {schema}")
 
@@ -33,18 +33,18 @@ class URL:
         self.fragment = parsed.fragment.encode() if parsed.fragment else None
         self.is_absolute = bool(parsed.scheme)
 
-    def __repr__(self):
-        return f"<URL {self.value}>"
+    def __repr__(self) -> str:
+        return f"<URL {self.value!r}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value.decode()
 
-    def join(self, other):
+    def join(self, other: "URL") -> "URL":
         if isinstance(other, bytes):
             other = URL(other)
         if other.is_absolute:
             raise ValueError(
-                f"Cannot concatenate to an absolute URL ({self.value} + {other.value})"
+                f"Cannot concatenate to an absolute URL ({self.value!r} + {other.value!r})"
             )
         if self.query or self.fragment:
             raise ValueError(
@@ -56,7 +56,7 @@ class URL:
             return URL(first_part[:-1] + other_part)
         return URL(first_part + other_part)
 
-    def base_url(self):
+    def base_url(self) -> "URL":
         if not self.is_absolute:
             raise ValueError(
                 "This URL is relative. Cannot extract a base URL (without path)."
@@ -69,24 +69,24 @@ class URL:
                 base_url = f"{base_url}:{self.port}"
         return URL(base_url.encode())
 
-    def with_host(self, host: bytes):
+    def with_host(self, host: bytes) -> "URL":
         if not self.is_absolute:
             raise TypeError("Cannot generate a URL from a partial URL")
         query = b"?" + self.query if self.query else b""
         fragment = b"#" + self.fragment if self.fragment else b""
-        url = f"{self.schema}://{host.decode()}{self.path}{query.decode()}{fragment.decode()}"
+        url = f"{self.schema!r}://{host.decode()}{self.path!r}{query.decode()}{fragment.decode()}"
         return URL(url.encode())
 
-    def with_query(self, query: bytes):
+    def with_query(self, query: bytes) -> "URL":
         query = b"?" + query if query else b""
         fragment = b"#" + self.fragment if self.fragment else b""
         if self.is_absolute:
-            url = f"{self.schema}://{self.host}{self.path}{query.decode()}{fragment.decode()}"
+            url = f"{self.schema!r}://{self.host!r}{self.path!r}{query.decode()}{fragment.decode()}"
             return URL(url.encode())
-        url = f"{self.path}{query.decode()}{fragment.decode()}"
+        url = f"{self.path!r}{query.decode()}{fragment.decode()}"
         return URL(url.encode())
 
-    def with_scheme(self, schema: bytes):
+    def with_scheme(self, schema: bytes) -> "URL":
         s = self.value.decode()
         if isinstance(schema, bytes):
             schema_str = schema.decode()
@@ -99,21 +99,30 @@ class URL:
         new_url = str(schema_str) + str(s[idx:])
         return URL(new_url.encode())
 
-    def __add__(self, other):
+    def __add__(self, other: "URL | bytes") -> "URL":
         if isinstance(other, bytes):
             return self.join(URL(other))
         if isinstance(other, URL):
             return self.join(other)
         return NotImplemented
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, URL):
             return self.value == other.value
         return NotImplemented
 
 
-def build_absolute_url(scheme: bytes, host: bytes, base_path: bytes, path: bytes) -> URL:
-    scheme_str = scheme.decode() if isinstance(scheme, bytes) else scheme
+def build_absolute_url(
+    scheme: bytes | str | bytearray | memoryview,
+    host: bytes,
+    base_path: bytes,
+    path: bytes,
+):
+    scheme_str: str
+    if isinstance(scheme, (bytes, bytearray, memoryview)):
+        scheme_str = bytes(scheme).decode()
+    else:
+        scheme_str = scheme
     valid_schema(scheme_str)
     url = (
         str(scheme_str)

@@ -99,7 +99,7 @@ class Cookie:
         return NotImplemented
 
     def __repr__(self) -> str:
-        return f"<Cookie {self.name}: {self.value}>"
+        return f"<Cookie {self.name}: {self.value[:3]}...>"
 
 
 def split_value(raw_value: bytes, separator: bytes) -> tuple[bytes, bytes]:

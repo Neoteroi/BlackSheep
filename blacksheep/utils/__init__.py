@@ -31,11 +31,11 @@ def join_fragments(*args: AnyStr) -> str:
     )
 
 
-def get_class_hierarchy(cls: Type[T]):
+def get_class_hierarchy(cls: Type[T]) -> tuple[Type[T], ...]:
     return cls.__mro__
 
 
-def get_class_instance_hierarchy(instance: T):
+def get_class_instance_hierarchy(instance: T) -> tuple[Type[T], ...]:
     return get_class_hierarchy(type(instance))
 
 

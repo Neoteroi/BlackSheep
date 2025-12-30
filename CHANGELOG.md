@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix [#646](https://github.com/Neoteroi/BlackSheep/issues/646),
 - Modify the `Cookie` `repr` to not include the value in full, as it can contain secrets
   that would leak in logs.
+- Improve type annotations for several modules, by @tyzhnenko.
 
 ## [2.4.5] - 2025-11-15 :mount_fuji:
 

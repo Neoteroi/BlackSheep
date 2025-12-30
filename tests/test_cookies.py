@@ -267,3 +267,21 @@ def test_raise_for_value_exceeding_length():
 
     with pytest.raises(CookieValueExceedsMaximumLength):
         Cookie("crash", "A" * 5000)
+
+
+@pytest.mark.parametrize(
+    "name,value,expected_repr",
+    [
+        ("session", "abc123xyz", "<Cookie session: abc...>"),
+        ("token", "verylongvalue", "<Cookie token: ver...>"),
+        ("id", "12345", "<Cookie id: 123...>"),
+        ("short", "ab", "<Cookie short: ab...>"),
+        ("tiny", "x", "<Cookie tiny: x...>"),
+        ("empty", "", "<Cookie empty: ...>"),
+        ("exact", "123", "<Cookie exact: 123...>"),
+        ("special", "a!@#$%^&*()", "<Cookie special: a!@...>"),
+    ],
+)
+def test_cookie_repr(name, value, expected_repr):
+    cookie = Cookie(name, value)
+    assert repr(cookie) == expected_repr

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.6] - 2025-12-??
+
+- Fix [#646](https://github.com/Neoteroi/BlackSheep/issues/646).
+- Modify the `Cookie` `repr` to not include the value in full, as it can contain secrets
+  that would leak in logs.
+- Improve type annotations for several modules, by @tyzhnenko.
+
 ## [2.4.5] - 2025-11-15 :mount_fuji:
 
 - Fix [#636](https://github.com/Neoteroi/BlackSheep/issues/636).

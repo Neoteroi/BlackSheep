@@ -267,3 +267,131 @@ def test_raise_for_value_exceeding_length():
 
     with pytest.raises(CookieValueExceedsMaximumLength):
         Cookie("crash", "A" * 5000)
+
+
+@pytest.mark.parametrize(
+    "name,value,expected_repr",
+    [
+        ("session", "abc123xyz", "<Cookie session: abc...>"),
+        ("token", "verylongvalue", "<Cookie token: ver...>"),
+        ("id", "12345", "<Cookie id: 123...>"),
+        ("short", "ab", "<Cookie short: ab...>"),
+        ("tiny", "x", "<Cookie tiny: x...>"),
+        ("empty", "", "<Cookie empty: ...>"),
+        ("exact", "123", "<Cookie exact: 123...>"),
+        ("special", "a!@#$%^&*()", "<Cookie special: a!@...>"),
+    ],
+)
+def test_cookie_repr(name, value, expected_repr):
+    cookie = Cookie(name, value)
+    assert repr(cookie) == expected_repr
+
+
+def test_cookie_equality_with_string():
+    cookie = Cookie("session", "abc123")
+    assert cookie == "abc123"
+    assert not (cookie == "different")
+
+
+def test_cookie_equality_with_bytes():
+    cookie = Cookie("session", "abc123")
+    assert cookie == b"abc123"
+    assert not (cookie == b"different")
+
+
+def test_cookie_equality_with_cookie():
+    cookie1 = Cookie("session", "abc123")
+    cookie2 = Cookie("session", "abc123")
+    cookie3 = Cookie("session", "different")
+    cookie4 = Cookie("different", "abc123")
+
+    assert cookie1 == cookie2
+    assert not (cookie1 == cookie3)
+    assert not (cookie1 == cookie4)
+
+
+def test_cookie_equality_with_other_types():
+    cookie = Cookie("session", "abc123")
+    assert cookie.__eq__(123) == NotImplemented
+    assert cookie.__eq__(None) == NotImplemented
+    assert cookie.__eq__([]) == NotImplemented
+
+
+def test_cookie_clone():
+    original = Cookie(
+        "session",
+        "abc123",
+        expires=datetime(2025, 12, 31, 23, 59, 59),
+        domain="example.com",
+        path="/app",
+        http_only=True,
+        secure=True,
+        max_age=3600,
+        same_site=CookieSameSiteMode.STRICT,
+    )
+
+    cloned = original.clone()
+
+    assert cloned is not original
+    assert cloned.name == original.name
+    assert cloned.value == original.value
+    assert cloned.expires == original.expires
+    assert cloned.domain == original.domain
+    assert cloned.path == original.path
+    assert cloned.http_only == original.http_only
+    assert cloned.secure == original.secure
+    assert cloned.max_age == original.max_age
+    assert cloned.same_site == original.same_site
+
+
+def test_cookie_clone_independence():
+    original = Cookie("session", "original")
+    cloned = original.clone()
+
+    cloned.value = "modified"
+
+    assert original.value == "original"
+    assert cloned.value == "modified"
+
+
+def test_cookie_empty_name_raises_error():
+    with pytest.raises(ValueError, match="A cookie name is required"):
+        Cookie("", "value")
+
+
+def test_cookie_name_setter_validation():
+    cookie = Cookie("valid", "value")
+
+    with pytest.raises(ValueError, match="A cookie name is required"):
+        cookie.name = ""
+
+
+def test_cookie_value_setter():
+    cookie = Cookie("session", "initial")
+    assert cookie.value == "initial"
+
+    cookie.value = "updated"
+    assert cookie.value == "updated"
+
+
+def test_cookie_value_setter_exceeds_length():
+    cookie = Cookie("session", "short")
+
+    with pytest.raises(CookieValueExceedsMaximumLength):
+        cookie.value = "A" * 5000
+
+
+def test_cookie_value_with_multibyte_characters():
+    # Test that byte length is checked, not character length
+    # Each emoji is typically 4 bytes
+    value = "🍪" * 1025  # Should exceed 4096 bytes
+
+    with pytest.raises(CookieValueExceedsMaximumLength):
+        Cookie("emoji", value)
+
+
+def test_cookie_value_multibyte_within_limit():
+    # 1000 characters of 2-byte chars = 2000 bytes, within limit
+    value = "ñ" * 1000
+    cookie = Cookie("multibyte", value)
+    assert cookie.value == value

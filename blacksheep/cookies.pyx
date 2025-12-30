@@ -96,7 +96,7 @@ cdef class Cookie:
         return NotImplemented
 
     def __repr__(self):
-        return f'<Cookie {self.name)}: {self.value}>'
+        return f"<Cookie {self.name}: {self.value[:3]}...>"
 
 
 cdef tuple split_value(bytes raw_value, bytes separator):

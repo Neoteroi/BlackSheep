@@ -7,6 +7,7 @@ from blacksheep import Request, Response, StreamedContent
 from blacksheep.common.files.asyncfs import FilesHandler
 from blacksheep.common.files.info import FileInfo
 from blacksheep.common.files.pathsutils import get_mime_type_from_name
+from blacksheep.contents import FilepathContent
 from blacksheep.exceptions import BadRequest, InvalidArgument, RangeNotSatisfiable
 from blacksheep.ranges import InvalidRangeValue, Range, RangePart
 from blacksheep.server.headers.cache import CacheControlHeaderValue
@@ -289,6 +290,8 @@ def get_response_for_file(
                 file_type=file_type,
             ),
         )
+    elif request.accept_pathsend:
+        content = FilepathContent(mime, resource_path)
     else:
         content = StreamedContent(
             mime, get_file_getter(files_handler, resource_path, info.size)

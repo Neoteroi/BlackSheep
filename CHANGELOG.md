@@ -5,8 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.4.6] - 2025-12-??
+## [2.4.6] - 2026-01-13
 
+- Fix CRLF injection vulnerability in the BlackSheep HTTP Client, reported by Jinho Ju (@tr4ce-ju).
+- Add a `SECURITY.md` file.
 - Fix [#646](https://github.com/Neoteroi/BlackSheep/issues/646).
 - Modify the `Cookie` `repr` to not include the value in full, as it can contain secrets
   that would leak in logs.

@@ -10,8 +10,18 @@ from .url cimport URL
 cdef int MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 
 
+cdef bytes _nocrlf(bytes value):
+    """Sanitize the given value to prevent CRLF injection."""
+    return value.replace(b"\r", b"").replace(b"\n", b"")
+
+
 cdef bytes write_header(tuple header):
-    return header[0] + b': ' + header[1] + b'\r\n'
+    """
+    This function writes a single HTTP header. It is used only by the HTTP Client part,
+    because the server relies on the ASGI server to handle headers.
+    """
+    # Sanitize header name and value to prevent CRLF injection
+    return _nocrlf(header[0]) + b": " + _nocrlf(header[1]) + b"\r\n"
 
 
 cdef bytes write_headers(list headers):
@@ -48,15 +58,18 @@ cpdef bytes get_status_line(int status):
 
 
 cdef bytes write_request_method(Request request):
-    return request.method.encode()
+    # RFC 7230: method must be a valid token
+    if not re.match(r'^[!#$%&\'*+\-.0-9A-Z^_`a-z|~]+$', request.method):
+        raise ValueError(f"Invalid HTTP method: {request.method!r}")
+    return _nocrlf(request.method.encode())
 
 
 cdef bytes write_request_uri(Request request):
     cdef bytes p
     cdef URL url = request.url
-    p = url.path or b'/'
+    p = _nocrlf(url.path or b'/')
     if url.query:
-        return p + b'?' + url.query
+        return p + b'?' + _nocrlf(url.query)
     return p
 
 

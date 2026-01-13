@@ -651,3 +651,22 @@ async def test_write_small_request_streamed_fixed_length():
 def test_request_charset(content_type_header, expected_charset):
     request = Request("POST", b"/", [(b"Content-Type", content_type_header.encode())])
     assert request.charset == expected_charset
+
+
+def test_write_request_prevents_crlf_injection_in_headers():
+    request = Request("GET", b"https://hello-world", [
+        (b"X-Injection", b"Hello\nInjected: Bad"),
+    ])
+    raw_bytes = write_small_request(request)
+
+    assert b"X-Injection: HelloInjected: Bad\r\n" in raw_bytes
+
+
+def test_write_request_prevents_crlf_injection_in_method():
+    # Attempt to inject additional headers via CRLF in the HTTP method
+    request = Request("GET\r\nX-Injected: Bad\r\nAnother: Header", b"https://hello-world", [])
+
+    with pytest.raises(ValueError) as exc_info:
+        write_small_request(request)
+
+    assert "Invalid HTTP method" in str(exc_info.value)

@@ -8,9 +8,19 @@ from .messages import Request, Response
 MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 
 
+def _nocrlf(value: bytes) -> bytes:
+    """Sanitize the given value to prevent CRLF injection."""
+    return value.replace(b"\r", b"").replace(b"\n", b"")
+
+
 # Header writing utilities
 def write_header(header):
-    return header[0] + b": " + header[1] + b"\r\n"
+    """
+    This function writes a single HTTP header. It is used only by the HTTP Client part,
+    because the server relies on the ASGI server to handle headers.
+    """
+    # Sanitize header name and value to prevent CRLF injection
+    return _nocrlf(header[0]) + b": " + _nocrlf(header[1]) + b"\r\n"
 
 
 def write_headers(headers):
@@ -43,28 +53,31 @@ STATUS_LINES = {
 }
 
 
-def get_status_line(status: int):
+def get_status_line(status: int) -> bytes:
     return STATUS_LINES[status]
 
 
-def write_request_method(request: Request):
+def write_request_method(request: Request) -> bytes:
+    # RFC 7230: method must be a valid token
+    if not re.match(r'^[!#$%&\'*+\-.0-9A-Z^_`a-z|~]+$', request.method):
+        raise ValueError(f"Invalid HTTP method: {request.method!r}")
     return request.method.encode()
 
 
-def write_request_uri(request: Request):
+def write_request_uri(request: Request) -> bytes:
     url = request.url
-    p = url.path or b"/"
+    p = _nocrlf(url.path or b"/")
     if url.query:
-        return p + b"?" + url.query
+        return p + b"?" + _nocrlf(url.query)
     return p
 
 
-def ensure_host_header(request: Request):
+def ensure_host_header(request: Request) -> None:
     if request.url.host:
         request._add_header_if_missing(b"host", request.url.host)
 
 
-def should_use_chunked_encoding(content: Content):
+def should_use_chunked_encoding(content: Content) -> bool:
     return content.length < 0
 
 

@@ -44,6 +44,14 @@ class StreamedContent(Content):
             yield chunk
 
 
+class FilepathContent(Content):
+    def __init__(self, content_type: bytes, path: str):
+        self.type = content_type
+        self.body = None
+        self.length = 0
+        self.path = path
+
+
 class ASGIContent(Content):
     def __init__(self, receive):
         self.type = None

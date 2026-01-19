@@ -38,7 +38,7 @@ def get_example_headers():
 
 @pytest.fixture(scope="function")
 def pool(event_loop):
-    pool = ConnectionPool(event_loop, b"http", b"foo.com", 80, None, max_size=2)
+    pool = ConnectionPool(b"http", b"foo.com", 80, None, max_size=2)
     yield pool
     pool.dispose()
 
@@ -67,7 +67,7 @@ class FakeTransport:
 
 @pytest.fixture()
 def connection(pool):
-    connection = ClientConnection(pool.loop, pool)
+    connection = ClientConnection(pool)
     connection.parser = FakeParser(200)
     yield connection
 
@@ -162,19 +162,15 @@ class FakePoolThrowingOnRelease(ConnectionPool):
 
 
 def test_closed_connection_does_not_return_to_pool(event_loop):
-    pool = FakePoolThrowingOnRelease(
-        event_loop, b"http", b"foo.com", 80, None, max_size=2
-    )
-    connection = ClientConnection(pool.loop, pool)
+    pool = FakePoolThrowingOnRelease(b"http", b"foo.com", 80, None, max_size=2)
+    connection = ClientConnection(pool)
     connection.open = False
     connection.release()
 
 
 def test_upgraded_connection_does_not_return_to_pool(event_loop):
-    pool = FakePoolThrowingOnRelease(
-        event_loop, b"http", b"foo.com", 80, None, max_size=2
-    )
-    connection = ClientConnection(pool.loop, pool)
+    pool = FakePoolThrowingOnRelease(b"http", b"foo.com", 80, None, max_size=2)
+    connection = ClientConnection(pool)
     connection._upgraded = True
     connection.release()
 

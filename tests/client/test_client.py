@@ -85,7 +85,7 @@ async def test_client_send_handles_connection_closed_error():
     class DemoClient(ClientSession):
         async def get_connection(self, url: URL) -> ClientConnection:
             pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
-            return DemoConnection(None, pool)
+            return DemoConnection(pool)
 
     with pytest.raises(ConnectionClosedError):
         async with DemoClient() as client:

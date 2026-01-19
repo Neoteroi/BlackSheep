@@ -1,13 +1,12 @@
 import asyncio
 import ssl
-from asyncio import AbstractEventLoop, TimeoutError
+from asyncio import TimeoutError
 from typing import Any, AnyStr, Callable, Type, cast
 from urllib.parse import urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response, __version__
 from blacksheep.common.types import HeadersType, ParamsType, URLType, normalize_headers
 from blacksheep.middlewares import MiddlewareList, get_middlewares_chain
-from blacksheep.utils.aio import get_running_loop
 
 from .connection import ConnectionClosedError
 from .cookies import CookieJar, cookies_middleware
@@ -56,7 +55,6 @@ class ClientSession:
 
     def __init__(
         self,
-        loop: AbstractEventLoop | None = None,
         base_url: None | bytes | str | URL = None,
         ssl: None | bool | ssl.SSLContext = None,
         pools: ConnectionPools | None = None,
@@ -69,13 +67,10 @@ class ClientSession:
         cookie_jar: None | bool | CookieJar = None,
         middlewares: list[Callable[..., Any]] | None = None,
     ):
-        if loop is None:
-            loop = get_running_loop()
-
         if pools:
             self.owns_pools = False
         else:
-            pools = ConnectionPools(loop)
+            pools = ConnectionPools()
             self.owns_pools = True
 
         if redirects_cache_type is None and follow_redirects:
@@ -92,7 +87,6 @@ class ClientSession:
         else:
             middlewares.insert(0, cookies_middleware)
 
-        self.loop = loop
         self._base_url: URL | None
         self.base_url = base_url
         self.ssl = ssl

@@ -59,7 +59,7 @@ def get_status_line(status: int) -> bytes:
 
 def write_request_method(request: Request) -> bytes:
     # RFC 7230: method must be a valid token
-    if not re.match(r'^[!#$%&\'*+\-.0-9A-Z^_`a-z|~]+$', request.method):
+    if not re.match(r"^[!#$%&\'*+\-.0-9A-Z^_`a-z|~]+$", request.method):
         raise ValueError(f"Invalid HTTP method: {request.method!r}")
     return request.method.encode()
 

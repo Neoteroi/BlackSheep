@@ -1,6 +1,6 @@
 import logging
 import ssl
-from asyncio import AbstractEventLoop, Queue, QueueEmpty, QueueFull
+from asyncio import Queue, QueueEmpty, QueueFull
 from ssl import SSLContext
 
 from blacksheep.exceptions import InvalidArgument
@@ -35,14 +35,12 @@ def get_ssl_context(
 class ConnectionPool:
     def __init__(
         self,
-        loop: AbstractEventLoop,
         scheme: bytes,
         host: bytes,
         port: int,
         ssl: None | bool | ssl.SSLContext = None,
         max_size: int = 0,
     ) -> None:
-        self.loop = loop
         self.scheme = scheme
         self.host = host if isinstance(host, str) else host.decode()
         self.port = int(port)
@@ -82,8 +80,9 @@ class ConnectionPool:
 
     async def create_connection(self) -> ClientConnection:
         logger.debug(f"Creating connection to: {self.host}:{self.port}")
-        _, connection = await self.loop.create_connection(
-            lambda: ClientConnection(self.loop, self),
+        loop = get_running_loop()
+        _, connection = await loop.create_connection(
+            lambda: ClientConnection(self),
             self.host,
             self.port,
             ssl=self.ssl,
@@ -112,8 +111,7 @@ class ConnectionPool:
 
 
 class ConnectionPools:
-    def __init__(self, loop: AbstractEventLoop | None = None) -> None:
-        self.loop = loop or get_running_loop()
+    def __init__(self) -> None:
         self._pools: dict[tuple[bytes, bytes, int], ConnectionPool] = {}
 
     def get_pool(self, scheme, host, port, ssl):
@@ -125,7 +123,7 @@ class ConnectionPools:
         try:
             return self._pools[key]
         except KeyError:
-            new_pool = ConnectionPool(self.loop, scheme, host, port, ssl)
+            new_pool = ConnectionPool(scheme, host, port, ssl)
             self._pools[key] = new_pool
             return new_pool
 

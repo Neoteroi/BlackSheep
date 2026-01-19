@@ -147,7 +147,6 @@ class UpgradeResponse(Exception):
 
 class ClientConnection(asyncio.Protocol):
     __slots__ = (
-        "loop",
         "pool",
         "transport",
         "open",
@@ -168,9 +167,8 @@ class ClientConnection(asyncio.Protocol):
     )
 
     def __init__(
-        self, loop, pool, parser_impl: HTTPResponseParserProtocol | None = None
+        self, pool, parser_impl: HTTPResponseParserProtocol | None = None
     ) -> None:
-        self.loop = loop
         self.pool = weakref.ref(pool)
         self.transport = None
         self.open = False
@@ -238,7 +236,7 @@ class ClientConnection(asyncio.Protocol):
 
         self._pending_task = False
         if self._can_release:
-            self.loop.call_soon(self.release)
+            asyncio.get_running_loop().call_soon(self.release)
 
         if 99 < response.status < 200:
             # Handle 1xx informational
@@ -410,7 +408,7 @@ class ClientConnection(asyncio.Protocol):
         else:
             # request-response cycle completed now,
             # the connection can be returned to its pool
-            self.loop.call_soon(self.release)
+            asyncio.get_running_loop().call_soon(self.release)
 
     def should_keep_alive(self) -> bool:
         if self._connection_lost or not self.open:  # pragma: no cover

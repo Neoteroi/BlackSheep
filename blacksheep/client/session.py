@@ -18,7 +18,7 @@ from .exceptions import (
     RequestTimeout,
     UnsupportedRedirect,
 )
-from .pool import ClientConnection, ConnectionPools
+from .pool import BaseClientConnection, ClientConnection, ConnectionPools
 
 
 class RedirectsCache:
@@ -66,11 +66,34 @@ class ClientSession:
         redirects_cache_type: Type[RedirectsCache] | Any = None,
         cookie_jar: None | bool | CookieJar = None,
         middlewares: list[Callable[..., Any]] | None = None,
+        http2: bool = True,
     ):
+        """
+        Initialize a ClientSession for making HTTP requests.
+
+        Args:
+            base_url: Base URL for all requests. Can be a string, bytes, or URL object.
+            ssl: SSL configuration. True for default secure context, False for insecure,
+                 or provide a custom ssl.SSLContext.
+            pools: Connection pools to use. If not provided, a new one will be created.
+            default_headers: Headers to include in all requests.
+            follow_redirects: Whether to automatically follow redirects.
+            connection_timeout: Timeout for establishing connections (seconds).
+            request_timeout: Timeout for receiving responses (seconds).
+            maximum_redirects: Maximum number of redirects to follow.
+            redirects_cache_type: Type to use for caching permanent redirects.
+            cookie_jar: Cookie jar for handling cookies. True/None creates a new one,
+                        False disables cookies.
+            middlewares: List of middleware functions to apply to requests.
+            http2: Whether to enable HTTP/2 support. When True (default), the client
+                   will use ALPN negotiation to detect HTTP/2 support and use it when
+                   available, falling back to HTTP/1.1 otherwise. Set to False to
+                   force HTTP/1.1 only.
+        """
         if pools:
             self.owns_pools = False
         else:
-            pools = ConnectionPools()
+            pools = ConnectionPools(http2=http2)
             self.owns_pools = True
 
         if redirects_cache_type is None and follow_redirects:
@@ -281,7 +304,7 @@ class ClientSession:
             if redirect_url is not None:
                 request.url = redirect_url
 
-    async def get_connection(self, url: URL) -> ClientConnection:
+    async def get_connection(self, url: URL) -> BaseClientConnection:
         pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
 
         try:

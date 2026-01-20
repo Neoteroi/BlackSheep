@@ -6,6 +6,7 @@ essentials-openapi>=1.2.0,<2.0
 itsdangerous~=2.2.0
 cryptography>=45.0.2,<47.0.0
 h11==0.16.0
+h2>=4.0.0,<5.0.0
 Jinja2~=3.1.6
 PyJWT==2.10.1
 websockets~=15.0.1

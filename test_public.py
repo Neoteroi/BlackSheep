@@ -33,15 +33,6 @@ async def test_public_servers():
         except Exception as e:
             print(f"   ✗ Error: {e}")
 
-        # Test 3: HTTP/2 test site
-        print("\n3. Testing with HTTP2.Pro:")
-        try:
-            response = await session.get('https://http2.pro/doc/api')
-            print(f"   ✓ Status: {response.status}")
-            print(f"   ✓ Data length: {len(await response.read())} bytes")
-        except Exception as e:
-            print(f"   ✗ Error: {e}")
-
         # Test 4: GitHub API (HTTP/2)
         print("\n4. Testing with GitHub API:")
         try:

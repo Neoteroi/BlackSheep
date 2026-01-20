@@ -824,11 +824,14 @@ class HTTP2Connection(HTTPConnection):
 
         response = Response(stream["status"], response_headers, None)
 
-        # Set response content
+        # Set response content using IncomingContent to support streaming
         body_data = bytes(stream["data"])
         if body_data:
             content_type = response.get_first_header(b"content-type") or b"application/octet-stream"
-            response.content = Content(content_type, body_data)
+            incoming_content = IncomingContent(content_type)
+            incoming_content.extend_body(body_data)
+            incoming_content.complete.set()
+            response.content = incoming_content
 
         # Clean up stream data
         del self.streams[stream_id]
@@ -1094,11 +1097,14 @@ class HTTP11Connection(HTTPConnection):
         # Create BlackSheep Response
         response = Response(status, response_headers, None)
 
-        # Set response content
+        # Set response content using IncomingContent to support streaming
         body_data = bytes(response_data)
         if body_data:
             content_type = response.get_first_header(b"content-type") or b"application/octet-stream"
-            response.content = Content(content_type, body_data)
+            incoming_content = IncomingContent(content_type)
+            incoming_content.extend_body(body_data)
+            incoming_content.complete.set()
+            response.content = incoming_content
 
         # Check if connection should be kept alive
         self._handle_connection_reuse(response)

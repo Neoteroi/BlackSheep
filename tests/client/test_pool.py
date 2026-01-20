@@ -5,7 +5,6 @@ import pytest
 from blacksheep.client.connection import (
     INSECURE_SSLCONTEXT,
     SECURE_SSLCONTEXT,
-    ClientConnection,
 )
 from blacksheep.client.pool import ConnectionPool, get_ssl_context
 from blacksheep.exceptions import InvalidArgument
@@ -42,20 +41,3 @@ def test_get_ssl_context_raises_for_invalid_argument():
 
     with pytest.raises(InvalidArgument):
         get_ssl_context(b"https", {})  # type: ignore
-
-
-def test_return_connection_disposed_pool_does_nothing():
-    pool = ConnectionPool(b"http", b"foo.com", 80, None)
-
-    pool.dispose()
-    pool.try_return_connection(ClientConnection(pool))
-
-
-def test_return_connection_does_nothing_if_the_queue_is_full():
-    pool = ConnectionPool(b"http", b"foo.com", 80, None, max_size=2)
-
-    for i in range(5):
-        pool.try_return_connection(ClientConnection(pool))
-
-        if i + 1 >= 2:
-            assert pool._idle_connections.full() is True

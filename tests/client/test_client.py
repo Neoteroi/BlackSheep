@@ -2,7 +2,7 @@ import pytest
 
 from blacksheep import URL, Request, Response
 from blacksheep.client import ClientSession
-from blacksheep.client.connection import ClientConnection, ConnectionClosedError
+from blacksheep.client.connection import ConnectionClosedError
 from blacksheep.client.exceptions import UnsupportedRedirect
 from blacksheep.client.session import normalize_headers
 from blacksheep.contents import TextContent
@@ -71,27 +71,6 @@ def test_update_request_for_redirect_raises_for_urn_redirects():
         redirect_exception.value.redirect_url
         == b"urn:uuid:6e8bc430-9c3a-11d9-9669-0800200c9a66"
     )
-
-
-async def test_client_send_handles_connection_closed_error():
-    attempt = 0
-
-    class DemoConnection(ClientConnection):
-        async def send(self, request):
-            nonlocal attempt
-            attempt += 1
-            raise ConnectionClosedError(attempt < 2)
-
-    class DemoClient(ClientSession):
-        async def get_connection(self, url: URL) -> ClientConnection:
-            pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
-            return DemoConnection(pool)
-
-    with pytest.raises(ConnectionClosedError):
-        async with DemoClient() as client:
-            await client._send_using_connection(
-                Request("GET", b"https://somewhere.org", None)
-            )
 
 
 async def test_client_session_without_middlewares_and_cookiejar():

@@ -24,8 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the HTTP/2 implementation pattern.
   - The new `HTTP11Connection` class replaces the `asyncio.Protocol`-based approach
     with a streams-based implementation
-  - The legacy `ClientConnection` class is maintained for backward compatibility
-    with existing tests
+  - The legacy `ClientConnection` class has been removed (it was only used in tests)
   - Both HTTP/1.1 and HTTP/2 implementations now follow the same architectural pattern
 - Remove the option of passing the event loop to the constructor of client classes.
 

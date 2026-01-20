@@ -625,6 +625,12 @@ class HTTP2Connection(HTTPConnection):
             (":authority", self.host),
         ]
 
+        # Add Content-Type header from content if present
+        if request.content and request.content.type:
+            content_type = request.content.type
+            content_type_str = content_type.decode("utf-8") if isinstance(content_type, bytes) else content_type
+            headers.append(("content-type", content_type_str))
+
         # Add regular headers
         for name, value in request.headers:
             name_str = name.decode("utf-8").lower() if isinstance(name, bytes) else name.lower()
@@ -965,6 +971,12 @@ class HTTP11Connection(HTTPConnection):
 
         # Build headers list
         headers = []
+
+        # Add Content-Type header from content if present
+        if request.content and request.content.type:
+            content_type = request.content.type
+            content_type_bytes = content_type if isinstance(content_type, bytes) else content_type.encode("utf-8")
+            headers.append((b"content-type", content_type_bytes))
 
         # Add Host header if not present
         has_host = False

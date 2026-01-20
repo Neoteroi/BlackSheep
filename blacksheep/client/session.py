@@ -18,7 +18,7 @@ from .exceptions import (
     RequestTimeout,
     UnsupportedRedirect,
 )
-from .pool import BaseClientConnection, ClientConnection, ConnectionPools
+from .pool import HTTPConnection, ConnectionPools
 
 
 class RedirectsCache:
@@ -304,7 +304,7 @@ class ClientSession:
             if redirect_url is not None:
                 request.url = redirect_url
 
-    async def get_connection(self, url: URL) -> BaseClientConnection:
+    async def get_connection(self, url: URL) -> HTTPConnection:
         pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
 
         try:

@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Protocol
 
 import certifi
+import h11
 from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import (
@@ -61,7 +62,7 @@ SECURE_HTTP2_SSLCONTEXT = create_http2_ssl_context(verify=True)
 INSECURE_HTTP2_SSLCONTEXT = create_http2_ssl_context(verify=False)
 
 
-class BaseClientConnection(ABC):
+class HTTPConnection(ABC):
     """Abstract base class for HTTP connections (HTTP/1.1 and HTTP/2)."""
 
     @abstractmethod
@@ -502,7 +503,7 @@ class ClientConnection(asyncio.Protocol):
         self.response.content.extend_body(value)
 
 
-class HTTP2Connection(BaseClientConnection):
+class HTTP2Connection(HTTPConnection):
     """
     HTTP/2 connection implementation using the h2 library.
 
@@ -860,6 +861,286 @@ class HTTP2Connection(BaseClientConnection):
     def is_alive(self) -> bool:
         """Check if connection is still alive."""
         if not self._connected or self._closing:
+            return False
+        # Consider connection dead if idle for more than 5 minutes
+        return (time.time() - self.last_used) < 300
+
+
+class HTTP11Connection(HTTPConnection):
+    """
+    HTTP/1.1 connection implementation using the h11 library.
+
+    Uses async streams for consistent API with HTTP2Connection.
+    """
+
+    __slots__ = (
+        "pool",
+        "host",
+        "port",
+        "ssl_context",
+        "use_ssl",
+        "reader",
+        "writer",
+        "_connected",
+        "_lock",
+        "_h11_conn",
+        "last_used",
+        "request_count",
+        "_closing",
+    )
+
+    def __init__(
+        self,
+        pool,
+        host: str,
+        port: int,
+        ssl_context: ssl.SSLContext | None = None,
+        use_ssl: bool = True,
+    ) -> None:
+        """
+        Initialize HTTP/1.1 connection.
+
+        Args:
+            pool: The connection pool this connection belongs to
+            host: Server hostname
+            port: Server port
+            ssl_context: SSL context for the connection
+            use_ssl: Whether to use SSL/TLS
+        """
+        self.pool = weakref.ref(pool)
+        self.host = host
+        self.port = port
+        self.use_ssl = use_ssl
+        self.ssl_context = ssl_context
+
+        # Async streams
+        self.reader: asyncio.StreamReader | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self._connected = False
+        self._lock = asyncio.Lock()
+
+        # h11 connection state machine
+        self._h11_conn: h11.Connection | None = None
+
+        # Connection pool tracking
+        self.last_used = time.time()
+        self.request_count = 0
+        self._closing = False
+
+    @property
+    def open(self) -> bool:
+        """Return True if the connection is open."""
+        return self._connected and not self._closing
+
+    async def connect(self) -> None:
+        """Establish connection."""
+        if self._connected:
+            return
+
+        async with self._lock:
+            if self._connected:
+                return
+
+            self.reader, self.writer = await asyncio.open_connection(
+                self.host,
+                self.port,
+                ssl=self.ssl_context if self.use_ssl else None,
+                server_hostname=self.host if self.use_ssl else None,
+            )
+
+            self._h11_conn = h11.Connection(our_role=h11.CLIENT)
+            self._connected = True
+
+    def _convert_request_to_h11(
+        self, request: Request
+    ) -> tuple[h11.Request, bytes | None]:
+        """Convert a BlackSheep Request to h11 request."""
+        # Build request target (path + query)
+        path = request.url.path or b"/"
+        if request.url.query:
+            path = path + b"?" + request.url.query
+
+        # Build headers list
+        headers = []
+
+        # Add Host header if not present
+        has_host = False
+        for name, value in request.headers:
+            name_bytes = name if isinstance(name, bytes) else name.encode("utf-8")
+            value_bytes = value if isinstance(value, bytes) else value.encode("utf-8")
+            if name_bytes.lower() == b"host":
+                has_host = True
+            headers.append((name_bytes, value_bytes))
+
+        if not has_host and request.url.host:
+            headers.insert(0, (b"host", request.url.host))
+
+        # Get body
+        body: bytes | None = None
+        if request.content:
+            # For h11, we need to handle content synchronously for now
+            # The caller should have already prepared the body
+            if request.content.body is not None:
+                body = request.content.body
+                # Add content-length if not present
+                has_content_length = any(
+                    h[0].lower() == b"content-length" for h in headers
+                )
+                if not has_content_length:
+                    headers.append((b"content-length", str(len(body)).encode()))
+
+        # Create h11 Request
+        method = request.method.encode() if isinstance(request.method, str) else request.method
+        h11_request = h11.Request(
+            method=method,
+            target=path,
+            headers=headers,
+        )
+
+        return h11_request, body
+
+    async def send(self, request: Request) -> Response:
+        """
+        Send an HTTP request over HTTP/1.1 and return the response.
+
+        Args:
+            request: The BlackSheep Request object to send
+
+        Returns:
+            Response object
+        """
+        if not self._connected:
+            await self.connect()
+
+        async with self._lock:
+            # Reset h11 if needed for connection reuse
+            if self._h11_conn.our_state == h11.DONE:
+                self._h11_conn.start_next_cycle()
+
+            # Read body if it's a coroutine/async content
+            if request.content and request.content.body is None:
+                body_data = await request.content.read()
+                # Update content with read body
+                request.content = Content(request.content.type, body_data)
+
+            # Convert request to h11 format
+            h11_request, body = self._convert_request_to_h11(request)
+
+            # Send request
+            data = self._h11_conn.send(h11_request)
+            self.writer.write(data)
+
+            # Send body if present
+            if body:
+                data = self._h11_conn.send(h11.Data(data=body))
+                self.writer.write(data)
+
+            # Send end of message
+            data = self._h11_conn.send(h11.EndOfMessage())
+            self.writer.write(data)
+            await self.writer.drain()
+
+            self.request_count += 1
+            self.last_used = time.time()
+
+            # Receive response
+            return await self._receive_response()
+
+    async def _receive_response(self, timeout: float = 60.0) -> Response:
+        """Receive and parse HTTP/1.1 response."""
+        status: int | None = None
+        response_headers: list[tuple[bytes, bytes]] = []
+        response_data = bytearray()
+
+        async def read_response():
+            nonlocal status, response_headers, response_data
+
+            while True:
+                event = self._h11_conn.next_event()
+
+                if event is h11.NEED_DATA:
+                    data = await self.reader.read(65535)
+                    if not data:
+                        raise ConnectionClosedError(False)
+                    self._h11_conn.receive_data(data)
+                    continue
+
+                if isinstance(event, h11.Response):
+                    status = event.status_code
+                    response_headers = [
+                        (
+                            k if isinstance(k, bytes) else k.encode(),
+                            v if isinstance(v, bytes) else v.encode()
+                        )
+                        for k, v in event.headers
+                    ]
+
+                elif isinstance(event, h11.Data):
+                    response_data.extend(event.data)
+
+                elif isinstance(event, h11.EndOfMessage):
+                    break
+
+                elif isinstance(event, h11.ConnectionClosed):
+                    if status is None:
+                        raise ConnectionClosedError(False)
+                    break
+
+        try:
+            await asyncio.wait_for(read_response(), timeout=timeout)
+        except asyncio.TimeoutError:
+            raise ConnectionException(f"Response timeout after {timeout}s")
+
+        # Create BlackSheep Response
+        response = Response(status, response_headers, None)
+
+        # Set response content
+        body_data = bytes(response_data)
+        if body_data:
+            content_type = response.get_first_header(b"content-type") or b"application/octet-stream"
+            response.content = Content(content_type, body_data)
+
+        # Check if connection should be kept alive
+        self._handle_connection_reuse(response)
+
+        return response
+
+    def _handle_connection_reuse(self, response: Response) -> None:
+        """Handle connection reuse based on response headers."""
+        connection_header = response.get_first_header(b"connection")
+        should_close = connection_header and connection_header.lower() == b"close"
+
+        if should_close:
+            self._closing = True
+        else:
+            # Return connection to pool
+            self._try_return_to_pool()
+
+    def _try_return_to_pool(self) -> None:
+        """Try to return this connection to its pool."""
+        pool = self.pool()
+        if pool and self.open:
+            self.last_used = time.time()
+            pool.try_return_connection(self)
+
+    def close(self) -> None:
+        """Close the connection."""
+        if self._connected and not self._closing:
+            self._closing = True
+            try:
+                if self.writer:
+                    self.writer.close()
+            except Exception:
+                pass
+            finally:
+                self._connected = False
+                self._h11_conn = None
+
+    def is_alive(self) -> bool:
+        """Check if connection is still alive."""
+        if not self._connected or self._closing:
+            return False
+        if self._h11_conn and self._h11_conn.our_state == h11.CLOSED:
             return False
         # Consider connection dead if idle for more than 5 minutes
         return (time.time() - self.last_used) < 300

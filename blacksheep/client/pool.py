@@ -6,15 +6,14 @@ from ssl import SSLContext
 from typing import Literal
 
 from blacksheep.exceptions import InvalidArgument
-from blacksheep.utils.aio import get_running_loop
 
 from .connection import (
     INSECURE_SSLCONTEXT,
     SECURE_SSLCONTEXT,
     INSECURE_HTTP2_SSLCONTEXT,
     SECURE_HTTP2_SSLCONTEXT,
-    BaseClientConnection,
-    ClientConnection,
+    HTTPConnection,
+    HTTP11Connection,
     HTTP2Connection,
     create_http2_ssl_context,
 )
@@ -87,7 +86,7 @@ class ConnectionPool:
         self.http2_ssl = get_http2_ssl_context(scheme, ssl) if http2 else None
         self.max_size = max_size
         self.http2_enabled = http2 and scheme == b"https"
-        self._idle_connections: Queue[BaseClientConnection] = Queue(maxsize=max_size)
+        self._idle_connections: Queue[HTTPConnection] = Queue(maxsize=max_size)
         self._http2_connections: list[HTTP2Connection] = []
         self._protocol_cache: dict[tuple[str, int], str] = {}
         self._protocol_detection_lock = asyncio.Lock()
@@ -137,12 +136,12 @@ class ConnectionPool:
                 self._protocol_cache[key] = "http/1.1"
                 return "http/1.1"
 
-    def _get_connection(self) -> BaseClientConnection:
+    def _get_connection(self) -> HTTPConnection:
         # if there are no connections, let QueueEmpty exception happen
         # if all connections are closed, remove all of them and let
         # QueueEmpty exception happen
         while True:
-            connection: BaseClientConnection = self._idle_connections.get_nowait()
+            connection: HTTPConnection = self._idle_connections.get_nowait()
 
             if connection.open:
                 logger.debug(
@@ -162,7 +161,7 @@ class ConnectionPool:
                 return conn
         return None
 
-    def try_return_connection(self, connection: BaseClientConnection) -> None:
+    def try_return_connection(self, connection: HTTPConnection) -> None:
         if self.disposed:
             return
 
@@ -177,7 +176,7 @@ class ConnectionPool:
         except QueueFull:
             pass
 
-    async def get_connection(self) -> BaseClientConnection:
+    async def get_connection(self) -> HTTPConnection:
         # First, detect protocol if HTTP/2 is enabled
         if self.http2_enabled:
             protocol = await self._detect_protocol()
@@ -210,17 +209,18 @@ class ConnectionPool:
         self._http2_connections.append(connection)
         return connection
 
-    async def create_connection(self) -> ClientConnection:
+    async def create_connection(self) -> HTTP11Connection:
+        """Create a new HTTP/1.1 connection using h11."""
         logger.debug(f"Creating HTTP/1.1 connection to: {self.host}:{self.port}")
-        loop = get_running_loop()
-        _, connection = await loop.create_connection(
-            lambda: ClientConnection(self),
-            self.host,
-            self.port,
-            ssl=self.ssl,
+        use_ssl = self.scheme == b"https"
+        connection = HTTP11Connection(
+            pool=self,
+            host=self.host,
+            port=self.port,
+            ssl_context=self.ssl,
+            use_ssl=use_ssl,
         )
-        assert isinstance(connection, ClientConnection)
-        await connection.ready.wait()
+        await connection.connect()
         # NB: a newly created connection is going to be used by a
         # request-response cycle;
         # so we don't put it inside the pool (since it's not immediately

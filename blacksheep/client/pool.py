@@ -122,11 +122,17 @@ class ConnectionPool:
                 ssl_object = writer.get_extra_info("ssl_object")
                 protocol = ssl_object.selected_alpn_protocol() or "http/1.1"
 
-                writer.close()
-                await writer.wait_closed()
-
+                # Cache the protocol BEFORE closing (close can raise SSL errors)
                 self._protocol_cache[key] = protocol
                 logger.debug(f"Detected protocol {protocol} for {self.host}:{self.port}")
+
+                # Close the detection connection - ignore SSL errors during close
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception:
+                    pass  # Ignore errors during close (e.g., SSL close notify issues)
+
                 return protocol
 
             except Exception as e:

@@ -6,6 +6,33 @@ This validates the client works without needing Docker.
 import asyncio
 from blacksheep.client.session import ClientSession
 from blacksheep.client.connection import HTTP2Connection
+from blacksheep.url import URL
+
+
+def get_protocol_from_pool(session: ClientSession, url: str) -> str:
+    """Get the negotiated protocol for a URL from the connection pool cache."""
+    try:
+        # Parse URL to get host and port
+        url_obj = URL(url.encode() if isinstance(url, str) else url)
+        scheme = url_obj.schema
+        host = url_obj.host.decode() if isinstance(url_obj.host, bytes) else url_obj.host
+        port = url_obj.port or (443 if scheme == b"https" else 80)
+
+        # Get the pool for this host
+        key = (scheme, url_obj.host, port)
+        if key in session.pools._pools:
+            pool = session.pools._pools[key]
+            # If HTTP/2 is disabled, it's always HTTP/1.1
+            if not pool.http2_enabled:
+                return "HTTP/1.1"
+            # Check protocol cache
+            cache_key = (host, port)
+            if cache_key in pool._protocol_cache:
+                protocol = pool._protocol_cache[cache_key]
+                return "HTTP/2" if protocol == "h2" else "HTTP/1.1"
+        return "Unknown"
+    except Exception:
+        return "Unknown"
 
 
 async def test_public_servers():
@@ -16,8 +43,11 @@ async def test_public_servers():
     async with ClientSession() as session:
         # Test 1: Google (known HTTP/2 support)
         print("\n1. Testing with Google:")
+        url = 'https://www.google.com/'
         try:
-            response = await session.get('https://www.google.com/')
+            response = await session.get(url)
+            protocol = get_protocol_from_pool(session, url)
+            print(f"   ✓ Protocol: {protocol}")
             print(f"   ✓ Status: {response.status}")
             print(f"   ✓ Data length: {len(await response.read())} bytes")
             print(f"   ✓ Response received successfully")
@@ -26,8 +56,11 @@ async def test_public_servers():
 
         # Test 2: Cloudflare (known HTTP/2 support)
         print("\n2. Testing with Cloudflare:")
+        url = 'https://cloudflare.com/'
         try:
-            response = await session.get('https://cloudflare.com/')
+            response = await session.get(url)
+            protocol = get_protocol_from_pool(session, url)
+            print(f"   ✓ Protocol: {protocol}")
             print(f"   ✓ Status: {response.status}")
             print(f"   ✓ Data length: {len(await response.read())} bytes")
         except Exception as e:
@@ -35,9 +68,12 @@ async def test_public_servers():
 
         # Test 4: GitHub API (HTTP/2)
         print("\n4. Testing with GitHub API:")
+        url = 'https://api.github.com/'
         try:
-            response = await session.get('https://api.github.com/')
+            response = await session.get(url)
             data = await response.read()
+            protocol = get_protocol_from_pool(session, url)
+            print(f"   ✓ Protocol: {protocol}")
             print(f"   ✓ Status: {response.status}")
             print(f"   ✓ Response: {data[:100].decode('utf-8', errors='ignore')}...")
         except Exception as e:
@@ -45,21 +81,26 @@ async def test_public_servers():
 
         # Test 5: Multiple requests (connection reuse)
         print("\n5. Testing Connection Reuse (5 requests to Google):")
+        url = 'https://www.google.com/'
         try:
             for i in range(5):
-                response = await session.get('https://www.google.com/')
-                print(f"   ✓ Request {i+1}: Status {response.status}")
+                response = await session.get(url)
+                protocol = get_protocol_from_pool(session, url)
+                print(f"   ✓ Request {i+1}: {protocol} - Status {response.status}")
         except Exception as e:
             print(f"   ✗ Error: {e}")
 
         # Test 6: Custom headers
         print("\n6. Testing with Custom Headers:")
+        url = 'https://www.google.com/'
         try:
             headers = {
                 'user-agent': 'BlackSheep-HTTP2Client/1.0 TestScript',
                 'accept': 'text/html'
             }
-            response = await session.get('https://www.google.com/', headers=headers)
+            response = await session.get(url, headers=headers)
+            protocol = get_protocol_from_pool(session, url)
+            print(f"   ✓ Protocol: {protocol}")
             print(f"   ✓ Status: {response.status}")
             print(f"   ✓ Custom headers sent successfully")
         except Exception as e:
@@ -67,11 +108,13 @@ async def test_public_servers():
 
         # Test 7: Concurrent requests
         print("\n7. Testing Concurrent Requests (5 parallel to Google):")
+        url = 'https://www.google.com/'
         try:
-            tasks = [session.get('https://www.google.com/') for _ in range(5)]
+            tasks = [session.get(url) for _ in range(5)]
             responses = await asyncio.gather(*tasks)
+            protocol = get_protocol_from_pool(session, url)
             for i, response in enumerate(responses):
-                print(f"   ✓ Concurrent request {i+1}: Status {response.status}")
+                print(f"   ✓ Concurrent request {i+1}: {protocol} - Status {response.status}")
         except Exception as e:
             print(f"   ✗ Error: {e}")
 

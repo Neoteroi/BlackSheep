@@ -833,8 +833,15 @@ class HTTP11Connection(HTTPConnection):
 
         async with self._lock:
             # Reset h11 if needed for connection reuse
-            if self._h11_conn.our_state == h11.DONE:
+            # Both client and server must be DONE to start a new cycle
+            if (
+                self._h11_conn.our_state == h11.DONE
+                and self._h11_conn.their_state == h11.DONE
+            ):
                 self._h11_conn.start_next_cycle()
+            elif self._h11_conn.our_state not in (h11.IDLE, h11.DONE):
+                # Connection is in an unusable state, reconnect
+                self._h11_conn = h11.Connection(our_role=h11.CLIENT)
 
             # Read body if it's a coroutine/async content
             if request.content and request.content.body is None:
@@ -990,7 +997,14 @@ class HTTP11Connection(HTTPConnection):
         connection_header = response.get_first_header(b"connection")
         should_close = connection_header and connection_header.lower() == b"close"
 
-        if should_close:
+        # Check if h11 is in a reusable state (both sides must be DONE)
+        h11_reusable = (
+            self._h11_conn is not None
+            and self._h11_conn.our_state == h11.DONE
+            and self._h11_conn.their_state == h11.DONE
+        )
+
+        if should_close or not h11_reusable:
             self._closing = True
         else:
             # Return connection to pool
@@ -1022,7 +1036,17 @@ class HTTP11Connection(HTTPConnection):
             return False
         if self._streaming:
             return False  # Don't reuse while streaming
-        if self._h11_conn and self._h11_conn.our_state == h11.CLOSED:
+        if self._h11_conn is None:
+            return False
+        # Check h11 state - must be reusable (both DONE or both IDLE)
+        our_state = self._h11_conn.our_state
+        their_state = self._h11_conn.their_state
+        if our_state == h11.CLOSED or their_state == h11.CLOSED:
+            return False
+        if our_state == h11.ERROR or their_state == h11.ERROR:
+            return False
+        # If client is DONE but server is not, connection is not reusable
+        if our_state == h11.DONE and their_state != h11.DONE:
             return False
         # Check idle timeout from pool
         pool = self.pool()

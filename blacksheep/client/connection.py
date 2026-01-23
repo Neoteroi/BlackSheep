@@ -645,12 +645,16 @@ class HTTP2Connection(HTTPConnection):
         if self._connected and not self._closing:
             self._closing = True
             try:
+                # Cancel background reader task to prevent resource leaks
+                if self._reader_task and not self._reader_task.done():
+                    self._reader_task.cancel()
                 if self.writer:
                     self.writer.close()
             except Exception:
                 pass
             finally:
                 self._connected = False
+                self._reader_task = None
 
     def is_alive(self) -> bool:
         """Check if connection is still alive."""

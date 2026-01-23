@@ -506,58 +506,26 @@ class HTTP2Connection(HTTPConnection):
         """
         headers_event = self._headers_events[stream_id]
 
-        async def read_until_headers():
-            """Read until we have headers for this stream."""
-            while not self.streams[stream_id]["headers_received"]:
-                if self.streams[stream_id].get("error"):
-                    return
-                async with self._read_lock:
-                    if self.reader is None:
-                        raise ConnectionClosedError(False)
+        # Start the background reader to process all incoming data
+        self._start_background_reader()
 
-                    try:
-                        data = await asyncio.wait_for(
-                            self.reader.read(65535), timeout=1.0
-                        )
-                    except asyncio.TimeoutError:
-                        if self.streams[stream_id]["headers_received"]:
-                            return
-                        continue
-
-                    if not data:
-                        raise ConnectionClosedError(False)
-
-                    events = self.h2_conn.receive_data(data)
-                    await self._process_events(events)
-                    await self._send_pending_data()
-
-        # Wait for headers to arrive
+        # Wait for headers to arrive (background reader will signal when ready)
         try:
-            read_task = asyncio.create_task(read_until_headers())
-            wait_task = asyncio.create_task(headers_event.wait())
-
-            done, pending = await asyncio.wait(
-                [read_task, wait_task],
-                timeout=timeout,
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-
-            for task in pending:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-            if not done:
-                raise ConnectionException(f"Headers timeout for stream {stream_id}")
-
+            await asyncio.wait_for(headers_event.wait(), timeout=timeout)
         except asyncio.TimeoutError:
             raise ConnectionException(f"Headers timeout for stream {stream_id}")
 
+        # Check if stream still exists (might have been cleaned up on error)
+        if stream_id not in self.streams:
+            raise ConnectionClosedError(True)
+
         stream = self.streams[stream_id]
         if stream.get("error"):
-            raise ConnectionException(stream["error"])
+            # Check if it's a connection closed error (retryable)
+            error_msg = stream["error"]
+            if "closed" in error_msg.lower():
+                raise ConnectionClosedError(True)
+            raise ConnectionException(error_msg)
 
         # Convert to BlackSheep Response
         response_headers = []
@@ -599,7 +567,11 @@ class HTTP2Connection(HTTPConnection):
     async def _background_read(self) -> None:
         """Background task to read data for all active streams."""
         try:
-            while self._active_streams > 0 and self._connected and not self._closing:
+            while self._connected and not self._closing:
+                # Check if there are any streams to process
+                if not self.streams and self._active_streams == 0:
+                    break
+
                 async with self._read_lock:
                     if self.reader is None:
                         break
@@ -609,6 +581,9 @@ class HTTP2Connection(HTTPConnection):
                             self.reader.read(65535), timeout=1.0
                         )
                     except asyncio.TimeoutError:
+                        # Check again if we should continue
+                        if not self.streams and self._active_streams == 0:
+                            break
                         continue
 
                     if not data:
@@ -620,10 +595,11 @@ class HTTP2Connection(HTTPConnection):
                     await self._process_events(events)
                     await self._send_pending_data()
 
-                # Clean up completed streams
+                # Clean up completed streams that have had their content consumed
+                # Only clean up if content.complete is set and body has been read
                 completed = [
                     sid for sid, s in self.streams.items()
-                    if s["complete"]
+                    if s["complete"] and s.get("content") and s["content"].complete.is_set()
                 ]
                 for sid in completed:
                     if sid in self.streams:
@@ -634,19 +610,27 @@ class HTTP2Connection(HTTPConnection):
                         del self._headers_events[sid]
 
         except Exception as e:
-            # Set error on all active streams
-            for stream in self.streams.values():
+            # Set error on all active streams and signal headers events
+            for stream_id, stream in self.streams.items():
+                stream["error"] = str(e)
+                # Signal headers event so waiting requests can see the error
+                if stream_id in self._headers_events:
+                    self._headers_events[stream_id].set()
                 if stream["content"] and not stream["complete"]:
                     stream["content"].exc = e
                     stream["content"].complete.set()
 
     def _handle_connection_closed(self) -> None:
         """Handle unexpected connection close."""
-        for stream in self.streams.values():
+        for stream_id, stream in self.streams.items():
             if not stream["complete"]:
                 stream["complete"] = True
+                stream["error"] = "Connection closed"
+                # Signal headers event so waiting requests can see the error
+                if stream_id in self._headers_events:
+                    self._headers_events[stream_id].set()
                 if stream["content"]:
-                    stream["content"].exc = ConnectionClosedError(False)
+                    stream["content"].exc = ConnectionClosedError(True)
                     stream["content"].complete.set()
 
     def _try_return_to_pool(self) -> None:
@@ -887,7 +871,7 @@ class HTTP11Connection(HTTPConnection):
                 if event is h11.NEED_DATA:
                     data = await self.reader.read(65535)
                     if not data:
-                        raise ConnectionClosedError(False)
+                        raise ConnectionClosedError(True)
                     self._h11_conn.receive_data(data)
                     continue
 
@@ -903,7 +887,7 @@ class HTTP11Connection(HTTPConnection):
                     return  # Headers received, return to caller
 
                 elif isinstance(event, h11.ConnectionClosed):
-                    raise ConnectionClosedError(False)
+                    raise ConnectionClosedError(True)
 
         async def read_body():
             """Read body data and stream to IncomingContent."""

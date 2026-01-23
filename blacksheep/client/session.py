@@ -67,6 +67,7 @@ class ClientSession:
         cookie_jar: None | bool | CookieJar = None,
         middlewares: list[Callable[..., Any]] | None = None,
         http2: bool = True,
+        max_connection_retries: int = 3,
     ):
         """
         Initialize a ClientSession for making HTTP requests.
@@ -89,6 +90,8 @@ class ClientSession:
                    will use ALPN negotiation to detect HTTP/2 support and use it when
                    available, falling back to HTTP/1.1 otherwise. Set to False to
                    force HTTP/1.1 only.
+            max_connection_retries: Maximum number of retries when a connection is
+                   closed by the remote server. Default is 3.
         """
         if pools:
             self.owns_pools = False
@@ -129,6 +132,7 @@ class ClientSession:
         self._middlewares: MiddlewareList
         self.middlewares = middlewares
         self.delay_before_retry = 0.5
+        self.max_connection_retries = max_connection_retries
 
     @property
     def default_headers(self) -> list[tuple[bytes, bytes]] | None:
@@ -369,7 +373,7 @@ class ClientSession:
                 connection.send(request), self.request_timeout
             )
         except ConnectionClosedError as connection_closed_error:
-            if connection_closed_error.can_retry and attempt < 4:
+            if connection_closed_error.can_retry and attempt <= self.max_connection_retries:
                 await asyncio.sleep(self.delay_before_retry)
                 return await self._send_using_connection(request, attempt + 1)
             raise

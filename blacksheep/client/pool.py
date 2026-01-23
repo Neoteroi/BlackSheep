@@ -78,6 +78,7 @@ class ConnectionPool:
         ssl: None | bool | ssl.SSLContext = None,
         max_size: int = 0,
         http2: bool = True,
+        idle_timeout: float = 300.0,
     ) -> None:
         self.scheme = scheme
         self.host = host if isinstance(host, str) else host.decode()
@@ -86,6 +87,7 @@ class ConnectionPool:
         self.http2_ssl = get_http2_ssl_context(scheme, ssl) if http2 else None
         self.max_size = max_size
         self.http2_enabled = http2 and scheme == b"https"
+        self.idle_timeout = idle_timeout
         self._idle_connections: Queue[HTTPConnection] = Queue(maxsize=max_size)
         self._http2_connections: list[HTTP2Connection] = []
         self._protocol_cache: dict[tuple[str, int], str] = {}
@@ -261,9 +263,10 @@ class ConnectionPool:
 
 
 class ConnectionPools:
-    def __init__(self, http2: bool = True) -> None:
+    def __init__(self, http2: bool = True, idle_timeout: float = 300.0) -> None:
         self._pools: dict[tuple[bytes, bytes, int], ConnectionPool] = {}
         self.http2_enabled = http2
+        self.idle_timeout = idle_timeout
 
     def get_pool(self, scheme, host, port, ssl):
         assert scheme in (b"http", b"https"), "URL schema must be http or https"
@@ -275,7 +278,8 @@ class ConnectionPools:
             return self._pools[key]
         except KeyError:
             new_pool = ConnectionPool(
-                scheme, host, port, ssl, http2=self.http2_enabled
+                scheme, host, port, ssl, http2=self.http2_enabled,
+                idle_timeout=self.idle_timeout
             )
             self._pools[key] = new_pool
             return new_pool

@@ -68,6 +68,7 @@ class ClientSession:
         middlewares: list[Callable[..., Any]] | None = None,
         http2: bool = True,
         max_connection_retries: int = 3,
+        idle_timeout: float = 300.0,
     ):
         """
         Initialize a ClientSession for making HTTP requests.
@@ -92,11 +93,13 @@ class ClientSession:
                    force HTTP/1.1 only.
             max_connection_retries: Maximum number of retries when a connection is
                    closed by the remote server. Default is 3.
+            idle_timeout: Maximum time in seconds a connection can remain idle in the
+                   pool before being considered dead. Default is 300.0 (5 minutes).
         """
         if pools:
             self.owns_pools = False
         else:
-            pools = ConnectionPools(http2=http2)
+            pools = ConnectionPools(http2=http2, idle_timeout=idle_timeout)
             self.owns_pools = True
 
         if redirects_cache_type is None and follow_redirects:

@@ -660,8 +660,10 @@ class HTTP2Connection(HTTPConnection):
         """Check if connection is still alive."""
         if not self._connected or self._closing:
             return False
-        # Consider connection dead if idle for more than 5 minutes
-        return (time.time() - self.last_used) < 300
+        # Check idle timeout from pool
+        pool = self.pool()
+        idle_timeout = pool.idle_timeout if pool else 300.0
+        return (time.time() - self.last_used) < idle_timeout
 
 
 class HTTP11Connection(HTTPConnection):
@@ -1012,5 +1014,7 @@ class HTTP11Connection(HTTPConnection):
             return False  # Don't reuse while streaming
         if self._h11_conn and self._h11_conn.our_state == h11.CLOSED:
             return False
-        # Consider connection dead if idle for more than 5 minutes
-        return (time.time() - self.last_used) < 300
+        # Check idle timeout from pool
+        pool = self.pool()
+        idle_timeout = pool.idle_timeout if pool else 300.0
+        return (time.time() - self.last_used) < idle_timeout

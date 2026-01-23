@@ -383,6 +383,7 @@ class HTTP2Connection(HTTPConnection):
             self.streams[stream_id] = {
                 "headers": [],
                 "content": None,  # IncomingContent for streaming
+                "buffered_data": bytearray(),  # Buffer for data received before IncomingContent is created
                 "complete": False,
                 "headers_received": False,
                 "status": None,
@@ -436,9 +437,13 @@ class HTTP2Connection(HTTPConnection):
 
             elif isinstance(event, DataReceived):
                 stream = self.streams.get(event.stream_id)
-                if stream and stream["content"]:
-                    # Stream data directly to IncomingContent
-                    stream["content"].extend_body(event.data)
+                if stream:
+                    if stream["content"]:
+                        # Stream data directly to IncomingContent
+                        stream["content"].extend_body(event.data)
+                    else:
+                        # Buffer data until IncomingContent is created
+                        stream["buffered_data"].extend(event.data)
                 # Acknowledge received data for flow control
                 self.h2_conn.acknowledge_received_data(
                     event.flow_controlled_length, event.stream_id
@@ -545,6 +550,11 @@ class HTTP2Connection(HTTPConnection):
         incoming_content = IncomingContent(content_type)
         stream["content"] = incoming_content
         response.content = incoming_content
+
+        # Transfer any buffered data received before IncomingContent was created
+        if stream["buffered_data"]:
+            incoming_content.extend_body(bytes(stream["buffered_data"]))
+            stream["buffered_data"].clear()
 
         # If stream is already complete (no body or already received), mark as done
         if stream["complete"]:

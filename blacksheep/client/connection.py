@@ -103,8 +103,12 @@ class IncomingContent(Content):
         super().__init__(content_type, b"")
         self._body = bytearray()
         self._chunk = asyncio.Event()
-        self.complete = asyncio.Event()
+        self._complete = asyncio.Event()
         self._exc: Exception | None = None
+
+    @property
+    def complete(self) -> asyncio.Event:
+        return self._complete
 
     @property
     def exc(self) -> Exception | None:
@@ -129,19 +133,34 @@ class IncomingContent(Content):
         self._body.extend(chunk)
         self._chunk.set()
 
+    def set_complete(self):
+        """
+        Sets this incoming content as completed, waking up all requests to
+        read() and stream().
+        """
+        self._complete.set()
+        self._chunk.set()  # Wake up any waiting stream()
+
     async def stream(self):
         completed = False
         while not completed:
             await self._chunk.wait()
             self._chunk.clear()
 
-            if not self._body:
+            # Check if stream is complete even if there is no body data
+            # This handles the case where complete.set() was called but no more data
+            # arrived
+            if self._complete.is_set() and not self._body:
                 break
+
+            if not self._body:
+                # No data yet but not complete, continue waiting
+                continue
 
             buf = bytes(self._body)  # create a copy of the buffer
             self._body.clear()
             completed = (
-                self.complete.is_set()
+                self._complete.is_set()
             )  # we must check for EOD before yielding, or it will race
 
             yield buf  # use the copy
@@ -153,7 +172,7 @@ class IncomingContent(Content):
                 raise self._exc
 
     async def read(self):
-        await self.complete.wait()
+        await self._complete.wait()
         return bytes(self._body)
 
 
@@ -456,7 +475,7 @@ class HTTP2Connection(HTTPConnection):
                     stream["complete"] = True
                     # Mark content as complete
                     if stream["content"]:
-                        stream["content"].complete.set()
+                        stream["content"].set_complete()
                     stream_event = self._stream_events.get(event.stream_id)
                     if stream_event:
                         stream_event.set()
@@ -476,7 +495,7 @@ class HTTP2Connection(HTTPConnection):
                     # Set error on content if it exists
                     if stream["content"]:
                         stream["content"].exc = ConnectionException(stream["error"])
-                        stream["content"].complete.set()
+                        stream["content"].set_complete()
                     stream_event = self._stream_events.get(event.stream_id)
                     if stream_event:
                         stream_event.set()
@@ -558,7 +577,7 @@ class HTTP2Connection(HTTPConnection):
 
         # If stream is already complete (no body or already received), mark as done
         if stream["complete"]:
-            incoming_content.complete.set()
+            incoming_content.set_complete()
             # Clean up
             del self.streams[stream_id]
             del self._stream_events[stream_id]
@@ -628,7 +647,7 @@ class HTTP2Connection(HTTPConnection):
                     self._headers_events[stream_id].set()
                 if stream["content"] and not stream["complete"]:
                     stream["content"].exc = e
-                    stream["content"].complete.set()
+                    stream["content"].set_complete()
 
     def _handle_connection_closed(self) -> None:
         """Handle unexpected connection close."""
@@ -641,7 +660,7 @@ class HTTP2Connection(HTTPConnection):
                     self._headers_events[stream_id].set()
                 if stream["content"]:
                     stream["content"].exc = ConnectionClosedError(True)
-                    stream["content"].complete.set()
+                    stream["content"].set_complete()
 
     def _try_return_to_pool(self) -> None:
         """Try to return this connection to its pool."""
@@ -924,7 +943,7 @@ class HTTP11Connection(HTTPConnection):
                             # Connection closed unexpectedly
                             if incoming_content:
                                 incoming_content.exc = ConnectionClosedError(False)
-                                incoming_content.complete.set()
+                                incoming_content.set_complete()
                             break
                         self._h11_conn.receive_data(data)
                         continue
@@ -935,18 +954,18 @@ class HTTP11Connection(HTTPConnection):
 
                     elif isinstance(event, h11.EndOfMessage):
                         if incoming_content:
-                            incoming_content.complete.set()
+                            incoming_content.set_complete()
                         break
 
                     elif isinstance(event, h11.ConnectionClosed):
                         if incoming_content:
-                            incoming_content.complete.set()
+                            incoming_content.set_complete()
                         break
 
             except Exception as e:
                 if incoming_content:
                     incoming_content.exc = e
-                    incoming_content.complete.set()
+                    incoming_content.set_complete()
             finally:
                 self._streaming = False
                 self.last_used = time.time()
@@ -983,7 +1002,7 @@ class HTTP11Connection(HTTPConnection):
             asyncio.create_task(read_body())
         else:
             # No body, mark as complete immediately
-            incoming_content.complete.set()
+            incoming_content.set_complete()
             self._handle_connection_reuse(response)
 
         return response

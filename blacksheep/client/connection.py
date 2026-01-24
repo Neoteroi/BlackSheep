@@ -412,12 +412,33 @@ class HTTP2Connection(HTTPConnection):
             self._headers_events[stream_id] = asyncio.Event()
             self._active_streams += 1
 
-            # Send headers
-            self.h2_conn.send_headers(
-                stream_id, h2_headers, end_stream=(body is None or len(body) == 0)
+            # Check for Expect: 100-continue header
+            expect_continue = any(
+                (h[0] == "expect" and h[1] == "100-continue")
+                for h in h2_headers
             )
+
+            # Send headers (without end_stream if expecting 100-continue with body)
+            if expect_continue and body:
+                # Don't set end_stream, wait for 100 Continue
+                self.h2_conn.send_headers(stream_id, h2_headers, end_stream=False)
+            else:
+                # Normal behavior
+                self.h2_conn.send_headers(
+                    stream_id, h2_headers, end_stream=(body is None or len(body) == 0)
+                )
             self.writer.write(self.h2_conn.data_to_send())
             await self.writer.drain()
+
+            # Handle Expect: 100-continue
+            if expect_continue and body:
+                # Wait for 100 Continue response or error
+                should_send_body = await self._wait_for_100_continue_h2(stream_id)
+                if not should_send_body:
+                    # Got a final response (e.g., 417), don't send body
+                    self.request_count += 1
+                    self.last_used = time.time()
+                    return await self._receive_response(stream_id)
 
             # Send body if present
             if body:
@@ -435,6 +456,52 @@ class HTTP2Connection(HTTPConnection):
 
         # Receive response
         return await self._receive_response(stream_id)
+
+    async def _wait_for_100_continue_h2(self, stream_id: int, timeout: float = 5.0) -> bool:
+        """
+        Wait for 100 Continue response for HTTP/2.
+
+        Returns:
+            True if should send body (got 100 or timeout)
+            False if got final response (don't send body)
+        """
+        stream = self.streams.get(stream_id)
+        if not stream:
+            return True  # Proceed if stream doesn't exist
+
+        try:
+            async with asyncio.timeout(timeout):
+                # Keep reading until we get headers
+                while not stream["headers_received"]:
+                    async with self._read_lock:
+                        if not self.reader:
+                            return True
+
+                        data = await self.reader.read(65535)
+                        if not data:
+                            return True  # Connection closed, proceed anyway
+
+                        events = self.h2_conn.receive_data(data)
+                        await self._process_events(events)
+                        await self._send_pending_data()
+
+                # Check the status we received
+                status = stream.get("status")
+                if status == 100:
+                    # Got 100 Continue, proceed with body
+                    # Reset headers_received so _receive_response can get the real response
+                    stream["headers_received"] = False
+                    stream["headers"] = []
+                    stream["status"] = None
+                    return True
+                else:
+                    # Got a final response (e.g., 417 Expectation Failed)
+                    # Don't send body, let _receive_response handle this response
+                    return False
+
+        except asyncio.TimeoutError:
+            # Timeout waiting for 100, proceed with body anyway
+            return True
 
     async def _process_events(self, events) -> None:
         """Process H2 events and update streams."""
@@ -871,9 +938,25 @@ class HTTP11Connection(HTTPConnection):
             # Convert request to h11 format
             h11_request, body = self._convert_request_to_h11(request)
 
-            # Send request
+            # Check for Expect: 100-continue header
+            expect_continue = any(
+                h[0].lower() == b"expect" and h[1].lower() == b"100-continue"
+                for h in h11_request.headers
+            )
+
+            # Send request headers
             data = self._h11_conn.send(h11_request)
             self.writer.write(data)
+            await self.writer.drain()
+
+            # Handle Expect: 100-continue
+            if expect_continue and body:
+                # Wait for 100 Continue or error response
+                interim_response = await self._wait_for_100_continue()
+                if interim_response is not None:
+                    # Got a final response (e.g., 417 Expectation Failed), don't send body
+                    return interim_response
+                # Got 100 Continue or timeout, proceed to send body
 
             # Send body if present
             if body:
@@ -890,6 +973,90 @@ class HTTP11Connection(HTTPConnection):
 
             # Receive response
             return await self._receive_response()
+
+    async def _wait_for_100_continue(self, timeout: float = 5.0) -> Response | None:
+        """
+        Wait for 100 Continue response or a final response.
+
+        Returns:
+            None if 100 Continue received (proceed with body)
+            Response if got final response like 417 (don't send body)
+        """
+        try:
+            async with asyncio.timeout(timeout):
+                while True:
+                    event = self._h11_conn.next_event()
+
+                    if event is h11.NEED_DATA:
+                        data = await self.reader.read(65535)
+                        if not data:
+                            # Connection closed, return None to proceed anyway
+                            return None
+                        self._h11_conn.receive_data(data)
+                        continue
+
+                    if isinstance(event, h11.InformationalResponse):
+                        # Got 100 Continue or other 1xx
+                        if event.status_code == 100:
+                            return None  # Proceed with body
+                        # Other 1xx responses, keep waiting
+                        continue
+
+                    if isinstance(event, h11.Response):
+                        # Got a final response (e.g., 417 Expectation Failed)
+                        # Build and return it, don't send body
+                        status = event.status_code
+                        response_headers = [
+                            (
+                                k if isinstance(k, bytes) else k.encode(),
+                                v if isinstance(v, bytes) else v.encode()
+                            )
+                            for k, v in event.headers
+                        ]
+                        response = Response(status, response_headers, None)
+
+                        # Still need to read any body from this response
+                        content_type = response.get_first_header(b"content-type") or b"application/octet-stream"
+                        incoming_content = IncomingContent(content_type)
+                        response.content = incoming_content
+
+                        # Start reading body in background
+                        asyncio.create_task(self._read_response_body(incoming_content))
+                        return response
+
+        except asyncio.TimeoutError:
+            # Timeout waiting for 100, proceed with body anyway
+            return None
+
+    async def _read_response_body(self, incoming_content: IncomingContent) -> None:
+        """Read response body and stream to IncomingContent."""
+        try:
+            while True:
+                event = self._h11_conn.next_event()
+
+                if event is h11.NEED_DATA:
+                    data = await self.reader.read(65535)
+                    if not data:
+                        incoming_content.exc = ConnectionClosedError(False)
+                        incoming_content.set_complete()
+                        break
+                    self._h11_conn.receive_data(data)
+                    continue
+
+                if isinstance(event, h11.Data):
+                    incoming_content.extend_body(event.data)
+
+                elif isinstance(event, h11.EndOfMessage):
+                    incoming_content.set_complete()
+                    break
+
+                elif isinstance(event, h11.ConnectionClosed):
+                    incoming_content.set_complete()
+                    break
+
+        except Exception as e:
+            incoming_content.exc = e
+            incoming_content.set_complete()
 
     async def _receive_response(self, timeout: float = 60.0) -> Response:
         """
@@ -915,6 +1082,11 @@ class HTTP11Connection(HTTPConnection):
                     if not data:
                         raise ConnectionClosedError(True)
                     self._h11_conn.receive_data(data)
+                    continue
+
+                if isinstance(event, h11.InformationalResponse):
+                    # Skip 1xx informational responses (like 100 Continue)
+                    # These should have been handled earlier if Expect: 100-continue was used
                     continue
 
                 if isinstance(event, h11.Response):

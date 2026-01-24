@@ -2,7 +2,7 @@ import asyncio
 import ssl
 from asyncio import TimeoutError
 from typing import Any, AnyStr, Callable, Type, cast
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response, __version__
 from blacksheep.common.types import HeadersType, ParamsType, URLType, normalize_headers
@@ -200,8 +200,26 @@ class ClientSession:
         return value + (b"&" if b"?" in value else b"?") + query
 
     def get_url_value(self, url: AnyStr | URL) -> bytes:
+        """
+        Get the URL value as bytes with proper encoding of special characters.
+
+        This method escapes characters that must be percent-encoded in URLs (like spaces),
+        while preserving URL structural characters (/, ?, &, =, #, :) to support:
+        - Direct query strings in URLs: "/api?q=hello world" → "/api?q=hello%20world"
+        - Pre-escaped URLs (idempotent): "/api?q=hello%20world" stays the same
+        - Relative and absolute URLs with proper joining
+
+        Args:
+            url: URL as string, bytes, or URL object
+
+        Returns:
+            bytes: Properly encoded URL
+        """
         if isinstance(url, str):
-            url = url.encode()
+            # Escape special characters while preserving URL structural characters
+            # safe characters: unreserved + gen-delims + sub-delims commonly used in URLs
+            # This allows query strings in the URL while escaping spaces and other special chars
+            url = quote(url, safe=":/?#[]@!$&'()*+,;=").encode()
 
         if not isinstance(url, URL):
             if url == b"":

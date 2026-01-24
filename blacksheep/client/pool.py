@@ -15,7 +15,6 @@ from .connection import (
     HTTPConnection,
     HTTP11Connection,
     HTTP2Connection,
-    create_http2_ssl_context,
 )
 
 logger = logging.getLogger("blacksheep.client")
@@ -24,49 +23,47 @@ logger = logging.getLogger("blacksheep.client")
 def get_ssl_context(
     scheme: bytes, ssl: None | bool | ssl.SSLContext
 ) -> ssl.SSLContext | None:
-    if scheme == b"https":
-        if ssl is None or ssl is True:
-            return SECURE_SSLCONTEXT
-        if ssl is False:
-            return INSECURE_SSLCONTEXT
-        if isinstance(ssl, SSLContext):
-            return ssl
-        raise InvalidArgument(
-            "Invalid ssl argument, expected one of: "
-            "None, False, True, instance of ssl.SSLContext."
-        )
+    if scheme != b"https":
+        # Note: the SSL context is created for a connection pool, and it is correct
+        # to return None if a ClientSession needs to make a request over HTTP
+        return None
 
-    if ssl:
-        raise InvalidArgument("SSL argument specified for non-https scheme.")
-
-    return None
+    if ssl is None or ssl is True:
+        return SECURE_SSLCONTEXT
+    if ssl is False:
+        return INSECURE_SSLCONTEXT
+    if isinstance(ssl, SSLContext):
+        return ssl
+    raise InvalidArgument(
+        "Invalid ssl argument, expected one of: "
+        "None, False, True, instance of ssl.SSLContext."
+    )
 
 
 def get_http2_ssl_context(
     scheme: bytes, ssl: None | bool | ssl.SSLContext
 ) -> ssl.SSLContext | None:
     """Get an SSL context configured for HTTP/2 with ALPN negotiation."""
-    if scheme == b"https":
-        if ssl is None or ssl is True:
-            return SECURE_HTTP2_SSLCONTEXT
-        if ssl is False:
-            return INSECURE_HTTP2_SSLCONTEXT
-        if isinstance(ssl, SSLContext):
-            # User provided custom context - ensure it has ALPN set
-            try:
-                ssl.set_alpn_protocols(["h2", "http/1.1"])
-            except Exception:
-                pass  # May already be set or not supported
-            return ssl
-        raise InvalidArgument(
-            "Invalid ssl argument, expected one of: "
-            "None, False, True, instance of ssl.SSLContext."
-        )
+    if scheme != b"https":
+        # Note: the SSL context is created for a connection pool, and it is correct
+        # to return None if a ClientSession needs to make a request over HTTP
+        return None
 
-    if ssl:
-        raise InvalidArgument("SSL argument specified for non-https scheme.")
-
-    return None
+    if ssl is None or ssl is True:
+        return SECURE_HTTP2_SSLCONTEXT
+    if ssl is False:
+        return INSECURE_HTTP2_SSLCONTEXT
+    if isinstance(ssl, SSLContext):
+        # User provided custom context - ensure it has ALPN set
+        try:
+            ssl.set_alpn_protocols(["h2", "http/1.1"])
+        except Exception:
+            pass  # May already be set or not supported
+        return ssl
+    raise InvalidArgument(
+        "Invalid ssl argument, expected one of: "
+        "None, False, True, instance of ssl.SSLContext."
+    )
 
 
 class ConnectionPool:

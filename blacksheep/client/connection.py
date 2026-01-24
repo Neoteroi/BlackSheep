@@ -144,7 +144,7 @@ class IncomingContent(Content):
                 self.complete.is_set()
             )  # we must check for EOD before yielding, or it will race
 
-            yield bytes(buf)  # use the copy
+            yield buf  # use the copy
 
             if completed:
                 break

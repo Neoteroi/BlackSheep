@@ -1,10 +1,12 @@
 import os
 import shutil
+from typing import AsyncIterable, Callable
 from uuid import uuid4
 
 import pytest
 
-from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Response
+from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Response, StreamedContent
+from blacksheep.common.files.asyncfs import FilesHandler
 
 from .client_fixtures import *  # NoQA
 from .client_fixtures import get_static_path
@@ -244,3 +246,220 @@ async def test_cookies_with_redirect(session):
     """
     response = await session.get("/redirect-setting-cookie")
     ensure_success(response)
+
+
+async def test_request_body_streaming(session):
+    """
+    Test request body streaming by uploading a file using StreamedContent.
+    This verifies that the client can stream request bodies efficiently.
+    """
+    if os.path.exists("out"):
+        shutil.rmtree("out")
+
+    file_path = get_static_path("pexels-photo-126407.jpeg")
+    file_content = get_file_bytes(file_path)
+
+    # Create a streaming content provider
+    async def file_provider():
+        # Simulate streaming by yielding chunks
+        chunk_size = 8192
+        for i in range(0, len(file_content), chunk_size):
+            yield file_content[i:i + chunk_size]
+
+    # Upload using StreamedContent
+    content = StreamedContent(b"image/jpeg", file_provider)
+    response = await session.post("/upload-raw/streamed-image.jpg", content=content)
+    ensure_success(response)
+
+    # Verify the uploaded file matches the original
+    assert_files_equals("./out/streamed-image.jpg", file_path)
+
+
+async def test_request_body_streaming_with_expect_continue(session):
+    """
+    Test request body streaming with Expect: 100-continue header.
+    This ensures the server accepts the request before sending the body.
+    """
+    if os.path.exists("out"):
+        shutil.rmtree("out")
+
+    file_path = get_static_path("pexels-photo-923360.jpeg")
+    file_content = get_file_bytes(file_path)
+
+    async def file_provider():
+        # Stream the file in chunks
+        chunk_size = 16384
+        for i in range(0, len(file_content), chunk_size):
+            yield file_content[i:i + chunk_size]
+
+    # Upload with Expect: 100-continue header
+    content = StreamedContent(b"image/jpeg", file_provider)
+    response = await session.post(
+        "/upload-raw/expect-continue.jpg",
+        content=content,
+        headers=[(b"expect", b"100-continue")],
+    )
+    ensure_success(response)
+
+    # Verify the uploaded file matches the original
+    assert_files_equals("./out/expect-continue.jpg", file_path)
+
+
+async def test_response_body_streaming_large_file(session):
+    """
+    Test response body streaming with a larger file to ensure
+    proper chunk handling and memory efficiency.
+    """
+    response = await session.get("/picture.jpg")
+    ensure_success(response)
+
+    # Stream response and verify chunks
+    received_chunks = []
+    chunk_count = 0
+    total_bytes = 0
+
+    async for chunk in response.stream():
+        chunk_count += 1
+        total_bytes += len(chunk)
+        received_chunks.append(chunk)
+
+    # Verify we received the complete content
+    received_content = b"".join(received_chunks)
+
+    # The endpoint serves pexels-photo-126407.jpeg
+    actual_file = get_static_path("pexels-photo-126407.jpeg")
+    expected_content = get_file_bytes(actual_file)
+
+    assert received_content == expected_content
+    assert total_bytes == len(expected_content)
+    assert chunk_count > 0  # At least one chunk
+
+
+async def test_response_streaming_with_json(session):
+    """
+    Test response streaming with JSON content to ensure
+    streaming works for different content types.
+    """
+    response = await session.get("/plain-json")
+    ensure_success(response)
+
+    # Stream the JSON response
+    chunks = []
+    async for chunk in response.stream():
+        chunks.append(chunk)
+
+    full_content = b"".join(chunks)
+
+    # Parse JSON from streamed content
+    import json
+    data = json.loads(full_content.decode("utf-8"))
+
+    assert data["message"] == "Hello, World!"
+
+
+async def test_concurrent_streaming_requests(session):
+    """
+    Test multiple concurrent streaming requests to ensure
+    proper connection pooling and stream isolation.
+    """
+    import asyncio
+
+    async def fetch_and_stream(url_path):
+        response = await session.get(url_path)
+        ensure_success(response)
+
+        chunks = []
+        async for chunk in response.stream():
+            chunks.append(chunk)
+
+        return b"".join(chunks)
+
+    # Fetch multiple resources concurrently
+    results = await asyncio.gather(
+        fetch_and_stream("/hello-world"),
+        fetch_and_stream("/plain-json"),
+        fetch_and_stream("/hello-world?name=Test"),
+    )
+
+    # Verify each response
+    assert results[0] == b"Hello, World!"
+    assert b"Hello, World!" in results[1]  # JSON response
+    assert results[2] == b"Hello, Test!"
+
+
+async def test_request_streaming_with_files_handler(session):
+    """
+    Test request body streaming using FilesHandler for chunked file reading.
+    This simulates real-world file upload scenarios.
+    """
+    if os.path.exists("out"):
+        shutil.rmtree("out")
+
+    file_path = get_static_path("pexels-photo-126407.jpeg")
+
+    def get_file_provider(file_path: str) -> Callable[[], AsyncIterable[bytes]]:
+        async def data_provider():
+            async for chunk in FilesHandler().chunks(file_path):
+                yield chunk
+        return data_provider
+
+    # Upload using FilesHandler streaming
+    content = StreamedContent(b"image/jpeg", get_file_provider(file_path))
+    response = await session.post("/upload-raw/files-handler-upload.jpg", content=content)
+    ensure_success(response)
+
+    # Verify the uploaded file
+    assert_files_equals("./out/files-handler-upload.jpg", file_path)
+
+
+async def test_streaming_error_handling(session):
+    """
+    Test error handling during response streaming to ensure
+    exceptions are properly propagated.
+    """
+    # Request an endpoint that returns an error
+    response = await session.get("/plain-json-error-simulation")
+
+    # Should receive a 500 error
+    assert response.status == 500
+
+    # Stream should still work even for error responses
+    chunks = []
+    async for chunk in response.stream():
+        chunks.append(chunk)
+
+    content = b"".join(chunks)
+    assert len(content) > 0  # Should have error response body
+
+
+async def test_bidirectional_streaming(session):
+    """
+    Test bidirectional streaming: stream request body while receiving response.
+    This verifies proper handling of concurrent read/write operations.
+    """
+    if os.path.exists("out"):
+        shutil.rmtree("out")
+
+    file_path = get_static_path("pexels-photo-923360.jpeg")
+    file_content = get_file_bytes(file_path)
+
+    async def file_provider():
+        # Stream in smaller chunks to test concurrent behavior
+        chunk_size = 4096
+        for i in range(0, len(file_content), chunk_size):
+            yield file_content[i:i + chunk_size]
+
+    content = StreamedContent(b"image/jpeg", file_provider)
+    response = await session.post("/upload-raw/bidirectional-test.jpg", content=content)
+
+    # Stream the response (JSON confirmation)
+    chunks = []
+    async for chunk in response.stream():
+        chunks.append(chunk)
+
+    response_data = b"".join(chunks)
+    assert response.status == 200
+    assert len(response_data) > 0
+
+    # Verify uploaded file
+    assert_files_equals("./out/bidirectional-test.jpg", file_path)

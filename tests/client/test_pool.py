@@ -27,12 +27,9 @@ def test_get_ssl_context(scheme, ssl_option, expected_result):
     assert get_ssl_context(scheme, ssl_option) is expected_result
 
 
-def test_get_ssl_context_raises_for_http():
-    with pytest.raises(InvalidArgument):
-        get_ssl_context(b"http", True)
-
-    with pytest.raises(InvalidArgument):
-        get_ssl_context(b"http", SECURE_SSLCONTEXT)
+def test_get_ssl_context_for_http():
+    assert get_ssl_context(b"http", True) is None
+    assert get_ssl_context(b"http", SECURE_SSLCONTEXT) is None
 
 
 def test_get_ssl_context_raises_for_invalid_argument():

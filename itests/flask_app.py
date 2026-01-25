@@ -107,6 +107,25 @@ def upload_files():
     )
 
 
+@app.route("/upload-raw/<filename>", methods=["POST"])
+def upload_raw_file(filename):
+    """Accept a raw file upload (not multipart)."""
+    folder = "out"
+    ensure_folder(folder)
+
+    file_path = f"./{folder}/{filename}"
+    with open(file_path, "wb") as f:
+        f.write(request.data)
+
+    return jsonify(
+        {
+            "folder": folder,
+            "filename": filename,
+            "size": len(request.data),
+        }
+    )
+
+
 @app.route("/picture.jpg")
 def serve_picture():
     return app.send_static_file("pexels-photo-126407.jpeg")

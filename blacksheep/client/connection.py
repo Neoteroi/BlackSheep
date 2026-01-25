@@ -71,7 +71,7 @@ class HTTPConnection(ABC):
         pass
 
     @abstractmethod
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close the connection."""
         pass
 
@@ -82,7 +82,7 @@ class HTTPConnection(ABC):
 
     @property
     @abstractmethod
-    def open(self) -> bool:
+    def is_open(self) -> bool:
         """Return True if the connection is open."""
         pass
 
@@ -301,7 +301,7 @@ class HTTP2Connection(HTTPConnection):
         self._reader_task: asyncio.Task | None = None  # Background reader task
 
     @property
-    def open(self) -> bool:
+    def is_open(self) -> bool:
         """Return True if the connection is open."""
         return self._connected and not self._closing
 
@@ -732,20 +732,30 @@ class HTTP2Connection(HTTPConnection):
     def _try_return_to_pool(self) -> None:
         """Try to return this connection to its pool."""
         pool = self.pool()
-        if pool and self.open:
+        if pool and self.is_open:
             self.last_used = time.time()
             pool.try_return_connection(self)
 
-    def close(self) -> None:
-        """Close the connection."""
+    async def close(self) -> None:
+        """Close the connection and properly wait for background tasks."""
         if self._connected and not self._closing:
             self._closing = True
             try:
-                # Cancel background reader task to prevent resource leaks
+                # Cancel background reader task and wait for it
                 if self._reader_task and not self._reader_task.done():
                     self._reader_task.cancel()
+                    try:
+                        await self._reader_task
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception:
+                        pass
                 if self.writer:
                     self.writer.close()
+                    try:
+                        await self.writer.wait_closed()
+                    except Exception:
+                        pass
             except Exception:
                 pass
             finally:
@@ -827,7 +837,7 @@ class HTTP11Connection(HTTPConnection):
         self._streaming = False  # True while streaming response body
 
     @property
-    def open(self) -> bool:
+    def is_open(self) -> bool:
         """Return True if the connection is open."""
         return self._connected and not self._closing
 
@@ -1204,17 +1214,21 @@ class HTTP11Connection(HTTPConnection):
     def _try_return_to_pool(self) -> None:
         """Try to return this connection to its pool."""
         pool = self.pool()
-        if pool and self.open:
+        if pool and self.is_open:
             self.last_used = time.time()
             pool.try_return_connection(self)
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close the connection."""
         if self._connected and not self._closing:
             self._closing = True
             try:
                 if self.writer:
                     self.writer.close()
+                    try:
+                        await self.writer.wait_closed()
+                    except Exception:
+                        pass
             except Exception:
                 pass
             finally:

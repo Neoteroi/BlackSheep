@@ -148,7 +148,7 @@ class ConnectionPool:
         while True:
             connection: HTTPConnection = self._idle_connections.get_nowait()
 
-            if connection.open:
+            if connection.is_open:
                 logger.debug(
                     f"Reusing connection "
                     f"{id(connection)} to: {self.host}:{self.port}"
@@ -232,7 +232,8 @@ class ConnectionPool:
         # reusable for other requests)
         return connection
 
-    def dispose(self) -> None:
+    async def dispose(self) -> None:
+        """Dispose of the pool and properly await connection cleanup."""
         self.disposed = True
 
         # Close HTTP/1.1 connections
@@ -246,15 +247,15 @@ class ConnectionPool:
                     f"Closing connection "
                     f"{id(connection)} to: {self.host}:{self.port}"
                 )
-                connection.close()
+                await connection.close()
 
-        # Close HTTP/2 connections
+        # Close HTTP/2 connections with proper async cleanup
         for conn in self._http2_connections:
             logger.debug(
                 f"Closing HTTP/2 connection "
                 f"{id(conn)} to: {self.host}:{self.port}"
             )
-            conn.close()
+            await conn.close()
         self._http2_connections.clear()
         self._protocol_cache.clear()
 
@@ -287,7 +288,8 @@ class ConnectionPools:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dispose()
 
-    def dispose(self):
+    async def dispose(self):
+        """Dispose of all pools and properly await cleanup."""
         for pool in self._pools.values():
-            pool.dispose()
+            await pool.dispose()
         self._pools.clear()

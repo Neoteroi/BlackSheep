@@ -75,8 +75,8 @@ class ClientSession:
 
         Args:
             base_url: Base URL for all requests. Can be a string, bytes, or URL object.
-            ssl: SSL configuration. True for default secure context, False for insecure,
-                 or provide a custom ssl.SSLContext.
+            ssl: SSL configuration. True for default secure context, False for insecure
+                 (disable SSL verification), or provide a custom ssl.SSLContext.
             pools: Connection pools to use. If not provided, a new one will be created.
             default_headers: Headers to include in all requests.
             follow_redirects: Whether to automatically follow redirects.
@@ -241,7 +241,7 @@ class ClientSession:
 
     async def close(self):
         if self.owns_pools:
-            self.pools.dispose()
+            await self.pools.dispose()
 
     @staticmethod
     def extract_redirect_location(response: Response) -> URL:

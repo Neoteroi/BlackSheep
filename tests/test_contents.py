@@ -15,7 +15,7 @@ from blacksheep.multipart import (
     parse_content_disposition_values,
     parse_multipart,
 )
-from blacksheep.scribe import write_chunks, write_request_body_only
+from blacksheep.scribe import write_chunks
 
 
 async def test_chunked_encoding_with_generated_content():
@@ -283,42 +283,6 @@ def test_text_content_type():
 def test_text_content_data(text):
     content = TextContent(text)
     assert content.body == text.encode("utf8")
-
-
-@pytest.mark.parametrize(
-    "req,expected_chunks",
-    [
-        (
-            Request(
-                "POST",
-                b"/",
-                headers=[
-                    (b"content-type", b"application/json"),
-                    (b"expect", b"100-continue"),
-                ],
-            ).with_content(JSONContent({"id": "1", "name": "foo"})),
-            [b'{"id":"1","name":"foo"}'],
-        ),
-        (
-            Request(
-                "POST",
-                b"/",
-                headers=[
-                    (b"content-type", b"text/plain"),
-                    (b"expect", b"100-continue"),
-                ],
-            ).with_content(TextContent("Hello World")),
-            [b"Hello World"],
-        ),
-    ],
-)
-async def test_write_request_body_only(req: Request, expected_chunks: list[bytes]):
-    received_chunks = []
-
-    async for chunk in write_request_body_only(req):
-        received_chunks.append(chunk)
-
-    assert received_chunks == expected_chunks
 
 
 @pytest.mark.parametrize("size", [0, 2000, 2147483647, 9e18])

@@ -140,52 +140,6 @@ def test_response_supports_dynamic_attributes():
     assert response.foo is foo  # type: ignore
 
 
-@pytest.mark.parametrize(
-    "response,cookies,expected_result",
-    [
-        (
-            Response(400, [(b"Server", b"BlackSheep")]).with_content(
-                Content(b"text/plain", b"Hello, World")
-            ),
-            [],
-            b"HTTP/1.1 400 Bad Request\r\n"
-            b"Server: BlackSheep\r\n"
-            b"content-type: text/plain\r\n"
-            b"content-length: 12\r\n\r\nHello, World",
-        ),
-        (
-            Response(400, [(b"Server", b"BlackSheep")]).with_content(
-                Content(b"text/plain", b"Hello, World")
-            ),
-            [Cookie("session", "123")],
-            b"HTTP/1.1 400 Bad Request\r\n"
-            b"Server: BlackSheep\r\n"
-            b"set-cookie: session=123\r\n"
-            b"content-type: text/plain\r\n"
-            b"content-length: 12\r\n\r\nHello, World",
-        ),
-        (
-            Response(400, [(b"Server", b"BlackSheep")]).with_content(
-                Content(b"text/plain", b"Hello, World")
-            ),
-            [Cookie("session", "123"), Cookie("aaa", "bbb", domain="bezkitu.org")],
-            b"HTTP/1.1 400 Bad Request\r\n"
-            b"Server: BlackSheep\r\n"
-            b"set-cookie: session=123\r\n"
-            b"set-cookie: aaa=bbb; Domain=bezkitu.org\r\n"
-            b"content-type: text/plain\r\n"
-            b"content-length: 12\r\n\r\nHello, World",
-        ),
-    ],
-)
-async def test_write_http_response(response, cookies, expected_result):
-    response.set_cookies(cookies)
-    data = b""
-    async for chunk in scribe.write_response(response):
-        data += chunk
-    assert data == expected_result
-
-
 def test_is_redirect():
     # 301 Moved Permanently
     # 302 Found

@@ -18,7 +18,7 @@ from .exceptions import (
     RequestTimeout,
     UnsupportedRedirect,
 )
-from .pool import HTTPConnection, ConnectionPools
+from .pool import ConnectionPools, HTTPConnection
 
 
 class RedirectsCache:
@@ -217,8 +217,9 @@ class ClientSession:
         """
         if isinstance(url, str):
             # Escape special characters while preserving URL structural characters
-            # safe characters: unreserved + gen-delims + sub-delims commonly used in URLs
-            # This allows query strings in the URL while escaping spaces and other special chars
+            # safe characters: unreserved + gen-delims + sub-delims commonly used in
+            # URLs. This allows query strings in the URL while escaping spaces and other
+            # special chars.
             url = quote(url, safe=":/?#[]@!$&'()*+,;=").encode()
 
         if not isinstance(url, URL):
@@ -394,7 +395,10 @@ class ClientSession:
                 connection.send(request), self.request_timeout
             )
         except ConnectionClosedError as connection_closed_error:
-            if connection_closed_error.can_retry and attempt <= self.max_connection_retries:
+            if (
+                connection_closed_error.can_retry
+                and attempt <= self.max_connection_retries
+            ):
                 await asyncio.sleep(self.delay_before_retry)
                 return await self._send_using_connection(request, attempt + 1)
             raise

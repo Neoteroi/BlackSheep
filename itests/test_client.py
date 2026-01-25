@@ -5,7 +5,14 @@ from uuid import uuid4
 
 import pytest
 
-from blacksheep import FormContent, FormPart, JSONContent, MultiPartFormData, Response, StreamedContent
+from blacksheep import (
+    FormContent,
+    FormPart,
+    JSONContent,
+    MultiPartFormData,
+    Response,
+    StreamedContent,
+)
 from blacksheep.common.files.asyncfs import FilesHandler
 
 from .client_fixtures import *  # NoQA

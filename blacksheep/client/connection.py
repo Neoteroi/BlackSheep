@@ -18,15 +18,6 @@ from h2.events import (
 )
 
 from blacksheep import Content, Request, Response
-from blacksheep.client.parser import get_default_parser
-from blacksheep.scribe import (
-    is_small_request,
-    request_has_body,
-    write_request,
-    write_request_body_only,
-    write_request_without_body,
-    write_small_request,
-)
 
 SECURE_SSLCONTEXT = ssl.create_default_context(
     ssl.Purpose.SERVER_AUTH, cafile=certifi.where()
@@ -338,9 +329,7 @@ class HTTP2Connection(HTTPConnection):
 
             self._connected = True
 
-    def _convert_request_to_h2_headers(
-        self, request: Request
-    ) -> list[tuple[str, str]]:
+    def _convert_request_to_h2_headers(self, request: Request) -> list[tuple[str, str]]:
         """Convert a BlackSheep Request to HTTP/2 pseudo-headers and headers."""
         # HTTP/2 pseudo-headers
         path = request.url.path or b"/"
@@ -357,12 +346,20 @@ class HTTP2Connection(HTTPConnection):
         # Add Content-Type header from content if present
         if request.content and request.content.type:
             content_type = request.content.type
-            content_type_str = content_type.decode("utf-8") if isinstance(content_type, bytes) else content_type
+            content_type_str = (
+                content_type.decode("utf-8")
+                if isinstance(content_type, bytes)
+                else content_type
+            )
             headers.append(("content-type", content_type_str))
 
         # Add regular headers
         for name, value in request.headers:
-            name_str = name.decode("utf-8").lower() if isinstance(name, bytes) else name.lower()
+            name_str = (
+                name.decode("utf-8").lower()
+                if isinstance(name, bytes)
+                else name.lower()
+            )
             value_str = value.decode("utf-8") if isinstance(value, bytes) else value
 
             # Skip headers that are represented as pseudo-headers in HTTP/2
@@ -402,7 +399,8 @@ class HTTP2Connection(HTTPConnection):
             self.streams[stream_id] = {
                 "headers": [],
                 "content": None,  # IncomingContent for streaming
-                "buffered_data": bytearray(),  # Buffer for data received before IncomingContent is created
+                # Buffer for data received before IncomingContent is created
+                "buffered_data": bytearray(),
                 "complete": False,
                 "headers_received": False,
                 "status": None,
@@ -414,8 +412,7 @@ class HTTP2Connection(HTTPConnection):
 
             # Check for Expect: 100-continue header
             expect_continue = any(
-                (h[0] == "expect" and h[1] == "100-continue")
-                for h in h2_headers
+                (h[0] == "expect" and h[1] == "100-continue") for h in h2_headers
             )
 
             # Send headers (without end_stream if expecting 100-continue with body)
@@ -457,7 +454,9 @@ class HTTP2Connection(HTTPConnection):
         # Receive response
         return await self._receive_response(stream_id)
 
-    async def _wait_for_100_continue_h2(self, stream_id: int, timeout: float = 5.0) -> bool:
+    async def _wait_for_100_continue_h2(
+        self, stream_id: int, timeout: float = 5.0
+    ) -> bool:
         """
         Wait for 100 Continue response for HTTP/2.
 
@@ -489,7 +488,8 @@ class HTTP2Connection(HTTPConnection):
                 status = stream.get("status")
                 if status == 100:
                     # Got 100 Continue, proceed with body
-                    # Reset headers_received so _receive_response can get the real response
+                    # Reset headers_received so _receive_response can get the real
+                    # response
                     stream["headers_received"] = False
                     stream["headers"] = []
                     stream["status"] = None
@@ -512,7 +512,9 @@ class HTTP2Connection(HTTPConnection):
                     stream["headers"] = list(event.headers)
                     for name, value in event.headers:
                         if name == b":status" or name == ":status":
-                            status_value = value if isinstance(value, str) else value.decode()
+                            status_value = (
+                                value if isinstance(value, str) else value.decode()
+                            )
                             stream["status"] = int(status_value)
                             break
                     stream["headers_received"] = True
@@ -581,7 +583,9 @@ class HTTP2Connection(HTTPConnection):
             self.writer.write(data_to_send)
             await self.writer.drain()
 
-    async def _receive_response(self, stream_id: int, timeout: float = 60.0) -> Response:
+    async def _receive_response(
+        self, stream_id: int, timeout: float = 60.0
+    ) -> Response:
         """
         Receive response for a specific stream with true streaming support.
 
@@ -632,7 +636,9 @@ class HTTP2Connection(HTTPConnection):
         response = Response(stream["status"], response_headers, None)
 
         # Create IncomingContent for streaming and store in stream
-        content_type = response.get_first_header(b"content-type") or b"application/octet-stream"
+        content_type = (
+            response.get_first_header(b"content-type") or b"application/octet-stream"
+        )
         incoming_content = IncomingContent(content_type)
         stream["content"] = incoming_content
         response.content = incoming_content
@@ -694,8 +700,11 @@ class HTTP2Connection(HTTPConnection):
                 # Clean up completed streams that have had their content consumed
                 # Only clean up if content.complete is set and body has been read
                 completed = [
-                    sid for sid, s in self.streams.items()
-                    if s["complete"] and s.get("content") and s["content"].complete.is_set()
+                    sid
+                    for sid, s in self.streams.items()
+                    if s["complete"]
+                    and s.get("content")
+                    and s["content"].complete.is_set()
                 ]
                 for sid in completed:
                     if sid in self.streams:
@@ -875,7 +884,11 @@ class HTTP11Connection(HTTPConnection):
         # Add Content-Type header from content if present
         if request.content and request.content.type:
             content_type = request.content.type
-            content_type_bytes = content_type if isinstance(content_type, bytes) else content_type.encode("utf-8")
+            content_type_bytes = (
+                content_type
+                if isinstance(content_type, bytes)
+                else content_type.encode("utf-8")
+            )
             headers.append((b"content-type", content_type_bytes))
 
         # Add Host header if not present
@@ -905,7 +918,11 @@ class HTTP11Connection(HTTPConnection):
                     headers.append((b"content-length", str(len(body)).encode()))
 
         # Create h11 Request
-        method = request.method.encode() if isinstance(request.method, str) else request.method
+        method = (
+            request.method.encode()
+            if isinstance(request.method, str)
+            else request.method
+        )
         h11_request = h11.Request(
             method=method,
             target=path,
@@ -1019,14 +1036,17 @@ class HTTP11Connection(HTTPConnection):
                         response_headers = [
                             (
                                 k if isinstance(k, bytes) else k.encode(),
-                                v if isinstance(v, bytes) else v.encode()
+                                v if isinstance(v, bytes) else v.encode(),
                             )
                             for k, v in event.headers
                         ]
                         response = Response(status, response_headers, None)
 
                         # Still need to read any body from this response
-                        content_type = response.get_first_header(b"content-type") or b"application/octet-stream"
+                        content_type = (
+                            response.get_first_header(b"content-type")
+                            or b"application/octet-stream"
+                        )
                         incoming_content = IncomingContent(content_type)
                         response.content = incoming_content
 
@@ -1104,7 +1124,7 @@ class HTTP11Connection(HTTPConnection):
                     response_headers = [
                         (
                             k if isinstance(k, bytes) else k.encode(),
-                            v if isinstance(v, bytes) else v.encode()
+                            v if isinstance(v, bytes) else v.encode(),
                         )
                         for k, v in event.headers
                     ]
@@ -1165,7 +1185,9 @@ class HTTP11Connection(HTTPConnection):
         response = Response(status, response_headers, None)
 
         # Create IncomingContent for streaming
-        content_type = response.get_first_header(b"content-type") or b"application/octet-stream"
+        content_type = (
+            response.get_first_header(b"content-type") or b"application/octet-stream"
+        )
         incoming_content = IncomingContent(content_type)
         response.content = incoming_content
 
@@ -1173,9 +1195,9 @@ class HTTP11Connection(HTTPConnection):
         content_length = response.get_first_header(b"content-length")
         transfer_encoding = response.get_first_header(b"transfer-encoding")
         has_body = (
-            (content_length and int(content_length) > 0) or
-            (transfer_encoding and b"chunked" in transfer_encoding) or
-            response.get_first_header(b"content-type") is not None
+            (content_length and int(content_length) > 0)
+            or (transfer_encoding and b"chunked" in transfer_encoding)
+            or response.get_first_header(b"content-type") is not None
         )
 
         if has_body:

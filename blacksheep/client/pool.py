@@ -8,13 +8,13 @@ from typing import Literal
 from blacksheep.exceptions import InvalidArgument
 
 from .connection import (
-    INSECURE_SSLCONTEXT,
-    SECURE_SSLCONTEXT,
     INSECURE_HTTP2_SSLCONTEXT,
+    INSECURE_SSLCONTEXT,
     SECURE_HTTP2_SSLCONTEXT,
-    HTTPConnection,
-    HTTP11Connection,
+    SECURE_SSLCONTEXT,
     HTTP2Connection,
+    HTTP11Connection,
+    HTTPConnection,
 )
 
 logger = logging.getLogger("blacksheep.client")
@@ -123,7 +123,9 @@ class ConnectionPool:
 
                 # Cache the protocol BEFORE closing (close can raise SSL errors)
                 self._protocol_cache[key] = protocol
-                logger.debug(f"Detected protocol {protocol} for {self.host}:{self.port}")
+                logger.debug(
+                    f"Detected protocol {protocol} for {self.host}:{self.port}"
+                )
 
                 # Close the detection connection - ignore SSL errors during close
                 try:
@@ -252,8 +254,7 @@ class ConnectionPool:
         # Close HTTP/2 connections with proper async cleanup
         for conn in self._http2_connections:
             logger.debug(
-                f"Closing HTTP/2 connection "
-                f"{id(conn)} to: {self.host}:{self.port}"
+                f"Closing HTTP/2 connection " f"{id(conn)} to: {self.host}:{self.port}"
             )
             await conn.close()
         self._http2_connections.clear()
@@ -276,8 +277,12 @@ class ConnectionPools:
             return self._pools[key]
         except KeyError:
             new_pool = ConnectionPool(
-                scheme, host, port, ssl, http2=self.http2_enabled,
-                idle_timeout=self.idle_timeout
+                scheme,
+                host,
+                port,
+                ssl,
+                http2=self.http2_enabled,
+                idle_timeout=self.idle_timeout,
             )
             self._pools[key] = new_pool
             return new_pool

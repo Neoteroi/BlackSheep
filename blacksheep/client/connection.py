@@ -3,6 +3,7 @@ import ssl
 import time
 import weakref
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Protocol
 
 import certifi
@@ -89,6 +90,19 @@ class HTTPResponseParserProtocol(Protocol):
     def reset(self) -> None: ...
 
 
+@dataclass(slots=True)
+class StreamState:
+    """Represents the state of an HTTP/2 stream."""
+
+    headers: list
+    content: "IncomingContent | None"
+    buffered_data: bytearray
+    complete: bool
+    headers_received: bool
+    status: int
+    error: str | None
+
+
 class IncomingContent(Content):
     def __init__(self, content_type: bytes):
         super().__init__(content_type, b"")
@@ -104,7 +118,8 @@ class IncomingContent(Content):
     @property
     def exc(self) -> Exception | None:
         """
-        Gets an exception that was set on this content.
+        Gets the exception that was set on this content, if any occurred while handling
+        the request.
         """
         return self._exc
 
@@ -279,7 +294,7 @@ class HTTP2Connection(HTTPConnection):
         self._read_lock = asyncio.Lock()
 
         # Stream management with completion events
-        self.streams: dict[int, dict] = {}
+        self.streams: dict[int, StreamState] = {}
         self._stream_events: dict[int, asyncio.Event] = {}  # Stream complete events
         self._headers_events: dict[int, asyncio.Event] = {}  # Headers received events
         self.next_stream_id = 1
@@ -396,16 +411,15 @@ class HTTP2Connection(HTTPConnection):
                 body = await request.content.read()
 
             # Initialize stream tracking with completion event
-            self.streams[stream_id] = {
-                "headers": [],
-                "content": None,  # IncomingContent for streaming
-                # Buffer for data received before IncomingContent is created
-                "buffered_data": bytearray(),
-                "complete": False,
-                "headers_received": False,
-                "status": None,
-                "error": None,
-            }
+            self.streams[stream_id] = StreamState(
+                headers=[],
+                content=None,
+                buffered_data=bytearray(),
+                complete=False,
+                headers_received=False,
+                status=-1,
+                error=None,
+            )
             self._stream_events[stream_id] = asyncio.Event()
             self._headers_events[stream_id] = asyncio.Event()
             self._active_streams += 1
@@ -471,7 +485,7 @@ class HTTP2Connection(HTTPConnection):
         try:
             async with asyncio.timeout(timeout):
                 # Keep reading until we get headers
-                while not stream["headers_received"]:
+                while not stream.headers_received:
                     async with self._read_lock:
                         if not self.reader:
                             return True
@@ -485,14 +499,13 @@ class HTTP2Connection(HTTPConnection):
                         await self._send_pending_data()
 
                 # Check the status we received
-                status = stream.get("status")
-                if status == 100:
+                if stream.status == 100:
                     # Got 100 Continue, proceed with body
                     # Reset headers_received so _receive_response can get the real
                     # response
-                    stream["headers_received"] = False
-                    stream["headers"] = []
-                    stream["status"] = None
+                    stream.headers_received = False
+                    stream.headers = []
+                    stream.status = None
                     return True
                 else:
                     # Got a final response (e.g., 417 Expectation Failed)
@@ -509,15 +522,15 @@ class HTTP2Connection(HTTPConnection):
             if isinstance(event, ResponseReceived):
                 stream = self.streams.get(event.stream_id)
                 if stream:
-                    stream["headers"] = list(event.headers)
+                    stream.headers = list(event.headers)
                     for name, value in event.headers:
                         if name == b":status" or name == ":status":
                             status_value = (
                                 value if isinstance(value, str) else value.decode()
                             )
-                            stream["status"] = int(status_value)
+                            stream.status = int(status_value)
                             break
-                    stream["headers_received"] = True
+                    stream.headers_received = True
                     # Signal that headers are ready
                     headers_event = self._headers_events.get(event.stream_id)
                     if headers_event:
@@ -526,12 +539,12 @@ class HTTP2Connection(HTTPConnection):
             elif isinstance(event, DataReceived):
                 stream = self.streams.get(event.stream_id)
                 if stream:
-                    if stream["content"]:
+                    if stream.content:
                         # Stream data directly to IncomingContent
-                        stream["content"].extend_body(event.data)
+                        stream.content.extend_body(event.data)
                     else:
                         # Buffer data until IncomingContent is created
-                        stream["buffered_data"].extend(event.data)
+                        stream.buffered_data.extend(event.data)
                 # Acknowledge received data for flow control
                 self.h2_conn.acknowledge_received_data(
                     event.flow_controlled_length, event.stream_id
@@ -541,10 +554,10 @@ class HTTP2Connection(HTTPConnection):
             elif isinstance(event, StreamEnded):
                 stream = self.streams.get(event.stream_id)
                 if stream:
-                    stream["complete"] = True
+                    stream.complete = True
                     # Mark content as complete
-                    if stream["content"]:
-                        stream["content"].set_complete()
+                    if stream.content:
+                        stream.content.set_complete()
                     stream_event = self._stream_events.get(event.stream_id)
                     if stream_event:
                         stream_event.set()
@@ -559,14 +572,12 @@ class HTTP2Connection(HTTPConnection):
             elif isinstance(event, StreamReset):
                 stream = self.streams.get(event.stream_id)
                 if stream:
-                    stream["complete"] = True
-                    stream["error"] = f"Stream {event.stream_id} was reset"
+                    stream.complete = True
+                    stream.error = f"Stream {event.stream_id} was reset"
                     # Set error on content if it exists
-                    if stream["content"]:
-                        stream["content"].exc = ConnectionException(stream["error"])
-                        stream["content"].set_complete()
-                    stream_event = self._stream_events.get(event.stream_id)
-                    if stream_event:
+                    if stream.content:
+                        stream.content.exc = ConnectionException(stream.error)
+                        stream.content
                         stream_event.set()
                     # Also signal headers event in case we're waiting
                     headers_event = self._headers_events.get(event.stream_id)
@@ -615,16 +626,15 @@ class HTTP2Connection(HTTPConnection):
             raise ConnectionClosedError(True)
 
         stream = self.streams[stream_id]
-        if stream.get("error"):
+        if stream.error:
             # Check if it's a connection closed error (retryable)
-            error_msg = stream["error"]
-            if "closed" in error_msg.lower():
+            if "closed" in stream.error.lower():
                 raise ConnectionClosedError(True)
-            raise ConnectionException(error_msg)
+            raise ConnectionException(stream.error)
 
         # Convert to BlackSheep Response
         response_headers = []
-        for name, value in stream["headers"]:
+        for name, value in stream.headers:
             if isinstance(name, str):
                 name = name.encode("utf-8")
             if isinstance(value, str):
@@ -633,23 +643,23 @@ class HTTP2Connection(HTTPConnection):
             if not name.startswith(b":"):
                 response_headers.append((name, value))
 
-        response = Response(stream["status"], response_headers, None)
+        response = Response(stream.status, response_headers, None)
 
         # Create IncomingContent for streaming and store in stream
         content_type = (
             response.get_first_header(b"content-type") or b"application/octet-stream"
         )
         incoming_content = IncomingContent(content_type)
-        stream["content"] = incoming_content
+        stream.content = incoming_content
         response.content = incoming_content
 
         # Transfer any buffered data received before IncomingContent was created
-        if stream["buffered_data"]:
-            incoming_content.extend_body(bytes(stream["buffered_data"]))
-            stream["buffered_data"].clear()
+        if stream.buffered_data:
+            incoming_content.extend_body(bytes(stream.buffered_data))
+            stream.buffered_data.clear()
 
         # If stream is already complete (no body or already received), mark as done
-        if stream["complete"]:
+        if stream.complete:
             incoming_content.set_complete()
             # Clean up
             del self.streams[stream_id]
@@ -702,9 +712,7 @@ class HTTP2Connection(HTTPConnection):
                 completed = [
                     sid
                     for sid, s in self.streams.items()
-                    if s["complete"]
-                    and s.get("content")
-                    and s["content"].complete.is_set()
+                    if s.complete and s.content and s.content.complete.is_set()
                 ]
                 for sid in completed:
                     if sid in self.streams:
@@ -717,26 +725,26 @@ class HTTP2Connection(HTTPConnection):
         except Exception as e:
             # Set error on all active streams and signal headers events
             for stream_id, stream in self.streams.items():
-                stream["error"] = str(e)
+                stream.error = str(e)
                 # Signal headers event so waiting requests can see the error
                 if stream_id in self._headers_events:
                     self._headers_events[stream_id].set()
-                if stream["content"] and not stream["complete"]:
-                    stream["content"].exc = e
-                    stream["content"].set_complete()
+                if stream.content and not stream.complete:
+                    stream.content.exc = e
+                    stream.content
 
     def _handle_connection_closed(self) -> None:
         """Handle unexpected connection close."""
         for stream_id, stream in self.streams.items():
-            if not stream["complete"]:
-                stream["complete"] = True
-                stream["error"] = "Connection closed"
+            if not stream.complete:
+                stream.complete = True
+                stream.error = "Connection closed"
                 # Signal headers event so waiting requests can see the error
                 if stream_id in self._headers_events:
                     self._headers_events[stream_id].set()
-                if stream["content"]:
-                    stream["content"].exc = ConnectionClosedError(True)
-                    stream["content"].set_complete()
+                if stream.content:
+                    stream.content.exc = ConnectionClosedError(True)
+                    stream.content.set_complete()
 
     def _try_return_to_pool(self) -> None:
         """Try to return this connection to its pool."""

@@ -37,6 +37,7 @@ dependencies = [
     "h11>=0.14.0,<1.0.0",
     "h2>=4.0.0,<5.0.0",
     "httptools>=0.7.1; platform_python_implementation != 'PyPy'",
+    "async-timeout>=4.0.0; python_version < '3.11'",
 ]
 
 [tool.setuptools.packages.find]

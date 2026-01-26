@@ -1,5 +1,6 @@
 import asyncio
 import ssl
+import sys
 import time
 import weakref
 from abc import ABC, abstractmethod
@@ -19,6 +20,12 @@ from h2.events import (
 )
 
 from blacksheep import Content, Request, Response
+
+# Compatibility for asyncio.timeout (added in Python 3.11)
+if sys.version_info >= (3, 11):
+    from asyncio import timeout as asyncio_timeout
+else:
+    from async_timeout import timeout as asyncio_timeout
 
 SECURE_SSLCONTEXT = ssl.create_default_context(
     ssl.Purpose.SERVER_AUTH, cafile=certifi.where()
@@ -494,7 +501,7 @@ class HTTP2Connection(HTTPConnection):
             return True  # Proceed if stream doesn't exist
 
         try:
-            async with asyncio.timeout(timeout):
+            async with asyncio_timeout(timeout):
                 # Keep reading until we get headers
                 while not stream.headers_received:
                     async with self._read_lock:
@@ -1032,7 +1039,7 @@ class HTTP11Connection(HTTPConnection):
             Response if got final response like 417 (don't send body)
         """
         try:
-            async with asyncio.timeout(timeout):
+            async with asyncio_timeout(timeout):
                 while True:
                     event = self._h11_conn.next_event()
 

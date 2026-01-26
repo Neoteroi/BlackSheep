@@ -259,6 +259,7 @@ class HTTP2Connection(HTTPConnection):
         "_closing",
         "_active_streams",
         "_reader_task",
+        "_cached_scheme",
     )
 
     def __init__(
@@ -305,6 +306,7 @@ class HTTP2Connection(HTTPConnection):
         self._closing = False
         self._active_streams = 0  # Track streams with pending body reads
         self._reader_task: asyncio.Task | None = None  # Background reader task
+        self._cached_scheme = "https" if ssl_context else "http"  # Cached scheme string
 
     @property
     def is_open(self) -> bool:
@@ -354,7 +356,7 @@ class HTTP2Connection(HTTPConnection):
         headers = [
             (":method", request.method),
             (":path", path.decode("utf-8")),
-            (":scheme", request.url.schema.decode("utf-8")),
+            (":scheme", self._cached_scheme),
             (":authority", self.host),
         ]
 

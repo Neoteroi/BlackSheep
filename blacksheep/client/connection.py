@@ -135,7 +135,7 @@ class IncomingContent(Content):
             # resume the loop for streaming content
             self._chunk.set()
 
-    def extend_body(self, chunk: bytes):
+    def extend_body(self, chunk: bytes | bytearray):
         self._body.extend(chunk)
         self._chunk.set()
 
@@ -657,7 +657,7 @@ class HTTP2Connection(HTTPConnection):
 
         # Transfer any buffered data received before IncomingContent was created
         if stream.buffered_data:
-            incoming_content.extend_body(bytes(stream.buffered_data))
+            incoming_content.extend_body(stream.buffered_data)
             stream.buffered_data.clear()
 
         # If stream is already complete (no body or already received), mark as done

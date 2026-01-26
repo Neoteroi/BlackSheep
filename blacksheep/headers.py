@@ -76,7 +76,9 @@ class Headers:
             values.append((name, value))
         return Headers(values)
 
-    def add_many(self, values: dict[bytes, bytes] | list[tuple[bytes, bytes]] | list[Header]):
+    def add_many(
+        self, values: dict[bytes, bytes] | list[tuple[bytes, bytes]] | list[Header]
+    ):
         if isinstance(values, MutableSequence):
             for item in values:
                 self.add(*item)
@@ -88,7 +90,10 @@ class Headers:
         raise ValueError("values must be dict[bytes, bytes] or list[Header]")
 
     @staticmethod
-    def _add_to_instance(instance, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
+    def _add_to_instance(
+        instance,
+        other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]",
+    ):
         if isinstance(other, Headers):
             for value in other:
                 instance.add(*value)
@@ -113,13 +118,22 @@ class Headers:
             return instance
         return NotImplemented
 
-    def __add__(self, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
+    def __add__(
+        self,
+        other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]",
+    ):
         return self._add_to_instance(self.clone(), other)
 
-    def __radd__(self, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
+    def __radd__(
+        self,
+        other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]",
+    ):
         return self._add_to_instance(self.clone(), other)
 
-    def __iadd__(self, other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]"):
+    def __iadd__(
+        self,
+        other: "Headers | Header | tuple[bytes, bytes] | MutableSequence[tuple[bytes, bytes]]",
+    ):
         return self._add_to_instance(self, other)
 
     def __iter__(self) -> Generator[tuple[bytes, bytes], None, None]:

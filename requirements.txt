@@ -6,10 +6,12 @@ essentials-openapi>=1.2.0,<2.0
 itsdangerous~=2.2.0
 cryptography>=45.0.2,<47.0.0
 h11==0.16.0
+h2>=4.0.0,<5.0.0
 Jinja2~=3.1.6
 PyJWT==2.10.1
 websockets~=15.0.1
 httptools==0.6.4
+async-timeout>=4.0.0; python_version < '3.11'
 # For tests:
 Cython==3.1.4
 setuptools==80.7.1

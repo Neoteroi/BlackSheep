@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-01-26
+
+- Add native HTTP/2 support to the HTTP client with automatic protocol detection
+  via ALPN (Application-Layer Protocol Negotiation). The client now automatically
+  uses HTTP/2 when the server supports it, with seamless fallback to HTTP/1.1.
+- Add new `HTTP2Connection` class using the `h2` library for HTTP/2 protocol handling.
+- Add new `HTTP11Connection` class using the `h11` library for consistent HTTP/1.1 handling
+- Both connection types use `asyncio.open_connection` streams for a unified architecture.
+- HTTP/2 connections support stream multiplexing, allowing multiple concurrent requests
+  over a single TCP connection.
+- Add `http2` parameter to `ClientSession` (defaults to `True`) to control HTTP/2 usage.
+- Protocol detection is performed once per host and cached for efficiency.
+- Add `h2>=4.0.0,<5.0.0` as a new dependency.
+- **Refactor HTTP/1.1 client implementation** to use the `h11` library instead of
+  custom request writing methods from `blacksheep.scribe`. This provides a more
+  robust and standards-compliant HTTP/1.1 state machine, and creates consistency
+  with the HTTP/2 implementation pattern.
+- The new `HTTP11Connection` class replaces the `asyncio.Protocol`-based approach
+  with a streams-based implementation.
+- Remove the legacy `ClientConnection` class has been removed.
+- Both HTTP/1.1 and HTTP/2 implementations follow the same architectural pattern.
+- Remove the option of passing the event loop to the constructor of client classes.
+
 ## [2.4.6] - 2026-01-13
 
 - Fix CRLF injection vulnerability in the BlackSheep HTTP Client, reported by Jinho Ju (@tr4ce-ju).

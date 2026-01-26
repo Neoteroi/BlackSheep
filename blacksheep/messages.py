@@ -157,7 +157,11 @@ class Message:
         return None
 
     async def stream(self):
-        if hasattr(self, "content") and self.content and hasattr(self.content, "stream"):
+        if (
+            hasattr(self, "content")
+            and self.content
+            and hasattr(self.content, "stream")
+        ):
             async for chunk in self.content.stream():
                 yield chunk
         else:
@@ -224,7 +228,9 @@ class Message:
             return [part for part in data if part.file_name and part.name == name]
         return [part for part in data if part.file_name]
 
-    async def json(self, loads=json_settings.loads) -> dict[str, Any] | list[Any] | None:
+    async def json(
+        self, loads=json_settings.loads
+    ) -> dict[str, Any] | list[Any] | None:
         if not self.declares_json():
             return None
         text = await self.text()
@@ -279,7 +285,6 @@ class Request(Message):
             self._raw_query = None
         self.scope: dict[str, Any] = {}
         self.content: Content | None = None
-
 
     # TODO: deprecate the 'identity' property in the future. This requires a breaking
     # change in guardpost, too.

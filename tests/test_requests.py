@@ -1,10 +1,9 @@
 import pytest
 
-from blacksheep import Content, Request, scribe
-from blacksheep.contents import FormPart, MultiPartFormData, StreamedContent
+from blacksheep import Content, Request
+from blacksheep.contents import FormPart, MultiPartFormData
 from blacksheep.exceptions import BadRequestFormat
 from blacksheep.messages import get_absolute_url_to_path, get_request_absolute_url
-from blacksheep.scribe import write_request, write_small_request
 from blacksheep.server.asgi import (
     get_request_url,
     get_request_url_from_scope,
@@ -23,69 +22,6 @@ def test_request_supports_dynamic_attributes():
     ), "This test makes sense if such attribute is not defined"
     request.foo = foo  # type: ignore
     assert request.foo is foo  # type: ignore
-
-
-@pytest.mark.parametrize(
-    "url,method,headers,content,expected_result",
-    [
-        (
-            b"https://robertoprevato.github.io",
-            "GET",
-            [],
-            None,
-            b"GET / HTTP/1.1\r\nhost: robertoprevato.github.io\r\ncontent-length: 0\r\n\r\n",
-        ),
-        (
-            b"https://robertoprevato.github.io",
-            "HEAD",
-            [],
-            None,
-            b"HEAD / HTTP/1.1\r\nhost: robertoprevato.github.io\r\ncontent-length: 0\r\n\r\n",
-        ),
-        (
-            b"https://robertoprevato.github.io",
-            "POST",
-            [],
-            None,
-            b"POST / HTTP/1.1\r\nhost: robertoprevato.github.io\r\ncontent-length: 0\r\n\r\n",
-        ),
-        (
-            b"https://robertoprevato.github.io/How-I-created-my-own-media-storage-in-Azure/",
-            "GET",
-            [],
-            None,
-            b"GET /How-I-created-my-own-media-storage-in-Azure/ HTTP/1.1\r\nhost: robertoprevato.github.io"
-            b"\r\ncontent-length: 0\r\n\r\n",
-        ),
-        (
-            b"https://foo.org/a/b/c/?foo=1&ufo=0",
-            "GET",
-            [],
-            None,
-            b"GET /a/b/c/?foo=1&ufo=0 HTTP/1.1\r\nhost: foo.org\r\ncontent-length: 0\r\n\r\n",
-        ),
-        (
-            b"https://foo.org/a/b/c/",
-            "PROPFIND",  # Issue #517
-            [],
-            None,
-            b"PROPFIND /a/b/c/ HTTP/1.1\r\nhost: foo.org\r\ncontent-length: 0\r\n\r\n",
-        ),
-        (
-            b"https://foo.org/a/b/c/",
-            "UNLOCK",  # Issue #517
-            [],
-            None,
-            b"UNLOCK /a/b/c/ HTTP/1.1\r\nhost: foo.org\r\ncontent-length: 0\r\n\r\n",
-        ),
-    ],
-)
-async def test_request_writing(url, method, headers, content, expected_result):
-    request = Request(method, url, headers).with_content(content)
-    data = b""
-    async for chunk in scribe.write_request(request):
-        data += chunk
-    assert data == expected_result
 
 
 @pytest.mark.parametrize(
@@ -210,37 +146,6 @@ def test_request_expect_100_continue(header, expected_result):
 def test_request_declares_json(headers, expected_result):
     request = Request("GET", b"/", headers)
     assert request.declares_json() is expected_result
-
-
-def test_small_request_headers_add_through_higher_api():
-    request = Request("GET", b"https://hello-world", None)
-
-    request.headers.add(b"Hello", b"World")
-
-    raw_bytes = write_small_request(request)
-
-    assert b"Hello: World\r\n" in raw_bytes
-
-
-def test_small_request_headers_add_through_higher_api_many():
-    request = Request("GET", b"https://hello-world", None)
-
-    request.headers.add_many({b"Hello": b"World", b"X-Foo": b"Foo"})
-
-    raw_bytes = write_small_request(request)
-
-    assert b"Hello: World\r\n" in raw_bytes
-    assert b"X-Foo: Foo\r\n" in raw_bytes
-
-
-def test_small_request_headers_add_through_lower_api():
-    request = Request("GET", b"https://hello-world", None)
-
-    request.add_header(b"Hello", b"World")
-
-    raw_bytes = write_small_request(request)
-
-    assert b"Hello: World\r\n" in raw_bytes
 
 
 @pytest.mark.parametrize(
@@ -541,50 +446,6 @@ def test_updating_request_url_read_host():
     assert request.host == "github.com"
 
 
-async def test_updating_request_host_in_headers():
-    request = Request("GET", b"https://www.neoteroi.dev/blacksheep", [])
-
-    assert request.path == "/blacksheep"
-    assert request.host == "www.neoteroi.dev"
-    assert request.headers[b"host"] == tuple()
-
-    async for _ in write_request(request):
-        pass
-
-    assert request.headers[b"host"] == (b"www.neoteroi.dev",)
-    request.url = "https://github.com/RobertoPrevato"
-
-    assert request.headers[b"host"] == tuple()
-
-    async for _ in write_request(request):
-        pass
-
-    assert request.headers[b"host"] == (b"github.com",)
-
-
-async def test_write_request_cookies():
-    request = Request("GET", b"https://www.neoteroi.dev/blacksheep", [])
-
-    request.set_cookie("example_1", "one")
-    request.set_cookie("example_2", "two")
-
-    expected_bytes = b"""GET /blacksheep HTTP/1.1
-cookie: example_1=one;example_2=two
-host: www.neoteroi.dev
-content-length: 0
-
-""".replace(
-        b"\n", b"\r\n"
-    )
-
-    value = bytearray()
-
-    async for chunk in write_request(request):
-        value.extend(chunk)
-
-    assert bytes(value) == expected_bytes
-
-
 def test_scope_root_path():
     request = Request("GET", b"/", [])
     assert request.base_path == ""
@@ -601,42 +462,6 @@ def test_scope_root_path():
     assert request.base_path == "/app2"
 
 
-async def test_write_small_request_streamed():
-    async def content_gen():
-        yield b"Hello"
-        yield b"World"
-
-    request = Request("POST", b"/", []).with_content(
-        StreamedContent(b"text/plain", content_gen)
-    )
-
-    data = bytearray()
-    async for chunk in write_request(request):
-        data.extend(chunk)
-    assert (
-        bytes(data)
-        == b"""POST / HTTP/1.1\r\ncontent-type: text/plain\r\ntransfer-encoding: chunked\r\n\r\n5\r\nHello\r\n5\r\nWorld\r\n0\r\n\r\n"""
-    )
-
-
-async def test_write_small_request_streamed_fixed_length():
-    async def content_gen():
-        yield b"Hello"
-        yield b"World"
-
-    request = Request("POST", b"/", []).with_content(
-        StreamedContent(b"text/plain", content_gen, len("HelloWorld"))
-    )
-
-    data = bytearray()
-    async for chunk in write_request(request):
-        data.extend(chunk)
-    assert (
-        bytes(data)
-        == b"POST / HTTP/1.1\r\ncontent-type: text/plain\r\ncontent-length: 10\r\n\r\nHelloWorld"
-    )
-
-
 @pytest.mark.parametrize(
     "content_type_header,expected_charset",
     [
@@ -651,22 +476,3 @@ async def test_write_small_request_streamed_fixed_length():
 def test_request_charset(content_type_header, expected_charset):
     request = Request("POST", b"/", [(b"Content-Type", content_type_header.encode())])
     assert request.charset == expected_charset
-
-
-def test_write_request_prevents_crlf_injection_in_headers():
-    request = Request("GET", b"https://hello-world", [
-        (b"X-Injection", b"Hello\nInjected: Bad"),
-    ])
-    raw_bytes = write_small_request(request)
-
-    assert b"X-Injection: HelloInjected: Bad\r\n" in raw_bytes
-
-
-def test_write_request_prevents_crlf_injection_in_method():
-    # Attempt to inject additional headers via CRLF in the HTTP method
-    request = Request("GET\r\nX-Injected: Bad\r\nAnother: Header", b"https://hello-world", [])
-
-    with pytest.raises(ValueError) as exc_info:
-        write_small_request(request)
-
-    assert "Invalid HTTP method" in str(exc_info.value)

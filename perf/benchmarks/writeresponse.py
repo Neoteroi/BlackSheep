@@ -27,33 +27,12 @@ RESPONSE_HEADERS = [
 ]
 
 
-async def test_write_text_response():
-    response = Response(200, RESPONSE_HEADERS).with_content(TextContent(LOREM_IPSUM))
-    data = bytearray()
-    async for chunk in write_response(response):
-        data.extend(chunk)
-    return data
-
-
-async def test_write_small_response():
-    response = Response(404, RESPONSE_HEADERS).with_content(TextContent("Not Found"))
-    data = bytearray()
-    async for chunk in write_response(response):
-        data.extend(chunk)
-    return data
-
-
-async def benchmark_write_small_response(iterations=ITERATIONS):
-    return await async_benchmark(test_write_small_response, iterations)
-
-
 async def benchmark_write_text_response(iterations=ITERATIONS):
     return await async_benchmark(test_write_text_response, iterations)
 
 
 async def main():
     await benchmark_write_text_response(ITERATIONS)
-    await benchmark_write_small_response(ITERATIONS)
 
 
 if __name__ == "__main__":

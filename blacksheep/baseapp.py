@@ -1,8 +1,8 @@
 import http
 import inspect
 import logging
-from collections import UserDict
 import typing
+from collections import UserDict
 
 from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.routing import Router

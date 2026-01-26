@@ -41,9 +41,8 @@ def session(server_url, event_loop):
     # It is important to pass the instance of ConnectionPools,
     # to ensure that the connections are reused and closed
     session = ClientSession(
-        loop=event_loop,
         base_url=server_url,
-        pools=ConnectionPools(event_loop),
+        pools=ConnectionPools(),
     )
     yield session
     asyncio.run(session.close())
@@ -52,7 +51,6 @@ def session(server_url, event_loop):
 @pytest.fixture(scope="function")
 def session_alt(event_loop):
     session = ClientSession(
-        loop=event_loop,
         default_headers=[(b"X-Default-One", b"AAA"), (b"X-Default-Two", b"BBB")],
     )
     yield session

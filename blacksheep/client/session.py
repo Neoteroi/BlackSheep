@@ -1,13 +1,12 @@
 import asyncio
 import ssl
-from asyncio import AbstractEventLoop, TimeoutError
+from asyncio import TimeoutError
 from typing import Any, AnyStr, Callable, Type, cast
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from blacksheep import URL, Content, InvalidURL, Request, Response, __version__
 from blacksheep.common.types import HeadersType, ParamsType, URLType, normalize_headers
 from blacksheep.middlewares import MiddlewareList, get_middlewares_chain
-from blacksheep.utils.aio import get_running_loop
 
 from .connection import ConnectionClosedError
 from .cookies import CookieJar, cookies_middleware
@@ -19,7 +18,7 @@ from .exceptions import (
     RequestTimeout,
     UnsupportedRedirect,
 )
-from .pool import ClientConnection, ConnectionPools
+from .pool import ConnectionPools, HTTPConnection
 
 
 class RedirectsCache:
@@ -56,7 +55,6 @@ class ClientSession:
 
     def __init__(
         self,
-        loop: AbstractEventLoop | None = None,
         base_url: None | bytes | str | URL = None,
         ssl: None | bool | ssl.SSLContext = None,
         pools: ConnectionPools | None = None,
@@ -68,14 +66,40 @@ class ClientSession:
         redirects_cache_type: Type[RedirectsCache] | Any = None,
         cookie_jar: None | bool | CookieJar = None,
         middlewares: list[Callable[..., Any]] | None = None,
+        http2: bool = True,
+        max_connection_retries: int = 3,
+        idle_timeout: float = 300.0,
     ):
-        if loop is None:
-            loop = get_running_loop()
+        """
+        Initialize a ClientSession for making HTTP requests.
 
+        Args:
+            base_url: Base URL for all requests. Can be a string, bytes, or URL object.
+            ssl: SSL configuration. True for default secure context, False for insecure
+                 (disable SSL verification), or provide a custom ssl.SSLContext.
+            pools: Connection pools to use. If not provided, a new one will be created.
+            default_headers: Headers to include in all requests.
+            follow_redirects: Whether to automatically follow redirects.
+            connection_timeout: Timeout for establishing connections (seconds).
+            request_timeout: Timeout for receiving responses (seconds).
+            maximum_redirects: Maximum number of redirects to follow.
+            redirects_cache_type: Type to use for caching permanent redirects.
+            cookie_jar: Cookie jar for handling cookies. True/None creates a new one,
+                        False disables cookies.
+            middlewares: List of middleware functions to apply to requests.
+            http2: Whether to enable HTTP/2 support. When True (default), the client
+                   will use ALPN negotiation to detect HTTP/2 support and use it when
+                   available, falling back to HTTP/1.1 otherwise. Set to False to
+                   force HTTP/1.1 only.
+            max_connection_retries: Maximum number of retries when a connection is
+                   closed by the remote server. Default is 3.
+            idle_timeout: Maximum time in seconds a connection can remain idle in the
+                   pool before being considered dead. Default is 300.0 (5 minutes).
+        """
         if pools:
             self.owns_pools = False
         else:
-            pools = ConnectionPools(loop)
+            pools = ConnectionPools(http2=http2, idle_timeout=idle_timeout)
             self.owns_pools = True
 
         if redirects_cache_type is None and follow_redirects:
@@ -92,7 +116,6 @@ class ClientSession:
         else:
             middlewares.insert(0, cookies_middleware)
 
-        self.loop = loop
         self._base_url: URL | None
         self.base_url = base_url
         self.ssl = ssl
@@ -112,6 +135,7 @@ class ClientSession:
         self._middlewares: MiddlewareList
         self.middlewares = middlewares
         self.delay_before_retry = 0.5
+        self.max_connection_retries = max_connection_retries
 
     @property
     def default_headers(self) -> list[tuple[bytes, bytes]] | None:
@@ -176,8 +200,27 @@ class ClientSession:
         return value + (b"&" if b"?" in value else b"?") + query
 
     def get_url_value(self, url: AnyStr | URL) -> bytes:
+        """
+        Get the URL value as bytes with proper encoding of special characters.
+
+        This method escapes characters that must be percent-encoded in URLs (like spaces),
+        while preserving URL structural characters (/, ?, &, =, #, :) to support:
+        - Direct query strings in URLs: "/api?q=hello world" → "/api?q=hello%20world"
+        - Pre-escaped URLs (idempotent): "/api?q=hello%20world" stays the same
+        - Relative and absolute URLs with proper joining
+
+        Args:
+            url: URL as string, bytes, or URL object
+
+        Returns:
+            bytes: Properly encoded URL
+        """
         if isinstance(url, str):
-            url = url.encode()
+            # Escape special characters while preserving URL structural characters
+            # safe characters: unreserved + gen-delims + sub-delims commonly used in
+            # URLs. This allows query strings in the URL while escaping spaces and other
+            # special chars.
+            url = quote(url, safe=":/?#[]@!$&'()*+,;=").encode()
 
         if not isinstance(url, URL):
             if url == b"":
@@ -199,7 +242,7 @@ class ClientSession:
 
     async def close(self):
         if self.owns_pools:
-            self.pools.dispose()
+            await self.pools.dispose()
 
     @staticmethod
     def extract_redirect_location(response: Response) -> URL:
@@ -287,7 +330,7 @@ class ClientSession:
             if redirect_url is not None:
                 request.url = redirect_url
 
-    async def get_connection(self, url: URL) -> ClientConnection:
+    async def get_connection(self, url: URL) -> HTTPConnection:
         pool = self.pools.get_pool(url.schema, url.host, url.port, self.ssl)
 
         try:
@@ -352,7 +395,10 @@ class ClientSession:
                 connection.send(request), self.request_timeout
             )
         except ConnectionClosedError as connection_closed_error:
-            if connection_closed_error.can_retry and attempt < 4:
+            if (
+                connection_closed_error.can_retry
+                and attempt <= self.max_connection_retries
+            ):
                 await asyncio.sleep(self.delay_before_retry)
                 return await self._send_using_connection(request, attempt + 1)
             raise

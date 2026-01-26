@@ -53,9 +53,6 @@ STATUS_LINES = {
 }
 
 
-cpdef bytes get_status_line(int status):
-    return STATUS_LINES[status]
-
 
 cdef bytes write_request_method(Request request):
     # RFC 7230: method must be a valid token
@@ -127,144 +124,6 @@ async def write_chunks(Content http_content):
     yield b'0\r\n\r\n'
 
 
-cdef bint is_small_response(Response response):
-    cdef Content content = response.content
-    if not content:
-        return True
-    if (
-        content.length > 0
-        and content.length < MAX_RESPONSE_CHUNK_SIZE
-        and content.body is not None
-    ):
-        return True
-    return False
-
-
-cpdef bint is_small_request(Request request):
-    cdef Content content = request.content
-    if not content:
-        return True
-    if (
-        content.length > 0
-        and content.length < MAX_RESPONSE_CHUNK_SIZE
-        and content.body is not None
-    ):
-        return True
-    return False
-
-
-cpdef bint request_has_body(Request request):
-    cdef Content content = request.content
-    if not content or content.length == 0:
-        return False
-    # NB: if we use chunked encoding, we don't know the content.length;
-    # and it is set to -1 (in contents.pyx), therefore it is handled properly
-    return True
-
-
-cpdef bytes write_request_without_body(Request request):
-    cdef bytearray data = bytearray()
-    data.extend(write_request_method(request) + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
-
-    ensure_host_header(request)
-
-    extend_data_with_headers(request._raw_headers, data)
-    data.extend(b'\r\n')
-    return bytes(data)
-
-
-cpdef bytes write_small_request(Request request):
-    cdef bytearray data = bytearray()
-    data.extend(write_request_method(request) + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n')
-
-    ensure_host_header(request)
-    set_headers_for_content(request)
-
-    extend_data_with_headers(request._raw_headers, data)
-    data.extend(b'\r\n')
-    if request.content:
-        data.extend(request.content.body)
-    return bytes(data)
-
-
-cdef bytes write_small_response(Response response):
-    cdef bytearray data = bytearray()
-    data.extend(STATUS_LINES[response.status])
-    set_headers_for_content(response)
-    extend_data_with_headers(response._raw_headers, data)
-    data.extend(b'\r\n')
-    if response.content:
-        data.extend(response.content.body)
-    return bytes(data)
-
-
-cpdef bytes py_write_small_response(Response response):
-    return write_small_response(response)
-
-
-cpdef bytes py_write_small_request(Request request):
-    return write_small_request(request)
-
-
-async def write_request_body_only(Request request):
-    # This method is used only for Expect: 100-continue scenario;
-    # in such case the request headers are sent before the body
-    cdef bytes data
-    cdef bytes chunk
-    cdef Content content
-
-    content = request.content
-
-    if content:
-        if should_use_chunked_encoding(content):
-            async for chunk in write_chunks(content):
-                yield chunk
-        elif isinstance(content, StreamedContent):
-            async for chunk in content.get_parts():
-                yield chunk
-        else:
-            data = content.body
-
-            if content.length > MAX_RESPONSE_CHUNK_SIZE:
-                for chunk in get_chunks(data):
-                    yield chunk
-            else:
-                yield data
-    else:
-        raise ValueError('Missing request content')
-
-
-async def write_request(Request request):
-    cdef bytes data
-    cdef bytes chunk
-    cdef Content content
-
-    ensure_host_header(request)
-
-    set_headers_for_content(request)
-
-    yield write_request_method(request) + b' ' + write_request_uri(request) + b' HTTP/1.1\r\n' + \
-        write_headers(request._raw_headers) + b'\r\n'
-
-    content = request.content
-
-    if content:
-        if should_use_chunked_encoding(content):
-            async for chunk in write_chunks(content):
-                yield chunk
-        elif isinstance(content, StreamedContent):
-            async for chunk in content.get_parts():
-                yield chunk
-        else:
-            data = content.body
-
-            if content.length > MAX_RESPONSE_CHUNK_SIZE:
-                for chunk in get_chunks(data):
-                    yield chunk
-            else:
-                yield data
-
-
 def get_chunks(bytes data):
     cdef int i
     for i in range(0, len(data), MAX_RESPONSE_CHUNK_SIZE):
@@ -272,7 +131,7 @@ def get_chunks(bytes data):
     yield b''
 
 
-async def write_response_content(Response response):
+async def _write_response_content(Response response):
     cdef Content content
     cdef bytes data, chunk
     content = response.content
@@ -295,20 +154,6 @@ async def write_response_content(Response response):
                     yield chunk
             else:
                 yield data
-
-
-async def write_response(Response response):
-    cdef bytes data
-    cdef bytes chunk
-    cdef Content content
-
-    set_headers_for_content(response)
-
-    yield STATUS_LINES[response.status] + \
-        write_headers(response._raw_headers) + b'\r\n'
-
-    async for chunk in write_response_content(response):
-        yield chunk
 
 
 async def send_asgi_response(Response response, object send):

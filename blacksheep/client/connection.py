@@ -1041,13 +1041,7 @@ class HTTP11Connection(HTTPConnection):
                         # Got a final response (e.g., 417 Expectation Failed)
                         # Build and return it, don't send body
                         status = event.status_code
-                        response_headers = [
-                            (
-                                k if isinstance(k, bytes) else k.encode(),
-                                v if isinstance(v, bytes) else v.encode(),
-                            )
-                            for k, v in event.headers
-                        ]
+                        response_headers = [(k, v) for k, v in event.headers]
                         response = Response(status, response_headers, None)
 
                         # Still need to read any body from this response

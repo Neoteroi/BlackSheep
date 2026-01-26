@@ -87,7 +87,7 @@ class ConnectionPool:
         self.idle_timeout = idle_timeout
         self._idle_connections: Queue[HTTPConnection] = Queue(maxsize=max_size)
         self._http2_connections: list[HTTP2Connection] = []
-        self._protocol_cache: dict[tuple[str, int], str] = {}
+        self._detected_protocol: Literal["h2", "http/1.1"] | None = None
         self._protocol_detection_lock = asyncio.Lock()
         self.disposed = False
 
@@ -101,14 +101,14 @@ class ConnectionPool:
         if not self.http2_enabled or self.scheme != b"https":
             return "http/1.1"
 
-        key = (self.host, self.port)
-        if key in self._protocol_cache:
-            return self._protocol_cache[key]
+        # Check if already detected (fast path)
+        if self._detected_protocol is not None:
+            return self._detected_protocol
 
         async with self._protocol_detection_lock:
             # Double-check after acquiring lock
-            if key in self._protocol_cache:
-                return self._protocol_cache[key]
+            if self._detected_protocol is not None:
+                return self._detected_protocol
 
             try:
                 reader, writer = await asyncio.open_connection(
@@ -121,8 +121,8 @@ class ConnectionPool:
                 ssl_object = writer.get_extra_info("ssl_object")
                 protocol = ssl_object.selected_alpn_protocol() or "http/1.1"
 
-                # Cache the protocol BEFORE closing (close can raise SSL errors)
-                self._protocol_cache[key] = protocol
+                # Store the detected protocol BEFORE closing (close can raise SSL errors)
+                self._detected_protocol = protocol
                 logger.debug(
                     f"Detected protocol {protocol} for {self.host}:{self.port}"
                 )
@@ -140,7 +140,7 @@ class ConnectionPool:
                 logger.debug(
                     f"Protocol detection failed for {self.host}:{self.port}: {e}"
                 )
-                self._protocol_cache[key] = "http/1.1"
+                self._detected_protocol = "http/1.1"
                 return "http/1.1"
 
     def _get_connection(self) -> HTTPConnection:
@@ -184,18 +184,29 @@ class ConnectionPool:
             pass
 
     async def get_connection(self) -> HTTPConnection:
-        # First, detect protocol if HTTP/2 is enabled
+        # First, check protocol if HTTP/2 is enabled
         if self.http2_enabled:
-            protocol = await self._detect_protocol()
-
-            if protocol == "h2":
+            # Fast path: check cached protocol without async call
+            if self._detected_protocol == "h2":
                 # Try to get existing HTTP/2 connection (multiplexing)
                 h2_conn = self._get_http2_connection()
                 if h2_conn is not None:
                     return h2_conn
-
                 # Create new HTTP/2 connection
                 return await self._create_http2_connection()
+            elif self._detected_protocol == "http/1.1":
+                # Already detected as HTTP/1.1, skip to fallback
+                pass
+            else:
+                # First request - need to detect protocol
+                protocol = await self._detect_protocol()
+                if protocol == "h2":
+                    # Try to get existing HTTP/2 connection (multiplexing)
+                    h2_conn = self._get_http2_connection()
+                    if h2_conn is not None:
+                        return h2_conn
+                    # Create new HTTP/2 connection
+                    return await self._create_http2_connection()
 
         # Fall back to HTTP/1.1
         try:
@@ -258,7 +269,7 @@ class ConnectionPool:
             )
             await conn.close()
         self._http2_connections.clear()
-        self._protocol_cache.clear()
+        self._detected_protocol = None
 
 
 class ConnectionPools:
@@ -267,7 +278,9 @@ class ConnectionPools:
         self.http2_enabled = http2
         self.idle_timeout = idle_timeout
 
-    def get_pool(self, scheme, host, port, ssl):
+    def get_pool(
+        self, scheme: bytes, host: bytes, port: int, ssl: None | bool | ssl.SSLContext
+    ):
         assert scheme in (b"http", b"https"), "URL schema must be http or https"
         if port is None or port == 0:
             port = 80 if scheme == b"http" else 443
@@ -287,11 +300,11 @@ class ConnectionPools:
             self._pools[key] = new_pool
             return new_pool
 
-    def __enter__(self):
+    def __aenter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.dispose()
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.dispose()
 
     async def dispose(self):
         """Dispose of all pools and properly await cleanup."""

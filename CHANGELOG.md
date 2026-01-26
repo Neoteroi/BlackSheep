@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.5.0] - 2026-01-26
 
-- **Add native HTTP/2 support to the HTTP client** with automatic protocol detection
+- Add native HTTP/2 support to the HTTP client with automatic protocol detection
   via ALPN (Application-Layer Protocol Negotiation). The client now automatically
   uses HTTP/2 when the server supports it, with seamless fallback to HTTP/1.1.
 - Add new `HTTP2Connection` class using the `h2` library for HTTP/2 protocol handling.

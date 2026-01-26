@@ -147,6 +147,9 @@ class Request(Message):
         detect if the client closed the original connection.
         """
 
+    @property
+    def accept_pathsend(self) -> bool: ...
+
 class Response(Message):
     def __init__(
         self,

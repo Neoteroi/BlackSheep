@@ -550,6 +550,11 @@ cdef class Request(Message):
 
         return self._is_disconnected
 
+    @property
+    def accept_pathsend(self):
+        if not isinstance(self.content, ASGIContent) or self.scope is None:
+            return False
+        return "http.response.pathsend" in self.scope.get("extensions", {})
 
 cdef class Response(Message):
 

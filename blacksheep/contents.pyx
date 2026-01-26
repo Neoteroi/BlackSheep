@@ -60,6 +60,19 @@ cdef class StreamedContent(Content):
             yield chunk
 
 
+cdef class FilepathContent(Content):
+
+    def __init__(
+        self,
+        bytes content_type,
+        str path
+    ):
+        self.type = content_type
+        self.body = None
+        self.length = 0
+        self.path = path
+
+
 cdef class ASGIContent(Content):
 
     def __init__(self, object receive):

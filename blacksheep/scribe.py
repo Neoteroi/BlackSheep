@@ -1,7 +1,7 @@
 import http
 import re
 
-from .contents import Content, StreamedContent
+from .contents import Content, FilepathContent, StreamedContent
 from .cookies import Cookie, write_cookie_for_response
 from .messages import Request, Response
 
@@ -164,6 +164,8 @@ async def send_asgi_response(response: Response, send):
                 await send(
                     {"type": "http.response.body", "body": b"", "more_body": False}
                 )
+        elif isinstance(content, FilepathContent):
+            await send({"type": "http.response.pathsend", "path": content.path})
         else:
             if content.length > MAX_RESPONSE_CHUNK_SIZE:
                 for chunk in get_chunks(content.body):

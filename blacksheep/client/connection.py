@@ -53,6 +53,11 @@ def create_http2_ssl_context(verify: bool = True) -> ssl.SSLContext:
 SECURE_HTTP2_SSLCONTEXT = create_http2_ssl_context(verify=True)
 INSECURE_HTTP2_SSLCONTEXT = create_http2_ssl_context(verify=False)
 
+# Buffer sizes optimized for HTTP/2 and HTTP/1.1
+# HTTP/2 default frame size is 16KB, HTTP/1.1 can benefit from larger buffers
+DEFAULT_HTTP2_BUFFER_SIZE = 16384  # 16KB
+DEFAULT_HTTP11_BUFFER_SIZE = 65535  # 64KB
+
 
 class HTTPConnection(ABC):
     """Abstract base class for HTTP connections (HTTP/1.1 and HTTP/2)."""
@@ -260,6 +265,7 @@ class HTTP2Connection(HTTPConnection):
         "_active_streams",
         "_reader_task",
         "_cached_scheme",
+        "buffer_size",
     )
 
     def __init__(
@@ -268,6 +274,7 @@ class HTTP2Connection(HTTPConnection):
         host: str,
         port: int,
         ssl_context: ssl.SSLContext | None = None,
+        buffer_size: int = DEFAULT_HTTP2_BUFFER_SIZE,
     ) -> None:
         """
         Initialize HTTP/2 connection.
@@ -277,11 +284,13 @@ class HTTP2Connection(HTTPConnection):
             host: Server hostname
             port: Server port
             ssl_context: SSL context for the connection
+            buffer_size: Buffer size for reading data (default: 16KB)
         """
         self.pool = weakref.ref(pool)
         self.host = host
         self.port = port
         self.ssl_context = ssl_context or SECURE_HTTP2_SSLCONTEXT
+        self.buffer_size = buffer_size
 
         # Create H2 connection
         config = H2Configuration(client_side=True)
@@ -492,7 +501,7 @@ class HTTP2Connection(HTTPConnection):
                         if not self.reader:
                             return True
 
-                        data = await self.reader.read(65535)
+                        data = await self.reader.read(self.buffer_size)
                         if not data:
                             return True  # Connection closed, proceed anyway
 
@@ -692,7 +701,7 @@ class HTTP2Connection(HTTPConnection):
 
                     try:
                         data = await asyncio.wait_for(
-                            self.reader.read(65535), timeout=1.0
+                            self.reader.read(self.buffer_size), timeout=1.0
                         )
                     except asyncio.TimeoutError:
                         # Check again if we should continue
@@ -814,6 +823,7 @@ class HTTP11Connection(HTTPConnection):
         "request_count",
         "_closing",
         "_streaming",  # True while streaming response body
+        "buffer_size",
     )
 
     def __init__(
@@ -823,6 +833,7 @@ class HTTP11Connection(HTTPConnection):
         port: int,
         ssl_context: ssl.SSLContext | None = None,
         use_ssl: bool = True,
+        buffer_size: int = DEFAULT_HTTP11_BUFFER_SIZE,
     ) -> None:
         """
         Initialize HTTP/1.1 connection.
@@ -839,6 +850,7 @@ class HTTP11Connection(HTTPConnection):
         self.port = port
         self.use_ssl = use_ssl
         self.ssl_context = ssl_context
+        self.buffer_size = buffer_size
 
         # Async streams
         self.reader: asyncio.StreamReader | None = None
@@ -1025,7 +1037,7 @@ class HTTP11Connection(HTTPConnection):
                     event = self._h11_conn.next_event()
 
                     if event is h11.NEED_DATA:
-                        data = await self.reader.read(65535)
+                        data = await self.reader.read(self.buffer_size)
                         if not data:
                             # Connection closed, return None to proceed anyway
                             return None
@@ -1069,7 +1081,7 @@ class HTTP11Connection(HTTPConnection):
                 event = self._h11_conn.next_event()
 
                 if event is h11.NEED_DATA:
-                    data = await self.reader.read(65535)
+                    data = await self.reader.read(self.buffer_size)
                     if not data:
                         incoming_content.exc = ConnectionClosedError(False)
                         incoming_content.set_complete()
@@ -1112,7 +1124,7 @@ class HTTP11Connection(HTTPConnection):
                 event = self._h11_conn.next_event()
 
                 if event is h11.NEED_DATA:
-                    data = await self.reader.read(65535)
+                    data = await self.reader.read(self.buffer_size)
                     if not data:
                         raise ConnectionClosedError(True)
                     self._h11_conn.receive_data(data)
@@ -1144,7 +1156,7 @@ class HTTP11Connection(HTTPConnection):
                     event = self._h11_conn.next_event()
 
                     if event is h11.NEED_DATA:
-                        data = await self.reader.read(65535)
+                        data = await self.reader.read(self.buffer_size)
                         if not data:
                             # Connection closed unexpectedly
                             if incoming_content:

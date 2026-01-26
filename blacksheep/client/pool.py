@@ -2,6 +2,7 @@ import asyncio
 import logging
 import ssl
 from asyncio import Queue, QueueEmpty, QueueFull
+from collections import deque
 from ssl import SSLContext
 from typing import Literal
 
@@ -86,7 +87,7 @@ class ConnectionPool:
         self.http2_enabled = http2 and scheme == b"https"
         self.idle_timeout = idle_timeout
         self._idle_connections: Queue[HTTPConnection] = Queue(maxsize=max_size)
-        self._http2_connections: list[HTTP2Connection] = []
+        self._http2_connections: deque[HTTP2Connection] = deque()
         self._detected_protocol: Literal["h2", "http/1.1"] | None = None
         self._protocol_detection_lock = asyncio.Lock()
         self.disposed = False
@@ -159,13 +160,19 @@ class ConnectionPool:
 
     def _get_http2_connection(self) -> HTTP2Connection | None:
         """Get an available HTTP/2 connection for multiplexing."""
-        for conn in self._http2_connections:
+        # Check each connection once by rotating through the deque
+        for _ in range(len(self._http2_connections)):
+            conn = self._http2_connections[0]
             if conn.is_alive():
                 logger.debug(
                     f"Reusing HTTP/2 connection "
                     f"{id(conn)} to: {self.host}:{self.port}"
                 )
+                # Rotate to distribute load across connections
+                self._http2_connections.rotate(-1)
                 return conn
+            # Dead connection, remove it and continue
+            self._http2_connections.popleft()
         return None
 
     def try_return_connection(self, connection: HTTPConnection) -> None:

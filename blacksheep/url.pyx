@@ -1,4 +1,11 @@
-from urllib.parse import urlparse
+# Try to import httptools, else fallback to urllib.parse
+try:
+    import httptools
+    from httptools.parser import errors
+    _has_httptools = True
+except ImportError:
+    from urllib.parse import urlparse
+    _has_httptools = False
 
 
 cdef class InvalidURL(Exception):
@@ -20,21 +27,37 @@ cdef class URL:
             raise InvalidURL("Input empty or null.")
         try:
             # if the value starts with a dot, prepend a slash;
+            # urllib.parse urlparse handles those, while httptools raises
+            # an exception
             if value and value[0] == 46:
                 value = b"/" + value
-            # urllib.parse.urlparse expects str, not bytes
-            parsed = urlparse(value.decode())
-            schema = parsed.scheme.encode() if parsed.scheme else None
-            valid_schema(schema)
-            self.value = value or b''
-            self.schema = schema
-            self.host = parsed.hostname.encode() if parsed.hostname else None
-            self.port = parsed.port or 0
-            self.path = parsed.path.encode() if parsed.path else b''
-            self.query = parsed.query.encode() if parsed.query else None
-            self.fragment = parsed.fragment.encode() if parsed.fragment else None
-            self.is_absolute = bool(parsed.scheme)
+            if _has_httptools:
+                parsed = httptools.parse_url(value)
+                schema = parsed.schema
+                valid_schema(schema)
+                self.value = value or b''
+                self.schema = schema
+                self.host = parsed.host
+                self.port = parsed.port or 0
+                self.path = parsed.path
+                self.query = parsed.query
+                self.fragment = parsed.fragment
+                self.is_absolute = parsed.schema is not None
+            else:
+                # urllib.parse.urlparse expects str, not bytes
+                parsed = urlparse(value.decode())
+                schema = parsed.scheme.encode() if parsed.scheme else b''
+                valid_schema(schema)
+                self.value = value or b''
+                self.schema = schema
+                self.host = parsed.hostname.encode() if parsed.hostname else b''
+                self.port = parsed.port or 0
+                self.path = parsed.path.encode() if parsed.path else b''
+                self.query = parsed.query.encode() if parsed.query else b''
+                self.fragment = parsed.fragment.encode() if parsed.fragment else b''
+                self.is_absolute = bool(parsed.scheme)
         except Exception as exc:
+            # Handle both httptools and urllib.parse exceptions
             raise InvalidURL(f'The value cannot be parsed as URL ({value.decode()}): {exc}')
 
     def __repr__(self):

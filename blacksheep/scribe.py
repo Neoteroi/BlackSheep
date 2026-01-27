@@ -23,56 +23,6 @@ def write_header(header):
     return _nocrlf(header[0]) + b": " + _nocrlf(header[1]) + b"\r\n"
 
 
-def write_headers(headers):
-    value = bytearray()
-    for header in headers:
-        value.extend(write_header(header))
-    return bytes(value)
-
-
-def extend_data_with_headers(headers, data: bytearray):
-    for header in headers:
-        data.extend(write_header(header))
-
-
-def _get_status_line(status_code: int):
-    try:
-        return (
-            b"HTTP/1.1 "
-            + str(status_code).encode()
-            + b" "
-            + http.HTTPStatus(status_code).phrase.encode()
-            + b"\r\n"
-        )
-    except ValueError:
-        return b"HTTP/1.1 " + str(status_code).encode() + b"\r\n"
-
-
-STATUS_LINES = {
-    status_code: _get_status_line(status_code) for status_code in range(100, 600)
-}
-
-
-def write_request_method(request: Request) -> bytes:
-    # RFC 7230: method must be a valid token
-    if not re.match(r"^[!#$%&\'*+\-.0-9A-Z^_`a-z|~]+$", request.method):
-        raise ValueError(f"Invalid HTTP method: {request.method!r}")
-    return request.method.encode()
-
-
-def write_request_uri(request: Request) -> bytes:
-    url = request.url
-    p = _nocrlf(url.path or b"/")
-    if url.query:
-        return p + b"?" + _nocrlf(url.query)
-    return p
-
-
-def ensure_host_header(request: Request) -> None:
-    if request.url.host:
-        request._add_header_if_missing(b"host", request.url.host)
-
-
 def should_use_chunked_encoding(content: Content) -> bool:
     return content.length < 0
 
@@ -117,24 +67,6 @@ def get_chunks(data: bytes):
     for i in range(0, len(data), MAX_RESPONSE_CHUNK_SIZE):
         yield data[i : i + MAX_RESPONSE_CHUNK_SIZE]
     yield b""
-
-
-async def _write_response_content(response: Response):
-    content = response.content
-    if content:
-        if should_use_chunked_encoding(content):
-            async for chunk in write_chunks(content):
-                yield chunk
-        elif isinstance(content, StreamedContent):
-            async for chunk in content.get_parts():
-                yield chunk
-        else:
-            data = content.body
-            if content.length > MAX_RESPONSE_CHUNK_SIZE:
-                for chunk in get_chunks(data):
-                    yield chunk
-            else:
-                yield data
 
 
 async def send_asgi_response(response: Response, send):

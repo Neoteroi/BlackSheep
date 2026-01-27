@@ -11,11 +11,7 @@ from .messages cimport Message, Request, Response
 
 cdef int MAX_RESPONSE_CHUNK_SIZE
 
-cdef bytes write_request_method(Request request)
-
 cdef bytes _nocrlf(bytes value)
-
-cdef void set_headers_for_content(Message message)
 
 cdef void set_headers_for_response_content(Response message)
 

@@ -24,58 +24,6 @@ cdef bytes write_header(tuple header):
     return _nocrlf(header[0]) + b": " + _nocrlf(header[1]) + b"\r\n"
 
 
-cdef bytes write_headers(list headers):
-    cdef tuple header
-    cdef bytearray value
-
-    value = bytearray()
-    for header in headers:
-        value.extend(write_header(header))
-    return bytes(value)
-
-
-cdef void extend_data_with_headers(list headers, bytearray data):
-    cdef tuple header
-
-    for header in headers:
-        data.extend(write_header(header))
-
-
-cdef bytes _get_status_line(int status_code):
-    try:
-        return b'HTTP/1.1 ' + str(status_code).encode() + b' ' + http.HTTPStatus(status_code).phrase.encode() + b'\r\n'
-    except ValueError:
-        return b'HTTP/1.1 ' + str(status_code).encode() + b'\r\n'
-
-
-STATUS_LINES = {
-    status_code: _get_status_line(status_code) for status_code in range(100, 600)
-}
-
-
-
-cdef bytes write_request_method(Request request):
-    # RFC 7230: method must be a valid token
-    if not re.match(r'^[!#$%&\'*+\-.0-9A-Z^_`a-z|~]+$', request.method):
-        raise ValueError(f"Invalid HTTP method: {request.method!r}")
-    return _nocrlf(request.method.encode())
-
-
-cdef bytes write_request_uri(Request request):
-    cdef bytes p
-    cdef URL url = request.url
-    p = _nocrlf(url.path or b'/')
-    if url.query:
-        return p + b'?' + _nocrlf(url.query)
-    return p
-
-
-cdef void ensure_host_header(Request request):
-    # TODO: if the request port is not default; add b':' + port to the Host value (?)
-    if request.url.host:
-        request._add_header_if_missing(b'host', request.url.host)
-
-
 cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
@@ -129,31 +77,6 @@ def get_chunks(bytes data):
     for i in range(0, len(data), MAX_RESPONSE_CHUNK_SIZE):
         yield data[i:i + MAX_RESPONSE_CHUNK_SIZE]
     yield b''
-
-
-async def _write_response_content(Response response):
-    cdef Content content
-    cdef bytes data, chunk
-    content = response.content
-
-    if content:
-        if should_use_chunked_encoding(content):
-            async for chunk in write_chunks(content):
-                yield chunk
-        elif isinstance(content, StreamedContent):
-            # In this case, the Content-Length is specified, but the user of
-            # the library is using anyway a stream content with an async generator
-            # This is particularly useful for HTTP proxies.
-            async for chunk in content.get_parts():
-                yield chunk
-        else:
-            data = content.body
-
-            if content.length > MAX_RESPONSE_CHUNK_SIZE:
-                for chunk in get_chunks(data):
-                    yield chunk
-            else:
-                yield data
 
 
 async def send_asgi_response(Response response, object send):

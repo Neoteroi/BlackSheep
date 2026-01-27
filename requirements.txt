@@ -10,7 +10,6 @@ h2>=4.0.0,<5.0.0
 Jinja2~=3.1.6
 PyJWT==2.10.1
 websockets~=15.0.1
-httptools==0.6.4
 async-timeout>=4.0.0; python_version < '3.11'
 # For tests:
 Cython==3.1.4

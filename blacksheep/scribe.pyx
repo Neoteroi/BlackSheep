@@ -10,20 +10,6 @@ from .url cimport URL
 cdef int MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 
 
-cdef bytes _nocrlf(bytes value):
-    """Sanitize the given value to prevent CRLF injection."""
-    return value.replace(b"\r", b"").replace(b"\n", b"")
-
-
-cdef bytes write_header(tuple header):
-    """
-    This function writes a single HTTP header. It is used only by the HTTP Client part,
-    because the server relies on the ASGI server to handle headers.
-    """
-    # Sanitize header name and value to prevent CRLF injection
-    return _nocrlf(header[0]) + b": " + _nocrlf(header[1]) + b"\r\n"
-
-
 cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 

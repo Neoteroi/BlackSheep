@@ -8,21 +8,6 @@ from .messages import Request, Response
 MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb
 
 
-def _nocrlf(value: bytes) -> bytes:
-    """Sanitize the given value to prevent CRLF injection."""
-    return value.replace(b"\r", b"").replace(b"\n", b"")
-
-
-# Header writing utilities
-def write_header(header):
-    """
-    This function writes a single HTTP header. It is used only by the HTTP Client part,
-    because the server relies on the ASGI server to handle headers.
-    """
-    # Sanitize header name and value to prevent CRLF injection
-    return _nocrlf(header[0]) + b": " + _nocrlf(header[1]) + b"\r\n"
-
-
 def should_use_chunked_encoding(content: Content) -> bool:
     return content.length < 0
 

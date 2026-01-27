@@ -276,7 +276,9 @@ for more details and examples.
 
 ## Client features
 
-BlackSheep includes an HTTP Client.
+BlackSheep includes an HTTP Client with native HTTP/2 support (since version `2.5.0`).
+The client automatically detects and uses HTTP/2 when the server supports it, with
+seamless fallback to HTTP/1.1.
 
 **Example:**
 ```python
@@ -297,17 +299,18 @@ asyncio.run(client_example())
 
 > [!IMPORTANT]
 >
-> Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/),
-> too (`PyPy 3.11`). For this reason, using the client requires an additional
-> dependency: `httptools` if using CPython, `h11` if using `PyPy`. This affects
-> only the `blacksheep.client` namespace.
+> Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/)
+> (`PyPy 3.11`). The HTTP client requires additional dependencies: `httptools` and
+> `h2` for CPython, or `h11` and `h2` for PyPy. Version `2.5.0` added native HTTP/2
+> support via the `h2` library. These dependencies affect only the `blacksheep.client`
+> namespace.
 
 ## Supported platforms and runtimes
 
 * Python: all versions included in the [build matrix](.github/workflows/main.yml).
 * CPython and PyPy.
 * Ubuntu.
-* Windows 10.
+* Windows.
 * macOS.
 
 ## Documentation

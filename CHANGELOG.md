@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove the legacy `ClientConnection` class.
 - Both HTTP/1.1 and HTTP/2 implementations follow the same architectural pattern.
 - Remove the option of passing the event loop to the constructor of client classes.
+- Stop using `httptools` for anything.
 
 ## [2.4.6] - 2026-01-13
 

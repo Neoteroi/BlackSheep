@@ -22,7 +22,7 @@ pip install blacksheep
 ---
 
 ```python
-from datetime import datetime
+from datetime import datetime, timezone
 
 from blacksheep import Application, get
 
@@ -31,7 +31,7 @@ app = Application()
 
 @get("/")
 async def home():
-    return f"Hello, World! {datetime.utcnow().isoformat()}"
+    return f"Hello, World! {datetime.now(timezone.utc).isoformat()}"
 
 ```
 
@@ -57,11 +57,13 @@ same sources supported by `Cookiecutter`.
 Before version `2.3.1`, BlackSheep only supported running with `CPython` and
 always depended on `httptools`. Starting with version `2.3.1`, the framework
 supports running on [`PyPy`](https://pypy.org/) and makes `httptools` an
-optional dependency. The BlackSheep HTTP Client requires either `httptools`
-(for CPython) or `h11` (for PyPy).
+optional dependency.
+
+Since version `2.5.0`, the BlackSheep HTTP Client includes HTTP/2 support and
+requires `h11` and `h2` libraries.
 
 For slightly better performance in `URL` parsing when running on `CPython`,
-it is recommended to install `httptools`.
+it is recommended to install `httptools` (optional).
 
 > [!TIP]
 >
@@ -300,10 +302,10 @@ asyncio.run(client_example())
 > [!IMPORTANT]
 >
 > Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/)
-> (`PyPy 3.11`). The HTTP client requires additional dependencies: `httptools` and
-> `h2` for CPython, or `h11` and `h2` for PyPy. Version `2.5.0` added native HTTP/2
-> support via the `h2` library. These dependencies affect only the `blacksheep.client`
-> namespace.
+> (`PyPy 3.11`). The HTTP client requires `h11` and `h2` libraries. Version `2.5.0`
+> added native HTTP/2 support via the `h2` library. The `httptools` library is
+> optional and only provides better URL parsing performance on CPython. These
+> dependencies affect only the `blacksheep.client` namespace.
 
 ## Supported platforms and runtimes
 

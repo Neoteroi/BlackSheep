@@ -43,21 +43,6 @@ cdef void set_headers_for_response_content(Response message):
         message._add_header(b'content-length', str(content.length).encode())
 
 
-cdef void set_headers_for_content(Message message):
-    cdef Content content = message.content
-
-    if not content:
-        message._add_header_if_missing(b'content-length', b'0')
-        return
-
-    message._add_header_if_missing(b'content-type', content.type or b'application/octet-stream')
-
-    if should_use_chunked_encoding(content):
-        message._add_header_if_missing(b'transfer-encoding', b'chunked')
-    else:
-        message._add_header_if_missing(b'content-length', str(content.length).encode())
-
-
 cpdef bytes write_response_cookie(Cookie cookie):
     return write_cookie_for_response(cookie)
 

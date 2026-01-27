@@ -46,15 +46,15 @@ cdef class URL:
             else:
                 # urllib.parse.urlparse expects str, not bytes
                 parsed = urlparse(value.decode())
-                schema = parsed.scheme.encode() if parsed.scheme else b''
+                schema = parsed.scheme.encode() if parsed.scheme else None
                 valid_schema(schema)
                 self.value = value or b''
                 self.schema = schema
-                self.host = parsed.hostname.encode() if parsed.hostname else b''
+                self.host = parsed.hostname.encode() if parsed.hostname else None
                 self.port = parsed.port or 0
                 self.path = parsed.path.encode() if parsed.path else b''
-                self.query = parsed.query.encode() if parsed.query else b''
-                self.fragment = parsed.fragment.encode() if parsed.fragment else b''
+                self.query = parsed.query.encode() if parsed.query else None
+                self.fragment = parsed.fragment.encode() if parsed.fragment else None
                 self.is_absolute = bool(parsed.scheme)
         except Exception as exc:
             # Handle both httptools and urllib.parse exceptions

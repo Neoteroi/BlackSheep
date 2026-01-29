@@ -67,7 +67,7 @@ def get_range_file_getter(
                 if part.start is not None and part.end is not None:
                     # return a portion between start and end indexes
                     await file.seek(part.start, 0)
-                    part_size = part.end - part.start
+                    part_size = part.end - part.start + 1
 
                 elif part.end is None:
                     assert part.start is not None
@@ -240,8 +240,8 @@ def get_response_for_file(
     if cache_time > 0:
         headers.append((b"Cache-Control", b"max-age=" + str(cache_time).encode()))
 
-    if previous_etag and current_etag == previous_etag:
-        # handle HTTP 304 Not Modified
+    if previous_etag and current_etag == previous_etag and not requested_range:
+        # handle HTTP 304 Not Modified (only for non-range requests)
         return Response(304, headers, None)
 
     if request.method == "HEAD":

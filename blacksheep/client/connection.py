@@ -426,9 +426,9 @@ class HTTP2Connection(HTTPConnection):
             # Determine if we should stream or materialize the body
             # Only StreamedContent and content with unknown length can be streamed
             use_streaming = (
-                request.content and
-                isinstance(request.content, StreamedContent) and
-                (request.content.length < 0 or request.content.body is None)
+                request.content
+                and isinstance(request.content, StreamedContent)
+                and (request.content.length < 0 or request.content.body is None)
             )
 
             # Get request body if present (only for non-streaming content)
@@ -492,7 +492,9 @@ class HTTP2Connection(HTTPConnection):
                         for i in range(0, len(chunk), max_frame_size):
                             frame_chunk = chunk[i : i + max_frame_size]
                             # Don't set end_stream yet, we don't know if this is the last chunk
-                            self.h2_conn.send_data(stream_id, frame_chunk, end_stream=False)
+                            self.h2_conn.send_data(
+                                stream_id, frame_chunk, end_stream=False
+                            )
                             self.writer.write(self.h2_conn.data_to_send())
                             await self.writer.drain()
                 # Send final empty frame with end_stream=True
@@ -990,7 +992,9 @@ class HTTP11Connection(HTTPConnection):
                     h[0].lower() == b"content-length" for h in headers
                 )
                 if not has_content_length and request.content.length >= 0:
-                    headers.append((b"content-length", str(request.content.length).encode()))
+                    headers.append(
+                        (b"content-length", str(request.content.length).encode())
+                    )
 
         # Create h11 Request
         method = (
@@ -1034,9 +1038,9 @@ class HTTP11Connection(HTTPConnection):
             # Determine if we need to stream or if we can send body directly
             # Only StreamedContent can be streamed
             use_streaming = (
-                request.content and
-                isinstance(request.content, StreamedContent) and
-                (request.content.length < 0 or request.content.body is None)
+                request.content
+                and isinstance(request.content, StreamedContent)
+                and (request.content.length < 0 or request.content.body is None)
             )
 
             # For non-streaming content with no body, read it first

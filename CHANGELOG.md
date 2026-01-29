@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.5.0] - 2026-01-27 :copilot:
+## [2.5.0] - 2026-01-29 :copilot:
 
 - Add native HTTP/2 support to the HTTP client with automatic protocol detection
   via ALPN (Application-Layer Protocol Negotiation). The client now automatically
@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Both HTTP/1.1 and HTTP/2 implementations follow the same architectural pattern.
 - Remove the option of passing the event loop to the constructor of client classes.
 - Stop using `httptools` for anything.
+- Correct bugs in the code serving static files: `HTTP 304` should not be returned for
+  `Range` requests, and handling of ranges.
 
 ## [2.4.6] - 2026-01-13
 

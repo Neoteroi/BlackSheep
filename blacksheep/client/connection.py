@@ -19,7 +19,7 @@ from h2.events import (
     WindowUpdated,
 )
 
-from blacksheep import Content, Request, Response
+from blacksheep import Content, Request, Response, StreamedContent
 
 # Compatibility for asyncio.timeout (added in Python 3.11)
 if sys.version_info >= (3, 11):
@@ -423,10 +423,23 @@ class HTTP2Connection(HTTPConnection):
             # Convert request to HTTP/2 headers
             h2_headers = self._convert_request_to_h2_headers(request)
 
-            # Get request body if present
+            # Determine if we should stream or materialize the body
+            # Only StreamedContent and content with unknown length can be streamed
+            use_streaming = (
+                request.content
+                and isinstance(request.content, StreamedContent)
+                and (request.content.length < 0 or request.content.body is None)
+            )
+
+            # Get request body if present (only for non-streaming content)
             body: bytes | None = None
-            if request.content:
-                body = await request.content.read()
+            if request.content and not use_streaming:
+                if request.content.body is not None:
+                    body = request.content.body
+                else:
+                    body = await request.content.read()
+
+            has_body = body is not None or use_streaming
 
             # Initialize stream tracking with completion event
             self.streams[stream_id] = StreamState(
@@ -448,19 +461,19 @@ class HTTP2Connection(HTTPConnection):
             )
 
             # Send headers (without end_stream if expecting 100-continue with body)
-            if expect_continue and body:
+            if expect_continue and has_body:
                 # Don't set end_stream, wait for 100 Continue
                 self.h2_conn.send_headers(stream_id, h2_headers, end_stream=False)
             else:
                 # Normal behavior
                 self.h2_conn.send_headers(
-                    stream_id, h2_headers, end_stream=(body is None or len(body) == 0)
+                    stream_id, h2_headers, end_stream=not has_body
                 )
             self.writer.write(self.h2_conn.data_to_send())
             await self.writer.drain()
 
             # Handle Expect: 100-continue
-            if expect_continue and body:
+            if expect_continue and has_body:
                 # Wait for 100 Continue response or error
                 should_send_body = await self._wait_for_100_continue_h2(stream_id)
                 if not should_send_body:
@@ -469,10 +482,27 @@ class HTTP2Connection(HTTPConnection):
                     self.last_used = time.time()
                     return await self._receive_response(stream_id)
 
-            # Send body if present
-            if body:
+            # Send body
+            max_frame_size = self.h2_conn.max_outbound_frame_size
+            if use_streaming:
+                # Stream the content in chunks
+                async for chunk in request.content.get_parts():
+                    if chunk:
+                        # Send chunk in frame-sized pieces
+                        for i in range(0, len(chunk), max_frame_size):
+                            frame_chunk = chunk[i : i + max_frame_size]
+                            # Don't set end_stream yet, we don't know if this is the last chunk
+                            self.h2_conn.send_data(
+                                stream_id, frame_chunk, end_stream=False
+                            )
+                            self.writer.write(self.h2_conn.data_to_send())
+                            await self.writer.drain()
+                # Send final empty frame with end_stream=True
+                self.h2_conn.send_data(stream_id, b"", end_stream=True)
+                self.writer.write(self.h2_conn.data_to_send())
+                await self.writer.drain()
+            elif body:
                 # Handle flow control for large bodies
-                max_frame_size = self.h2_conn.max_outbound_frame_size
                 for i in range(0, len(body), max_frame_size):
                     chunk = body[i : i + max_frame_size]
                     is_last = i + max_frame_size >= len(body)
@@ -932,12 +962,22 @@ class HTTP11Connection(HTTPConnection):
         if not has_host and request.url.host:
             headers.insert(0, (b"host", request.url.host))
 
-        # Get body
+        # Get body and handle headers
         body: bytes | None = None
+        use_chunked = False
         if request.content:
-            # For h11, we need to handle content synchronously for now
-            # The caller should have already prepared the body
-            if request.content.body is not None:
+            # Check if we should use chunked encoding (unknown length)
+            if request.content.length < 0:
+                # Streaming content with unknown length - use chunked encoding
+                use_chunked = True
+                # Add transfer-encoding header if not present
+                has_transfer_encoding = any(
+                    h[0].lower() == b"transfer-encoding" for h in headers
+                )
+                if not has_transfer_encoding:
+                    headers.append((b"transfer-encoding", b"chunked"))
+            elif request.content.body is not None:
+                # Content with known length and body already available
                 body = request.content.body
                 # Add content-length if not present
                 has_content_length = any(
@@ -945,6 +985,16 @@ class HTTP11Connection(HTTPConnection):
                 )
                 if not has_content_length:
                     headers.append((b"content-length", str(len(body)).encode()))
+            else:
+                # Content with known length but body not materialized yet
+                # Add content-length from content.length if not present
+                has_content_length = any(
+                    h[0].lower() == b"content-length" for h in headers
+                )
+                if not has_content_length and request.content.length >= 0:
+                    headers.append(
+                        (b"content-length", str(request.content.length).encode())
+                    )
 
         # Create h11 Request
         method = (
@@ -985,8 +1035,16 @@ class HTTP11Connection(HTTPConnection):
                 # Connection is in an unusable state, reconnect
                 self._h11_conn = h11.Connection(our_role=h11.CLIENT)
 
-            # Read body if it's a coroutine/async content
-            if request.content and request.content.body is None:
+            # Determine if we need to stream or if we can send body directly
+            # Only StreamedContent can be streamed
+            use_streaming = (
+                request.content
+                and isinstance(request.content, StreamedContent)
+                and (request.content.length < 0 or request.content.body is None)
+            )
+
+            # For non-streaming content with no body, read it first
+            if request.content and request.content.body is None and not use_streaming:
                 body_data = await request.content.read()
                 # Update content with read body
                 request.content = Content(request.content.type, body_data)
@@ -999,6 +1057,7 @@ class HTTP11Connection(HTTPConnection):
                 h[0].lower() == b"expect" and h[1].lower() == b"100-continue"
                 for h in h11_request.headers
             )
+            has_body = body or use_streaming
 
             # Send request headers
             data = self._h11_conn.send(h11_request)
@@ -1006,7 +1065,7 @@ class HTTP11Connection(HTTPConnection):
             await self.writer.drain()
 
             # Handle Expect: 100-continue
-            if expect_continue and body:
+            if expect_continue and has_body:
                 # Wait for 100 Continue or error response
                 interim_response = await self._wait_for_100_continue()
                 if interim_response is not None:
@@ -1014,8 +1073,16 @@ class HTTP11Connection(HTTPConnection):
                     return interim_response
                 # Got 100 Continue or timeout, proceed to send body
 
-            # Send body if present
-            if body:
+            # Send body
+            if use_streaming:
+                # Stream the content in chunks
+                async for chunk in request.content.get_parts():
+                    if chunk:
+                        data = self._h11_conn.send(h11.Data(data=chunk))
+                        self.writer.write(data)
+                        await self.writer.drain()
+            elif body:
+                # Send body directly
                 data = self._h11_conn.send(h11.Data(data=body))
                 self.writer.write(data)
 

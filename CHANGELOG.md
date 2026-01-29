@@ -5,13 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.5.0] - 2026-01-26
+## [2.5.0] - 2026-01-29 :copilot:
 
 - Add native HTTP/2 support to the HTTP client with automatic protocol detection
   via ALPN (Application-Layer Protocol Negotiation). The client now automatically
   uses HTTP/2 when the server supports it, with seamless fallback to HTTP/1.1.
 - Add new `HTTP2Connection` class using the `h2` library for HTTP/2 protocol handling.
-- Add new `HTTP11Connection` class using the `h11` library for consistent HTTP/1.1 handling
+- Add new `HTTP11Connection` class using the `h11` library for consistent HTTP/1.1 handling.
 - Both connection types use `asyncio.open_connection` streams for a unified architecture.
 - HTTP/2 connections support stream multiplexing, allowing multiple concurrent requests
   over a single TCP connection.
@@ -24,9 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the HTTP/2 implementation pattern.
 - The new `HTTP11Connection` class replaces the `asyncio.Protocol`-based approach
   with a streams-based implementation.
-- Remove the legacy `ClientConnection` class has been removed.
+- Remove the legacy `ClientConnection` class.
 - Both HTTP/1.1 and HTTP/2 implementations follow the same architectural pattern.
 - Remove the option of passing the event loop to the constructor of client classes.
+- Stop using `httptools` for anything.
+- Correct bugs in the code serving static files: `HTTP 304` should not be returned for
+  `Range` requests, and handling of ranges.
 
 ## [2.4.6] - 2026-01-13
 

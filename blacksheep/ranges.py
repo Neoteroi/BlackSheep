@@ -68,9 +68,9 @@ class RangePart:
         satisfy a given size.
         """
         if self._end is not None:
-            return self._end <= size
+            return self._end < size
         if self._start is not None:
-            return self._start <= size
+            return self._start < size
         raise TypeError("Expected either an end or a start")
 
     @property

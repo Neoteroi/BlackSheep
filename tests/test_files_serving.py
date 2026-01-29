@@ -119,6 +119,36 @@ async def test_get_response_for_file_returns_not_modified_handling_if_none_match
     assert data is None
 
 
+async def test_get_response_for_file_range_request_with_if_none_match_returns_206():
+    """
+    When both Range and If-None-Match headers are present, the range request
+    should be processed (returning 206), not return 304. For conditional range
+    requests, clients should use If-Range header instead.
+    """
+    file_path = get_file_path("example.txt")
+    info = FileInfo.from_path(file_path)
+
+    response = get_response_for_file(
+        FilesHandler(),
+        Request(
+            "GET",
+            b"/example",
+            [
+                (b"Range", b"bytes=0-10"),
+                (b"If-None-Match", info.etag.encode()),
+            ],
+        ),
+        file_path,
+        1200,
+    )
+
+    # Should return 206 Partial Content, not 304 Not Modified
+    assert response.status == 206
+    body = await response.read()
+    assert body == b"Lorem ipsum"
+    assert response.get_single_header(b"content-range") == b"bytes 0-10/447"
+
+
 @pytest.mark.parametrize("file_path", TEST_FILES)
 async def test_get_response_for_file_with_head_method_returns_empty_body_with_info(
     file_path,
@@ -147,10 +177,10 @@ async def test_get_response_for_file_returns_cache_control_header(cache_time):
 @pytest.mark.parametrize(
     "range_value,expected_bytes,expected_content_range",
     [
-        [b"bytes=0-10", b"Lorem ipsu", b"bytes 0-10/447"],
-        [b"bytes=10-20", b"m dolor si", b"bytes 10-20/447"],
-        [b"bytes=33-44", b"ctetur adip", b"bytes 33-44/447"],
-        [b"bytes=15-50", b"or sit amet, consectetur adipiscing", b"bytes 15-50/447"],
+        [b"bytes=0-10", b"Lorem ipsum", b"bytes 0-10/447"],
+        [b"bytes=10-20", b"m dolor sit", b"bytes 10-20/447"],
+        [b"bytes=33-44", b"ctetur adipi", b"bytes 33-44/447"],
+        [b"bytes=15-50", b"or sit amet, consectetur adipiscing ", b"bytes 15-50/447"],
         [
             b"bytes=66-",
             b"usmod tempor incididunt ut labore et dolore magna\naliqua. Ut enim ad minim veniam, quis nostrud "
@@ -223,12 +253,12 @@ async def test_invalid_range_request_range_not_satisfiable(range_value):
                 b"Content-Type: text/plain",
                 b"Content-Range: bytes 0-10/447",
                 b"",
-                b"Lorem ipsu",
+                b"Lorem ipsum",
                 b"--##BOUNDARY##",
                 b"Content-Type: text/plain",
                 b"Content-Range: bytes 10-20/447",
                 b"",
-                b"m dolor si",
+                b"m dolor sit",
                 b"--##BOUNDARY##--",
             ],
         ],
@@ -239,7 +269,7 @@ async def test_invalid_range_request_range_not_satisfiable(range_value):
                 b"Content-Type: text/plain",
                 b"Content-Range: bytes 0-10/447",
                 b"",
-                b"Lorem ipsu",
+                b"Lorem ipsum",
                 b"--##BOUNDARY##",
                 b"Content-Type: text/plain",
                 b"Content-Range: bytes 381-446/447",

@@ -22,7 +22,7 @@ pip install blacksheep
 ---
 
 ```python
-from datetime import datetime
+from datetime import datetime, timezone
 
 from blacksheep import Application, get
 
@@ -31,7 +31,7 @@ app = Application()
 
 @get("/")
 async def home():
-    return f"Hello, World! {datetime.utcnow().isoformat()}"
+    return f"Hello, World! {datetime.now(timezone.utc).isoformat()}"
 
 ```
 
@@ -57,11 +57,13 @@ same sources supported by `Cookiecutter`.
 Before version `2.3.1`, BlackSheep only supported running with `CPython` and
 always depended on `httptools`. Starting with version `2.3.1`, the framework
 supports running on [`PyPy`](https://pypy.org/) and makes `httptools` an
-optional dependency. The BlackSheep HTTP Client requires either `httptools`
-(for CPython) or `h11` (for PyPy).
+optional dependency.
+
+Since version `2.5.0`, the BlackSheep HTTP Client includes HTTP/2 support and
+requires `h11` and `h2` libraries.
 
 For slightly better performance in `URL` parsing when running on `CPython`,
-it is recommended to install `httptools`.
+it is recommended to install `httptools` (optional).
 
 > [!TIP]
 >
@@ -276,7 +278,9 @@ for more details and examples.
 
 ## Client features
 
-BlackSheep includes an HTTP Client.
+BlackSheep includes an HTTP Client with native HTTP/2 support (since version `2.5.0`).
+The client automatically detects and uses HTTP/2 when the server supports it, with
+seamless fallback to HTTP/1.1.
 
 **Example:**
 ```python
@@ -297,17 +301,18 @@ asyncio.run(client_example())
 
 > [!IMPORTANT]
 >
-> Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/),
-> too (`PyPy 3.11`). For this reason, using the client requires an additional
-> dependency: `httptools` if using CPython, `h11` if using `PyPy`. This affects
-> only the `blacksheep.client` namespace.
+> Starting from version `2.3.1`, BlackSheep supports [PyPy](https://pypy.org/)
+> (`PyPy 3.11`). The HTTP client requires `h11` and `h2` libraries. Version `2.5.0`
+> added native HTTP/2 support via the `h2` library. The `httptools` library is
+> optional and only provides better URL parsing performance on CPython. These
+> dependencies affect only the `blacksheep.client` namespace.
 
 ## Supported platforms and runtimes
 
 * Python: all versions included in the [build matrix](.github/workflows/main.yml).
 * CPython and PyPy.
 * Ubuntu.
-* Windows 10.
+* Windows.
 * macOS.
 
 ## Documentation

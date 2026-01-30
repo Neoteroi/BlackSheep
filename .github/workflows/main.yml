@@ -297,7 +297,7 @@ jobs:
 
       - name: Build wheels
         run: |
-          python -m build --wheel
+          BLACKSHEEP_NO_EXTENSIONS=1 python -m build --wheel
 
       - uses: actions/upload-artifact@v4
         with:

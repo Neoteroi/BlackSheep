@@ -293,16 +293,16 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          pip install --upgrade build
+          pip install --upgrade build wheel setuptools
 
       - name: Build wheels
         run: |
-          python -m build
+          BLACKSHEEP_NO_EXTENSIONS=1 python -m build --wheel
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.python-version }}
-          path: dist
+          path: dist/*.whl
 
   # Build source distribution
   build-sdist:
@@ -358,8 +358,7 @@ jobs:
           pip install twine
       - name: Publish distribution 📦 to Test PyPI
         run: |
-          # twine upload -r testpypi dist/*
-          echo "Skipping upload to Test PyPI"
+          twine upload -r testpypi dist/*
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.test_pypi_password }}

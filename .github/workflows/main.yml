@@ -358,8 +358,7 @@ jobs:
           pip install twine
       - name: Publish distribution 📦 to Test PyPI
         run: |
-          # twine upload -r testpypi dist/*
-          echo "Skipping upload to Test PyPI"
+          twine upload -r testpypi dist/*
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.test_pypi_password }}

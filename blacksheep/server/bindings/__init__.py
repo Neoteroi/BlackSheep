@@ -183,6 +183,15 @@ class FromFiles(BoundValue[list[FormPart]]):
     """
 
 
+class FromMultipart(BoundValue[T]):
+    """
+    A parameter obtained from multipart/form-data request body.
+    Supports complex types with mixed fields and files.
+    """
+
+    default_value_type = dict
+
+
 class FromRoute(BoundValue[T]):
     """
     A parameter obtained from URL path fragment.
@@ -536,6 +545,25 @@ class FormBinder(BodyBinder):
         return request.declares_content_type(
             b"application/x-www-form-urlencoded"
         ) or request.declares_content_type(b"multipart/form-data")
+
+    async def read_data(self, request: Request) -> Any:
+        return await request.form()
+
+
+class MultipartBinder(BodyBinder):
+    """
+    Extracts a model from multipart/form-data request body.
+    This class allows defining complex objects to be received as multipart form data.
+    """
+
+    handle = FromMultipart
+
+    @property
+    def content_type(self) -> str:
+        return "multipart/form-data"
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_content_type(b"multipart/form-data")
 
     async def read_data(self, request: Request) -> Any:
         return await request.form()

@@ -4243,3 +4243,51 @@ async def test_handles_from_text_docs():
 
     # Verify the schema is a string
     assert "type: string" in yaml_text
+
+
+async def test_handles_from_multipart_with_complex_type():
+    """Test that FromMultipart with complex types generates proper documentation."""
+    from dataclasses import dataclass
+    from uuid import UUID
+    from blacksheep.server.bindings import FromMultipart
+
+    app = get_app()
+
+    @dataclass
+    class Address:
+        street: str
+        city: str
+
+    @dataclass
+    class UploadData:
+        id: UUID
+        addresses: list[Address]
+        profile_image: bytes
+
+    @app.router.post("/upload")
+    async def upload_item(data: FromMultipart[UploadData]):
+        """Upload endpoint with complex multipart data."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/upload" in yaml_text
+    assert "post:" in yaml_text
+
+    # Verify multipart/form-data is used (not form-data with semicolon)
+    assert "multipart/form-data:" in yaml_text
+
+    # Verify the schema includes the fields
+    assert "id:" in yaml_text
+    assert "format: uuid" in yaml_text
+    assert "addresses:" in yaml_text
+    assert "profile_image:" in yaml_text or "profileImage:" in yaml_text
+    
+    # Verify bytes field is rendered as binary
+    assert "format: binary" in yaml_text

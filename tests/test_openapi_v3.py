@@ -4197,7 +4197,7 @@ async def test_handles_from_files_multipart_docs():
     @app.router.post("/upload")
     async def upload_file(files: FromFiles):
         """Upload endpoint with files."""
-        pass
+        ...
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
     docs.bind_app(app)
@@ -4217,11 +4217,6 @@ async def test_handles_from_files_multipart_docs():
     assert "type: array" in text
     assert "format: binary" in text
 
-    # Print the generated docs for inspection
-    print("\n=== Generated OpenAPI Documentation ===")
-    print(text)
-    print("=" * 50)
-
 
 async def test_handles_from_text_docs():
     """Test that FromText parameter generates proper text/plain documentation."""
@@ -4230,7 +4225,7 @@ async def test_handles_from_text_docs():
     @app.router.post("/submit")
     async def submit_text(text: FromText):
         """Submit endpoint with text."""
-        pass
+        ...
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
     docs.bind_app(app)
@@ -4248,8 +4243,3 @@ async def test_handles_from_text_docs():
 
     # Verify the schema is a string
     assert "type: string" in yaml_text
-
-    # Print the generated docs for inspection
-    print("\n=== Generated OpenAPI Documentation ===")
-    print(yaml_text)
-    print("=" * 50)

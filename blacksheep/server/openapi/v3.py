@@ -51,9 +51,11 @@ from blacksheep.server.bindings import (
     Binder,
     BodyBinder,
     CookieBinder,
+    FilesBinder,
     HeaderBinder,
     QueryBinder,
     RouteBinder,
+    TextBinder,
     empty,
 )
 from blacksheep.server.openapi.docstrings import (
@@ -1058,6 +1060,15 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             None,
         )
 
+    def _get_files_binder(self, handler: Any) -> FilesBinder | None:
+        """Returns the FilesBinder from a handler, if present."""
+        if not hasattr(handler, "binders"):
+            return None
+        return next(
+            (binder for binder in handler.binders if isinstance(binder, FilesBinder)),
+            None,
+        )
+
     def _get_binder_by_name(self, handler: Any, name: str) -> Binder | None:
         return next(
             (binder for binder in handler.binders if binder.parameter_name == name),
@@ -1080,10 +1091,32 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_request_body(self, handler: Any) -> RequestBody | Reference | None:
         if not hasattr(handler, "binders"):
             return None
-        # TODO: improve this code to support more scenarios!
-        # https://github.com/Neoteroi/BlackSheep/issues/546
+        
         body_binder = self._get_body_binder(handler)
-
+        files_binder = self._get_files_binder(handler)
+        
+        # If there's no body binder but there is a files binder, document the files
+        if files_binder and not body_binder:
+            docs = self.get_handler_docs(handler)
+            body_info = docs.request_body if docs else None
+            
+            # Create schema for file upload
+            schema = Schema(
+                type=ValueType.ARRAY,
+                items=Schema(
+                    type=ValueType.STRING,
+                    format=ValueFormat.BINARY,
+                ),
+            )
+            
+            return RequestBody(
+                content={
+                    "multipart/form-data": MediaType(schema=schema)
+                },
+                required=files_binder.required,
+                description=body_info.description if body_info else "File upload",
+            )
+        
         if body_binder is None:
             return None
 
@@ -1095,7 +1128,8 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             if body_info and body_info.examples
             else None
         )
-
+        
+        # Original behavior for body binder
         return RequestBody(
             content=self._get_body_binder_content_type(body_binder, body_examples),
             required=body_binder.required,

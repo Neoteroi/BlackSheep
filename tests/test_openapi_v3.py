@@ -36,7 +36,7 @@ from pydantic.types import (
 
 from blacksheep.messages import Response
 from blacksheep.server.application import Application
-from blacksheep.server.bindings import FromForm
+from blacksheep.server.bindings import FromFiles, FromForm, FromText
 from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
@@ -4281,3 +4281,68 @@ tags:
 -   name: TagExample
 """.strip()
     )
+
+
+async def test_handles_from_files_multipart_docs():
+    """Test that FromFiles parameter generates proper multipart/form-data documentation."""
+    app = get_app()
+    
+    @app.router.post("/upload")
+    async def upload_file(files: FromFiles):
+        """Upload endpoint with files."""
+        pass
+    
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+    
+    serializer = DefaultSerializer()
+    text = serializer.to_yaml(docs.generate_documentation(app))
+    
+    # Verify the endpoint is documented
+    assert "/upload" in text
+    assert "post:" in text
+    
+    # Verify multipart/form-data is used
+    assert "multipart/form-data:" in text
+    
+    # Verify files is defined as array of binary
+    assert "type: array" in text
+    assert "format: binary" in text
+    
+    # Print the generated docs for inspection
+    print("\n=== Generated OpenAPI Documentation ===")
+    print(text)
+    print("=" * 50)
+
+
+async def test_handles_from_text_docs():
+    """Test that FromText parameter generates proper text/plain documentation."""
+    app = get_app()
+    
+    @app.router.post("/submit")
+    async def submit_text(text: FromText):
+        """Submit endpoint with text."""
+        pass
+    
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+    
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+    
+    # Verify the endpoint is documented
+    assert "/submit" in yaml_text
+    assert "post:" in yaml_text
+    
+    # Verify text/plain is used
+    assert "text/plain:" in yaml_text
+    
+    # Verify the schema is a string
+    assert "type: string" in yaml_text
+    
+    # Print the generated docs for inspection
+    print("\n=== Generated OpenAPI Documentation ===")
+    print(yaml_text)
+    print("=" * 50)

@@ -27,6 +27,7 @@ from typing import (
 from urllib.parse import unquote
 from uuid import UUID
 
+from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.bindings.dates import parse_datetime
 from blacksheep.utils import ensure_str
@@ -47,7 +48,7 @@ except ImportError:
 
 class TypeConverter(ABC):
     """
-    Base class for types that converts string reprensentations of values into
+    Base class for types that converts input values into
     instances of specific types.
     """
 
@@ -130,7 +131,44 @@ class BytesConverter(TypeConverter):
         return expected_type is bytes
 
     def convert(self, value, expected_type) -> Any:
+        if isinstance(value, list):
+            # If the user defined the expected input as bytes,
+            # but at the same time data is received from a multipart/form-data input,
+            # keep only the data part.
+            if len(value) > 0:
+                single_file_input = value[0]
+                return single_file_input.data
+            # Cannot convert the input, but let user-defined code handle this
+            return b""
+
+        if isinstance(value, FormPart):
+            # This is to support specifying list[bytes] for multipart/form-data
+            # file inputs
+            return value.data
+
         return value.encode(self._encoding) if value else None
+
+
+class FormPartConverter(TypeConverter):
+    def can_convert(self, expected_type) -> bool:
+        return expected_type is FormPart
+
+    def convert(self, value, expected_type) -> Any:
+        if isinstance(value, list):
+            # If the user defined the expected input as bytes,
+            # but at the same time data is received from a multipart/form-data input,
+            # keep only the data part.
+            if len(value) > 0:
+                single_file_input = value[0]
+                if isinstance(single_file_input, FormPart):
+                    return single_file_input
+                raise BadRequest("")
+            return None
+
+        if isinstance(value, FormPart):
+            return value
+
+        return None
 
 
 class DateTimeConverter(TypeConverter):
@@ -483,6 +521,7 @@ converters: list[TypeConverter] = [
     LiteralConverter(),
     StrConverter(),
     UUIDConverter(),
+    FormPartConverter(),
 ]
 
 

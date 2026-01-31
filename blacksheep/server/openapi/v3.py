@@ -45,6 +45,7 @@ from openapidocs.v3 import (
     ValueType,
 )
 
+from blacksheep.contents import FormPart
 from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
 from blacksheep.server.bindings import (
@@ -892,6 +893,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if object_type is datetime:
             return Schema(type=ValueType.STRING, format=ValueFormat.DATETIME)
 
+        if object_type is FormPart:
+            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
+
         return None
 
     def _try_get_schema_for_iterable(
@@ -1053,6 +1057,19 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING, enum=[v.value for v in object_type])
         return None
 
+    def _is_formpart_type(self, object_type: Type) -> bool:
+        """Check if a type is FormPart or a list/sequence of FormPart."""
+        if object_type is FormPart:
+            return True
+
+        origin = get_origin(object_type)
+        if origin in {list, set, tuple, collections_abc.Sequence}:
+            type_args = typing.get_args(object_type)
+            if type_args and type_args[0] is FormPart:
+                return True
+
+        return False
+
     def _get_binder_by_type(
         self, handler: Any, binder_type: Type[Binder]
     ) -> Binder | None:
@@ -1128,6 +1145,19 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             if body_info and body_info.examples
             else None
         )
+
+        # Check if the body binder expects FormPart or list[FormPart]
+        expected_type = body_binder.expected_type
+        is_formpart_type = self._is_formpart_type(expected_type)
+
+        if is_formpart_type:
+            # Generate multipart/form-data documentation for FormPart
+            schema = self.get_schema_by_type(expected_type)
+            return RequestBody(
+                content={"multipart/form-data": MediaType(schema=schema, examples=body_examples)},
+                required=body_binder.required,
+                description=body_info.description if body_info else "File upload",
+            )
 
         # Original behavior for body binder
         return RequestBody(

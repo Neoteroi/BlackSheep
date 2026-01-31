@@ -21,6 +21,7 @@ from openapidocs.v3 import (
     ParameterLocation,
     Reference,
     Schema,
+    ValueFormat,
     ValueType,
 )
 from pydantic import VERSION as PYDANTIC_LIB_VERSION
@@ -4287,3 +4288,81 @@ async def test_handles_from_multipart_with_complex_type():
 
     # Verify bytes field is rendered as binary
     assert "format: binary" in yaml_text
+
+
+async def test_handles_formpart_as_body_parameter():
+    """Test that FormPart as a body parameter generates proper multipart/form-data documentation."""
+    from blacksheep import FormPart
+
+    app = get_app()
+
+    @app.router.post("/upload-single")
+    async def upload_single_file(file: FormPart):
+        """Upload a single file using FormPart."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/upload-single" in yaml_text
+    assert "post:" in yaml_text
+
+    # Verify multipart/form-data is used
+    assert "multipart/form-data:" in yaml_text
+
+    # Verify the schema is for a binary file
+    assert "type: string" in yaml_text
+    assert "format: binary" in yaml_text
+
+
+async def test_handles_list_of_formpart_as_body_parameter():
+    """Test that list[FormPart] as a body parameter generates proper multipart/form-data documentation."""
+    from blacksheep import FormPart
+
+    app = get_app()
+
+    @app.router.post("/upload-multiple")
+    async def upload_multiple_files(files: list[FormPart]):
+        """Upload multiple files using list[FormPart]."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/upload-multiple" in yaml_text
+    assert "post:" in yaml_text
+
+    # Verify multipart/form-data is used
+    assert "multipart/form-data:" in yaml_text
+
+    # Verify the schema is for an array of binary files
+    assert "type: array" in yaml_text
+    assert "format: binary" in yaml_text
+
+
+async def test_formpart_schema_generation():
+    """Test that FormPart type generates correct OpenAPI schema."""
+    from blacksheep import FormPart
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+
+    # Test single FormPart schema
+    schema = docs.get_schema_by_type(FormPart)
+    assert schema.type == ValueType.STRING
+    assert schema.format == ValueFormat.BINARY
+
+    # Test list[FormPart] schema
+    list_schema = docs.get_schema_by_type(list[FormPart])
+    assert list_schema.type == ValueType.ARRAY
+    assert list_schema.items.type == ValueType.STRING
+    assert list_schema.items.format == ValueFormat.BINARY

@@ -1053,20 +1053,23 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING, enum=[v.value for v in object_type])
         return None
 
-    def _get_body_binder(self, handler: Any) -> BodyBinder | None:
-        return next(
-            (binder for binder in handler.binders if isinstance(binder, BodyBinder)),
-            None,
-        )
-
-    def _get_files_binder(self, handler: Any) -> FilesBinder | None:
-        """Returns the FilesBinder from a handler, if present."""
+    def _get_binder_by_type(
+        self, handler: Any, binder_type: Type[Binder]
+    ) -> Binder | None:
+        """Returns a binder of the specified type from a handler, if present."""
         if not hasattr(handler, "binders"):
             return None
         return next(
-            (binder for binder in handler.binders if isinstance(binder, FilesBinder)),
+            (binder for binder in handler.binders if isinstance(binder, binder_type)),
             None,
         )
+
+    def _get_body_binder(self, handler: Any) -> BodyBinder | None:
+        return self._get_binder_by_type(handler, BodyBinder)  # type: ignore
+
+    def _get_files_binder(self, handler: Any) -> FilesBinder | None:
+        """Returns the FilesBinder from a handler, if present."""
+        return self._get_binder_by_type(handler, FilesBinder)  # type: ignore
 
     def _get_binder_by_name(self, handler: Any, name: str) -> Binder | None:
         return next(

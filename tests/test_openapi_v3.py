@@ -36,7 +36,7 @@ from pydantic.types import (
 
 from blacksheep.messages import Response
 from blacksheep.server.application import Application
-from blacksheep.server.bindings import FromFiles, FromForm, FromText
+from blacksheep.server.bindings import FromFiles, FromForm, FromMultipart, FromText
 from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
@@ -4247,10 +4247,6 @@ async def test_handles_from_text_docs():
 
 async def test_handles_from_multipart_with_complex_type():
     """Test that FromMultipart with complex types generates proper documentation."""
-    from dataclasses import dataclass
-    from uuid import UUID
-    from blacksheep.server.bindings import FromMultipart
-
     app = get_app()
 
     @dataclass

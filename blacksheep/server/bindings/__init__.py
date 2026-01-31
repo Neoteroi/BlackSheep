@@ -186,7 +186,28 @@ class FromFiles(BoundValue[list[FormPart]]):
 class FromMultipart(BoundValue[T]):
     """
     A parameter obtained from multipart/form-data request body.
-    Supports complex types with mixed fields and files.
+
+    Use `FromMultipart[T]` when you need to bind complex structured data from
+    multipart/form-data, including a mix of regular fields, nested objects, and
+    file uploads (represented as `bytes` fields).
+
+    When to use:
+    - FromMultipart[T]: For complex types with mixed regular fields and files
+    - FromFiles: For simple array of uploaded files without structure
+    - FromForm: For form data (both multipart and URL-encoded) without files
+
+    Example:
+        @dataclass
+        class UserProfile:
+            name: str
+            email: str
+            avatar: bytes  # Will accept file upload
+
+        @app.router.post("/profile")
+        async def create_profile(data: FromMultipart[UserProfile]):
+            # data.value.name and data.value.email are strings
+            # data.value.avatar is the uploaded file as bytes
+            return {"status": "created"}
     """
 
     default_value_type = dict

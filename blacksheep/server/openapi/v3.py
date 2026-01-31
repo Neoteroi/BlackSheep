@@ -53,7 +53,6 @@ from blacksheep.server.bindings import (
     CookieBinder,
     FilesBinder,
     HeaderBinder,
-    MultipartBinder,
     QueryBinder,
     RouteBinder,
     empty,

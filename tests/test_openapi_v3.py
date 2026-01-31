@@ -4288,6 +4288,6 @@ async def test_handles_from_multipart_with_complex_type():
     assert "format: uuid" in yaml_text
     assert "addresses:" in yaml_text
     assert "profile_image:" in yaml_text or "profileImage:" in yaml_text
-    
+
     # Verify bytes field is rendered as binary
     assert "format: binary" in yaml_text

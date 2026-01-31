@@ -94,6 +94,10 @@ def parse_part(value: bytes, default_charset: bytes | None) -> FormPart:
 
     content_type = headers.get(b"content-type", None)
 
+    # TODO: convert bytes to str? If we keep bytes, it's most performant because we
+    # avoid the .decode call on fields that we don't even know if the user wants to read
+    # However, keeping bytes feels cumbersome when the developer wants to read fields
+    # like content_type, file_name when given, etc.
     return FormPart(
         field_name or b"",
         data,

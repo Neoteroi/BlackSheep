@@ -37,6 +37,10 @@ annotate:
 	cython blacksheep/baseapp.pyx -a
 
 
+pack:
+	BLACKSHEEP_NO_EXTENSIONS=1 python -m build --sdist
+
+
 build: test
 	python -m build
 

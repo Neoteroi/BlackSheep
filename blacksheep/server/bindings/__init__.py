@@ -183,6 +183,36 @@ class FromFiles(BoundValue[list[FormPart]]):
     """
 
 
+class FromMultipart(BoundValue[T]):
+    """
+    A parameter obtained from multipart/form-data request body.
+
+    Use `FromMultipart[T]` when you need to bind complex structured data from
+    multipart/form-data, including a mix of regular fields, nested objects, and
+    file uploads (represented as `bytes` fields).
+
+    When to use:
+    - FromMultipart[T]: For complex types with mixed regular fields and files
+    - FromFiles: For simple array of uploaded files without structure
+    - FromForm: For form data (both multipart and URL-encoded) without files
+
+    Example:
+        @dataclass
+        class UserProfile:
+            name: str
+            email: str
+            avatar: bytes  # Will accept file upload
+
+        @app.router.post("/profile")
+        async def create_profile(data: FromMultipart[UserProfile]):
+            # data.value.name and data.value.email are strings
+            # data.value.avatar is the uploaded file as bytes
+            return {"status": "created"}
+    """
+
+    default_value_type = dict
+
+
 class FromRoute(BoundValue[T]):
     """
     A parameter obtained from URL path fragment.
@@ -536,6 +566,25 @@ class FormBinder(BodyBinder):
         return request.declares_content_type(
             b"application/x-www-form-urlencoded"
         ) or request.declares_content_type(b"multipart/form-data")
+
+    async def read_data(self, request: Request) -> Any:
+        return await request.form()
+
+
+class MultipartBinder(BodyBinder):
+    """
+    Extracts a model from multipart/form-data request body.
+    This class allows defining complex objects to be received as multipart form data.
+    """
+
+    handle = FromMultipart
+
+    @property
+    def content_type(self) -> str:
+        return "multipart/form-data"
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_content_type(b"multipart/form-data")
 
     async def read_data(self, request: Request) -> Any:
         return await request.form()

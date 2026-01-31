@@ -36,6 +36,7 @@ from .server.bindings import FromFiles as FromFiles
 from .server.bindings import FromForm as FromForm
 from .server.bindings import FromHeader as FromHeader
 from .server.bindings import FromJSON as FromJSON
+from .server.bindings import FromMultipart as FromMultipart
 from .server.bindings import FromQuery as FromQuery
 from .server.bindings import FromRoute as FromRoute
 from .server.bindings import FromServices as FromServices

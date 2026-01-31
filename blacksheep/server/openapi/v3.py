@@ -55,7 +55,6 @@ from blacksheep.server.bindings import (
     HeaderBinder,
     QueryBinder,
     RouteBinder,
-    TextBinder,
     empty,
 )
 from blacksheep.server.openapi.docstrings import (
@@ -1091,15 +1090,15 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_request_body(self, handler: Any) -> RequestBody | Reference | None:
         if not hasattr(handler, "binders"):
             return None
-        
+
         body_binder = self._get_body_binder(handler)
         files_binder = self._get_files_binder(handler)
-        
+
         # If there's no body binder but there is a files binder, document the files
         if files_binder and not body_binder:
             docs = self.get_handler_docs(handler)
             body_info = docs.request_body if docs else None
-            
+
             # Create schema for file upload
             schema = Schema(
                 type=ValueType.ARRAY,
@@ -1108,15 +1107,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                     format=ValueFormat.BINARY,
                 ),
             )
-            
+
             return RequestBody(
-                content={
-                    "multipart/form-data": MediaType(schema=schema)
-                },
+                content={"multipart/form-data": MediaType(schema=schema)},
                 required=files_binder.required,
                 description=body_info.description if body_info else "File upload",
             )
-        
+
         if body_binder is None:
             return None
 
@@ -1128,7 +1125,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             if body_info and body_info.examples
             else None
         )
-        
+
         # Original behavior for body binder
         return RequestBody(
             content=self._get_body_binder_content_type(body_binder, body_examples),

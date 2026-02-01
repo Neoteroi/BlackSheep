@@ -1,10 +1,10 @@
 """
-Integration tests for FormPart OpenAPI documentation generation.
+Integration tests for FileData OpenAPI documentation generation.
 """
 import pytest
 from openapidocs.v3 import Info, ValueFormat, ValueType
 
-from blacksheep import Application, FormPart
+from blacksheep import Application, FileData
 from blacksheep.server.openapi.common import DefaultSerializer
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 
@@ -15,12 +15,12 @@ def get_test_app():
 
 
 @pytest.mark.asyncio
-async def test_formpart_single_file_openapi_spec():
-    """Test that single FormPart generates correct OpenAPI spec."""
+async def test_filedata_single_file_openapi_spec():
+    """Test that single FileData generates correct OpenAPI spec."""
     app = get_test_app()
 
     @app.router.post("/upload")
-    async def upload_file(file: FormPart):
+    async def upload_file(file: FileData):
         """Upload a single file."""
         return {"status": "ok"}
 
@@ -51,12 +51,12 @@ async def test_formpart_single_file_openapi_spec():
 
 
 @pytest.mark.asyncio
-async def test_formpart_multiple_files_openapi_spec():
-    """Test that list[FormPart] generates correct OpenAPI spec."""
+async def test_filedata_multiple_files_openapi_spec():
+    """Test that list[FileData] generates correct OpenAPI spec."""
     app = get_test_app()
 
     @app.router.post("/upload-multiple")
-    async def upload_files(files: list[FormPart]):
+    async def upload_files(files: list[FileData]):
         """Upload multiple files."""
         return {"status": "ok", "count": len(files)}
 
@@ -89,12 +89,12 @@ async def test_formpart_multiple_files_openapi_spec():
 
 
 @pytest.mark.asyncio
-async def test_formpart_yaml_output():
-    """Test that FormPart generates correct YAML output."""
+async def test_filedata_yaml_output():
+    """Test that FileData generates correct YAML output."""
     app = get_test_app()
 
     @app.router.post("/upload")
-    async def upload_file(file: FormPart):
+    async def upload_file(file: FileData):
         """Upload a file."""
         return {"status": "ok"}
 
@@ -114,12 +114,12 @@ async def test_formpart_yaml_output():
 
 
 @pytest.mark.asyncio
-async def test_formpart_json_output():
-    """Test that FormPart generates correct JSON output."""
+async def test_filedata_json_output():
+    """Test that FileData generates correct JSON output."""
     app = get_test_app()
 
     @app.router.post("/upload")
-    async def upload_file(file: FormPart):
+    async def upload_file(file: FileData):
         """Upload a file."""
         return {"status": "ok"}
 

@@ -4290,15 +4290,15 @@ async def test_handles_from_multipart_with_complex_type():
     assert "format: binary" in yaml_text
 
 
-async def test_handles_formpart_as_body_parameter():
-    """Test that FormPart as a body parameter generates proper multipart/form-data documentation."""
-    from blacksheep import FormPart
+async def test_handles_filedata_as_body_parameter():
+    """Test that FileData as a body parameter generates proper multipart/form-data documentation."""
+    from blacksheep import FileData
 
     app = get_app()
 
     @app.router.post("/upload-single")
-    async def upload_single_file(file: FormPart):
-        """Upload a single file using FormPart."""
+    async def upload_single_file(file: FileData):
+        """Upload a single file using FileData."""
         ...
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
@@ -4320,15 +4320,15 @@ async def test_handles_formpart_as_body_parameter():
     assert "format: binary" in yaml_text
 
 
-async def test_handles_list_of_formpart_as_body_parameter():
-    """Test that list[FormPart] as a body parameter generates proper multipart/form-data documentation."""
-    from blacksheep import FormPart
+async def test_handles_list_of_filedata_as_body_parameter():
+    """Test that list[FileData] as a body parameter generates proper multipart/form-data documentation."""
+    from blacksheep import FileData
 
     app = get_app()
 
     @app.router.post("/upload-multiple")
-    async def upload_multiple_files(files: list[FormPart]):
-        """Upload multiple files using list[FormPart]."""
+    async def upload_multiple_files(files: list[FileData]):
+        """Upload multiple files using list[FileData]."""
         ...
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
@@ -4350,19 +4350,19 @@ async def test_handles_list_of_formpart_as_body_parameter():
     assert "format: binary" in yaml_text
 
 
-async def test_formpart_schema_generation():
-    """Test that FormPart type generates correct OpenAPI schema."""
-    from blacksheep import FormPart
+async def test_filedata_schema_generation():
+    """Test that FileData type generates correct OpenAPI schema."""
+    from blacksheep import FileData
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
 
-    # Test single FormPart schema
-    schema = docs.get_schema_by_type(FormPart)
+    # Test single FileData schema
+    schema = docs.get_schema_by_type(FileData)
     assert schema.type == ValueType.STRING
     assert schema.format == ValueFormat.BINARY
 
-    # Test list[FormPart] schema
-    list_schema = docs.get_schema_by_type(list[FormPart])
+    # Test list[FileData] schema
+    list_schema = docs.get_schema_by_type(list[FileData])
     assert list_schema.type == ValueType.ARRAY
     assert list_schema.items.type == ValueType.STRING
     assert list_schema.items.format == ValueFormat.BINARY

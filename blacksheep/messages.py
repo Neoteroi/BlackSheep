@@ -3,12 +3,12 @@ import http
 import re
 from datetime import timedelta
 from json.decoder import JSONDecodeError
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, AsyncIterable, TypeAlias
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
 
-from blacksheep.multipart import parse_multipart
+from blacksheep.multipart import get_boundary_from_header, parse_multipart, parse_multipart_async
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
@@ -200,6 +200,44 @@ class Message:
                 return None
             return list(parse_multipart(body))
         return None
+
+    async def stream_multipart(self) -> AsyncIterable[FormPart] | None:
+        """
+        Parse multipart/form-data lazily from the request stream.
+
+        This method streams and parses multipart data without loading the entire
+        request body into memory, making it suitable for large file uploads.
+
+        Returns:
+            An async iterable of FormPart objects, or None if not multipart content.
+
+        Example:
+            ```python
+            async def upload_handler(request):
+                async for part in request.stream_multipart():
+                    if part.file_name:
+                        # Process file part
+                        await save_file(part.file_name, part.data)
+                    else:
+                        # Process form field
+                        value = part.data.decode('utf-8')
+            ```
+        """
+        content_type_value = self.content_type()
+        if not content_type_value:
+            return None
+
+        if b"multipart/form-data;" not in content_type_value:
+            return None
+
+        # Extract boundary from Content-Type header
+        # e.g., "multipart/form-data; boundary=----WebKitFormBoundary..."
+        try:
+            boundary = get_boundary_from_header(content_type_value)
+        except (ValueError, IndexError):
+            return None
+
+        return parse_multipart_async(self.stream(), boundary)
 
     def declares_content_type(self, type: bytes) -> bool:
         content_type = self.content_type()

@@ -201,15 +201,15 @@ class Message:
             return list(parse_multipart(body))
         return None
 
-    async def stream_multipart(self) -> AsyncIterable[FormPart] | None:
+    async def stream_multipart(self):
         """
         Parse multipart/form-data lazily from the request stream.
 
         This method streams and parses multipart data without loading the entire
         request body into memory, making it suitable for large file uploads.
 
-        Returns:
-            An async iterable of FormPart objects, or None if not multipart content.
+        Yields:
+            FormPart objects as they are parsed from the stream.
 
         Example:
             ```python
@@ -225,19 +225,20 @@ class Message:
         """
         content_type_value = self.content_type()
         if not content_type_value:
-            return None
+            return
 
         if b"multipart/form-data;" not in content_type_value:
-            return None
+            return
 
         # Extract boundary from Content-Type header
         # e.g., "multipart/form-data; boundary=----WebKitFormBoundary..."
         try:
             boundary = get_boundary_from_header(content_type_value)
         except (ValueError, IndexError):
-            return None
+            return
 
-        return parse_multipart_async(self.stream(), boundary)
+        async for part in parse_multipart_async(self.stream(), boundary):
+            yield part
 
     def declares_content_type(self, type: bytes) -> bool:
         content_type = self.content_type()

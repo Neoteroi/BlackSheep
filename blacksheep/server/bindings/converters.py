@@ -96,9 +96,11 @@ class BoolConverter(TypeConverter):
             return None
         if not isinstance(value, str):
             return bool(value)
-        if value.lower() in ("true", "1"):
+        if value.lower() in ("yes", "true", "1"):
+            # Note: in multipart/form-data, some browsers send 'yes' for a
+            # checked checkbox!
             return True
-        elif value.lower() in ("false", "0"):
+        elif value.lower() in ("no", "false", "0"):
             return False
         else:
             raise ValueError(f"Cannot convert {value!r} to {expected_type.__name__}")
@@ -154,6 +156,11 @@ class FileDataConverter(TypeConverter):
         return expected_type is FileData
 
     def convert(self, value, expected_type) -> Any:
+        if isinstance(value, str) and value == "":
+            # Browsers can send an empty string for a file input without
+            # any selected file
+            return None
+
         if isinstance(value, list):
             # If the user defined the expected input as bytes,
             # but at the same time data is received from a multipart/form-data input,

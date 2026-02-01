@@ -89,6 +89,35 @@ class FormPart:
     def __repr__(self):
         return f"<FormPart {self.name} - at {id(self)}>"
 
+
+class FileData:
+    """
+    Represents file data extracted from a multipart/form-data request.
+
+    Attributes:
+        param_name: The name of the form parameter containing the file.
+        data: The binary content of the file.
+        content_type: The MIME type of the file.
+        file_name: The name of the uploaded file.
+    """
+
+    def __init__(
+        self,
+        param_name: str,
+        data: bytes,
+        content_type: str,
+        file_name: str,
+    ):
+        self.param_name = param_name
+        self.data = data
+        self.file_name = file_name
+        self.content_type = content_type
+
+    @classmethod
+    def from_form_part(cls, form_data: FormPart) -> "FileData":
+        ...
+
+
 class MultiPartFormData(Content):
     def __init__(self, parts: list[FormPart]):
         self.parts = parts

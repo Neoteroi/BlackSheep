@@ -27,7 +27,7 @@ from typing import (
 from urllib.parse import unquote
 from uuid import UUID
 
-from blacksheep.contents import FormPart
+from blacksheep.contents import FileData, FormPart
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.bindings.dates import parse_datetime
 from blacksheep.utils import ensure_str
@@ -149,9 +149,9 @@ class BytesConverter(TypeConverter):
         return value.encode(self._encoding) if value else None
 
 
-class FormPartConverter(TypeConverter):
+class FileDataConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
-        return expected_type is FormPart
+        return expected_type is FileData
 
     def convert(self, value, expected_type) -> Any:
         if isinstance(value, list):
@@ -161,12 +161,12 @@ class FormPartConverter(TypeConverter):
             if len(value) > 0:
                 single_file_input = value[0]
                 if isinstance(single_file_input, FormPart):
-                    return single_file_input
+                    return FileData.from_form_part(single_file_input)
                 raise BadRequest("")
             return None
 
         if isinstance(value, FormPart):
-            return value
+            return FileData.from_form_part(value)
 
         return None
 
@@ -521,7 +521,7 @@ converters: list[TypeConverter] = [
     LiteralConverter(),
     StrConverter(),
     UUIDConverter(),
-    FormPartConverter(),
+    FileDataConverter(),
 ]
 
 

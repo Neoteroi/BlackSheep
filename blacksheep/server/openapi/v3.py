@@ -45,7 +45,7 @@ from openapidocs.v3 import (
     ValueType,
 )
 
-from blacksheep.contents import FormPart
+from blacksheep.contents import FileData
 from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
 from blacksheep.server.bindings import (
@@ -893,7 +893,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if object_type is datetime:
             return Schema(type=ValueType.STRING, format=ValueFormat.DATETIME)
 
-        if object_type is FormPart:
+        if object_type is FileData:
             return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
 
         return None
@@ -1057,15 +1057,15 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING, enum=[v.value for v in object_type])
         return None
 
-    def _is_formpart_type(self, object_type: Type) -> bool:
-        """Check if a type is FormPart or a list/sequence of FormPart."""
-        if object_type is FormPart:
+    def _is_filedata_type(self, object_type: Type) -> bool:
+        """Check if a type is FileData or a list/sequence of FileData."""
+        if object_type is FileData:
             return True
 
         origin = get_origin(object_type)
         if origin in {list, set, tuple, collections_abc.Sequence}:
             type_args = typing.get_args(object_type)
-            if type_args and type_args[0] is FormPart:
+            if type_args and type_args[0] is FileData:
                 return True
 
         return False
@@ -1146,12 +1146,12 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else None
         )
 
-        # Check if the body binder expects FormPart or list[FormPart]
+        # Check if the body binder expects FileData or list[FileData]
         expected_type = body_binder.expected_type
-        is_formpart_type = self._is_formpart_type(expected_type)
+        is_filedata_type = self._is_filedata_type(expected_type)
 
-        if is_formpart_type:
-            # Generate multipart/form-data documentation for FormPart
+        if is_filedata_type:
+            # Generate multipart/form-data documentation for FileData
             schema = self.get_schema_by_type(expected_type)
             return RequestBody(
                 content={"multipart/form-data": MediaType(schema=schema, examples=body_examples)},

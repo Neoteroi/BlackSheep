@@ -72,6 +72,16 @@ class FormContent(Content):
         super().__init__(b"application/x-www-form-urlencoded", b"")
 
 class FormPart:
+    """
+    Represents a single part of a multipart/form-data request.
+
+    Attributes:
+        name: The name of the form field (bytes).
+        data: The binary content of the form part.
+        file_name: The filename if this part represents a file upload (optional).
+        content_type: The MIME type of the content (optional).
+        charset: The character encoding of the content (optional).
+    """
     def __init__(
         self,
         name: bytes,

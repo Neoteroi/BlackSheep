@@ -180,6 +180,24 @@ class FormContent(Content):
 
 
 class FormPart:
+    """
+    Represents a single part of a multipart/form-data request.
+
+    Attributes:
+        name: The name of the form field (bytes).
+        data: The binary content of the form part.
+        file_name: The filename if this part represents a file upload (optional).
+        content_type: The MIME type of the content (optional).
+        charset: The character encoding of the content (optional).
+    """
+    __slots__ = (
+        "name",
+        "data",
+        "file_name",
+        "content_type",
+        "charset"
+    )
+
     def __init__(
         self,
         name: bytes,
@@ -221,6 +239,12 @@ class FileData:
         content_type: The MIME type of the file.
         file_name: The name of the uploaded file.
     """
+    __slots__ = (
+        "param_name",
+        "data",
+        "file_name",
+        "content_type",
+    )
 
     def __init__(
         self,

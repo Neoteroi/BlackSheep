@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for handling `FromText`, `FromFiles` in OpenAPI Documentation ([#546](https://github.com/Neoteroi/BlackSheep/issues/546)).
 - Add `FromMultipart[T]` for complex structured multipart form data. See [PR 653](https://github.com/Neoteroi/BlackSheep/pull/653).
 - Improve support for `multipart/form-data` forms.
-- Add a `FileData` class to describe file input.
+- Add a `FileData` class to describe file input for `multipart/form-data` forms.
 
 ## [2.5.1] - 2026-01-30 :wheel:
 

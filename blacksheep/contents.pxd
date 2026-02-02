@@ -57,8 +57,6 @@ cdef class StreamingFormPart:
     cdef readonly bytes content_type
     cdef readonly bytes charset
     cdef readonly object _data_stream
-    cdef readonly object _cached_data
-    cdef readonly int _chunk_size
 
 
 cdef class ServerSentEvent:

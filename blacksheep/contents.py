@@ -298,11 +298,11 @@ class StreamingFormPart:
 
     def __init__(
         self,
-        name: bytes,
+        name: str,
         data_stream: AsyncIterable[bytes],
-        content_type: bytes | None = None,
-        file_name: bytes | None = None,
-        charset: bytes | None = None,
+        content_type: str | None = None,
+        file_name: str | None = None,
+        charset: str | None = None,
         chunk_size: int = 8192,
     ):
         self.name = name

@@ -116,7 +116,7 @@ def parse_multipart(value: bytes) -> Generator[FormPart, None, None]:
     alternatives:
 
     - `parse_multipart_async()` for async streaming parsing
-    - `request.stream_multipart()` for high-level streaming API
+    - `request.multipart_stream()` for high-level streaming API
 
     These alternatives process multipart data chunk-by-chunk without loading
     the entire payload into memory, preventing memory pressure and improving
@@ -147,206 +147,216 @@ def parse_multipart(value: bytes) -> Generator[FormPart, None, None]:
             default_charset = charset.default_charset
 
 
+def _decode(value: bytes | None) -> str | None:
+    if value is None:
+        return value
+    return value.decode("utf8")
+
+
 async def parse_multipart_async(
     stream: AsyncIterable[bytes], boundary: bytes
-) -> AsyncIterable[StreamingFormPart | FormPart]:
+) -> AsyncIterable[StreamingFormPart]:
     """
     Parses multipart/form-data from an async stream, yielding StreamingFormPart
-    objects for files and FormPart objects for form fields.
+    objects for all parts (both files and form fields).
 
-    This implementation provides true streaming support for file uploads, allowing
-    file data to be read lazily without loading entire files into memory. Small
-    form fields are yielded as regular FormPart objects with data fully loaded.
+    This implementation provides true streaming support for all multipart parts,
+    allowing data to be read lazily without loading entire parts into memory.
+    This is important not only for large file uploads, but also for large text
+    fields that may be sent via multipart/form-data.
+
+    IMPORTANT: Parts must be consumed (or explicitly skipped) in order before
+    requesting the next part. If a part is not consumed before the next iteration,
+    its data will be drained and discarded.
 
     Args:
         stream: Async iterable of byte chunks from the request body
         boundary: The boundary bytes from the Content-Type header
 
     Yields:
-        StreamingFormPart for files (data accessed via stream() or read())
-        FormPart for small form fields (data immediately available)
+        StreamingFormPart objects for all parts (data accessed via stream() or read())
 
     Example:
         ```python
         async for part in parse_multipart_async(stream, boundary):
-            if isinstance(part, StreamingFormPart):
+            if part.file_name:
                 # File upload - stream to disk
                 await part.save_to(f"uploads/{part.file_name.decode()}")
             else:
-                # Form field - data already loaded
-                value = part.data.decode('utf-8')
+                # Form field - read value
+                value = await part.read()
         ```
     """
     boundary_delimiter = b"--" + boundary
     end_boundary = boundary_delimiter + b"--"
 
+    # Use manual iterator control to avoid buffering the entire stream
+    stream_iter = stream.__aiter__()
     buffer = bytearray()
     default_charset = None
-    in_headers = False
-    in_data = False
-    headers_buffer = bytearray()
 
-    # Current part metadata
-    current_name: bytes | None = None
-    current_filename: bytes | None = None
-    current_content_type: bytes | None = None
+    # Track current part's data generator for draining if not consumed
+    current_data_gen = None
+    part_consumed = True
+
+    async def read_more() -> bool:
+        """Read more data from stream into buffer. Returns False if stream ended."""
+        try:
+            chunk = await stream_iter.__anext__()
+            buffer.extend(chunk)
+            return True
+        except StopAsyncIteration:
+            return False
+
+    async def skip_to_boundary() -> bool:
+        """
+        Skip data until we find and move past a boundary delimiter.
+        Returns False if end boundary reached or stream ended.
+        """
+        while True:
+            # Check for end boundary first
+            end_pos = buffer.find(end_boundary)
+            if end_pos != -1:
+                return False
+
+            pos = buffer.find(boundary_delimiter)
+            if pos != -1:
+                # Move past the boundary
+                after = pos + len(boundary_delimiter)
+
+                # Ensure we have enough bytes to check for CRLF
+                while len(buffer) < after + 2:
+                    if not await read_more():
+                        buffer[:] = buffer[after:] if len(buffer) > after else b""
+                        return len(buffer) > 0
+
+                # Skip CRLF after boundary
+                if buffer[after : after + 2] == b"\r\n":
+                    buffer[:] = buffer[after + 2 :]
+                elif buffer[after : after + 1] == b"\n":
+                    buffer[:] = buffer[after + 1 :]
+                else:
+                    buffer[:] = buffer[after:]
+                return True
+
+            # Keep minimal buffer for boundary detection, read more
+            if len(buffer) > len(end_boundary):
+                buffer[:] = buffer[-len(end_boundary) :]
+
+            if not await read_more():
+                return False
 
     async def data_generator():
         """Generator that yields data chunks for current part."""
-        nonlocal buffer, in_data
+        nonlocal part_consumed
+        part_consumed = False
 
-        while in_data:
-            # Look for next boundary
-            next_boundary = buffer.find(boundary_delimiter)
+        try:
+            while True:
+                # Look for boundary in current buffer
+                pos = buffer.find(boundary_delimiter)
 
-            if next_boundary == -1:
-                # No boundary found yet
-                if len(buffer) > len(boundary_delimiter) + 4:
-                    # Yield safe portion, keep rest for boundary detection
-                    safe_amount = len(buffer) - len(boundary_delimiter) - 4
+                if pos != -1:
+                    # Found boundary - yield data before it (minus trailing CRLF)
+                    data = _remove_last_crlf(bytes(buffer[:pos]))
+                    buffer[:] = buffer[pos:]  # Keep boundary for next part detection
+                    if data:
+                        yield data
+                    return
+
+                # No boundary found - yield safe portion of buffer
+                # Keep enough bytes to detect boundary that might span chunks
+                safe_threshold = len(boundary_delimiter) + 4
+                if len(buffer) > safe_threshold:
+                    safe_amount = len(buffer) - safe_threshold
                     chunk = bytes(buffer[:safe_amount])
-                    buffer = buffer[safe_amount:]
+                    buffer[:] = buffer[safe_amount:]
                     if chunk:
                         yield chunk
 
-                # Need more data from stream
-                try:
-                    next_chunk = await stream.__anext__()
-                    buffer.extend(next_chunk)
-                except StopAsyncIteration:
-                    # Stream ended, yield remaining buffer
+                # Read more data from stream
+                if not await read_more():
+                    # Stream ended - yield remaining buffer
                     if buffer:
                         data = _remove_last_crlf(bytes(buffer))
+                        buffer.clear()
                         if data:
                             yield data
-                    buffer.clear()
-                    in_data = False
-                    break
-            else:
-                # Found boundary - yield final data chunk
-                final_data = bytes(buffer[:next_boundary])
-                final_data = _remove_last_crlf(final_data)
-                if final_data:
-                    yield final_data
-
-                # Move buffer past this boundary
-                buffer = buffer[next_boundary:]
-                in_data = False
-                break
-
-    async for chunk in stream:
-        buffer.extend(chunk)
-
-        while True:
-            if not in_headers and not in_data:
-                # Looking for start of new part
-                boundary_index = buffer.find(boundary_delimiter)
-                if boundary_index == -1:
-                    if len(buffer) > len(boundary_delimiter):
-                        buffer = buffer[-len(boundary_delimiter):]
-                    break
-
-                # Check for end boundary
-                if buffer[boundary_index:].startswith(end_boundary):
                     return
+        finally:
+            part_consumed = True
 
-                # Move past boundary
-                after_boundary = boundary_index + len(boundary_delimiter)
-                if after_boundary < len(buffer):
-                    if buffer[after_boundary:after_boundary+2] == b"\r\n":
-                        after_boundary += 2
-                    elif buffer[after_boundary:after_boundary+1] == b"\n":
-                        after_boundary += 1
+    async def drain_current_part():
+        """Drain any unconsumed data from the current part."""
+        nonlocal current_data_gen
+        if current_data_gen is not None and not part_consumed:
+            async for _ in current_data_gen:
+                pass
+        current_data_gen = None
 
-                buffer = buffer[after_boundary:]
-                in_headers = True
-                headers_buffer.clear()
+    # Skip to first boundary
+    if not await skip_to_boundary():
+        return
 
-            elif in_headers:
-                # Reading headers until \r\n\r\n
-                header_end = buffer.find(b"\r\n\r\n")
-                if header_end == -1:
-                    # Need more data
-                    if len(buffer) > 1024:  # Reasonable header size limit
-                        headers_buffer.extend(buffer)
-                        buffer.clear()
-                    break
+    while True:
+        # Drain previous part if caller didn't consume it
+        await drain_current_part()
 
-                # Found end of headers
-                headers_buffer.extend(buffer[:header_end])
-                buffer = buffer[header_end + 4:]
+        # Check for end boundary marker ("--" after boundary)
+        while len(buffer) < 2:
+            if not await read_more():
+                return
+        if buffer[:2] == b"--":
+            return
 
-                # Parse headers
-                headers = dict(split_headers(bytes(headers_buffer)))
-                content_disposition = headers.get(b"content-disposition")
+        # Read headers (until \r\n\r\n)
+        while b"\r\n\r\n" not in buffer:
+            if not await read_more():
+                return
 
-                if content_disposition:
-                    cd_values = parse_content_disposition_values(content_disposition)
-                    current_name = cd_values.get(b"name", b"")
-                    current_filename = cd_values.get(b"filename")
-                    current_content_type = headers.get(b"content-type")
+        header_end = buffer.find(b"\r\n\r\n")
+        headers_data = bytes(buffer[:header_end])
+        buffer[:] = buffer[header_end + 4 :]
 
-                    # Check for charset field
-                    if current_name == b"_charset_":
-                        # Handle charset value
-                        try:
-                            default_charset = await data_generator().__anext__()
-                        except StopAsyncIteration:
-                            pass
-                        in_headers = False
-                        in_data = False
-                        continue
+        # Parse headers
+        headers = dict(split_headers(headers_data))
+        content_disposition = headers.get(b"content-disposition")
 
-                    in_headers = False
-                    in_data = True
+        if not content_disposition:
+            # Invalid part - skip to next boundary
+            if not await skip_to_boundary():
+                return
+            continue
 
-                    # Decide whether to stream or buffer based on presence of filename
-                    if current_filename:
-                        # File upload - yield StreamingFormPart
-                        streaming_part = StreamingFormPart(
-                            current_name,
-                            data_generator(),
-                            current_content_type,
-                            current_filename,
-                            default_charset,
-                        )
-                        yield streaming_part
-                        # data_generator() will handle consuming data and transitioning state
-                    else:
-                        # Small form field - buffer it
-                        # Fall through to in_data handling
-                        pass
-                else:
-                    # Invalid part, skip
-                    in_headers = False
-                    break
+        cd_values = parse_content_disposition_values(content_disposition)
+        name = cd_values.get(b"name", b"")
+        filename = cd_values.get(b"filename")
+        content_type = headers.get(b"content-type")
 
-            elif in_data and not current_filename:
-                # Buffering small form field data
-                next_boundary = buffer.find(boundary_delimiter)
+        # Handle special _charset_ field
+        if name == b"_charset_":
+            charset_gen = data_generator()
+            current_data_gen = charset_gen
+            async for chunk in charset_gen:
+                default_charset = chunk
+                break
+            await drain_current_part()
+            if not await skip_to_boundary():
+                return
+            continue
 
-                if next_boundary == -1:
-                    # Need more data
-                    break
+        # Create data generator for this part
+        current_data_gen = data_generator()
 
-                # Found boundary
-                field_data = bytes(buffer[:next_boundary])
-                field_data = _remove_last_crlf(field_data)
+        # Yield the streaming part
+        yield StreamingFormPart(
+            _decode(name),
+            current_data_gen,
+            _decode(content_type),
+            _decode(filename),
+            _decode(default_charset),
+        )
 
-                # Create FormPart for small field
-                if current_name:
-                    form_part = FormPart(
-                        current_name,
-                        field_data,
-                        current_content_type,
-                        None,  # no filename
-                        default_charset,
-                    )
-                    yield form_part
-
-                # Move past boundary
-                buffer = buffer[next_boundary:]
-                in_data = False
-                current_name = None
-                current_filename = None
-                current_content_type = None
+        # After yield returns (caller asked for next part), we'll drain
+        # any unconsumed data at the top of the next iteration, then
+        # skip_to_boundary to move past the boundary delimiter

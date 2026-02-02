@@ -3,7 +3,7 @@ import http
 import re
 from datetime import timedelta
 from json.decoder import JSONDecodeError
-from typing import TYPE_CHECKING, Any, AsyncIterable, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
@@ -177,6 +177,24 @@ class Message:
             return encodings_settings.decode(body, decode_error)
 
     async def form(self):
+        """
+        Parse form data from the request.
+
+        ⚠️ Memory Warning: For multipart/form-data with file uploads,
+        this method loads the entire request body into memory. For files
+        larger than 10MB, use `multipart_stream()` instead.
+
+        Use this method for:
+        - application/x-www-form-urlencoded forms
+        - Small multipart forms with text fields and small files (<10MB)
+
+        For large file uploads, use:
+        ```python
+        async for part in request.multipart_stream():
+            if part.file_name:
+                await save_file_stream(part)
+        ```
+        """
         content_type_value = self.content_type()
         if not content_type_value:
             return None
@@ -191,6 +209,44 @@ class Message:
         return None
 
     async def multipart(self) -> list[FormPart] | None:
+        """
+        Parse multipart/form-data and return a list of FormPart objects.
+
+        ⚠️ Memory Warning: This method loads the entire request body into memory.
+        For large file uploads (>10MB), use `multipart_stream()` instead to process
+        parts lazily without memory pressure.
+
+        Use this method for:
+        - Small multipart forms with text fields and small files (<10MB)
+        - When you need all parts at once for processing
+
+        For large file uploads or memory-efficient processing, use:
+        ```python
+        async for part in request.multipart_stream():
+            if part.file_name:
+                # Stream file directly to disk
+                async with open(f"uploads/{part.file_name.decode()}", "wb") as f:
+                    if isinstance(part, StreamingFormPart):
+                        async for chunk in part.stream():
+                            await f.write(chunk)
+        ```
+
+        Returns:
+            List of FormPart objects, or None if not multipart/form-data
+
+        Example:
+            ```python
+            parts = await request.multipart()
+            if parts:
+                for part in parts:
+                    if part.file_name:
+                        # File upload - data already in memory
+                        save_file(part.file_name, part.data)
+                    else:
+                        # Form field
+                        value = part.data.decode('utf-8')
+            ```
+        """
         content_type_value = self.content_type()
         if not content_type_value:
             return None
@@ -201,12 +257,13 @@ class Message:
             return list(parse_multipart(body))
         return None
 
-    async def stream_multipart(self):
+    async def multipart_stream(self):
         """
         Parse multipart/form-data lazily from the request stream.
 
         This method streams and parses multipart data without loading the entire
-        request body into memory, making it suitable for large file uploads.
+        request body into memory, making it suitable for large file uploads and large
+        text uploads.
 
         Yields:
             FormPart objects as they are parsed from the stream.
@@ -214,7 +271,7 @@ class Message:
         Example:
             ```python
             async def upload_handler(request):
-                async for part in request.stream_multipart():
+                async for part in request.multipart_stream():
                     if part.file_name:
                         # Process file part
                         await save_file(part.file_name, part.data)

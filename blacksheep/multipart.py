@@ -357,6 +357,8 @@ async def parse_multipart_async(
             _decode(default_charset),
         )
 
-        # After yield returns (caller asked for next part), we'll drain
-        # any unconsumed data at the top of the next iteration, then
-        # skip_to_boundary to move past the boundary delimiter
+        # After yield returns (caller asked for next part), drain any unconsumed
+        # data and skip to the next boundary
+        await drain_current_part()
+        if not await skip_to_boundary():
+            return

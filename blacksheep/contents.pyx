@@ -286,6 +286,102 @@ cdef class FileData:
         )
 
 
+cdef class StreamingFormPart:
+    """
+    Represents a streaming part of a multipart/form-data request.
+
+    Unlike FormPart, which loads all data into memory, StreamingFormPart provides
+    lazy access to file content through async iteration, making it suitable for
+    large file uploads without memory pressure.
+
+    Attributes:
+        name: The name of the form field (bytes).
+        content_type: The MIME type of the content (optional).
+        file_name: The filename if this part represents a file upload (optional).
+        charset: The character encoding of the content (optional).
+    """
+
+    def __init__(
+        self,
+        bytes name,
+        object data_stream,
+        bytes content_type = None,
+        bytes file_name = None,
+        bytes charset = None,
+        int chunk_size = 8192,
+    ):
+        self.name = name
+        self.file_name = file_name
+        self.content_type = content_type
+        self.charset = charset
+        self._data_stream = data_stream
+        self._cached_data = None
+        self._chunk_size = chunk_size
+
+    async def stream(self):
+        """
+        Stream the part data in chunks.
+
+        Yields:
+            Byte chunks of the part data.
+        """
+        if self._cached_data is not None:
+            yield self._cached_data
+        else:
+            async for chunk in self._data_stream:
+                yield chunk
+
+    async def read(self):
+        """
+        Read and return all data as bytes.
+
+        This loads the entire part data into memory. For large files,
+        prefer using stream() to process data in chunks.
+
+        Returns:
+            The complete part data as bytes.
+        """
+        if self._cached_data is None:
+            chunks = []
+            async for chunk in self._data_stream:
+                chunks.append(chunk)
+            self._cached_data = b''.join(chunks)
+        return self._cached_data
+
+    async def save_to(self, str path):
+        """
+        Stream part data directly to a file.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+        total_bytes = 0
+        with open(path, 'wb') as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
+
+    @property
+    def data(self):
+        """
+        Synchronous property to access data.
+
+        Warning: This will raise an error since data must be read asynchronously.
+        Use await part.read() or async for chunk in part.stream() instead.
+        """
+        raise RuntimeError(
+            "StreamingFormPart.data cannot be accessed synchronously. "
+            "Use 'await part.read()' or 'async for chunk in part.stream()' instead."
+        )
+
+    def __repr__(self):
+        return f"<StreamingFormPart {self.name} - at {id(self)}>"
+
+
 cdef class MultiPartFormData(Content):
 
     def __init__(self, list parts):

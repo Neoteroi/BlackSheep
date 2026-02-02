@@ -51,6 +51,16 @@ cdef class FileData:
     cdef readonly str file_name
 
 
+cdef class StreamingFormPart:
+    cdef readonly bytes name
+    cdef readonly bytes file_name
+    cdef readonly bytes content_type
+    cdef readonly bytes charset
+    cdef readonly object _data_stream
+    cdef readonly object _cached_data
+    cdef readonly int _chunk_size
+
+
 cdef class ServerSentEvent:
     cdef readonly object data
     cdef readonly str event

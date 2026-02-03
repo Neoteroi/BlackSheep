@@ -3,6 +3,7 @@ import http
 import re
 from datetime import timedelta
 from json.decoder import JSONDecodeError
+from tempfile import SpooledTemporaryFile
 from typing import TYPE_CHECKING, Any, TypeAlias
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
@@ -18,7 +19,7 @@ from .contents import (
     Content,
     FormPart,
     StreamedContent,
-    multiparts_to_dictionary,
+    UploadFile,
     parse_www_form_urlencoded,
 )
 from .cookies import Cookie, parse_cookie, split_value, write_cookie_for_response
@@ -54,6 +55,100 @@ async def _call_soon(coro):
         return await task
     except asyncio.CancelledError:
         return None
+
+
+async def _multipart_to_dict_streaming(
+    stream_iter,
+    spool_max_size: int = 1024 * 1024,
+    max_field_size: int = 1024 * 1024,
+) -> dict:
+    """
+    Convert streaming multipart parts to dictionary with memory-efficient file handling.
+
+    Files are wrapped in UploadFile with SpooledTemporaryFile:
+    - Small files (<1MB): Kept in memory for performance
+    - Large files (>1MB): Automatically spooled to temporary disk files
+    - Form fields: Buffered in memory with size limits
+
+    Args:
+        stream_iter: Async iterator of StreamingFormPart objects
+        spool_max_size: Threshold for spooling files to disk (default: 1MB)
+        max_field_size: Maximum size for form fields (default: 1MB)
+
+    Returns:
+        Dictionary with form data and UploadFile instances for files
+    """
+    from tempfile import SpooledTemporaryFile
+
+    data = {}
+
+    async for part in stream_iter:
+        key = part.name
+
+        if part.file_name:
+            # File upload - use SpooledTemporaryFile for automatic spooling
+            spooled_file = SpooledTemporaryFile(max_size=spool_max_size, mode="w+b")
+
+            # Track size for metadata
+            total_size = 0
+
+            # Stream file data to SpooledTemporaryFile
+            async for chunk in part.stream():
+                spooled_file.write(chunk)
+                total_size += len(chunk)
+
+            # Reset to beginning for reading
+            spooled_file.seek(0)
+
+            # Wrap in UploadFile - exposes the file object directly
+            upload_file = UploadFile(
+                name=key,
+                filename=part.file_name,
+                file=spooled_file,
+                content_type=part.content_type,
+                size=total_size,
+                charset=part.charset,
+            )
+
+            # Handle multiple files with same key
+            if key in data:
+                if isinstance(data[key], list):
+                    data[key].append(upload_file)
+                else:
+                    data[key] = [data[key], upload_file]
+            else:
+                data[key] = [upload_file]
+        else:
+            # Regular form field - buffer in memory with size limit
+            field_data = bytearray()
+            async for chunk in part.stream():
+                field_data.extend(chunk)
+                if len(field_data) > max_field_size:
+                    raise BadRequest(
+                        f"Form field '{key}' exceeds maximum size of "
+                        f"{max_field_size} bytes"
+                    )
+
+            # Decode field value
+            charset = part.charset or "utf8"
+            try:
+                value = bytes(field_data).decode(charset)
+            except Exception:
+                value = bytes(field_data)
+
+            # Handle multiple values with same key
+            if key in data:
+                if isinstance(data[key], list):
+                    data[key].append(value)
+                elif isinstance(data[key], str):
+                    data[key] = [data[key], value]
+                else:
+                    # Mixed types, keep as is
+                    pass
+            else:
+                data[key] = value
+
+    return data
 
 
 class Message:
@@ -178,22 +273,35 @@ class Message:
 
     async def form(self):
         """
-        Parse form data from the request.
+        Parse form data from the request with memory-efficient file handling.
 
-        ⚠️ Memory Warning: For multipart/form-data with file uploads,
-        this method loads the entire request body into memory. For files
-        larger than 10MB, use `multipart_stream()` instead.
+        This method now uses SpooledTemporaryFile for multipart uploads:
+        - Small files (<1MB): Kept in memory for performance
+        - Large files (>1MB): Automatically spooled to temporary disk files
+        - No memory exhaustion on large uploads!
 
-        Use this method for:
-        - application/x-www-form-urlencoded forms
-        - Small multipart forms with text fields and small files (<10MB)
+        File uploads are returned as `UploadFile` instances (not bytes!).
+        Form fields are returned as strings.
 
-        For large file uploads, use:
-        ```python
-        async for part in request.multipart_stream():
-            if part.file_name:
-                await save_file_stream(part)
-        ```
+        Returns:
+            Dictionary with form data. File uploads are UploadFile instances.
+
+        Example:
+            ```python
+            form_data = await request.form()
+
+            # Form fields are strings
+            name = form_data.get("name")  # str
+
+            # Files are UploadFile instances
+            avatar = form_data.get("avatar")  # UploadFile
+            if isinstance(avatar, UploadFile):
+                # Save without loading into memory
+                with open(f"uploads/{avatar.filename}", "wb") as f:
+                    avatar.seek(0)
+                    f.write(avatar.read())
+                avatar.close()
+            ```
         """
         content_type_value = self.content_type()
         if not content_type_value:
@@ -202,59 +310,110 @@ class Message:
             text = await self.text()
             return parse_www_form_urlencoded(text)
         if b"multipart/form-data;" in content_type_value:
-            body = await self.read()
-            if body is None:
+            # Use streaming parser with SpooledTemporaryFile
+            try:
+                boundary = get_boundary_from_header(content_type_value)
+            except (ValueError, IndexError):
                 return None
-            return multiparts_to_dictionary(list(parse_multipart(body)))
+            return await _multipart_to_dict_streaming(
+                parse_multipart_async(self.stream(), boundary)
+            )
         return None
 
-    async def multipart(self) -> list[FormPart] | None:
+    async def multipart(self) -> list[FormPart | UploadFile] | None:
         """
-        Parse multipart/form-data and return a list of FormPart objects.
+        Parse multipart/form-data with memory-efficient file handling.
 
-        ⚠️ Memory Warning: This method loads the entire request body into memory.
-        For large file uploads (>10MB), use `multipart_stream()` instead to process
-        parts lazily without memory pressure.
-
-        Use this method for:
-        - Small multipart forms with text fields and small files (<10MB)
-        - When you need all parts at once for processing
-
-        For large file uploads or memory-efficient processing, use:
-        ```python
-        async for part in request.multipart_stream():
-            if part.file_name:
-                # Stream file directly to disk
-                async with open(f"uploads/{part.file_name.decode()}", "wb") as f:
-                    if isinstance(part, StreamingFormPart):
-                        async for chunk in part.stream():
-                            await f.write(chunk)
-        ```
+        This method now uses SpooledTemporaryFile for file uploads:
+        - Small files (<1MB): Kept in memory
+        - Large files (>1MB): Automatically spooled to temporary disk files
+        - Form fields: Returned as FormPart with data in memory
+        - File uploads: Returned as UploadFile with lazy file access
 
         Returns:
-            List of FormPart objects, or None if not multipart/form-data
+            List of FormPart (for fields) and UploadFile (for files), or None
 
         Example:
             ```python
             parts = await request.multipart()
             if parts:
                 for part in parts:
-                    if part.file_name:
-                        # File upload - data already in memory
-                        save_file(part.file_name, part.data)
-                    else:
+                    if isinstance(part, UploadFile):
+                        # File upload - memory-efficient!
+                        print(f"File: {part.filename}, Size: {part.size}")
+                        # Save without loading into memory
+                        with open(f"uploads/{part.filename}", "wb") as f:
+                            part.seek(0)
+                            f.write(part.read())
+                        part.close()
+                    elif isinstance(part, FormPart):
                         # Form field
                         value = part.data.decode('utf-8')
+                        print(f"Field {part.name}: {value}")
             ```
+
+        Note:
+            For true streaming without any buffering, use `multipart_stream()`.
         """
         content_type_value = self.content_type()
         if not content_type_value:
             return None
         if b"multipart/form-data;" in content_type_value:
-            body = await self.read()
-            if body is None:
+            try:
+                boundary = get_boundary_from_header(content_type_value)
+            except (ValueError, IndexError):
                 return None
-            return list(parse_multipart(body))
+
+            parts = []
+            spool_max_size = 1024 * 1024  # 1MB
+
+            async for part in parse_multipart_async(self.stream(), boundary):
+                if part.file_name:
+                    # File upload - use SpooledTemporaryFile
+                    spooled_file = SpooledTemporaryFile(
+                        max_size=spool_max_size, mode="w+b"
+                    )
+                    total_size = 0
+
+                    async for chunk in part.stream():
+                        spooled_file.write(chunk)
+                        total_size += len(chunk)
+
+                    spooled_file.seek(0)
+
+                    upload_file = UploadFile(
+                        name=part.name,
+                        filename=part.file_name,
+                        file=spooled_file,
+                        content_type=part.content_type,
+                        size=total_size,
+                        charset=part.charset,
+                    )
+                    parts.append(upload_file)
+                else:
+                    # Form field - read into memory as FormPart
+                    field_data = bytearray()
+                    async for chunk in part.stream():
+                        field_data.extend(chunk)
+
+                    form_part = FormPart(
+                        name=part.name.encode("utf8")
+                        if isinstance(part.name, str)
+                        else part.name,
+                        data=bytes(field_data),
+                        content_type=(
+                            part.content_type.encode("utf8")
+                            if part.content_type
+                            else None
+                        ),
+                        file_name=None,
+                        charset=(
+                            part.charset.encode("utf8") if part.charset else None
+                        ),
+                    )
+                    parts.append(form_part)
+
+            return parts if parts else None
         return None
 
     async def multipart_stream(self):

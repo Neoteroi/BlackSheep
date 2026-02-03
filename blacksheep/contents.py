@@ -180,6 +180,57 @@ class FormContent(Content):
         )
 
 
+class FormPart:
+    """
+    Represents a single part of a multipart/form-data request.
+
+    Attributes:
+        name: The name of the form field (bytes).
+        data: The binary content of the form part.
+        file_name: The filename if this part represents a file upload (optional).
+        content_type: The MIME type of the content (optional).
+        charset: The character encoding of the content (optional).
+    """
+    __slots__ = (
+        "name",
+        "data",
+        "file_name",
+        "content_type",
+        "charset"
+    )
+
+    def __init__(
+        self,
+        name: bytes,
+        data: bytes,
+        content_type: bytes | None = None,
+        file_name: bytes | None = None,
+        charset: bytes | None = None,
+    ):
+        self.name = name
+        self.data = data
+        self.file_name = file_name
+        self.content_type = content_type
+        self.charset = charset
+
+    def __eq__(self, other):
+        if isinstance(other, FormPart):
+            return (
+                other.name == self.name
+                and other.file_name == self.file_name
+                and other.content_type == self.content_type
+                and other.charset == self.charset
+                and other.data == self.data
+            )
+        if other is None:
+            return False
+        return NotImplemented
+
+    def __repr__(self):
+        return f"<FormPart {self.name} - at {id(self)}>"
+
+
+
 class UploadFile:
     """
     Represents an uploaded file with lazy data access.
@@ -240,56 +291,6 @@ class UploadFile:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-
-
-class FormPart:
-    """
-    Represents a single part of a multipart/form-data request.
-
-    Attributes:
-        name: The name of the form field (bytes).
-        data: The binary content of the form part.
-        file_name: The filename if this part represents a file upload (optional).
-        content_type: The MIME type of the content (optional).
-        charset: The character encoding of the content (optional).
-    """
-    __slots__ = (
-        "name",
-        "data",
-        "file_name",
-        "content_type",
-        "charset"
-    )
-
-    def __init__(
-        self,
-        name: bytes,
-        data: bytes,
-        content_type: bytes | None = None,
-        file_name: bytes | None = None,
-        charset: bytes | None = None,
-    ):
-        self.name = name
-        self.data = data
-        self.file_name = file_name
-        self.content_type = content_type
-        self.charset = charset
-
-    def __eq__(self, other):
-        if isinstance(other, FormPart):
-            return (
-                other.name == self.name
-                and other.file_name == self.file_name
-                and other.content_type == self.content_type
-                and other.charset == self.charset
-                and other.data == self.data
-            )
-        if other is None:
-            return False
-        return NotImplemented
-
-    def __repr__(self):
-        return f"<FormPart {self.name} - at {id(self)}>"
 
 
 class StreamingFormPart:

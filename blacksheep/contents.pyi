@@ -99,8 +99,12 @@ class FormPart:
         self.charset = charset
         self.size = size
 
+    @property
+    def data(self) -> bytes:
+        ...
+
     def __repr__(self):
-        return f"<FormPart {self.name} - at {id(self)}>"
+        ...
 
 
 class FileData:

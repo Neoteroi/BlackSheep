@@ -1640,20 +1640,20 @@ async def test_handler_from_files(app):
         file3 = files.value[2]
         file4 = files.value[3]
 
-        assert file1.name == b"file1"
-        assert file1.file_name == b"a.txt"
+        assert file1.name == "file1"
+        assert file1.file_name == "a.txt"
         assert file1.data == b"Content of a.txt.\r\n"
 
-        assert file2.name == b"file2"
-        assert file2.file_name == b"a.html"
+        assert file2.name == "file2"
+        assert file2.file_name == "a.html"
         assert file2.data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
 
-        assert file3.name == b"file2"
-        assert file3.file_name == b"a.html"
+        assert file3.name == "file2"
+        assert file3.file_name == "a.html"
         assert file3.data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
 
-        assert file4.name == b"file3"
-        assert file4.file_name == b"binary"
+        assert file4.name == "file3"
+        assert file4.file_name == "binary"
         assert file4.data == b"a\xcf\x89b"
 
     boundary = b"---------------------0000000000000000000000001"

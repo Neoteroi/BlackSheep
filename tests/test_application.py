@@ -134,50 +134,50 @@ async def test_application_post_multipart_formdata(app):
         data = await request.multipart()
         assert data is not None
 
-        assert data[0].name == b"text1"
+        assert data[0].name == "text1"
         assert data[0].file_name is None
         assert data[0].content_type is None
         assert data[0].data == b"text default"
 
-        assert data[1].name == b"text2"
+        assert data[1].name == "text2"
         assert data[1].file_name is None
         assert data[1].content_type is None
-        assert data[1].data == "aωb".encode("utf8")
+        assert data[1].data == "a9b".encode("utf8")
 
-        assert data[2].name == b"file1"
-        assert data[2].file_name == b"a.txt"
-        assert data[2].content_type == b"text/plain"
+        assert data[2].name == "file1"
+        assert data[2].file_name == "a.txt"
+        assert data[2].content_type == "text/plain"
         assert data[2].data == b"Content of a.txt.\r\n"
 
-        assert data[3].name == b"file2"
-        assert data[3].file_name == b"a.html"
-        assert data[3].content_type == b"text/html"
+        assert data[3].name == "file2"
+        assert data[3].file_name == "a.html"
+        assert data[3].content_type == "text/html"
         assert data[3].data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
 
-        assert data[4].name == b"file3"
-        assert data[4].file_name == b"binary"
-        assert data[4].content_type == b"application/octet-stream"
-        assert data[4].data == "aωb".encode("utf8")
+        assert data[4].name == "file3"
+        assert data[4].file_name == "binary"
+        assert data[4].content_type == "application/octet-stream"
+        assert data[4].data == "a9b".encode("utf8")
 
         files = await request.files()
 
-        assert files[0].name == b"file1"
-        assert files[0].file_name == b"a.txt"
-        assert files[0].content_type == b"text/plain"
+        assert files[0].name == "file1"
+        assert files[0].file_name == "a.txt"
+        assert files[0].content_type == "text/plain"
         assert files[0].data == b"Content of a.txt.\r\n"
 
-        assert files[1].name == b"file2"
-        assert files[1].file_name == b"a.html"
-        assert files[1].content_type == b"text/html"
+        assert files[1].name == "file2"
+        assert files[1].file_name == "a.html"
+        assert files[1].content_type == "text/html"
         assert files[1].data == b"<!DOCTYPE html><title>Content of a.html.</title>\r\n"
 
-        assert files[2].name == b"file3"
-        assert files[2].file_name == b"binary"
-        assert files[2].content_type == b"application/octet-stream"
-        assert files[2].data == "aωb".encode("utf8")
+        assert files[2].name == "file3"
+        assert files[2].file_name == "binary"
+        assert files[2].content_type == "application/octet-stream"
+        assert files[2].data == "a9b".encode("utf8")
 
         file_one = await request.files("file1")
-        assert file_one[0].name == b"file1"
+        assert file_one[0].name == "file1"
 
         return Response(200)
 

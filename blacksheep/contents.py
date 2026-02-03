@@ -1,3 +1,4 @@
+from tempfile import SpooledTemporaryFile
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
@@ -182,36 +183,49 @@ class FormContent(Content):
 
 class FormPart:
     """
-    Represents a single part of a multipart/form-data request.
+    Represents a part of a multipart/form-data upload, with lazy data access.
+
+    This class wraps a SpooledTemporaryFile to provide memory-efficient file and fields
+    uploads.
+    Small fields and files are kept in memory, larger files are automatically
+    spooled to disk.
 
     Attributes:
-        name: The name of the form field (bytes).
-        data: The binary content of the form part.
-        file_name: The filename if this part represents a file upload (optional).
-        content_type: The MIME type of the content (optional).
-        charset: The character encoding of the content (optional).
+        name: The form field name (str).
+        filename: The uploaded file's name (str).
+        content_type: The MIME type (str or None).
+        file: The underlying file-like object (SpooledTemporaryFile).
+        size: The size in bytes (if known), or 0.
     """
     __slots__ = (
         "name",
-        "data",
+        "file",
         "file_name",
         "content_type",
-        "charset"
+        "charset",
+        "size",
+        "_data"
     )
 
     def __init__(
         self,
-        name: bytes,
-        data: bytes,
-        content_type: bytes | None = None,
-        file_name: bytes | None = None,
-        charset: bytes | None = None,
+        name: str,
+        file: SpooledTemporaryFile,
+        content_type: str | None = None,
+        file_name: str | None = None,
+        charset: str | None = None,
+        size: int = -1
     ):
         self.name = name
-        self.data = data
+        self.file = file
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+        self.size = size
+
+    @property
+    def data(self) -> bytes:
+        return self.read()
 
     def __eq__(self, other):
         if isinstance(other, FormPart):
@@ -229,47 +243,6 @@ class FormPart:
     def __repr__(self):
         return f"<FormPart {self.name} - at {id(self)}>"
 
-
-
-class UploadFile:
-    """
-    Represents an uploaded file with lazy data access.
-
-    This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
-    Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
-
-    Attributes:
-        name: The form field name (str).
-        filename: The uploaded file's name (str).
-        content_type: The MIME type (str or None).
-        file: The underlying file-like object (SpooledTemporaryFile).
-        size: The size in bytes (if known), or 0.
-
-    Usage:
-        # Access as file-like object
-        content = upload_file.file.read()
-
-        # Or read all data
-        data = await upload_file.read()
-    """
-    __slots__ = ("name", "filename", "content_type", "file", "size", "_charset")
-
-    def __init__(
-        self,
-        name: str,
-        filename: str | None,
-        file,  # file-like object (SpooledTemporaryFile)
-        content_type: str | None = None,
-        size: int = 0,
-        charset: str | None = None,
-    ):
-        self.name = name
-        self.filename = filename
-        self.content_type = content_type
-        self.file = file
-        self.size = size
-        self._charset = charset
-
     def read(self, size: int = -1) -> bytes:
         """Read data from the file."""
         return self.file.read(size)
@@ -282,9 +255,6 @@ class UploadFile:
         """Close the underlying file."""
         if hasattr(self.file, "close"):
             self.file.close()
-
-    def __repr__(self):
-        return f"<UploadFile {self.filename} ({self.content_type})>"
 
     def __enter__(self):
         return self
@@ -336,7 +306,6 @@ class StreamingFormPart:
         Yields:
             Byte chunks of the part data.
         """
-        # Stream from source
         async for chunk in self._data_stream:
             yield chunk
 

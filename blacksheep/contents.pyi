@@ -1,3 +1,4 @@
+from tempfile import SpooledTemporaryFile
 import uuid
 from typing import (
     Any,
@@ -84,17 +85,19 @@ class FormPart:
     """
     def __init__(
         self,
-        name: bytes,
-        data: bytes,
-        content_type: bytes | None = None,
-        file_name: bytes | None = None,
-        charset: bytes | None = None,
+        name: str,
+        file: SpooledTemporaryFile,
+        content_type: str | None = None,
+        file_name: str | None = None,
+        charset: str | None = None,
+        size: int = -1
     ):
         self.name = name
-        self.data = data
+        self.file = file
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+        self.size = size
 
     def __repr__(self):
         return f"<FormPart {self.name} - at {id(self)}>"
@@ -110,18 +113,6 @@ class FileData:
         content_type: The MIME type of the file.
         file_name: The name of the uploaded file.
     """
-
-    def __init__(
-        self,
-        param_name: str,
-        data: bytes,
-        content_type: str,
-        file_name: str,
-    ):
-        self.param_name = param_name
-        self.data = data
-        self.file_name = file_name
-        self.content_type = content_type
 
     @classmethod
     def from_form_part(cls, form_data: FormPart) -> "FileData":

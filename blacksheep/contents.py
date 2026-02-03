@@ -180,6 +180,68 @@ class FormContent(Content):
         )
 
 
+class UploadFile:
+    """
+    Represents an uploaded file with lazy data access.
+
+    This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
+    Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
+
+    Attributes:
+        name: The form field name (str).
+        filename: The uploaded file's name (str).
+        content_type: The MIME type (str or None).
+        file: The underlying file-like object (SpooledTemporaryFile).
+        size: The size in bytes (if known), or 0.
+
+    Usage:
+        # Access as file-like object
+        content = upload_file.file.read()
+
+        # Or read all data
+        data = await upload_file.read()
+    """
+    __slots__ = ("name", "filename", "content_type", "file", "size", "_charset")
+
+    def __init__(
+        self,
+        name: str,
+        filename: str | None,
+        file,  # file-like object (SpooledTemporaryFile)
+        content_type: str | None = None,
+        size: int = 0,
+        charset: str | None = None,
+    ):
+        self.name = name
+        self.filename = filename
+        self.content_type = content_type
+        self.file = file
+        self.size = size
+        self._charset = charset
+
+    def read(self, size: int = -1) -> bytes:
+        """Read data from the file."""
+        return self.file.read(size)
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        """Seek to a position in the file."""
+        return self.file.seek(offset, whence)
+
+    def close(self):
+        """Close the underlying file."""
+        if hasattr(self.file, "close"):
+            self.file.close()
+
+    def __repr__(self):
+        return f"<UploadFile {self.filename} ({self.content_type})>"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
 class FormPart:
     """
     Represents a single part of a multipart/form-data request.
@@ -228,48 +290,6 @@ class FormPart:
 
     def __repr__(self):
         return f"<FormPart {self.name} - at {id(self)}>"
-
-
-class FileData:
-    """
-    Represents file data extracted from a multipart/form-data request.
-
-    Attributes:
-        param_name: The name of the form parameter containing the file.
-        data: The binary content of the file.
-        content_type: The MIME type of the file.
-        file_name: The name of the uploaded file.
-    """
-    __slots__ = (
-        "param_name",
-        "data",
-        "file_name",
-        "content_type",
-    )
-
-    def __init__(
-        self,
-        param_name: str,
-        data: bytes,
-        content_type: str,
-        file_name: str,
-    ):
-        self.param_name = param_name
-        self.data = data
-        self.file_name = file_name
-        self.content_type = content_type
-
-    def __repr__(self):
-        return f"<FileData {self.file_name} ({self.content_type})>"
-
-    @classmethod
-    def from_form_part(cls, form_data: FormPart):
-        return cls(
-            form_data.name.decode("utf8"),
-            form_data.data,
-            form_data.content_type.decode("utf8") if form_data.content_type else "",
-            form_data.file_name.decode("utf8") if form_data.file_name else ""
-        )
 
 
 class StreamingFormPart:
@@ -338,6 +358,34 @@ class StreamingFormPart:
 
     def __repr__(self):
         return f"<StreamingFormPart {self.name} - at {id(self)}>"
+
+
+
+
+class FileData(StreamingFormPart):
+    """
+    Represents file data extracted from a multipart/form-data request.
+
+    FileData inherits from StreamingFormPart and provides lazy access to uploaded
+    file content through async iteration, making it suitable for large file uploads
+    without loading entire files into memory.
+
+    Attributes:
+        name: The name of the form parameter containing the file.
+        file_name: The name of the uploaded file.
+        content_type: The MIME type of the file.
+        charset: The character encoding of the content (optional).
+
+    Usage:
+        # Stream data in chunks
+        async for chunk in file_data.stream():
+            process(chunk)
+
+        # Save directly to disk
+        bytes_written = await file_data.save_to('/path/to/file')
+    """
+    def __repr__(self):
+        return f"<FileData {self.file_name} ({self.content_type})>"
 
 
 class MultiPartFormData(Content):

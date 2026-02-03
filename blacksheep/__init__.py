@@ -15,6 +15,7 @@ from .contents import JSONContent as JSONContent
 from .contents import MultiPartFormData as MultiPartFormData
 from .contents import StreamedContent as StreamedContent
 from .contents import TextContent as TextContent
+from .contents import UploadFile as UploadFile
 from .contents import parse_www_form as parse_www_form
 from .cookies import Cookie as Cookie
 from .cookies import CookieSameSiteMode as CookieSameSiteMode

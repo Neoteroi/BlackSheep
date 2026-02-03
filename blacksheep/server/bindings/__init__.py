@@ -11,6 +11,7 @@ See:
 from abc import abstractmethod
 from collections.abc import Iterable as IterableAbc
 from functools import partial
+from tempfile import SpooledTemporaryFile
 from typing import (
     Any,
     Callable,
@@ -27,7 +28,7 @@ from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol
 
 from blacksheep import Request
-from blacksheep.contents import FormPart
+from blacksheep.contents import FormPart, UploadFile
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.bindings.converters import class_converters, converters
 from blacksheep.server.websocket import WebSocket
@@ -573,11 +574,25 @@ class FormBinder(BodyBinder):
 
 class MultipartBinder(BodyBinder):
     """
-    Extracts a model from multipart/form-data request body.
-    This class allows defining complex objects to be received as multipart form data.
+    Extracts a model from multipart/form-data request body with memory-efficient
+    streaming support.
+
+    This binder uses SpooledTemporaryFile for automatic memory/disk spooling:
+    - Small files (<1MB default): Kept in memory for performance
+    - Large files (>1MB default): Automatically spilled to temporary disk files
+    - Form fields: Buffered in memory with configurable size limits
+
+    Configuration:
+        spool_max_size: Threshold in bytes for spooling files to disk (default: 1MB)
+        max_field_size: Maximum size in bytes for form fields (default: 1MB)
+
+    This approach provides memory safety for large file uploads while maintaining
+    compatibility with the existing FromMultipart[T] binding pattern.
     """
 
     handle = FromMultipart
+    spool_max_size: int = 1024 * 1024  # 1MB - files larger than this go to disk
+    max_field_size: int = 1024 * 1024  # 1MB - maximum form field size
 
     @property
     def content_type(self) -> str:
@@ -587,7 +602,87 @@ class MultipartBinder(BodyBinder):
         return request.declares_content_type(b"multipart/form-data")
 
     async def read_data(self, request: Request) -> Any:
-        return await request.form()
+        """
+        Reads multipart data using streaming parser with SpooledTemporaryFile.
+
+        Files are kept as SpooledTemporaryFile objects wrapped in UploadFile,
+        preventing memory exhaustion on large uploads. Files smaller than
+        spool_max_size stay in memory, larger ones are spooled to disk automatically.
+
+        Returns:
+            Dict where file uploads are UploadFile instances (not bytes!)
+        """
+        data = {}
+
+        async for part in request.multipart_stream():
+            key = part.name
+
+            if part.file_name:
+                # File upload - use SpooledTemporaryFile for automatic spooling
+                spooled_file = SpooledTemporaryFile(
+                    max_size=self.spool_max_size, mode="w+b"
+                )
+
+                # Track size for metadata
+                total_size = 0
+
+                # Stream file data to SpooledTemporaryFile
+                async for chunk in part.stream():
+                    spooled_file.write(chunk)
+                    total_size += len(chunk)
+
+                # Reset to beginning for reading
+                spooled_file.seek(0)
+
+                # Wrap in UploadFile - exposes the file object directly
+                upload_file = UploadFile(
+                    name=key,
+                    filename=part.file_name,
+                    file=spooled_file,
+                    content_type=part.content_type,
+                    size=total_size,
+                    charset=part.charset,
+                )
+
+                # Handle multiple files with same key
+                if key in data:
+                    if isinstance(data[key], list):
+                        data[key].append(upload_file)
+                    else:
+                        data[key] = [data[key], upload_file]
+                else:
+                    data[key] = [upload_file]
+            else:
+                # Regular form field - buffer in memory with size limit
+                field_data = bytearray()
+                async for chunk in part.stream():
+                    field_data.extend(chunk)
+                    if len(field_data) > self.max_field_size:
+                        raise BadRequest(
+                            f"Form field '{key}' exceeds maximum size of "
+                            f"{self.max_field_size} bytes"
+                        )
+
+                # Decode field value
+                charset = part.charset or "utf8"
+                try:
+                    value = bytes(field_data).decode(charset)
+                except Exception:
+                    value = bytes(field_data)
+
+                # Handle multiple values with same key
+                if key in data:
+                    if isinstance(data[key], list):
+                        data[key].append(value)
+                    elif isinstance(data[key], str):
+                        data[key] = [data[key], value]
+                    else:
+                        # data[key] is something else, keep as is
+                        data[key] = value
+                else:
+                    data[key] = value
+
+        return data
 
 
 class TextBinder(BodyBinder):

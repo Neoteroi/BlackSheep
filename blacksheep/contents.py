@@ -1,3 +1,5 @@
+import asyncio
+import warnings
 from tempfile import SpooledTemporaryFile
 import uuid
 from collections.abc import MutableSequence
@@ -145,17 +147,17 @@ def multiparts_to_dictionary(parts: list) -> dict:
 
 def write_multipart_part(part, destination: bytearray):
     destination.extend(b'Content-Disposition: form-data; name="')
-    destination.extend(part.name)
+    destination.extend(part.name.encode("utf8"))
     destination.extend(b'"')
     if part.file_name:
         destination.extend(b'; filename="')
-        destination.extend(part.file_name)
+        destination.extend(part.file_name.encode("utf8"))
         destination.extend(b'"\r\n')
     if part.content_type:
         destination.extend(b"Content-Type: ")
-        destination.extend(part.content_type)
+        destination.extend(part.content_type.encode("utf8"))
     destination.extend(b"\r\n\r\n")
-    destination.extend(part.data)
+    destination.extend(part.data)  # TODO <-- mistake! This loads the whole stuff in memory
     destination.extend(b"\r\n")
 
 
@@ -185,9 +187,9 @@ class FormPart:
     """
     Represents a part of a multipart/form-data upload, with lazy data access.
 
-    This class wraps a SpooledTemporaryFile to provide memory-efficient file and fields
-    uploads.
-    Small fields and files are kept in memory, larger files are automatically
+    This class wraps a SpooledTemporaryFile to provide memory-efficient handling of
+    big file and fields uploads.
+    Small fields and files are kept in memory, larger parts are automatically
     spooled to disk.
 
     Attributes:
@@ -225,6 +227,15 @@ class FormPart:
 
     @property
     def data(self) -> bytes:
+        # Warn if file is too large (>10MB)
+        if self.size > 10 * 1024 * 1024:
+            warnings.warn(
+                f"Loading large file into memory: {self.file_name or 'unnamed'} "
+                f"({self.size / (1024*1024):.2f}MB). Use stream() instead.",
+                ResourceWarning,
+                stacklevel=2
+            )
+        self.file.seek(0)
         return self.read()
 
     def __eq__(self, other):
@@ -255,6 +266,30 @@ class FormPart:
         """Close the underlying file."""
         if hasattr(self.file, "close"):
             self.file.close()
+
+    async def save_to(self, path: str) -> int:
+        """
+        Stream part data directly to a file.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+        def write_file():
+            total_bytes = 0
+            self.file.seek(0)  # Reset to beginning
+            with open(path, 'wb') as f:
+                while True:
+                    chunk = self.file.read(8192)  # Read in 8KB chunks
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    total_bytes += len(chunk)
+            return total_bytes
+
+        return await asyncio.to_thread(write_file)
 
     def __enter__(self):
         return self
@@ -332,7 +367,7 @@ class StreamingFormPart:
 
 
 
-class FileData(StreamingFormPart):
+class FileData(FormPart):
     """
     Represents file data extracted from a multipart/form-data request.
 
@@ -354,12 +389,25 @@ class FileData(StreamingFormPart):
         # Save directly to disk
         bytes_written = await file_data.save_to('/path/to/file')
     """
+
+    @classmethod
+    def from_form_part(cls, form_part: FormPart):
+        return cls(
+            form_part.name,
+            form_part.file,
+            form_part.content_type,
+            form_part.file_name,
+            form_part.charset,
+            form_part.size,
+        )
+
     def __repr__(self):
         return f"<FileData {self.file_name} ({self.content_type})>"
 
 
 class MultiPartFormData(Content):
     def __init__(self, parts: list):
+        # Deprecate! This is garbage. It writes the whole body into memory at once!
         self.parts = parts
         self.boundary = b"------" + str(uuid.uuid4()).replace("-", "").encode()
         super().__init__(

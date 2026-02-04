@@ -1,3 +1,4 @@
+from tempfile import SpooledTemporaryFile
 import pytest
 
 from blacksheep import Content, Request
@@ -167,8 +168,13 @@ def test_request_can_update_url(initial_url, new_url):
 
 
 def test_request_content_type_is_read_from_content():
+    file1 = SpooledTemporaryFile()
+    file1.write(b"Hello")
+    file2 = SpooledTemporaryFile()
+    file2.write(b"World")
+
     request = Request("POST", b"/", []).with_content(
-        MultiPartFormData([FormPart("a", b"world"), FormPart("b", b"9000")])
+        MultiPartFormData([FormPart("a", file1), FormPart("b", file2)])
     )
 
     assert request.content is not None

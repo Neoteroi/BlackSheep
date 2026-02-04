@@ -71,6 +71,18 @@ class StrConverter(TypeConverter):
             return None
         if "%" in value:
             return unquote(value)
+        if isinstance(value, list):
+            if len(value) == 1:
+                value = value[0]
+            else:
+                # TODO: join?
+                ...
+
+        if isinstance(value, FormPart):
+            # TODO: raise exception if too big!
+            # It is hard to make a comfortable code API and offer good dev UX while
+            # protecting against security risks
+            return value.data.decode("utf8")
         return value
 
 

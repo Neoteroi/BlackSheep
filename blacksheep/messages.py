@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
 
-from blacksheep.multipart import get_boundary_from_header, parse_multipart, parse_multipart_async
+from blacksheep.multipart import get_boundary_from_header, parse_multipart_async
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow

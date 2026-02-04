@@ -195,11 +195,11 @@ class FormPart:
     __slots__ = (
         "name",
         "_data",
-        "_file"
+        "_file",
         "file_name",
         "content_type",
         "charset",
-        "size"
+        "size",
     )
 
     def __init__(

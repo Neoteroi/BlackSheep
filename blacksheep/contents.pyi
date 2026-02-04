@@ -1,3 +1,4 @@
+from tempfile import SpooledTemporaryFile
 import uuid
 from typing import (
     Any,
@@ -82,22 +83,108 @@ class FormPart:
         content_type: The MIME type of the content (optional).
         charset: The character encoding of the content (optional).
     """
+    __slots__ = (
+        "name",
+        "_data",
+        "_file"
+        "file_name",
+        "content_type",
+        "charset",
+        "size"
+    )
+
     def __init__(
         self,
         name: bytes,
-        data: bytes,
+        data: bytes | SpooledTemporaryFile,
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
+        size: int = 0
     ):
         self.name = name
-        self.data = data
+        self._data = data if isinstance(data, bytes) else None
+        self._file = data if isinstance(data, SpooledTemporaryFile) else None
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+        self.size = size
+
+    @property
+    def data(self) -> bytes:
+        ...
+
+    def __eq__(self, other) -> bool:
+        ...
+
+
+class StreamingFormPart:
+    """
+    Represents a streaming part of a multipart/form-data request.
+
+    Unlike FormPart, which loads all data into memory, StreamingFormPart provides
+    lazy access to file content through async iteration, making it suitable for
+    large file uploads without memory pressure.
+
+    Attributes:
+        name: The name of the form field (bytes).
+        content_type: The MIME type of the content (optional).
+        file_name: The filename if this part represents a file upload (optional).
+        charset: The character encoding of the content (optional).
+    """
+    __slots__ = (
+        "name",
+        "file_name",
+        "content_type",
+        "charset",
+        "_data_stream",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        data_stream: AsyncIterable[bytes],
+        content_type: str | None = None,
+        file_name: str | None = None,
+        charset: str | None = None,
+    ):
+        self.name = name
+        self.file_name = file_name
+        self.content_type = content_type
+        self.charset = charset
+        self._data_stream = data_stream
+
+    async def stream(self) -> AsyncIterable[bytes]:
+        """
+        Stream the part data in chunks.
+
+        Yields:
+            Byte chunks of the part data.
+        """
+        # Stream from source
+        async for chunk in self._data_stream:
+            yield chunk
+
+    async def save_to(self, path: str) -> int:
+        """
+        Stream part data directly to a file.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+        total_bytes = 0
+        with open(path, 'wb') as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
 
     def __repr__(self):
-        return f"<FormPart {self.name} - at {id(self)}>"
+        return f"<StreamingFormPart {self.name} - at {id(self)}>"
+
 
 
 class FileData:

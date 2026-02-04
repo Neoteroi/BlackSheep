@@ -275,7 +275,7 @@ class Message:
             except (ValueError, IndexError):
                 return None
             return await _multipart_to_dict_streaming(
-                parse_multipart_async(self.stream(), boundary)
+                parse_multipart_async(self.multipart_stream(), boundary)
             )
         return None
 

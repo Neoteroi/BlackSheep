@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
+from tempfile import SpooledTemporaryFile
 from typing import AsyncIterable
 from urllib.parse import parse_qsl, quote_plus
 
@@ -193,25 +194,38 @@ class FormPart:
     """
     __slots__ = (
         "name",
-        "data",
+        "_data",
+        "_file"
         "file_name",
         "content_type",
-        "charset"
+        "charset",
+        "size"
     )
 
     def __init__(
         self,
         name: bytes,
-        data: bytes,
+        data: bytes | SpooledTemporaryFile,
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
+        size: int = 0
     ):
         self.name = name
-        self.data = data
+        self._data = data if isinstance(data, bytes) else None
+        self._file = data if isinstance(data, SpooledTemporaryFile) else None
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+        self.size = size
+
+    @property
+    def data(self) -> bytes:
+        if isinstance(self._data, bytes):
+            return self._data
+        if self._file:
+            return self._file.read()
+        return b""
 
     def __eq__(self, other):
         if isinstance(other, FormPart):

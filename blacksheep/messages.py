@@ -269,14 +269,7 @@ class Message:
             text = await self.text()
             return parse_www_form_urlencoded(text)
         if b"multipart/form-data;" in content_type_value:
-            # Use streaming parser with SpooledTemporaryFile
-            try:
-                boundary = get_boundary_from_header(content_type_value)
-            except (ValueError, IndexError):
-                return None
-            return await _multipart_to_dict_streaming(
-                parse_multipart_async(self.multipart_stream(), boundary)
-            )
+            return await _multipart_to_dict_streaming(self.multipart_stream())
         return None
 
     async def multipart(self) -> list[FormPart] | None:

@@ -350,7 +350,7 @@ cdef class MultiPartFormData(Content):
 
     def __init__(self, list parts):
         self.parts = parts
-        self.boundary = b'------' + str(uuid.uuid4()).replace('-', '').encode()
+        self.boundary = b'----' + str(uuid.uuid4()).replace('-', '').encode()
         super().__init__(b'multipart/form-data; boundary=' + self.boundary, write_multipart_form_data(self))
 
 

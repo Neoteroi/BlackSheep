@@ -227,6 +227,12 @@ class FormPart:
             return self._file.read()
         return b""
 
+    @property
+    def file(self) -> SpooledTemporaryFile:
+        if self._file is None:
+            raise TypeError("Missing file data")
+        return self._file
+
     def __eq__(self, other):
         if isinstance(other, FormPart):
             return (
@@ -403,15 +409,18 @@ class FileData(StreamingFormPart):
         return f"<FileData {self.file_name} ({self.content_type})>"
 
 
+# TODO: deprecate the following class!
 class MultiPartFormData(Content):
     def __init__(self, parts: list):
         self.parts = parts
-        self.boundary = b"------" + str(uuid.uuid4()).replace("-", "").encode()
+        self.boundary = b"----" + str(uuid.uuid4()).replace("-", "").encode()
         super().__init__(
             b"multipart/form-data; boundary=" + self.boundary,
             write_multipart_form_data(self),
         )
 
+    async def stream(self) -> AsyncIterable[bytes]:
+        yield self.body
 
 def write_multipart_form_data(data: "MultiPartFormData") -> bytes:
     contents = bytearray()

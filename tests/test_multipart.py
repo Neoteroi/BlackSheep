@@ -1,9 +1,11 @@
 import pytest
 
+from blacksheep.contents import MultiPartFormData
 from blacksheep.multipart import (
     FormPart,
     _remove_last_crlf,
     parse_multipart,
+    parse_multipart_async,
     parse_part,
 )
 
@@ -134,3 +136,23 @@ def test_parse_part_raises_for_missing_content_disposition():
             b'X-Content: form-data; name="one"\r\n\r\naaa',
             None,
         )
+
+
+async def test_parse_multipart_async():
+    data = MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
+
+    async def stream():
+        yield data.body
+
+    parts = []
+    async for part in parse_multipart_async(stream(), data.boundary):
+        # Consume the part data to ensure proper streaming
+        data_chunks = []
+        async for chunk in part.stream():
+            data_chunks.append(chunk)
+        part_data = b"".join(data_chunks)
+        parts.append((part.name, part_data))
+
+    assert len(parts) == 2
+    assert parts[0] == ("a", b"world")
+    assert parts[1] == ("b", b"9000")

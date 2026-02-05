@@ -219,7 +219,7 @@ async def test_application_post_multipart_formdata(app):
             "/files/upload",
             [
                 (b"content-length", str(len(content)).encode()),
-                (b"content-type", b"multipart/form-data; boundary=" + boundary),
+                (b"content-type", b"multipart/form-data; boundary=" + boundary[2:]),
             ],
         ),
         MockReceive([content]),

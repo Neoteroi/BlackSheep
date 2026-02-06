@@ -842,7 +842,7 @@ class Application(BaseApplication):
         await send_asgi_response(response, send)
 
         request.scope = None  # type: ignore
-        request.content.dispose()  # type: ignore
+        request.dispose()
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":

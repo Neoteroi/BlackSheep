@@ -642,6 +642,14 @@ class Request(Message):
             self._is_disconnected = True
         return self._is_disconnected
 
+    def dispose(self):
+        if hasattr(self, '_form_data') and self._form_data:
+            for parts in self._form_data.values():
+                for part in parts:
+                    if part.file:
+                        part.file.close()
+        self.content.dispose()  # type: ignore
+
 
 class Response(Message):
     def __init__(self, status: int, headers=None, content: Content | None = None):

@@ -146,6 +146,9 @@ class Request(Message):
         When reading the request stream, catch instead MessageAborted exceptions to
         detect if the client closed the original connection.
         """
+    def dispose(self) -> None:
+        """Disposes of this web request."""
+
 
 class Response(Message):
     def __init__(

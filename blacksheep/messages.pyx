@@ -550,6 +550,14 @@ cdef class Request(Message):
 
         return self._is_disconnected
 
+    def dispose(self):
+        if hasattr(self, '_form_data') and self._form_data:
+            for parts in self._form_data.values():
+                for part in parts:
+                    if part.file:
+                        part.file.close()
+        self.content.dispose()  # type: ignore
+
 
 cdef class Response(Message):
 

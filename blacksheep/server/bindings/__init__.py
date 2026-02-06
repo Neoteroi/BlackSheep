@@ -596,11 +596,17 @@ class FormBinder(BodyBinder):
             if len(value) > 1:
                 simplified_data[key] = [FormBinder._simplify_part(item) for item in value]
             else:
-                simplified_data[key] = FormBinder._simplify_part(value[0])
+                if value[0].file_name:
+                    simplified_data[key] = value
+                else:
+                    simplified_data[key] = FormBinder._simplify_part(value[0])
         return simplified_data
 
     async def read_data(self, request: Request) -> Any:
         data = await request.form()
+        content_type_value = request.content_type()
+        if b"application/x-www-form-urlencoded" in content_type_value:
+            return data
         # For backward compatibility, automatically convert non-file fields into
         # strings. However, issue a warning if the size of a part exceeds 1MB
         return self._simplify_data(data)

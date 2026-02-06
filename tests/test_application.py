@@ -1701,7 +1701,7 @@ async def test_handler_from_files(app):
             "/",
             [
                 (b"content-length", str(len(content)).encode()),
-                (b"content-type", b"multipart/form-data; boundary=" + boundary),
+                (b"content-type", b"multipart/form-data; boundary=" + boundary[2:]),
             ],
         ),
         MockReceive([content]),

@@ -262,6 +262,9 @@ class Message:
                 avatar.close()
             ```
         """
+        if hasattr(self, '_form_data'):
+            return self._form_data
+
         content_type_value = self.content_type()
         if not content_type_value:
             return None
@@ -269,7 +272,13 @@ class Message:
             text = await self.text()
             return parse_www_form_urlencoded(text)
         if b"multipart/form-data;" in content_type_value:
-            return await _multipart_to_dict_streaming(self.multipart_stream())
+            # In this case, multipart/form-data is handled in a memory efficient way,
+            # which does not support reading the request stream more than once and
+            # requires disposal at the end of the request-response cycle.
+            # Request form is intentionally not kept in memory if multipart_stream
+            # is read directly by the user.
+            self._form_data = await _multipart_to_dict_streaming(self.multipart_stream())
+            return self._form_data
         return None
 
     async def multipart(self) -> list[FormPart] | None:
@@ -350,6 +359,9 @@ class Message:
         return self.declares_content_type(b"xml")
 
     async def files(self, name: str | bytes | None = None) -> list[FormPart]:
+        if isinstance(name, str):
+            # Note: FormPart fields are not decoded (TODO: decode them in v3).
+            name = name.encode("utf8")
         data = await self.multipart()
         if data is None:
             return []

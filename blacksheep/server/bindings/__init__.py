@@ -22,6 +22,7 @@ from typing import (
     Type,
     TypeVar,
 )
+import warnings
 
 from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol
@@ -567,8 +568,42 @@ class FormBinder(BodyBinder):
             b"application/x-www-form-urlencoded"
         ) or request.declares_content_type(b"multipart/form-data")
 
+    @staticmethod
+    def _simplify_part(part: FormPart) -> FormPart | str:
+        if part.file_name:
+            # keep as is
+            return part
+        if part.size > 1024 * 1024:
+            warnings.warn(
+                f"Form field '{part.name.decode('utf8', errors='replace')}' "
+                f"is {part.size / (1024 * 1024):.2f}MB and will be loaded into "
+                f"memory. Consider handling large form fields directly with "
+                f"request.multipart_stream instead.",
+                UserWarning,
+                stacklevel=3
+            )
+        return part.data.decode(part.charset.decode() if part.charset else "utf8")
+
+    @staticmethod
+    def _simplify_data(data: dict | None) -> dict | None:
+        # Note: I regret this past decision but I am keeping this code to not break
+        # backward compatibility
+        if data is None:
+            return None
+        simplified_data = {}
+        value: list[FormPart]
+        for key, value in data.items():
+            if len(value) > 1:
+                simplified_data[key] = [FormBinder._simplify_part(item) for item in value]
+            else:
+                simplified_data[key] = FormBinder._simplify_part(value[0])
+        return simplified_data
+
     async def read_data(self, request: Request) -> Any:
-        return await request.form()
+        data = await request.form()
+        # For backward compatibility, automatically convert non-file fields into
+        # strings. However, issue a warning if the size of a part exceeds 1MB
+        return self._simplify_data(data)
 
 
 class MultipartBinder(BodyBinder):

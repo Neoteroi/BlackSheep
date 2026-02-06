@@ -224,6 +224,7 @@ class FormPart:
         if isinstance(self._data, bytes):
             return self._data
         if self._file:
+            self._file.seek(0)
             return self._file.read()
         return b""
 

@@ -350,11 +350,6 @@ class Message:
         return self.declares_content_type(b"xml")
 
     async def files(self, name: str | bytes | None = None) -> list[FormPart]:
-        if isinstance(name, str):
-            name = name.encode("ascii")
-        content_type = self.content_type()
-        if not content_type or b"multipart/form-data;" not in content_type:
-            return []
         data = await self.multipart()
         if data is None:
             return []

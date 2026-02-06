@@ -211,14 +211,9 @@ async def parse_multipart_async(
     async def skip_to_boundary() -> bool:
         """
         Skip data until we find and move past a boundary delimiter.
-        Returns False if end boundary reached or stream ended.
+        Returns False if stream ended.
         """
         while True:
-            # Check for end boundary first
-            end_pos = buffer.find(end_boundary)
-            if end_pos != -1:
-                return False
-
             pos = buffer.find(boundary_delimiter)
             if pos != -1:
                 # Move past the boundary
@@ -240,8 +235,8 @@ async def parse_multipart_async(
                 return True
 
             # Keep minimal buffer for boundary detection, read more
-            if len(buffer) > len(end_boundary):
-                buffer[:] = buffer[-len(end_boundary) :]
+            if len(buffer) > len(boundary_delimiter):
+                buffer[:] = buffer[-len(boundary_delimiter) :]
 
             if not await read_more():
                 return False

@@ -9,6 +9,7 @@ the user can still define custom logic to parse input values.
 """
 
 import inspect
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence as SequenceABC
 from dataclasses import fields, is_dataclass
@@ -46,6 +47,10 @@ except ImportError:
     BaseModel = None
 
 
+def _is_single_form_part(value) -> bool:
+    return isinstance(value, list) and len(value) == 1 and isinstance(value[0], FormPart)
+
+
 class TypeConverter(ABC):
     """
     Base class for types that converts input values into
@@ -71,6 +76,27 @@ class StrConverter(TypeConverter):
             return None
         if "%" in value:
             return unquote(value)
+
+        if _is_single_form_part(value):
+            value = value[0]
+
+        if isinstance(value, FormPart):
+            # The user is explicitly trying to map a FormPart input into a string
+            # Note: now multipart/form-data parsing uses SpooledTemporaryFile by default
+            # for all file and text input (as text input can also be significant in
+            # size)
+            # Since the user wants to map the value to a str, here we read it all in
+            # memory, but we also issue a warning if the size exceeds a certain limit.
+            if value.size > 1024 * 1024:
+                warnings.warn(
+                    f"Form field '{value.name.decode('utf8', errors='replace')}' "
+                    f"is {value.size / (1024 * 1024):.2f}MB and will be loaded into "
+                    f"memory. Consider handling large form fields directly with "
+                    f"request.multipart_stream instead.",
+                    UserWarning,
+                    stacklevel=3
+                )
+            return value.data.decode("utf8")
         return value
 
 
@@ -133,15 +159,8 @@ class BytesConverter(TypeConverter):
         return expected_type is bytes
 
     def convert(self, value, expected_type) -> Any:
-        if isinstance(value, list):
-            # If the user defined the expected input as bytes,
-            # but at the same time data is received from a multipart/form-data input,
-            # keep only the data part.
-            if len(value) > 0:
-                single_file_input = value[0]
-                return single_file_input.data
-            # Cannot convert the input, but let user-defined code handle this
-            return b""
+        if _is_single_form_part(value):
+            value = value[0]
 
         if isinstance(value, FormPart):
             # This is to support specifying list[bytes] for multipart/form-data
@@ -165,11 +184,12 @@ class FileDataConverter(TypeConverter):
             # If the user defined the expected input as bytes,
             # but at the same time data is received from a multipart/form-data input,
             # keep only the data part.
-            if len(value) > 0:
+            if len(value) == 1:
                 single_file_input = value[0]
                 if isinstance(single_file_input, FormPart):
                     return FileData.from_form_part(single_file_input)
-                raise BadRequest("")
+            else:
+                raise BadRequest("Expected a single file")
             return None
 
         if isinstance(value, FormPart):
@@ -377,7 +397,6 @@ class ClassConverter(TypeConverter):
 
     def _from_dict(self, cls, data: dict | list):
         """Convert dict to plain class or dataclass, ignoring extra fields"""
-
         if _is_pydantic_model(cls):
             return cls.model_validate(data)
 

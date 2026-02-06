@@ -586,8 +586,8 @@ class FormBinder(BodyBinder):
 
     @staticmethod
     def _simplify_data(data: dict | None) -> dict | None:
-        # Note: I regret this past decision but I am keeping this code to not break
-        # backward compatibility
+        # This code is for backward compatibility,
+        # probably this behavior will be changed in v3
         if data is None:
             return None
         simplified_data = {}

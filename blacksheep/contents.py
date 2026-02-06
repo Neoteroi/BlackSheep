@@ -2,7 +2,7 @@ import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
 from tempfile import SpooledTemporaryFile
-from typing import AsyncIterable
+from typing import Any, AsyncIterable
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.settings.json import json_settings
@@ -175,7 +175,7 @@ def write_www_form_urlencoded(data: dict | list) -> bytes:
 
 
 class FormContent(Content):
-    def __init__(self, data: dict[str, str] | list[tuple[str, str]]):
+    def __init__(self, data: dict[str, Any] | list[tuple[str, Any]]):
         super().__init__(
             b"application/x-www-form-urlencoded", write_www_form_urlencoded(data)
         )
@@ -233,6 +233,28 @@ class FormPart:
         if self._file is None:
             raise TypeError("Missing file data")
         return self._file
+
+    async def stream(self, chunk_size: int = 8192) -> AsyncIterable[bytes]:
+        """
+        Async generator that yields the data in chunks.
+
+        Args:
+            chunk_size: Size of each chunk in bytes (default: 8192).
+
+        Yields:
+            Byte chunks of the form part data.
+        """
+        if isinstance(self._data, bytes):
+            # For small in-memory data, yield it all at once
+            yield self._data
+        elif self._file:
+            # For SpooledTemporaryFile, read and yield in chunks
+            self._file.seek(0)
+            while True:
+                chunk = self._file.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
 
     def __eq__(self, other):
         if isinstance(other, FormPart):
@@ -406,13 +428,39 @@ class FileData(StreamingFormPart):
         # Save directly to disk
         bytes_written = await file_data.save_to('/path/to/file')
     """
+    @classmethod
+    def from_form_part(cls, form_part: FormPart):
+        return cls(
+            name=form_part.name.decode(),
+            data_stream=form_part.stream(),
+            content_type=form_part.content_type.decode() if form_part.content_type else "",
+            file_name=form_part.file_name.decode() if form_part.file_name else "",
+            charset=None
+        )
+
     def __repr__(self):
         return f"<FileData {self.file_name} ({self.content_type})>"
 
 
-# TODO: deprecate the following class!
+# TODO: deprecate the following class, replace with one that supports streaming
+# or, refactor to be a streaming content class
 class MultiPartFormData(Content):
-    def __init__(self, parts: list):
+    """
+    Represents multipart/form-data content for responses.
+
+    WARNING: This class will be deprecated and intended only for small payloads.
+    It loads all form parts into memory at once, which can exhaust memory
+    for large uploads or files.
+
+    For handling multipart/form-data in requests, use FormPart with
+    SpooledTemporaryFile for memory-efficient streaming instead.
+
+    Attributes:
+        parts: List of FormPart objects to encode as multipart/form-data.
+        boundary: Randomly generated boundary string for separating parts.
+    """
+
+    def __init__(self, parts: list[FormPart]):
         self.parts = parts
         self.boundary = b"----" + str(uuid.uuid4()).replace("-", "").encode()
         super().__init__(
@@ -422,6 +470,7 @@ class MultiPartFormData(Content):
 
     async def stream(self) -> AsyncIterable[bytes]:
         yield self.body
+
 
 def write_multipart_form_data(data: "MultiPartFormData") -> bytes:
     contents = bytearray()

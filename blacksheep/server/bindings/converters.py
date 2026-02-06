@@ -76,27 +76,6 @@ class StrConverter(TypeConverter):
             return None
         if "%" in value:
             return unquote(value)
-
-        if _is_single_form_part(value):
-            value = value[0]
-
-        if isinstance(value, FormPart):
-            # The user is explicitly trying to map a FormPart input into a string
-            # Note: now multipart/form-data parsing uses SpooledTemporaryFile by default
-            # for all file and text input (as text input can also be significant in
-            # size)
-            # Since the user wants to map the value to a str, here we read it all in
-            # memory, but we also issue a warning if the size exceeds a certain limit.
-            if value.size > 1024 * 1024:
-                warnings.warn(
-                    f"Form field '{value.name.decode('utf8', errors='replace')}' "
-                    f"is {value.size / (1024 * 1024):.2f}MB and will be loaded into "
-                    f"memory. Consider handling large form fields directly with "
-                    f"request.multipart_stream instead.",
-                    UserWarning,
-                    stacklevel=3
-                )
-            return value.data.decode("utf8")
         return value
 
 
@@ -122,11 +101,11 @@ class BoolConverter(TypeConverter):
             return None
         if not isinstance(value, str):
             return bool(value)
-        if value.lower() in ("yes", "true", "1"):
+        if value.lower() in ("true", "1"):
             # Note: in multipart/form-data, some browsers send 'yes' for a
             # checked checkbox!
             return True
-        elif value.lower() in ("no", "false", "0"):
+        elif value.lower() in ("false", "0"):
             return False
         else:
             raise ValueError(f"Cannot convert {value!r} to {expected_type.__name__}")
@@ -168,6 +147,16 @@ class BytesConverter(TypeConverter):
             return value.data
 
         return value.encode(self._encoding) if value else None
+
+
+class FormPartConverter(TypeConverter):
+    def can_convert(self, expected_type) -> bool:
+        return expected_type is FormPart
+
+    def convert(self, value, expected_type) -> Any:
+        if _is_single_form_part(value):
+            return value[0]
+        return value
 
 
 class FileDataConverter(TypeConverter):
@@ -547,6 +536,7 @@ converters: list[TypeConverter] = [
     LiteralConverter(),
     StrConverter(),
     UUIDConverter(),
+    FormPartConverter(),
     FileDataConverter(),
 ]
 

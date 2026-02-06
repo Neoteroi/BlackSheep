@@ -187,7 +187,7 @@ class StreamingFormPart:
 
 
 
-class FileData:
+class FileData(StreamingFormPart):
     """
     Represents file data extracted from a multipart/form-data request.
 

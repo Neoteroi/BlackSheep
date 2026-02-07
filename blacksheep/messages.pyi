@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Union
+from typing import Any, Callable, Generator, Sequence
 
 from guardpost import Identity
 
@@ -24,66 +24,11 @@ class Message:
     async def read(self) -> bytes | None: ...
     async def stream(self) -> Generator[bytes, None, None]: ...
     async def text(self) -> str: ...
-    async def form(self, simplify_fields: bool = True) -> Union[dict[str, str], dict[str, list[str]], dict[str, list[FormPart]], None]:
-        """
-        Parse form data from the request with memory-efficient file handling, but
-        reading text inputs whole in memory. To handle big text input fields, use
-        `multipart()` which doesn't read automatically text fields in memory or
-        `multipart_stream()` for streaming without any buffering.
+    async def form(self, simplify_fields: bool = True) -> dict[str, str] | dict[str, list[str]] | dict[str, list[FormPart]] | None: ...
 
-        This method now uses SpooledTemporaryFile for multipart uploads:
-        - Small files (<1MB): Kept in memory for performance
-        - Large files (>1MB): Automatically spooled to temporary disk files
-        - No memory exhaustion on large uploads!
+    async def multipart(self) -> list[FormPart] | None: ...
 
-        File uploads are returned as FormPart instances (not bytes!).
-        Form fields are returned as strings when simplify_fields=True.
-
-        Args:
-            simplify_fields: If True, decode text fields to strings. If False,
-                           return raw FormPart objects.
-
-        Returns:
-            Dictionary with form data. File uploads are FormPart instances.
-        """
-
-    async def multipart(self) -> list[FormPart] | None:
-        """
-        Parse multipart/form-data with memory-efficient part handling, relying on
-        SpooledTemporaryFile. **Note:** for true streaming without any buffering,
-        use `multipart_stream()`.
-
-        This method uses SpooledTemporaryFile for field and file uploads:
-        - Small data (<1MB): Kept in memory
-        - Large data (>1MB): Automatically spooled to temporary disk files
-
-        Returns:
-            List of FormPart, or None
-        """
-
-    def multipart_stream(self) -> Generator[Any, None, None]:
-        """
-        Parse multipart/form-data lazily from the request stream.
-
-        This method streams and parses multipart data without loading the entire
-        request body into memory, making it suitable for large file uploads and large
-        text uploads.
-
-        Yields:
-            StreamingFormPart objects as they are parsed from the stream.
-
-        Example:
-            ```python
-            async def upload_handler(request):
-                async for part in request.multipart_stream():
-                    if part.file_name:
-                        # Process file part
-                        await save_file(part.file_name, part.data)
-                    else:
-                        # Process form field
-                        value = part.data.decode('utf-8')
-            ```
-        """
+    async def multipart_stream(self) -> Generator[Any, None, None]: ...
 
     def declares_content_type(self, type: bytes) -> bool: ...
     def declares_json(self) -> bool: ...
@@ -118,7 +63,7 @@ class Request(Message):
     @property
     def query(self) -> dict[str, list[str]]: ...
     @query.setter
-    def query(self, value: dict[str, Union[str, Sequence[str]]]): ...
+    def query(self, value: dict[str, str | Sequence[str]]) -> None: ...
     @property
     def url(self) -> URL: ...
     @url.setter
@@ -139,16 +84,7 @@ class Request(Message):
     def expect_100_continue(self) -> bool: ...
     def with_content(self, content: Content) -> "Request": ...
     @property
-    def base_path(self) -> str:
-        """
-        Gets or sets the base_path of the request, if any. A base_path can be specified
-        in two ways: when using the `root_path` of the ASGI specification, the base_path
-        returns the root_path from the scope. Alternatively, when using a prefix for
-        the BlackSheep application (e.g. using the env variable `APP_ROUTE_PREFIX`), the
-        base_path is populated automatically with that value.
-        ASGI `root_path` and route prefix in BlackSheep are two alternative ways to
-        address the same issue and should not be used together.
-        """
+    def base_path(self) -> str: ...
 
     @base_path.setter
     def base_path(self, value: str) -> None: ...
@@ -168,23 +104,9 @@ class Request(Message):
     def original_client_ip(self, value: str) -> None: ...
     @property
     def path(self) -> str: ...
-    async def is_disconnected(self) -> bool:
-        """
-        Returns a value indicating whether the web request is still bound to an active
-        connection. In case of long-polling, this method returns True if the client
-        closed the original connection. For requests originated from a web browser, this
-        method returns True also if the user refreshed a page that originated a web
-        request, or the connection got lost and a page initiated a new request.
+    async def is_disconnected(self) -> bool: ...
 
-        Because this method relies on reading incoming ASGI messages, it can only be
-        used for incoming web requests handled through an ASGI server, and it must not
-        be used when reading the request stream, as it cannot be read more than once.
-        When reading the request stream, catch instead MessageAborted exceptions to
-        detect if the client closed the original connection.
-        """
-
-    def dispose(self) -> None:
-        """Disposes of this web request."""
+    def dispose(self) -> None: ...
 
 class Response(Message):
     def __init__(

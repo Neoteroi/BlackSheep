@@ -40,7 +40,7 @@ class ASGIContent(Content):
         self.length = -1
         self.receive = receive
 
-    def dispose(self): ...
+    def dispose(self) -> None: ...
     async def stream(self) -> AsyncIterable[bytes]: ...
     async def read(self) -> bytes: ...
 
@@ -115,16 +115,8 @@ class FormPart:
     def data(self) -> bytes: ...
     @property
     def file(self) -> SpooledTemporaryFile: ...
-    async def stream(self, chunk_size: int = 8192) -> AsyncIterable[bytes]:
-        """
-        Async generator that yields the data in chunks.
+    async def stream(self, chunk_size: int = 8192) -> AsyncIterable[bytes]: ...
 
-        Args:
-            chunk_size: Size of each chunk in bytes (default: 8192).
-
-        Yields:
-            Byte chunks of the form part data.
-        """
     def __eq__(self, other) -> bool: ...
 
 class UploadFile:
@@ -165,12 +157,9 @@ class UploadFile:
         self.size = size
         self._charset = charset
 
-    def read(self, size: int = -1) -> bytes:
-        """Read data from the file."""
-    def seek(self, offset: int, whence: int = 0) -> int:
-        """Seek to a position in the file."""
-    def close(self) -> None:
-        """Close the underlying file."""
+    def read(self, size: int = -1) -> bytes: ...
+    def seek(self, offset: int, whence: int = 0) -> int: ...
+    def close(self) -> None: ...
     def __repr__(self) -> str: ...
     def __enter__(self) -> "UploadFile": ...
     def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
@@ -212,36 +201,10 @@ class StreamingFormPart:
         self.charset = charset
         self._data_stream = data_stream
 
-    async def stream(self) -> AsyncIterable[bytes]:
-        """
-        Stream the part data in chunks.
+    async def stream(self) -> AsyncIterable[bytes]: ...
 
-        Yields:
-            Byte chunks of the part data.
-        """
-        # Stream from source
-        async for chunk in self._data_stream:
-            yield chunk
-
-    async def save_to(self, path: str) -> int:
-        """
-        Stream part data directly to a file.
-
-        Args:
-            path: File path where data should be saved.
-
-        Returns:
-            Total number of bytes written.
-        """
-        total_bytes = 0
-        with open(path, "wb") as f:
-            async for chunk in self.stream():
-                f.write(chunk)
-                total_bytes += len(chunk)
-        return total_bytes
-
-    def __repr__(self):
-        return f"<StreamingFormPart {self.name} - at {id(self)}>"
+    async def save_to(self, path: str) -> int: ...
+    def __repr__(self) -> str: ...
 
 class FileData(StreamingFormPart):
     """
@@ -292,25 +255,13 @@ class MultiPartFormData(Content):
 
     async def stream(self) -> AsyncIterable[bytes]: ...
 
-def parse_www_form(content: str) -> dict[str, Union[str, list[str]]]:
-    """Parses application/x-www-form-urlencoded content"""
+def parse_www_form(content: str) -> dict[str, str | list[str]]: ...
 
 def write_www_form_urlencoded(
-    data: Union[dict[str, str], list[tuple[str, str]]],
+    data: dict[str, str] | list[tuple[str, str]],
 ) -> bytes: ...
 
-def simplify_multipart_data(data: dict | None) -> dict | None:
-    """
-    Simplifies multipart form data for backward compatibility.
-    Converts FormPart objects to decoded strings for text fields,
-    keeping file uploads as FormPart lists.
-
-    Args:
-        data: Dictionary mapping field names to lists of FormPart objects.
-
-    Returns:
-        Simplified dictionary with text fields as strings and file fields as FormPart lists.
-    """
+def simplify_multipart_data(data: dict | None) -> dict | None: ...
 
 class ServerSentEvent:
     """

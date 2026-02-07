@@ -1,11 +1,11 @@
 """
-Integration tests for FileData OpenAPI documentation generation.
+Integration tests for FileBuffer OpenAPI documentation generation.
 """
 
 import pytest
 from openapidocs.v3 import Info, ValueFormat, ValueType
 
-from blacksheep import Application, FileData
+from blacksheep import Application, FileBuffer
 from blacksheep.server.openapi.common import DefaultSerializer
 from blacksheep.server.openapi.v3 import OpenAPIHandler
 
@@ -17,11 +17,11 @@ def get_test_app():
 
 @pytest.mark.asyncio
 async def test_filedata_single_file_openapi_spec():
-    """Test that single FileData generates correct OpenAPI spec."""
+    """Test that single FileBuffer generates correct OpenAPI spec."""
     app = get_test_app()
 
     @app.router.post("/upload")
-    async def upload_file(file: FileData):
+    async def upload_file(file: FileBuffer):
         """Upload a single file."""
         return {"status": "ok"}
 
@@ -53,11 +53,11 @@ async def test_filedata_single_file_openapi_spec():
 
 @pytest.mark.asyncio
 async def test_filedata_multiple_files_openapi_spec():
-    """Test that list[FileData] generates correct OpenAPI spec."""
+    """Test that list[FileBuffer] generates correct OpenAPI spec."""
     app = get_test_app()
 
     @app.router.post("/upload-multiple")
-    async def upload_files(files: list[FileData]):
+    async def upload_files(files: list[FileBuffer]):
         """Upload multiple files."""
         return {"status": "ok", "count": len(files)}
 
@@ -91,11 +91,11 @@ async def test_filedata_multiple_files_openapi_spec():
 
 @pytest.mark.asyncio
 async def test_filedata_yaml_output():
-    """Test that FileData generates correct YAML output."""
+    """Test that FileBuffer generates correct YAML output."""
     app = get_test_app()
 
     @app.router.post("/upload")
-    async def upload_file(file: FileData):
+    async def upload_file(file: FileBuffer):
         """Upload a file."""
         return {"status": "ok"}
 
@@ -116,11 +116,11 @@ async def test_filedata_yaml_output():
 
 @pytest.mark.asyncio
 async def test_filedata_json_output():
-    """Test that FileData generates correct JSON output."""
+    """Test that FileBuffer generates correct JSON output."""
     app = get_test_app()
 
     @app.router.post("/upload")
-    async def upload_file(file: FileData):
+    async def upload_file(file: FileBuffer):
         """Upload a file."""
         return {"status": "ok"}
 

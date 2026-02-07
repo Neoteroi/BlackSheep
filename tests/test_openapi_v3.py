@@ -4384,14 +4384,14 @@ async def test_handles_from_multipart_with_complex_type():
 
 
 async def test_handles_filedata_as_body_parameter():
-    """Test that FileData as a body parameter generates proper multipart/form-data documentation."""
-    from blacksheep import FileData
+    """Test that FileBuffer as a body parameter generates proper multipart/form-data documentation."""
+    from blacksheep import FileBuffer
 
     app = get_app()
 
     @app.router.post("/upload-single")
-    async def upload_single_file(file: FileData):
-        """Upload a single file using FileData."""
+    async def upload_single_file(file: FileBuffer):
+        """Upload a single file using FileBuffer."""
         ...
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
@@ -4414,14 +4414,14 @@ async def test_handles_filedata_as_body_parameter():
 
 
 async def test_handles_list_of_filedata_as_body_parameter():
-    """Test that list[FileData] as a body parameter generates proper multipart/form-data documentation."""
-    from blacksheep import FileData
+    """Test that list[FileBuffer] as a body parameter generates proper multipart/form-data documentation."""
+    from blacksheep import FileBuffer
 
     app = get_app()
 
     @app.router.post("/upload-multiple")
-    async def upload_multiple_files(files: list[FileData]):
-        """Upload multiple files using list[FileData]."""
+    async def upload_multiple_files(files: list[FileBuffer]):
+        """Upload multiple files using list[FileBuffer]."""
         ...
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
@@ -4444,18 +4444,18 @@ async def test_handles_list_of_filedata_as_body_parameter():
 
 
 async def test_filedata_schema_generation():
-    """Test that FileData type generates correct OpenAPI schema."""
-    from blacksheep import FileData
+    """Test that FileBuffer type generates correct OpenAPI schema."""
+    from blacksheep import FileBuffer
 
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
 
-    # Test single FileData schema
-    schema = docs.get_schema_by_type(FileData)
+    # Test single FileBuffer schema
+    schema = docs.get_schema_by_type(FileBuffer)
     assert schema.type == ValueType.STRING
     assert schema.format == ValueFormat.BINARY
 
-    # Test list[FileData] schema
-    list_schema = docs.get_schema_by_type(list[FileData])
+    # Test list[FileBuffer] schema
+    list_schema = docs.get_schema_by_type(list[FileBuffer])
     assert list_schema.type == ValueType.ARRAY
     assert list_schema.items.type == ValueType.STRING
     assert list_schema.items.format == ValueFormat.BINARY

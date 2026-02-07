@@ -9,7 +9,6 @@ the user can still define custom logic to parse input values.
 """
 
 import inspect
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Sequence as SequenceABC
 from dataclasses import fields, is_dataclass
@@ -28,7 +27,7 @@ from typing import (
 from urllib.parse import unquote
 from uuid import UUID
 
-from blacksheep.contents import FileData, FormPart
+from blacksheep.contents import FileBuffer, FormPart
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.bindings.dates import parse_datetime
 from blacksheep.utils import ensure_str
@@ -163,7 +162,7 @@ class FormPartConverter(TypeConverter):
 
 class FileDataConverter(TypeConverter):
     def can_convert(self, expected_type) -> bool:
-        return expected_type is FileData
+        return expected_type is FileBuffer
 
     def convert(self, value, expected_type) -> Any:
         if isinstance(value, str) and value == "":
@@ -178,13 +177,14 @@ class FileDataConverter(TypeConverter):
             if len(value) == 1:
                 single_file_input = value[0]
                 if isinstance(single_file_input, FormPart):
-                    return FileData.from_form_part(single_file_input)
+                    # TODO: continue here!
+                    return FileBuffer.from_form_part(single_file_input)
             else:
                 raise BadRequest("Expected a single file")
             return None
 
         if isinstance(value, FormPart):
-            return FileData.from_form_part(value)
+            return FileBuffer.from_form_part(value)
 
         return None
 

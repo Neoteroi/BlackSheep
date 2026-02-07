@@ -579,7 +579,6 @@ class MultipartBinder(BodyBinder):
     Memory-efficient file handling is now automatic at the framework level:
     - Small files (<1MB): Kept in memory for performance
     - Large files (>1MB): Automatically spooled to temporary disk files
-    - File uploads are UploadFile instances (not bytes!)
 
     This class uses request.form() which handles SpooledTemporaryFile automatically.
     """

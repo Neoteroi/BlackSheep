@@ -45,19 +45,12 @@ cdef class FormPart:
 
 
 cdef class StreamingFormPart:
-    cdef readonly bytes name
-    cdef readonly bytes file_name
-    cdef readonly bytes content_type
-    cdef readonly bytes charset
+    cdef readonly str name
+    cdef readonly str file_name
+    cdef readonly str content_type
+    cdef readonly str charset
     cdef readonly object _data_stream
 
-
-# TODO: do we need the following?
-cdef class FileStream(StreamingFormPart):
-    cdef readonly str param_name
-    cdef readonly bytes data
-    cdef readonly str content_type
-    cdef readonly str file_name
 
 cdef class ServerSentEvent:
     cdef readonly object data

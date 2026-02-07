@@ -68,7 +68,7 @@ cdef class ASGIContent(Content):
         self.length = -1
         self.receive = receive
 
-    def dispose(self):
+    cpdef void dispose(self):
         self.receive = None
         self.body = None
 

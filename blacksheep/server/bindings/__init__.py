@@ -568,48 +568,8 @@ class FormBinder(BodyBinder):
             b"application/x-www-form-urlencoded"
         ) or request.declares_content_type(b"multipart/form-data")
 
-    @staticmethod
-    def _simplify_part(part: FormPart) -> FormPart | str:
-        if part.file_name:
-            # keep as is
-            return part
-        if part.size > 1024 * 1024:
-            warnings.warn(
-                f"Form field '{part.name.decode('utf8', errors='replace')}' "
-                f"is {part.size / (1024 * 1024):.2f}MB and will be loaded into "
-                f"memory. Consider handling large form fields directly with "
-                f"request.multipart_stream instead.",
-                UserWarning,
-                stacklevel=3
-            )
-        return part.data.decode(part.charset.decode() if part.charset else "utf8")
-
-    @staticmethod
-    def _simplify_data(data: dict | None) -> dict | None:
-        # This code is for backward compatibility,
-        # probably this behavior will be changed in v3
-        if data is None:
-            return None
-        simplified_data = {}
-        value: list[FormPart]
-        for key, value in data.items():
-            if len(value) > 1:
-                simplified_data[key] = [FormBinder._simplify_part(item) for item in value]
-            else:
-                if value[0].file_name:
-                    simplified_data[key] = value
-                else:
-                    simplified_data[key] = FormBinder._simplify_part(value[0])
-        return simplified_data
-
     async def read_data(self, request: Request) -> Any:
-        data = await request.form()
-        content_type_value = request.content_type()
-        if b"application/x-www-form-urlencoded" in content_type_value:
-            return data
-        # For backward compatibility, automatically convert non-file fields into
-        # strings. However, issue a warning if the size of a part exceeds 1MB
-        return self._simplify_data(data)
+        return await request.form()
 
 
 class MultipartBinder(BodyBinder):

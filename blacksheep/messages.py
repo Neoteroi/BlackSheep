@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
 
-from blacksheep.multipart import get_boundary_from_header, parse_multipart, parse_multipart_async
+from blacksheep.multipart import get_boundary_from_header, parse_multipart, parse_multipart_async, simplify_multipart_data
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
@@ -230,9 +230,12 @@ class Message:
         except UnicodeDecodeError as decode_error:
             return encodings_settings.decode(body, decode_error)
 
-    async def form(self):
+    async def form(self, simplify_fields: bool = True):
         """
-        Parse form data from the request with memory-efficient file handling.
+        Parse form data from the request with memory-efficient file handling, but
+        reading text inputs whole in memory. To handle big text input fields, use
+        `multipart()` which doesn't read automatically text fields in memory or
+        `multipart_stream()` for streaming without any buffering.
 
         This method now uses SpooledTemporaryFile for multipart uploads:
         - Small files (<1MB): Kept in memory for performance
@@ -262,12 +265,18 @@ class Message:
                 avatar.close()
             ```
         """
-        if hasattr(self, '_form_data'):
-            return self._form_data
-
         content_type_value = self.content_type()
+
         if not content_type_value:
             return None
+
+        if hasattr(self, '_form_data'):
+            if b"multipart/form-data;" in content_type_value and simplify_fields:
+                # This is just to not break backward compatibility.
+                # TODO: consider removing this in v3
+                return simplify_multipart_data(self._form_data)
+            return self._form_data
+
         if b"application/x-www-form-urlencoded" in content_type_value:
             text = await self.text()
             return parse_www_form_urlencoded(text)
@@ -278,27 +287,26 @@ class Message:
             # Request form is intentionally not kept in memory if multipart_stream
             # is read directly by the user.
             self._form_data = await _multipart_to_dict_streaming(self.multipart_stream())
-            return self._form_data
+            return simplify_multipart_data(self._form_data) if simplify_fields else self._form_data
         return None
 
     async def multipart(self) -> list[FormPart] | None:
         """
-        Parse multipart/form-data with memory-efficient file handling.
+        Parse multipart/form-data with memory-efficient part handling, relying on
+        SpooledTemporaryFile. **Note:** for true streaming without any buffering,
+        use `multipart_stream()`.
 
         This method uses SpooledTemporaryFile for field and file uploads:
-        - Small files (<1MB): Kept in memory
-        - Large files (>1MB): Automatically spooled to temporary disk files
+        - Small data (<1MB): Kept in memory
+        - Large data (>1MB): Automatically spooled to temporary disk files
 
         Returns:
             List of FormPart, or None
-
-        Note:
-            For true streaming without any buffering, use `multipart_stream()`.
         """
         items = []
-        data = await self.form()
-        if data is None:
-            return None
+        data = await self.form(simplify_fields=False)
+        if not data:
+            return items
         for _, values in data.items():
             for value in values:
                 items.append(value)
@@ -366,8 +374,8 @@ class Message:
         if data is None:
             return []
         if name:
-            return [part for part in data if part.file_name and part.name == name]
-        return [part for part in data if part.file_name]
+            return [part for part in data if isinstance(part, FormPart) and part.file_name and part.name == name]
+        return [part for part in data if isinstance(part, FormPart) and part.file_name]
 
     async def json(
         self, loads=json_settings.loads

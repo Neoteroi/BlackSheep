@@ -1,4 +1,5 @@
 from typing import AsyncIterable, Generator, Iterable
+import warnings
 
 from blacksheep.contents import FormPart, StreamingFormPart
 
@@ -357,3 +358,37 @@ async def parse_multipart_async(
         await drain_current_part()
         if not await skip_to_boundary():
             return
+
+
+def _simplify_part(part: FormPart) -> FormPart | str:
+    if part.file_name:
+        # keep as is
+        return part
+    if part.size > 1024 * 1024:
+        warnings.warn(
+            f"Form field '{part.name.decode('utf8', errors='replace')}' "
+            f"is {part.size / (1024 * 1024):.2f}MB and will be loaded into "
+            f"memory. Consider handling large form fields directly with "
+            f"request.multipart_stream instead.",
+            UserWarning,
+            stacklevel=3
+        )
+    return part.data.decode(part.charset.decode() if part.charset else "utf8")
+
+
+def simplify_multipart_data(data: dict | None) -> dict | None:
+    # This code is for backward compatibility,
+    # probably this behavior will be changed in v3
+    if data is None:
+        return None
+    simplified_data = {}
+    value: list[FormPart]
+    for key, value in data.items():
+        if len(value) > 1:
+            simplified_data[key] = [_simplify_part(item) for item in value]
+        else:
+            if value[0].file_name:
+                simplified_data[key] = value
+            else:
+                simplified_data[key] = _simplify_part(value[0])
+    return simplified_data

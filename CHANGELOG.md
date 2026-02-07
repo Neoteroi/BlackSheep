@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for handling `FromText`, `FromFiles` in OpenAPI Documentation ([#546](https://github.com/Neoteroi/BlackSheep/issues/546)).
 - Add `FromMultipart[T]` for complex structured multipart form data. See [PR 653](https://github.com/Neoteroi/BlackSheep/pull/653).
-- Improve support for `multipart/form-data` forms.
-- Add a `FileBuffer` class to describe file input for `multipart/form-data` forms.
+- **Significantly improve support for `multipart/form-data` forms** with memory-efficient streaming and file handling:
+- Add `Request.multipart_stream()` method for true streaming parsing of multipart data without buffering entire request body in memory, ideal for handling large file uploads and large text fields.
+- Refactor `Request.form()` and `Request.multipart()` to use `SpooledTemporaryFile` for memory-efficient file handling: small files (<1MB) are kept in memory, larger files automatically spill to temporary disk files.
+- Add `Request.dispose()` method to properly clean up `SpooledTemporaryFile` resources and prevent resource leaks when handling file uploads.
+- Add `FileBuffer` class wrapping `SpooledTemporaryFile` to provide a clean API for uploaded files with `read()`, `seek()`, `close()`, and `save_to()` methods.
+- Add `FormPart.stream()` async generator method to stream part data in chunks.
+- `FormPart` instances provide better memory management and a cleaner API.
+- The framework automatically calls `Request.dispose()` at the end of each request-response cycle to clean up file resources.
 
 ## [2.5.1] - 2026-01-30 :wheel:
 

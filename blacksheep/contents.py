@@ -1,6 +1,10 @@
+import asyncio
+import shutil
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
+from tempfile import SpooledTemporaryFile
+from typing import Any, AsyncIterable
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.settings.json import json_settings
@@ -173,26 +177,106 @@ def write_www_form_urlencoded(data: dict | list) -> bytes:
 
 
 class FormContent(Content):
-    def __init__(self, data: dict[str, str] | list[tuple[str, str]]):
+    def __init__(self, data: dict[str, Any] | list[tuple[str, Any]]):
         super().__init__(
             b"application/x-www-form-urlencoded", write_www_form_urlencoded(data)
         )
 
 
 class FormPart:
+    """
+    Represents a single part of a multipart/form-data request.
+
+    Attributes:
+        name: The name of the form field (bytes).
+        data: The binary content of the form part.
+        file_name: The filename if this part represents a file upload (optional).
+        content_type: The MIME type of the content (optional).
+        charset: The character encoding of the content (optional).
+    """
+
+    __slots__ = (
+        "name",
+        "_data",
+        "_file",
+        "file_name",
+        "content_type",
+        "charset",
+        "size",
+    )
+
     def __init__(
         self,
         name: bytes,
-        data: bytes,
+        data: bytes | SpooledTemporaryFile,
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
+        size: int = 0,
     ):
         self.name = name
-        self.data = data
+        self._data = data if isinstance(data, bytes) else None
+        self._file = data if isinstance(data, SpooledTemporaryFile) else None
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
+        self.size = size
+
+    @property
+    def data(self) -> bytes:
+        if isinstance(self._data, bytes):
+            return self._data
+        if self._file:
+            self._file.seek(0)
+            return self._file.read()
+        return b""
+
+    @property
+    def file(self) -> SpooledTemporaryFile:
+        if self._file is None:
+            raise TypeError("Missing file data")
+        return self._file
+
+    async def stream(self, chunk_size: int = 8192) -> AsyncIterable[bytes]:
+        """
+        Async generator that yields the data in chunks.
+
+        Args:
+            chunk_size: Size of each chunk in bytes (default: 8192).
+
+        Yields:
+            Byte chunks of the form part data.
+        """
+        if isinstance(self._data, bytes):
+            # For small in-memory data, yield it all at once
+            yield self._data
+        elif self._file:
+            # For SpooledTemporaryFile, read and yield in chunks
+            self._file.seek(0)
+            while True:
+                chunk = self._file.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+
+    async def save_to(self, path: str) -> int:
+        """Save file data to a specified path.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+
+        def _copy():
+            self.file.seek(0)
+            with open(path, "wb") as dest:
+                bytes_written = shutil.copyfileobj(self.file, dest)
+            self.file.seek(0)
+            return bytes_written if bytes_written is not None else self.size
+
+        return await asyncio.to_thread(_copy)
 
     def __eq__(self, other):
         if isinstance(other, FormPart):
@@ -211,14 +295,195 @@ class FormPart:
         return f"<FormPart {self.name} - at {id(self)}>"
 
 
+class FileBuffer:
+    """
+    Represents an uploaded file with buffered data access.
+
+    This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
+    Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
+
+    Attributes:
+        name: The form field name (str).
+        filename: The uploaded file's name (str).
+        content_type: The MIME type (str or None).
+        file: The underlying file-like object (SpooledTemporaryFile).
+        size: The size in bytes (if known), or 0.
+
+    Usage:
+        # Access as file-like object
+        content = file_buffer.file.read()
+
+        # Or read all data
+        data = await file_buffer.read()
+    """
+
+    __slots__ = ("name", "file_name", "content_type", "file", "size", "_charset")
+
+    def __init__(
+        self,
+        name: str,
+        file_name: str | None,
+        file,  # file-like object (SpooledTemporaryFile)
+        content_type: str | None = None,
+        size: int = 0,
+        charset: str | None = None,
+    ):
+        self.name = name
+        self.file_name = file_name
+        self.content_type = content_type
+        self.file = file
+        self.size = size
+        self._charset = charset
+
+    @classmethod
+    def from_form_part(cls, form_part: FormPart):
+        return cls(
+            name=form_part.name.decode(),
+            file_name=form_part.file_name.decode() if form_part.file_name else None,
+            file=form_part.file,
+            content_type=(
+                form_part.content_type.decode() if form_part.content_type else None
+            ),
+            size=form_part.size,
+            charset=form_part.charset.decode() if form_part.charset else None,
+        )
+
+    def read(self, size: int = -1) -> bytes:
+        """Read data from the file."""
+        return self.file.read(size)
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        """Seek to a position in the file."""
+        return self.file.seek(offset, whence)
+
+    async def save_to(self, path: str) -> int:
+        """Save file data to a specified path.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+
+        def _copy():
+            self.file.seek(0)
+            with open(path, "wb") as dest:
+                bytes_written = shutil.copyfileobj(self.file, dest)
+            self.file.seek(0)
+            return bytes_written if bytes_written is not None else self.size
+
+        return await asyncio.to_thread(_copy)
+
+    def close(self):
+        """Close the underlying file."""
+        self.file.close()
+
+    def __repr__(self):
+        return f"<FileBuffer {self.file_name} ({self.content_type})>"
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
+class StreamingFormPart:
+    """
+    Represents a streaming part of a multipart/form-data request.
+
+    Unlike FormPart, which loads all data into memory, StreamingFormPart provides
+    lazy access to file content through async iteration, making it suitable for
+    large file uploads without memory pressure.
+
+    Attributes:
+        name: The name of the form field (bytes).
+        content_type: The MIME type of the content (optional).
+        file_name: The filename if this part represents a file upload (optional).
+        charset: The character encoding of the content (optional).
+    """
+
+    __slots__ = (
+        "name",
+        "file_name",
+        "content_type",
+        "charset",
+        "_data_stream",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        data_stream: AsyncIterable[bytes],
+        content_type: str | None = None,
+        file_name: str | None = None,
+        charset: str | None = None,
+    ):
+        self.name = name
+        self.file_name = file_name
+        self.content_type = content_type
+        self.charset = charset
+        self._data_stream = data_stream
+
+    async def stream(self) -> AsyncIterable[bytes]:
+        """
+        Stream the part data in chunks.
+
+        Yields:
+            Byte chunks of the part data.
+        """
+        # Stream from source
+        async for chunk in self._data_stream:
+            yield chunk
+
+    async def save_to(self, path: str) -> int:
+        """
+        Stream part data directly to a file.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+        total_bytes = 0
+        with open(path, "wb") as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
+
+    def __repr__(self):
+        return f"<StreamingFormPart {self.name} - at {id(self)}>"
+
+
 class MultiPartFormData(Content):
-    def __init__(self, parts: list):
+    """
+    Represents multipart/form-data content for responses.
+
+    WARNING: This class will be deprecated and intended only for small payloads.
+    It loads all form parts into memory at once, which can exhaust memory
+    for large uploads or files.
+
+    For handling multipart/form-data in requests, use FormPart with
+    SpooledTemporaryFile for memory-efficient streaming instead.
+
+    Attributes:
+        parts: List of FormPart objects to encode as multipart/form-data.
+        boundary: Randomly generated boundary string for separating parts.
+    """
+
+    def __init__(self, parts: list[FormPart]):
         self.parts = parts
-        self.boundary = b"------" + str(uuid.uuid4()).replace("-", "").encode()
+        self.boundary = b"----" + str(uuid.uuid4()).replace("-", "").encode()
         super().__init__(
             b"multipart/form-data; boundary=" + self.boundary,
             write_multipart_form_data(self),
         )
+
+    async def stream(self) -> AsyncIterable[bytes]:
+        yield self.body
 
 
 def write_multipart_form_data(data: "MultiPartFormData") -> bytes:

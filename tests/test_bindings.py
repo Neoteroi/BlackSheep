@@ -494,7 +494,7 @@ async def test_raises_for_missing_default_converter(binder_type):
 
 @pytest.mark.parametrize(
     "expected_type,invalid_value",
-    [[int, "x"], [int, ""], [float, "x"], [float, ""], [bool, "x"], [bool, "yes"]],
+    [[int, "x"], [int, ""], [float, "x"], [float, ""], [bool, "x"]],
 )
 async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_value):
     request = Request("GET", b"/", None)
@@ -514,7 +514,6 @@ async def test_from_route_raises_for_invalid_parameter(expected_type, invalid_va
         [float, b"x"],
         [float, b""],
         [bool, b"x"],
-        [bool, b"yes"],
     ],
 )
 async def test_from_query_raises_for_invalid_parameter(

@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Generator, List, Optional, Sequence, Union
+from typing import Any, Callable, Generator, Sequence
 
 from guardpost import Identity
 
@@ -24,27 +24,11 @@ class Message:
     async def read(self) -> bytes | None: ...
     async def stream(self) -> Generator[bytes, None, None]: ...
     async def text(self) -> str: ...
-    async def form(self) -> Union[dict[str, str], dict[str, list[str]], None]:
-        """
-        Returns values read either from multipart or www-form-urlencoded
-        payload.
-
-        This function adopts some compromises to provide a consistent api,
-        returning a dictionary of key: values pairs.
-        If a key is unique, the value is a single string; if a key is
-        duplicated (licit in both form types), the value is a list of strings.
-
-        Multipart form parts values that can be decoded as UTF8 are decoded,
-        otherwise kept as raw bytes.
-        In case of ambiguity, use the dedicated `multiparts()` method.
-        """
-
-    async def multipart(self) -> list[FormPart]:
-        """
-        Returns parts read from multipart/form-data, if present, otherwise
-        None
-        """
-
+    async def form(
+        self, simplify_fields: bool = True
+    ) -> dict[str, str] | dict[str, list[str]] | dict[str, list[FormPart]] | None: ...
+    async def multipart(self) -> list[FormPart] | None: ...
+    async def multipart_stream(self) -> Generator[Any, None, None]: ...
     def declares_content_type(self, type: bytes) -> bool: ...
     def declares_json(self) -> bool: ...
     def declares_xml(self) -> bool: ...
@@ -78,7 +62,7 @@ class Request(Message):
     @property
     def query(self) -> dict[str, list[str]]: ...
     @query.setter
-    def query(self, value: dict[str, Union[str, Sequence[str]]]): ...
+    def query(self, value: dict[str, str | Sequence[str]]) -> None: ...
     @property
     def url(self) -> URL: ...
     @url.setter
@@ -99,21 +83,7 @@ class Request(Message):
     def expect_100_continue(self) -> bool: ...
     def with_content(self, content: Content) -> "Request": ...
     @property
-    def session(self) -> Session: ...
-    @session.setter
-    def session(self, value: Session) -> None: ...
-    @property
-    def base_path(self) -> str:
-        """
-        Gets or sets the base_path of the request, if any. A base_path can be specified
-        in two ways: when using the `root_path` of the ASGI specification, the base_path
-        returns the root_path from the scope. Alternatively, when using a prefix for
-        the BlackSheep application (e.g. using the env variable `APP_ROUTE_PREFIX`), the
-        base_path is populated automatically with that value.
-        ASGI `root_path` and route prefix in BlackSheep are two alternative ways to
-        address the same issue and should not be used together.
-        """
-
+    def base_path(self) -> str: ...
     @base_path.setter
     def base_path(self, value: str) -> None: ...
     @property
@@ -132,20 +102,8 @@ class Request(Message):
     def original_client_ip(self, value: str) -> None: ...
     @property
     def path(self) -> str: ...
-    async def is_disconnected(self) -> bool:
-        """
-        Returns a value indicating whether the web request is still bound to an active
-        connection. In case of long-polling, this method returns True if the client
-        closed the original connection. For requests originated from a web browser, this
-        method returns True also if the user refreshed a page that originated a web
-        request, or the connection got lost and a page initiated a new request.
-
-        Because this method relies on reading incoming ASGI messages, it can only be
-        used for incoming web requests handled through an ASGI server, and it must not
-        be used when reading the request stream, as it cannot be read more than once.
-        When reading the request stream, catch instead MessageAborted exceptions to
-        detect if the client closed the original connection.
-        """
+    async def is_disconnected(self) -> bool: ...
+    def dispose(self) -> None: ...
 
 class Response(Message):
     def __init__(

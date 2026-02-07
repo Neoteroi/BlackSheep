@@ -45,12 +45,14 @@ from openapidocs.v3 import (
     ValueType,
 )
 
+from blacksheep.contents import FileBuffer
 from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
 from blacksheep.server.bindings import (
     Binder,
     BodyBinder,
     CookieBinder,
+    FilesBinder,
     HeaderBinder,
     QueryBinder,
     RouteBinder,
@@ -891,6 +893,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if object_type is datetime:
             return Schema(type=ValueType.STRING, format=ValueFormat.DATETIME)
 
+        if object_type is FileBuffer:
+            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
+
         return None
 
     def _try_get_schema_for_iterable(
@@ -1052,11 +1057,36 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING, enum=[v.value for v in object_type])
         return None
 
-    def _get_body_binder(self, handler: Any) -> BodyBinder | None:
+    def _is_filedata_type(self, object_type: Type) -> bool:
+        """Check if a type is file data or a list/sequence of file data."""
+        if object_type is FileBuffer:
+            return True
+
+        origin = get_origin(object_type)
+        if origin in {list, set, tuple, collections_abc.Sequence}:
+            type_args = typing.get_args(object_type)
+            if type_args and type_args[0] is FileBuffer:
+                return True
+
+        return False
+
+    def _get_binder_by_type(
+        self, handler: Any, binder_type: Type[Binder]
+    ) -> Binder | None:
+        """Returns a binder of the specified type from a handler, if present."""
+        if not hasattr(handler, "binders"):
+            return None
         return next(
-            (binder for binder in handler.binders if isinstance(binder, BodyBinder)),
+            (binder for binder in handler.binders if isinstance(binder, binder_type)),
             None,
         )
+
+    def _get_body_binder(self, handler: Any) -> BodyBinder | None:
+        return self._get_binder_by_type(handler, BodyBinder)  # type: ignore
+
+    def _get_files_binder(self, handler: Any) -> FilesBinder | None:
+        """Returns the FilesBinder from a handler, if present."""
+        return self._get_binder_by_type(handler, FilesBinder)  # type: ignore
 
     def _get_binder_by_name(self, handler: Any, name: str) -> Binder | None:
         return next(
@@ -1080,9 +1110,29 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def get_request_body(self, handler: Any) -> RequestBody | Reference | None:
         if not hasattr(handler, "binders"):
             return None
-        # TODO: improve this code to support more scenarios!
-        # https://github.com/Neoteroi/BlackSheep/issues/546
+
         body_binder = self._get_body_binder(handler)
+        files_binder = self._get_files_binder(handler)
+
+        # If there's no body binder but there is a files binder, document the files
+        if files_binder and not body_binder:
+            docs = self.get_handler_docs(handler)
+            body_info = docs.request_body if docs else None
+
+            # Create schema for file upload
+            schema = Schema(
+                type=ValueType.ARRAY,
+                items=Schema(
+                    type=ValueType.STRING,
+                    format=ValueFormat.BINARY,
+                ),
+            )
+
+            return RequestBody(
+                content={"multipart/form-data": MediaType(schema=schema)},
+                required=files_binder.required,
+                description=body_info.description if body_info else "File upload",
+            )
 
         if body_binder is None:
             return None
@@ -1096,6 +1146,24 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else None
         )
 
+        # Check if the body binder expects file data or list[file data]
+        expected_type = body_binder.expected_type
+        is_filedata_type = self._is_filedata_type(expected_type)
+
+        if is_filedata_type:
+            # Generate multipart/form-data documentation for file data
+            schema = self.get_schema_by_type(expected_type)
+            return RequestBody(
+                content={
+                    "multipart/form-data": MediaType(
+                        schema=schema, examples=body_examples
+                    )
+                },
+                required=body_binder.required,
+                description=body_info.description if body_info else "File upload",
+            )
+
+        # Original behavior for body binder
         return RequestBody(
             content=self._get_body_binder_content_type(body_binder, body_examples),
             required=body_binder.required,

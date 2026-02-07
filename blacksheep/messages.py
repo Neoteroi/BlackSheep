@@ -1,14 +1,21 @@
 import asyncio
 import http
 import re
+from collections import defaultdict
 from datetime import timedelta
 from json.decoder import JSONDecodeError
+from tempfile import SpooledTemporaryFile
 from typing import TYPE_CHECKING, Any, TypeAlias
 from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
 
-from blacksheep.multipart import parse_multipart
+from blacksheep.multipart import (
+    get_boundary_from_header,
+    parse_multipart,
+    parse_multipart_async,
+    simplify_multipart_data,
+)
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
@@ -18,7 +25,7 @@ from .contents import (
     Content,
     FormPart,
     StreamedContent,
-    multiparts_to_dictionary,
+    StreamingFormPart,
     parse_www_form_urlencoded,
 )
 from .cookies import Cookie, parse_cookie, split_value, write_cookie_for_response
@@ -54,6 +61,58 @@ async def _call_soon(coro):
         return await task
     except asyncio.CancelledError:
         return None
+
+
+def _encode(value: str | None) -> bytes | None:
+    return value.encode("utf8") if value else None
+
+
+async def _multipart_to_dict_streaming(
+    stream_iter,
+    spool_max_size: int = 1024 * 1024,
+) -> dict:
+    """
+    Convert streaming multipart parts to dictionary with memory-efficient file handling.
+
+    Files are wrapped in FileBuffer with SpooledTemporaryFile:
+    - Small files (<1MB): Kept in memory for performance
+    - Large files (>1MB): Automatically spooled to temporary disk files
+    - Form fields: Buffered in memory with size limits
+
+    Args:
+        stream_iter: Async iterator of StreamingFormPart objects
+        spool_max_size: Threshold for spooling files to disk (default: 1MB)
+
+    Returns:
+        Dictionary with form data and FileBuffer instances for files
+    """
+    data = defaultdict(list)
+
+    part: StreamingFormPart
+    async for part in stream_iter:
+        key = part.name
+
+        spooled_file = SpooledTemporaryFile(max_size=spool_max_size, mode="w+b")
+        total_size = 0
+
+        async for chunk in part.stream():
+            spooled_file.write(chunk)
+            total_size += len(chunk)
+        spooled_file.seek(0)
+
+        # TODO: encoding below is for backward compatibility
+        # TODO: remove in v3
+        item = FormPart(
+            name=_encode(part.name),  # type: ignore
+            data=spooled_file,
+            file_name=_encode(part.file_name),
+            content_type=_encode(part.content_type),
+            size=total_size,
+            charset=_encode(part.charset),
+        )
+        data[key].append(item)
+
+    return dict(data)
 
 
 class Message:
@@ -176,30 +235,133 @@ class Message:
         except UnicodeDecodeError as decode_error:
             return encodings_settings.decode(body, decode_error)
 
-    async def form(self):
+    async def form(self, simplify_fields: bool = True):
+        """
+        Parse form data from the request with memory-efficient file handling, but
+        reading text inputs whole in memory. To handle big text input fields, use
+        `multipart()` which doesn't read automatically text fields in memory or
+        `multipart_stream()` for streaming without any buffering.
+
+        This method now uses SpooledTemporaryFile for multipart uploads:
+        - Small files (<1MB): Kept in memory for performance
+        - Large files (>1MB): Automatically spooled to temporary disk files
+        - No memory exhaustion on large uploads!
+
+        File uploads are returned as `FileBuffer` instances (not bytes!).
+        Form fields are returned as strings.
+
+        Returns:
+            Dictionary with form data. File uploads are FileBuffer instances.
+
+        Example:
+            ```python
+            form_data = await request.form()
+
+            # Form fields are strings
+            name = form_data.get("name")  # str
+
+            # Files are FileBuffer instances
+            avatar = form_data.get("avatar")  # FileBuffer
+            if isinstance(avatar, FileBuffer):
+                # Save without loading into memory
+                with open(f"uploads/{avatar.filename}", "wb") as f:
+                    avatar.seek(0)
+                    f.write(avatar.read())
+                avatar.close()
+            ```
+        """
         content_type_value = self.content_type()
+
         if not content_type_value:
             return None
+
+        if hasattr(self, "_form_data"):
+            if b"multipart/form-data;" in content_type_value and simplify_fields:
+                # This is just to not break backward compatibility.
+                # TODO: consider removing this in v3
+                return simplify_multipart_data(self._form_data)
+            return self._form_data
+
         if b"application/x-www-form-urlencoded" in content_type_value:
             text = await self.text()
             return parse_www_form_urlencoded(text)
         if b"multipart/form-data;" in content_type_value:
-            body = await self.read()
-            if body is None:
-                return None
-            return multiparts_to_dictionary(list(parse_multipart(body)))
+            # In this case, multipart/form-data is handled in a memory efficient way,
+            # which does not support reading the request stream more than once and
+            # requires disposal at the end of the request-response cycle.
+            # Request form is intentionally not kept in memory if multipart_stream
+            # is read directly by the user.
+            self._form_data = await _multipart_to_dict_streaming(
+                self.multipart_stream()
+            )
+            return (
+                simplify_multipart_data(self._form_data)
+                if simplify_fields
+                else self._form_data
+            )
         return None
 
     async def multipart(self) -> list[FormPart] | None:
+        """
+        Parse multipart/form-data with memory-efficient part handling, relying on
+        SpooledTemporaryFile. **Note:** for true streaming without any buffering,
+        use `multipart_stream()`.
+
+        This method uses SpooledTemporaryFile for field and file uploads:
+        - Small data (<1MB): Kept in memory
+        - Large data (>1MB): Automatically spooled to temporary disk files
+
+        Returns:
+            List of FormPart, or None
+        """
+        items = []
+        data = await self.form(simplify_fields=False)
+        if not data:
+            return items
+        for _, values in data.items():
+            for value in values:
+                items.append(value)
+        return items
+
+    async def multipart_stream(self):
+        """
+        Parse multipart/form-data lazily from the request stream.
+
+        This method streams and parses multipart data without loading the entire
+        request body into memory, making it suitable for large file uploads and large
+        text uploads.
+
+        Yields:
+            FormPart objects as they are parsed from the stream.
+
+        Example:
+            ```python
+            async def upload_handler(request):
+                async for part in request.multipart_stream():
+                    if part.file_name:
+                        # Process file part
+                        await save_file(part.file_name, part.data)
+                    else:
+                        # Process form field
+                        value = part.data.decode('utf-8')
+            ```
+        """
         content_type_value = self.content_type()
         if not content_type_value:
-            return None
-        if b"multipart/form-data;" in content_type_value:
-            body = await self.read()
-            if body is None:
-                return None
-            return list(parse_multipart(body))
-        return None
+            return
+
+        if b"multipart/form-data;" not in content_type_value:
+            return
+
+        # Extract boundary from Content-Type header
+        # e.g., "multipart/form-data; boundary=----WebKitFormBoundary..."
+        try:
+            boundary = get_boundary_from_header(content_type_value)
+        except (ValueError, IndexError):
+            return
+
+        async for part in parse_multipart_async(self.stream(), boundary):
+            yield part
 
     def declares_content_type(self, type: bytes) -> bool:
         content_type = self.content_type()
@@ -217,16 +379,18 @@ class Message:
 
     async def files(self, name: str | bytes | None = None) -> list[FormPart]:
         if isinstance(name, str):
-            name = name.encode("ascii")
-        content_type = self.content_type()
-        if not content_type or b"multipart/form-data;" not in content_type:
-            return []
+            # Note: FormPart fields are not decoded (TODO: decode them in v3).
+            name = name.encode("utf8")
         data = await self.multipart()
         if data is None:
             return []
         if name:
-            return [part for part in data if part.file_name and part.name == name]
-        return [part for part in data if part.file_name]
+            return [
+                part
+                for part in data
+                if isinstance(part, FormPart) and part.file_name and part.name == name
+            ]
+        return [part for part in data if isinstance(part, FormPart) and part.file_name]
 
     async def json(
         self, loads=json_settings.loads
@@ -500,6 +664,14 @@ class Request(Message):
         except MessageAborted:
             self._is_disconnected = True
         return self._is_disconnected
+
+    def dispose(self):
+        if hasattr(self, "_form_data") and self._form_data:
+            for parts in self._form_data.values():
+                for part in parts:
+                    if part.file:
+                        part.file.close()
+        self.content.dispose()  # type: ignore
 
 
 class Response(Message):

@@ -1,4 +1,4 @@
-from typing import Any, Optional, Union
+from typing import Any
 
 class InvalidURL(Exception):
     def __init__(self, message: str) -> None: ...

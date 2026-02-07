@@ -4,9 +4,10 @@ used types to reduce the verbosity of the imports statements.
 """
 
 __author__ = "Roberto Prevato <roberto.prevato@gmail.com>"
-__version__ = "2.5.1"
+__version__ = "2.6.0"
 
 from .contents import Content as Content
+from .contents import FileBuffer as FileBuffer
 from .contents import FormContent as FormContent
 from .contents import FormPart as FormPart
 from .contents import HTMLContent as HTMLContent

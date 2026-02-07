@@ -1,5 +1,3 @@
-from typing import Optional
-
 class InvalidOperation(Exception):
     def __init__(self, message: str, inner_exception: object = None):
         super().__init__(message)

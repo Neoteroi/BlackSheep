@@ -21,6 +21,7 @@ from openapidocs.v3 import (
     ParameterLocation,
     Reference,
     Schema,
+    ValueFormat,
     ValueType,
 )
 from pydantic import VERSION as PYDANTIC_LIB_VERSION
@@ -34,9 +35,10 @@ from pydantic.types import (
     conint,
 )
 
+from blacksheep.contents import FileBuffer
 from blacksheep.messages import Response
 from blacksheep.server.application import Application
-from blacksheep.server.bindings import FromForm
+from blacksheep.server.bindings import FromFiles, FromForm, FromText
 from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
@@ -4281,3 +4283,174 @@ tags:
 -   name: TagExample
 """.strip()
     )
+
+
+async def test_handles_from_files_multipart_docs():
+    """Test that FromFiles parameter generates proper multipart/form-data documentation."""
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload_file(files: FromFiles):
+        """Upload endpoint with files."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/upload" in text
+    assert "post:" in text
+
+    # Verify multipart/form-data is used
+    assert "multipart/form-data:" in text
+
+    # Verify files is defined as array of binary
+    assert "type: array" in text
+    assert "format: binary" in text
+
+
+async def test_handles_from_text_docs():
+    """Test that FromText parameter generates proper text/plain documentation."""
+    app = get_app()
+
+    @app.router.post("/submit")
+    async def submit_text(text: FromText):
+        """Submit endpoint with text."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/submit" in yaml_text
+    assert "post:" in yaml_text
+
+    # Verify text/plain is used
+    assert "text/plain:" in yaml_text
+
+    # Verify the schema is a string
+    assert "type: string" in yaml_text
+
+
+async def test_handles_from_multipart_with_complex_type():
+    """Test that FromForm with complex types generates proper documentation."""
+    app = get_app()
+
+    @dataclass
+    class Address:
+        street: str
+        city: str
+
+    @dataclass
+    class UploadData:
+        id: UUID
+        addresses: list[Address]
+        profile_image: bytes
+
+    @app.router.post("/upload")
+    async def upload_item(data: FromForm[UploadData]):
+        """Upload endpoint with complex multipart data."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/upload" in yaml_text
+    assert "post:" in yaml_text
+
+    # Verify multipart/form-data is used (not form-data with semicolon)
+    assert "multipart/form-data:" in yaml_text
+
+    # Verify the schema includes the fields
+    assert "id:" in yaml_text
+    assert "format: uuid" in yaml_text
+    assert "addresses:" in yaml_text
+    assert "profile_image:" in yaml_text or "profileImage:" in yaml_text
+
+    # Verify bytes field is rendered as binary
+    assert "format: binary" in yaml_text
+
+
+async def test_handles_filedata_as_body_parameter():
+    """Test that FileBuffer as a body parameter generates proper multipart/form-data documentation."""
+    app = get_app()
+
+    @app.router.post("/upload-single")
+    async def upload_single_file(file: FileBuffer):
+        """Upload a single file using FileBuffer."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/upload-single" in yaml_text
+    assert "post:" in yaml_text
+
+    # Verify multipart/form-data is used
+    assert "multipart/form-data:" in yaml_text
+
+    # Verify the schema is for a binary file
+    assert "type: string" in yaml_text
+    assert "format: binary" in yaml_text
+
+
+async def test_handles_list_of_filedata_as_body_parameter():
+    """Test that list[FileBuffer] as a body parameter generates proper multipart/form-data documentation."""
+    app = get_app()
+
+    @app.router.post("/upload-multiple")
+    async def upload_multiple_files(files: list[FileBuffer]):
+        """Upload multiple files using list[FileBuffer]."""
+        ...
+
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    serializer = DefaultSerializer()
+    yaml_text = serializer.to_yaml(docs.generate_documentation(app))
+
+    # Verify the endpoint is documented
+    assert "/upload-multiple" in yaml_text
+    assert "post:" in yaml_text
+
+    # Verify multipart/form-data is used
+    assert "multipart/form-data:" in yaml_text
+
+    # Verify the schema is for an array of binary files
+    assert "type: array" in yaml_text
+    assert "format: binary" in yaml_text
+
+
+async def test_filedata_schema_generation():
+    """Test that FileBuffer type generates correct OpenAPI schema."""
+    docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
+
+    # Test single FileBuffer schema
+    schema = docs.get_schema_by_type(FileBuffer)
+    assert schema.type == ValueType.STRING
+    assert schema.format == ValueFormat.BINARY
+
+    # Test list[FileBuffer] schema
+    list_schema = docs.get_schema_by_type(list[FileBuffer])
+    assert list_schema.type == ValueType.ARRAY
+    assert list_schema.items.type == ValueType.STRING
+    assert list_schema.items.format == ValueFormat.BINARY

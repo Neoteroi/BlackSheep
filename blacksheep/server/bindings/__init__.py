@@ -8,6 +8,7 @@ See:
     https://www.neoteroi.dev/blacksheep/binders/
 """
 
+import warnings
 from abc import abstractmethod
 from collections.abc import Iterable as IterableAbc
 from functools import partial
@@ -172,6 +173,27 @@ class FromForm(BoundValue[T]):
     """
     A parameter obtained from Form request body: either
     application/x-www-form-urlencoded or multipart/form-data.
+
+    Use `FromForm[T]` when you need to bind complex structured data from
+    forms, including a mix of regular fields, nested objects, and
+    file uploads (represented as `FileBuffer` fields).
+
+    When to use:
+    - FromForm[T]: For complex types with mixed regular fields and files
+    - FromFiles: For simple array of uploaded files without structure
+
+    Example:
+        @dataclass
+        class UserProfile:
+            name: str
+            email: str
+            avatar: FileBuffer
+
+        @app.router.post("/profile")
+        async def create_profile(data: FromForm[UserProfile]):
+            # data.value.name and data.value.email are strings
+            # data.value.avatar is the uploaded file as bytes
+            return {"status": "created"}
     """
 
     default_value_type = dict

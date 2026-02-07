@@ -27,6 +27,7 @@ from typing import (
 from urllib.parse import unquote
 from uuid import UUID
 
+from blacksheep.contents import FileBuffer, FormPart
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.bindings.dates import parse_datetime
 from blacksheep.utils import ensure_str
@@ -45,9 +46,15 @@ except ImportError:
     BaseModel = None
 
 
+def _is_single_form_part(value) -> bool:
+    return (
+        isinstance(value, list) and len(value) == 1 and isinstance(value[0], FormPart)
+    )
+
+
 class TypeConverter(ABC):
     """
-    Base class for types that converts string reprensentations of values into
+    Base class for types that converts input values into
     instances of specific types.
     """
 
@@ -96,6 +103,8 @@ class BoolConverter(TypeConverter):
         if not isinstance(value, str):
             return bool(value)
         if value.lower() in ("true", "1"):
+            # Note: in multipart/form-data, some browsers send 'yes' for a
+            # checked checkbox!
             return True
         elif value.lower() in ("false", "0"):
             return False
@@ -130,7 +139,53 @@ class BytesConverter(TypeConverter):
         return expected_type is bytes
 
     def convert(self, value, expected_type) -> Any:
+        if _is_single_form_part(value):
+            value = value[0]
+
+        if isinstance(value, FormPart):
+            # This is to support specifying list[bytes] for multipart/form-data
+            # file inputs
+            return value.data
+
         return value.encode(self._encoding) if value else None
+
+
+class FormPartConverter(TypeConverter):
+    def can_convert(self, expected_type) -> bool:
+        return expected_type is FormPart
+
+    def convert(self, value, expected_type) -> Any:
+        if _is_single_form_part(value):
+            return value[0]
+        return value
+
+
+class FileDataConverter(TypeConverter):
+    def can_convert(self, expected_type) -> bool:
+        return expected_type is FileBuffer
+
+    def convert(self, value, expected_type) -> Any:
+        if isinstance(value, str) and value == "":
+            # Browsers can send an empty string for a file input without
+            # any selected file
+            return None
+
+        if isinstance(value, list):
+            # If the user defined the expected input as bytes,
+            # but at the same time data is received from a multipart/form-data input,
+            # keep only the data part.
+            if len(value) == 1:
+                single_file_input = value[0]
+                if isinstance(single_file_input, FormPart):
+                    return FileBuffer.from_form_part(single_file_input)
+            else:
+                raise BadRequest("Expected a single file")
+            return None
+
+        if isinstance(value, FormPart):
+            return FileBuffer.from_form_part(value)
+
+        return None
 
 
 class DateTimeConverter(TypeConverter):
@@ -332,7 +387,6 @@ class ClassConverter(TypeConverter):
 
     def _from_dict(self, cls, data: dict | list):
         """Convert dict to plain class or dataclass, ignoring extra fields"""
-
         if _is_pydantic_model(cls):
             return cls.model_validate(data)
 
@@ -483,6 +537,8 @@ converters: list[TypeConverter] = [
     LiteralConverter(),
     StrConverter(),
     UUIDConverter(),
+    FormPartConverter(),
+    FileDataConverter(),
 ]
 
 

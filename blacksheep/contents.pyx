@@ -340,9 +340,9 @@ cdef class FormPart:
         return f'<FormPart {self.name} - at {id(self)}>'
 
 
-cdef class UploadFile:
+cdef class FileBuffer:
     """
-    Represents an uploaded file with lazy data access.
+    Represents an uploaded file with buffered data access.
 
     This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
     Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
@@ -356,10 +356,10 @@ cdef class UploadFile:
 
     Usage:
         # Access as file-like object
-        content = upload_file.file.read()
+        content = file_buffer.file.read()
 
         # Or read all data
-        data = await upload_file.read()
+        data = await file_buffer.read()
     """
 
     def __init__(self,
@@ -390,7 +390,7 @@ cdef class UploadFile:
             self.file.close()
 
     def __repr__(self):
-        return f"<UploadFile {self.filename} ({self.content_type})>"
+        return f"<FileBuffer {self.filename} ({self.content_type})>"
 
     def __enter__(self):
         return self
@@ -457,11 +457,11 @@ cdef class StreamingFormPart:
         return f"<StreamingFormPart {self.name} - at {id(self)}>"
 
 
-cdef class FileData(StreamingFormPart):
+cdef class FileStream(StreamingFormPart):
     """
-    Represents file data extracted from a multipart/form-data request.
+    Represents file data extracted from a multipart/form-data request with true streaming.
 
-    FileData inherits from StreamingFormPart and provides lazy access to uploaded
+    FileStream inherits from StreamingFormPart and provides lazy access to uploaded
     file content through async iteration, making it suitable for large file uploads
     without loading entire files into memory.
 
@@ -473,11 +473,11 @@ cdef class FileData(StreamingFormPart):
 
     Usage:
         # Stream data in chunks
-        async for chunk in file_data.stream():
+        async for chunk in file_stream.stream():
             process(chunk)
 
         # Save directly to disk
-        bytes_written = await file_data.save_to('/path/to/file')
+        bytes_written = await file_stream.save_to('/path/to/file')
     """
 
     @classmethod
@@ -491,7 +491,7 @@ cdef class FileData(StreamingFormPart):
         )
 
     def __repr__(self):
-        return f"<FileData {self.file_name} ({self.content_type})>"
+        return f"<FileStream {self.file_name} ({self.content_type})>"
 
 
 # TODO: deprecate the following class, replace with one that supports streaming

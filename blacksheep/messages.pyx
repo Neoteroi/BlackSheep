@@ -66,7 +66,7 @@ async def _multipart_to_dict_streaming(
     """
     Convert streaming multipart parts to dictionary with memory-efficient file handling.
 
-    Files are wrapped in UploadFile with SpooledTemporaryFile:
+    Files are wrapped in FileBuffer with SpooledTemporaryFile:
     - Small files (<1MB): Kept in memory for performance
     - Large files (>1MB): Automatically spooled to temporary disk files
     - Form fields: Buffered in memory with size limits
@@ -76,7 +76,7 @@ async def _multipart_to_dict_streaming(
         spool_max_size: Threshold for spooling files to disk (default: 1MB)
 
     Returns:
-        Dictionary with form data and UploadFile instances for files
+        Dictionary with form data and FileBuffer instances for files
     """
     from collections import defaultdict
     from tempfile import SpooledTemporaryFile
@@ -253,11 +253,11 @@ cdef class Message:
         - Large files (>1MB): Automatically spooled to temporary disk files
         - No memory exhaustion on large uploads!
 
-        File uploads are returned as `UploadFile` instances (not bytes!).
+        File uploads are returned as `FileBuffer` instances (not bytes!).
         Form fields are returned as strings.
 
         Returns:
-            Dictionary with form data. File uploads are UploadFile instances.
+            Dictionary with form data. File uploads are FileBuffer instances.
 
         Example:
             ```python
@@ -266,9 +266,9 @@ cdef class Message:
             # Form fields are strings
             name = form_data.get("name")  # str
 
-            # Files are UploadFile instances
-            avatar = form_data.get("avatar")  # UploadFile
-            if isinstance(avatar, UploadFile):
+            # Files are FileBuffer instances
+            avatar = form_data.get("avatar")  # FileBuffer
+            if isinstance(avatar, FileBuffer):
                 # Save without loading into memory
                 with open(f"uploads/{avatar.filename}", "wb") as f:
                     avatar.seek(0)

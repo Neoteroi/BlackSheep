@@ -119,9 +119,9 @@ class FormPart:
 
     def __eq__(self, other) -> bool: ...
 
-class UploadFile:
+class FileBuffer:
     """
-    Represents an uploaded file with lazy data access.
+    Represents an uploaded file with buffered data access.
 
     This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
     Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
@@ -135,10 +135,10 @@ class UploadFile:
 
     Usage:
         # Access as file-like object
-        content = upload_file.file.read()
+        content = file_buffer.file.read()
 
         # Or read all data
-        data = await upload_file.read()
+        data = await file_buffer.read()
     """
 
     def __init__(
@@ -161,7 +161,7 @@ class UploadFile:
     def seek(self, offset: int, whence: int = 0) -> int: ...
     def close(self) -> None: ...
     def __repr__(self) -> str: ...
-    def __enter__(self) -> "UploadFile": ...
+    def __enter__(self) -> "FileBuffer": ...
     def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
 
 class StreamingFormPart:
@@ -206,11 +206,11 @@ class StreamingFormPart:
     async def save_to(self, path: str) -> int: ...
     def __repr__(self) -> str: ...
 
-class FileData(StreamingFormPart):
+class FileStream(StreamingFormPart):
     """
-    Represents file data extracted from a multipart/form-data request.
+    Represents file data extracted from a multipart/form-data request with true streaming.
 
-    FileData inherits from StreamingFormPart and provides lazy access to uploaded
+    FileStream inherits from StreamingFormPart and provides lazy access to uploaded
     file content through async iteration, making it suitable for large file uploads
     without loading entire files into memory.
 
@@ -222,15 +222,15 @@ class FileData(StreamingFormPart):
 
     Usage:
         # Stream data in chunks
-        async for chunk in file_data.stream():
+        async for chunk in file_stream.stream():
             process(chunk)
 
         # Save directly to disk
-        bytes_written = await file_data.save_to('/path/to/file')
+        bytes_written = await file_stream.save_to('/path/to/file')
     """
 
     @classmethod
-    def from_form_part(cls, form_part: FormPart) -> "FileData": ...
+    def from_form_part(cls, form_part: FormPart) -> "FileStream": ...
 
 class MultiPartFormData(Content):
     """

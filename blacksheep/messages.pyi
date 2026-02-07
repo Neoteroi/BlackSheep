@@ -24,25 +24,65 @@ class Message:
     async def read(self) -> bytes | None: ...
     async def stream(self) -> Generator[bytes, None, None]: ...
     async def text(self) -> str: ...
-    async def form(self) -> Union[dict[str, str], dict[str, list[str]], None]:
+    async def form(self, simplify_fields: bool = True) -> Union[dict[str, str], dict[str, list[str]], dict[str, list[FormPart]], None]:
         """
-        Returns values read either from multipart or www-form-urlencoded
-        payload.
+        Parse form data from the request with memory-efficient file handling, but
+        reading text inputs whole in memory. To handle big text input fields, use
+        `multipart()` which doesn't read automatically text fields in memory or
+        `multipart_stream()` for streaming without any buffering.
 
-        This function adopts some compromises to provide a consistent api,
-        returning a dictionary of key: values pairs.
-        If a key is unique, the value is a single string; if a key is
-        duplicated (licit in both form types), the value is a list of strings.
+        This method now uses SpooledTemporaryFile for multipart uploads:
+        - Small files (<1MB): Kept in memory for performance
+        - Large files (>1MB): Automatically spooled to temporary disk files
+        - No memory exhaustion on large uploads!
 
-        Multipart form parts values that can be decoded as UTF8 are decoded,
-        otherwise kept as raw bytes.
-        In case of ambiguity, use the dedicated `multiparts()` method.
+        File uploads are returned as FormPart instances (not bytes!).
+        Form fields are returned as strings when simplify_fields=True.
+
+        Args:
+            simplify_fields: If True, decode text fields to strings. If False,
+                           return raw FormPart objects.
+
+        Returns:
+            Dictionary with form data. File uploads are FormPart instances.
         """
 
-    async def multipart(self) -> list[FormPart]:
+    async def multipart(self) -> list[FormPart] | None:
         """
-        Returns parts read from multipart/form-data, if present, otherwise
-        None
+        Parse multipart/form-data with memory-efficient part handling, relying on
+        SpooledTemporaryFile. **Note:** for true streaming without any buffering,
+        use `multipart_stream()`.
+
+        This method uses SpooledTemporaryFile for field and file uploads:
+        - Small data (<1MB): Kept in memory
+        - Large data (>1MB): Automatically spooled to temporary disk files
+
+        Returns:
+            List of FormPart, or None
+        """
+
+    def multipart_stream(self) -> Generator[Any, None, None]:
+        """
+        Parse multipart/form-data lazily from the request stream.
+
+        This method streams and parses multipart data without loading the entire
+        request body into memory, making it suitable for large file uploads and large
+        text uploads.
+
+        Yields:
+            StreamingFormPart objects as they are parsed from the stream.
+
+        Example:
+            ```python
+            async def upload_handler(request):
+                async for part in request.multipart_stream():
+                    if part.file_name:
+                        # Process file part
+                        await save_file(part.file_name, part.data)
+                    else:
+                        # Process form field
+                        value = part.data.decode('utf-8')
+            ```
         """
 
     def declares_content_type(self, type: bytes) -> bool: ...
@@ -98,10 +138,6 @@ class Request(Message):
     def if_none_match(self) -> bytes | None: ...
     def expect_100_continue(self) -> bool: ...
     def with_content(self, content: Content) -> "Request": ...
-    @property
-    def session(self) -> Session: ...
-    @session.setter
-    def session(self, value: Session) -> None: ...
     @property
     def base_path(self) -> str:
         """

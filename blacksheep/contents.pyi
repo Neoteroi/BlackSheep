@@ -113,7 +113,67 @@ class FormPart:
 
     @property
     def data(self) -> bytes: ...
+    @property
+    def file(self) -> SpooledTemporaryFile: ...
+    async def stream(self, chunk_size: int = 8192) -> AsyncIterable[bytes]:
+        """
+        Async generator that yields the data in chunks.
+
+        Args:
+            chunk_size: Size of each chunk in bytes (default: 8192).
+
+        Yields:
+            Byte chunks of the form part data.
+        """
     def __eq__(self, other) -> bool: ...
+
+class UploadFile:
+    """
+    Represents an uploaded file with lazy data access.
+
+    This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
+    Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
+
+    Attributes:
+        name: The form field name (str).
+        filename: The uploaded file's name (str).
+        content_type: The MIME type (str or None).
+        file: The underlying file-like object (SpooledTemporaryFile).
+        size: The size in bytes (if known), or 0.
+
+    Usage:
+        # Access as file-like object
+        content = upload_file.file.read()
+
+        # Or read all data
+        data = await upload_file.read()
+    """
+
+    def __init__(
+        self,
+        name: str,
+        filename: str | None,
+        file: Any,
+        content_type: str | None = None,
+        size: int = 0,
+        charset: str | None = None,
+    ):
+        self.name = name
+        self.filename = filename
+        self.content_type = content_type
+        self.file = file
+        self.size = size
+        self._charset = charset
+
+    def read(self, size: int = -1) -> bytes:
+        """Read data from the file."""
+    def seek(self, offset: int, whence: int = 0) -> int:
+        """Seek to a position in the file."""
+    def close(self) -> None:
+        """Close the underlying file."""
+    def __repr__(self) -> str: ...
+    def __enter__(self) -> "UploadFile": ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
 
 class StreamingFormPart:
     """
@@ -124,7 +184,7 @@ class StreamingFormPart:
     large file uploads without memory pressure.
 
     Attributes:
-        name: The name of the form field (bytes).
+        name: The name of the form field (str).
         content_type: The MIME type of the content (optional).
         file_name: The filename if this part represents a file upload (optional).
         charset: The character encoding of the content (optional).
@@ -187,33 +247,50 @@ class FileData(StreamingFormPart):
     """
     Represents file data extracted from a multipart/form-data request.
 
+    FileData inherits from StreamingFormPart and provides lazy access to uploaded
+    file content through async iteration, making it suitable for large file uploads
+    without loading entire files into memory.
+
     Attributes:
-        param_name: The name of the form parameter containing the file.
-        data: The binary content of the file.
-        content_type: The MIME type of the file.
+        name: The name of the form parameter containing the file.
         file_name: The name of the uploaded file.
+        content_type: The MIME type of the file.
+        charset: The character encoding of the content (optional).
+
+    Usage:
+        # Stream data in chunks
+        async for chunk in file_data.stream():
+            process(chunk)
+
+        # Save directly to disk
+        bytes_written = await file_data.save_to('/path/to/file')
     """
 
-    def __init__(
-        self,
-        param_name: str,
-        data: bytes,
-        content_type: str,
-        file_name: str,
-    ):
-        self.param_name = param_name
-        self.data = data
-        self.file_name = file_name
-        self.content_type = content_type
-
     @classmethod
-    def from_form_part(cls, form_data: FormPart) -> "FileData": ...
+    def from_form_part(cls, form_part: FormPart) -> "FileData": ...
 
 class MultiPartFormData(Content):
+    """
+    Represents multipart/form-data content for responses.
+
+    WARNING: This class will be deprecated and intended only for small payloads.
+    It loads all form parts into memory at once, which can exhaust memory
+    for large uploads or files.
+
+    For handling multipart/form-data in requests, use FormPart with
+    SpooledTemporaryFile for memory-efficient streaming instead.
+
+    Attributes:
+        parts: List of FormPart objects to encode as multipart/form-data.
+        boundary: Randomly generated boundary string for separating parts.
+    """
+
     def __init__(self, parts: list[FormPart]):
         self.parts = parts
         self.boundary = b"------" + str(uuid.uuid4()).replace("-", "").encode()
         super().__init__(b"multipart/form-data; boundary=" + self.boundary, b"")
+
+    async def stream(self) -> AsyncIterable[bytes]: ...
 
 def parse_www_form(content: str) -> dict[str, Union[str, list[str]]]:
     """Parses application/x-www-form-urlencoded content"""
@@ -221,6 +298,19 @@ def parse_www_form(content: str) -> dict[str, Union[str, list[str]]]:
 def write_www_form_urlencoded(
     data: Union[dict[str, str], list[tuple[str, str]]],
 ) -> bytes: ...
+
+def simplify_multipart_data(data: dict | None) -> dict | None:
+    """
+    Simplifies multipart form data for backward compatibility.
+    Converts FormPart objects to decoded strings for text fields,
+    keeping file uploads as FormPart lists.
+
+    Args:
+        data: Dictionary mapping field names to lists of FormPart objects.
+
+    Returns:
+        Simplified dictionary with text fields as strings and file fields as FormPart lists.
+    """
 
 class ServerSentEvent:
     """

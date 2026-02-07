@@ -173,6 +173,27 @@ class FromForm(BoundValue[T]):
     """
     A parameter obtained from Form request body: either
     application/x-www-form-urlencoded or multipart/form-data.
+
+    Use `FromForm[T]` when you need to bind complex structured data from
+    forms, including a mix of regular fields, nested objects, and
+    file uploads (represented as `FileBuffer` fields).
+
+    When to use:
+    - FromForm[T]: For complex types with mixed regular fields and files
+    - FromFiles: For simple array of uploaded files without structure
+
+    Example:
+        @dataclass
+        class UserProfile:
+            name: str
+            email: str
+            avatar: FileBuffer
+
+        @app.router.post("/profile")
+        async def create_profile(data: FromForm[UserProfile]):
+            # data.value.name and data.value.email are strings
+            # data.value.avatar is the uploaded file as bytes
+            return {"status": "created"}
     """
 
     default_value_type = dict
@@ -182,36 +203,6 @@ class FromFiles(BoundValue[list[FormPart]]):
     """
     A parameter obtained from multipart/form-data files.
     """
-
-
-class FromMultipart(BoundValue[T]):
-    """
-    A parameter obtained from multipart/form-data request body.
-
-    Use `FromMultipart[T]` when you need to bind complex structured data from
-    multipart/form-data, including a mix of regular fields, nested objects, and
-    file uploads (represented as `bytes` fields).
-
-    When to use:
-    - FromMultipart[T]: For complex types with mixed regular fields and files
-    - FromFiles: For simple array of uploaded files without structure
-    - FromForm: For form data (both multipart and URL-encoded) without files
-
-    Example:
-        @dataclass
-        class UserProfile:
-            name: str
-            email: str
-            avatar: bytes  # Will accept file upload
-
-        @app.router.post("/profile")
-        async def create_profile(data: FromMultipart[UserProfile]):
-            # data.value.name and data.value.email are strings
-            # data.value.avatar is the uploaded file as bytes
-            return {"status": "created"}
-    """
-
-    default_value_type = dict
 
 
 class FromRoute(BoundValue[T]):
@@ -567,30 +558,6 @@ class FormBinder(BodyBinder):
         return request.declares_content_type(
             b"application/x-www-form-urlencoded"
         ) or request.declares_content_type(b"multipart/form-data")
-
-    async def read_data(self, request: Request) -> Any:
-        return await request.form()
-
-
-class MultipartBinder(BodyBinder):
-    """
-    Extracts a model from multipart/form-data request body.
-
-    Memory-efficient file handling is now automatic at the framework level:
-    - Small files (<1MB): Kept in memory for performance
-    - Large files (>1MB): Automatically spooled to temporary disk files
-
-    This class uses request.form() which handles SpooledTemporaryFile automatically.
-    """
-
-    handle = FromMultipart
-
-    @property
-    def content_type(self) -> str:
-        return "multipart/form-data"
-
-    def matches_content_type(self, request: Request) -> bool:
-        return request.declares_content_type(b"multipart/form-data")
 
     async def read_data(self, request: Request) -> Any:
         return await request.form()

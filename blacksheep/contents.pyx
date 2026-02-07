@@ -376,6 +376,17 @@ cdef class FileBuffer:
         self.size = size
         self._charset = charset
 
+    @classmethod
+    def from_form_part(cls, FormPart form_part):
+        return cls(
+            name=form_part.name.decode(),
+            filename=form_part.file_name.decode() if form_part.file_name else None,
+            file=form_part.file,
+            content_type=form_part.content_type.decode() if form_part.content_type else None,
+            size=form_part.size,
+            charset=form_part.charset.decode() if form_part.charset else None,
+        )
+
     def read(self, int size=-1):
         """Read data from the file."""
         return self.file.read(size)
@@ -383,6 +394,22 @@ cdef class FileBuffer:
     def seek(self, int offset, int whence=0):
         """Seek to a position in the file."""
         return self.file.seek(offset, whence)
+
+    async def save_to(self, str path):
+        """Save file data to a specified path.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+        import shutil
+        self.file.seek(0)
+        with open(path, 'wb') as dest:
+            bytes_written = shutil.copyfileobj(self.file, dest)
+        self.file.seek(0)
+        return bytes_written if bytes_written is not None else self.size
 
     def close(self):
         """Close the underlying file."""
@@ -457,45 +484,6 @@ cdef class StreamingFormPart:
         return f"<StreamingFormPart {self.name} - at {id(self)}>"
 
 
-cdef class FileStream(StreamingFormPart):
-    """
-    Represents file data extracted from a multipart/form-data request with true streaming.
-
-    FileStream inherits from StreamingFormPart and provides lazy access to uploaded
-    file content through async iteration, making it suitable for large file uploads
-    without loading entire files into memory.
-
-    Attributes:
-        name: The name of the form parameter containing the file.
-        file_name: The name of the uploaded file.
-        content_type: The MIME type of the file.
-        charset: The character encoding of the content (optional).
-
-    Usage:
-        # Stream data in chunks
-        async for chunk in file_stream.stream():
-            process(chunk)
-
-        # Save directly to disk
-        bytes_written = await file_stream.save_to('/path/to/file')
-    """
-
-    @classmethod
-    def from_form_part(cls, FormPart form_part):
-        return cls(
-            name=form_part.name.decode(),
-            data_stream=form_part.stream(),
-            content_type=form_part.content_type.decode() if form_part.content_type else "",
-            file_name=form_part.file_name.decode() if form_part.file_name else "",
-            charset=None,
-        )
-
-    def __repr__(self):
-        return f"<FileStream {self.file_name} ({self.content_type})>"
-
-
-# TODO: deprecate the following class, replace with one that supports streaming
-# or, refactor to be a streaming content class
 cdef class MultiPartFormData(Content):
     """
     Represents multipart/form-data content for responses.

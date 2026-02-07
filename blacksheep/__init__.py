@@ -7,7 +7,6 @@ __author__ = "Roberto Prevato <roberto.prevato@gmail.com>"
 __version__ = "2.5.1"
 
 from .contents import Content as Content
-from .contents import FileStream as FileStream
 from .contents import FormContent as FormContent
 from .contents import FormPart as FormPart
 from .contents import HTMLContent as HTMLContent

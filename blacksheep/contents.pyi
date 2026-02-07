@@ -206,31 +206,6 @@ class StreamingFormPart:
     async def save_to(self, path: str) -> int: ...
     def __repr__(self) -> str: ...
 
-class FileStream(StreamingFormPart):
-    """
-    Represents file data extracted from a multipart/form-data request with true streaming.
-
-    FileStream inherits from StreamingFormPart and provides lazy access to uploaded
-    file content through async iteration, making it suitable for large file uploads
-    without loading entire files into memory.
-
-    Attributes:
-        name: The name of the form parameter containing the file.
-        file_name: The name of the uploaded file.
-        content_type: The MIME type of the file.
-        charset: The character encoding of the content (optional).
-
-    Usage:
-        # Stream data in chunks
-        async for chunk in file_stream.stream():
-            process(chunk)
-
-        # Save directly to disk
-        bytes_written = await file_stream.save_to('/path/to/file')
-    """
-
-    @classmethod
-    def from_form_part(cls, form_part: FormPart) -> "FileStream": ...
 
 class MultiPartFormData(Content):
     """

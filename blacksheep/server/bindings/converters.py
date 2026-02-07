@@ -177,7 +177,6 @@ class FileDataConverter(TypeConverter):
             if len(value) == 1:
                 single_file_input = value[0]
                 if isinstance(single_file_input, FormPart):
-                    # TODO: continue here!
                     return FileBuffer.from_form_part(single_file_input)
             else:
                 raise BadRequest("Expected a single file")

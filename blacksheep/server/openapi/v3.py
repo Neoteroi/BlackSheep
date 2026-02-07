@@ -45,7 +45,7 @@ from openapidocs.v3 import (
     ValueType,
 )
 
-from blacksheep.contents import FileBuffer, FileStream
+from blacksheep.contents import FileBuffer
 from blacksheep.server.authentication.apikey import APIKeyAuthentication, APIKeyLocation
 from blacksheep.server.authentication.basic import BasicAuthentication
 from blacksheep.server.bindings import (
@@ -893,7 +893,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         if object_type is datetime:
             return Schema(type=ValueType.STRING, format=ValueFormat.DATETIME)
 
-        if object_type is FileBuffer or object_type is FileStream:
+        if object_type is FileBuffer:
             return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
 
         return None
@@ -1059,13 +1059,13 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
     def _is_filedata_type(self, object_type: Type) -> bool:
         """Check if a type is file data or a list/sequence of file data."""
-        if object_type is FileBuffer or object_type is FileStream:
+        if object_type is FileBuffer:
             return True
 
         origin = get_origin(object_type)
         if origin in {list, set, tuple, collections_abc.Sequence}:
             type_args = typing.get_args(object_type)
-            if type_args and (type_args[0] is FileBuffer or type_args[0] is FileStream):
+            if type_args and type_args[0] is FileBuffer:
                 return True
 
         return False

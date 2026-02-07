@@ -79,7 +79,7 @@ class FormPart:
     Attributes:
         name: The name of the form field (bytes).
         data: The binary content of the form part.
-        file_name: The filename if this part represents a file upload (optional).
+        file_name: The file_name if this part represents a file upload (optional).
         content_type: The MIME type of the content (optional).
         charset: The character encoding of the content (optional).
     """
@@ -128,7 +128,7 @@ class FileBuffer:
 
     Attributes:
         name: The form field name (str).
-        filename: The uploaded file's name (str).
+        file_name: The uploaded file's name (str).
         content_type: The MIME type (str or None).
         file: The underlying file-like object (SpooledTemporaryFile).
         size: The size in bytes (if known), or 0.
@@ -144,14 +144,14 @@ class FileBuffer:
     def __init__(
         self,
         name: str,
-        filename: str | None,
+        file_name: str | None,
         file: Any,
         content_type: str | None = None,
         size: int = 0,
         charset: str | None = None,
     ):
         self.name = name
-        self.filename = filename
+        self.file_name = file_name
         self.content_type = content_type
         self.file = file
         self.size = size
@@ -175,7 +175,7 @@ class StreamingFormPart:
     Attributes:
         name: The name of the form field (str).
         content_type: The MIME type of the content (optional).
-        file_name: The filename if this part represents a file upload (optional).
+        file_name: The file_name if this part represents a file upload (optional).
         charset: The character encoding of the content (optional).
     """
 

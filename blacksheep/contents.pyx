@@ -1,3 +1,5 @@
+import asyncio
+import shutil
 import json
 import uuid
 from collections.abc import MutableSequence
@@ -349,7 +351,7 @@ cdef class FileBuffer:
 
     Attributes:
         name: The form field name (str).
-        filename: The uploaded file's name (str).
+        file_name: The uploaded file's name (str).
         content_type: The MIME type (str or None).
         file: The underlying file-like object (SpooledTemporaryFile).
         size: The size in bytes (if known), or 0.
@@ -364,13 +366,13 @@ cdef class FileBuffer:
 
     def __init__(self,
                  str name,
-                 str filename,
+                 str file_name,
                  object file,
                  str content_type = None,
                  int size = 0,
                  str charset = None):
         self.name = name
-        self.filename = filename
+        self.file_name = file_name
         self.content_type = content_type
         self.file = file
         self.size = size
@@ -380,7 +382,7 @@ cdef class FileBuffer:
     def from_form_part(cls, FormPart form_part):
         return cls(
             name=form_part.name.decode(),
-            filename=form_part.file_name.decode() if form_part.file_name else None,
+            file_name=form_part.file_name.decode() if form_part.file_name else None,
             file=form_part.file,
             content_type=form_part.content_type.decode() if form_part.content_type else None,
             size=form_part.size,
@@ -404,12 +406,14 @@ cdef class FileBuffer:
         Returns:
             Total number of bytes written.
         """
-        import shutil
-        self.file.seek(0)
-        with open(path, 'wb') as dest:
-            bytes_written = shutil.copyfileobj(self.file, dest)
-        self.file.seek(0)
-        return bytes_written if bytes_written is not None else self.size
+        def _copy():
+            self.file.seek(0)
+            with open(path, "wb") as dest:
+                bytes_written = shutil.copyfileobj(self.file, dest)
+            self.file.seek(0)
+            return bytes_written if bytes_written is not None else self.size
+
+        return await asyncio.to_thread(_copy)
 
     def close(self):
         """Close the underlying file."""
@@ -417,7 +421,7 @@ cdef class FileBuffer:
             self.file.close()
 
     def __repr__(self):
-        return f"<FileBuffer {self.filename} ({self.content_type})>"
+        return f"<FileBuffer {self.file_name} ({self.content_type})>"
 
     def __enter__(self):
         return self

@@ -570,6 +570,7 @@ async def test_application_post_multipart_formdata_files_handler(app):
     async def upload_files(request):
         files = await request.files("files[]")
 
+        assert len(files) == 3
         # NB: in this example; we save files to output folder and verify
         # that their binaries are identical
         for part in files:
@@ -614,7 +615,7 @@ async def test_application_post_multipart_formdata_files_handler(app):
             "/files/upload",
             [
                 [b"content-length", str(len(content)).encode()],
-                [b"content-type", b"multipart/form-data; boundary=" + boundary],
+                [b"content-type", b"multipart/form-data; boundary=" + boundary[2:]],
             ],
         ),
         MockReceive([content]),

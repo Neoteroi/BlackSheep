@@ -7,8 +7,8 @@ __author__ = "Roberto Prevato <roberto.prevato@gmail.com>"
 __version__ = "2.5.1"
 
 from .contents import Content as Content
-from .contents import FormContent as FormContent
 from .contents import FileData as FileData
+from .contents import FormContent as FormContent
 from .contents import FormPart as FormPart
 from .contents import HTMLContent as HTMLContent
 from .contents import JSONContent as JSONContent

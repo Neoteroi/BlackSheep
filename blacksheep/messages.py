@@ -1,7 +1,7 @@
 import asyncio
-from collections import defaultdict
 import http
 import re
+from collections import defaultdict
 from datetime import timedelta
 from json.decoder import JSONDecodeError
 from tempfile import SpooledTemporaryFile
@@ -10,7 +10,12 @@ from urllib.parse import parse_qs, quote, unquote, urlencode
 
 from guardpost import Identity
 
-from blacksheep.multipart import get_boundary_from_header, parse_multipart, parse_multipart_async, simplify_multipart_data
+from blacksheep.multipart import (
+    get_boundary_from_header,
+    parse_multipart,
+    parse_multipart_async,
+    simplify_multipart_data,
+)
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
 from blacksheep.utils.time import utcnow
@@ -270,7 +275,7 @@ class Message:
         if not content_type_value:
             return None
 
-        if hasattr(self, '_form_data'):
+        if hasattr(self, "_form_data"):
             if b"multipart/form-data;" in content_type_value and simplify_fields:
                 # This is just to not break backward compatibility.
                 # TODO: consider removing this in v3
@@ -286,8 +291,14 @@ class Message:
             # requires disposal at the end of the request-response cycle.
             # Request form is intentionally not kept in memory if multipart_stream
             # is read directly by the user.
-            self._form_data = await _multipart_to_dict_streaming(self.multipart_stream())
-            return simplify_multipart_data(self._form_data) if simplify_fields else self._form_data
+            self._form_data = await _multipart_to_dict_streaming(
+                self.multipart_stream()
+            )
+            return (
+                simplify_multipart_data(self._form_data)
+                if simplify_fields
+                else self._form_data
+            )
         return None
 
     async def multipart(self) -> list[FormPart] | None:
@@ -374,7 +385,11 @@ class Message:
         if data is None:
             return []
         if name:
-            return [part for part in data if isinstance(part, FormPart) and part.file_name and part.name == name]
+            return [
+                part
+                for part in data
+                if isinstance(part, FormPart) and part.file_name and part.name == name
+            ]
         return [part for part in data if isinstance(part, FormPart) and part.file_name]
 
     async def json(
@@ -651,7 +666,7 @@ class Request(Message):
         return self._is_disconnected
 
     def dispose(self):
-        if hasattr(self, '_form_data') and self._form_data:
+        if hasattr(self, "_form_data") and self._form_data:
             for parts in self._form_data.values():
                 for part in parts:
                     if part.file:

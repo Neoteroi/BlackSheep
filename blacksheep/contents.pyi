@@ -1,5 +1,5 @@
-from tempfile import SpooledTemporaryFile
 import uuid
+from tempfile import SpooledTemporaryFile
 from typing import (
     Any,
     AsyncIterable,
@@ -83,6 +83,7 @@ class FormPart:
         content_type: The MIME type of the content (optional).
         charset: The character encoding of the content (optional).
     """
+
     __slots__ = (
         "name",
         "_data",
@@ -100,7 +101,7 @@ class FormPart:
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
-        size: int = 0
+        size: int = 0,
     ):
         self.name = name
         self._data = data if isinstance(data, bytes) else None
@@ -111,12 +112,8 @@ class FormPart:
         self.size = size
 
     @property
-    def data(self) -> bytes:
-        ...
-
-    def __eq__(self, other) -> bool:
-        ...
-
+    def data(self) -> bytes: ...
+    def __eq__(self, other) -> bool: ...
 
 class StreamingFormPart:
     """
@@ -132,6 +129,7 @@ class StreamingFormPart:
         file_name: The filename if this part represents a file upload (optional).
         charset: The character encoding of the content (optional).
     """
+
     __slots__ = (
         "name",
         "file_name",
@@ -176,7 +174,7 @@ class StreamingFormPart:
             Total number of bytes written.
         """
         total_bytes = 0
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             async for chunk in self.stream():
                 f.write(chunk)
                 total_bytes += len(chunk)
@@ -184,8 +182,6 @@ class StreamingFormPart:
 
     def __repr__(self):
         return f"<StreamingFormPart {self.name} - at {id(self)}>"
-
-
 
 class FileData(StreamingFormPart):
     """
@@ -211,9 +207,7 @@ class FileData(StreamingFormPart):
         self.content_type = content_type
 
     @classmethod
-    def from_form_part(cls, form_data: FormPart) -> "FileData":
-        ...
-
+    def from_form_part(cls, form_data: FormPart) -> "FileData": ...
 
 class MultiPartFormData(Content):
     def __init__(self, parts: list[FormPart]):

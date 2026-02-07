@@ -48,7 +48,9 @@ except ImportError:
 
 
 def _is_single_form_part(value) -> bool:
-    return isinstance(value, list) and len(value) == 1 and isinstance(value[0], FormPart)
+    return (
+        isinstance(value, list) and len(value) == 1 and isinstance(value[0], FormPart)
+    )
 
 
 class TypeConverter(ABC):

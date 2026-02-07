@@ -1,6 +1,7 @@
 """
 Integration tests for FileData OpenAPI documentation generation.
 """
+
 import pytest
 from openapidocs.v3 import Info, ValueFormat, ValueType
 

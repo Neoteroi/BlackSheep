@@ -1154,7 +1154,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             # Generate multipart/form-data documentation for FileData
             schema = self.get_schema_by_type(expected_type)
             return RequestBody(
-                content={"multipart/form-data": MediaType(schema=schema, examples=body_examples)},
+                content={
+                    "multipart/form-data": MediaType(
+                        schema=schema, examples=body_examples
+                    )
+                },
                 required=body_binder.required,
                 description=body_info.description if body_info else "File upload",
             )

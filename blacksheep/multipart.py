@@ -1,5 +1,5 @@
-from typing import AsyncIterable, Generator, Iterable
 import warnings
+from typing import AsyncIterable, Generator, Iterable
 
 from blacksheep.contents import FormPart, StreamingFormPart
 
@@ -371,7 +371,7 @@ def _simplify_part(part: FormPart) -> FormPart | str:
             f"memory. Consider handling large form fields directly with "
             f"request.multipart_stream instead.",
             UserWarning,
-            stacklevel=3
+            stacklevel=3,
         )
     return part.data.decode(part.charset.decode() if part.charset else "utf8")
 

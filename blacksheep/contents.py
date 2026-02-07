@@ -192,6 +192,7 @@ class FormPart:
         content_type: The MIME type of the content (optional).
         charset: The character encoding of the content (optional).
     """
+
     __slots__ = (
         "name",
         "_data",
@@ -209,7 +210,7 @@ class FormPart:
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
-        size: int = 0
+        size: int = 0,
     ):
         self.name = name
         self._data = data if isinstance(data, bytes) else None
@@ -273,7 +274,6 @@ class FormPart:
         return f"<FormPart {self.name} - at {id(self)}>"
 
 
-
 class UploadFile:
     """
     Represents an uploaded file with lazy data access.
@@ -295,6 +295,7 @@ class UploadFile:
         # Or read all data
         data = await upload_file.read()
     """
+
     __slots__ = ("name", "filename", "content_type", "file", "size", "_charset")
 
     def __init__(
@@ -350,6 +351,7 @@ class StreamingFormPart:
         file_name: The filename if this part represents a file upload (optional).
         charset: The character encoding of the content (optional).
     """
+
     __slots__ = (
         "name",
         "file_name",
@@ -394,7 +396,7 @@ class StreamingFormPart:
             Total number of bytes written.
         """
         total_bytes = 0
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             async for chunk in self.stream():
                 f.write(chunk)
                 total_bytes += len(chunk)
@@ -402,8 +404,6 @@ class StreamingFormPart:
 
     def __repr__(self):
         return f"<StreamingFormPart {self.name} - at {id(self)}>"
-
-
 
 
 class FileData(StreamingFormPart):
@@ -428,14 +428,17 @@ class FileData(StreamingFormPart):
         # Save directly to disk
         bytes_written = await file_data.save_to('/path/to/file')
     """
+
     @classmethod
     def from_form_part(cls, form_part: FormPart):
         return cls(
             name=form_part.name.decode(),
             data_stream=form_part.stream(),
-            content_type=form_part.content_type.decode() if form_part.content_type else "",
+            content_type=(
+                form_part.content_type.decode() if form_part.content_type else ""
+            ),
             file_name=form_part.file_name.decode() if form_part.file_name else "",
-            charset=None
+            charset=None,
         )
 
     def __repr__(self):

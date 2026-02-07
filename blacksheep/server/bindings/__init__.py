@@ -8,6 +8,7 @@ See:
     https://www.neoteroi.dev/blacksheep/binders/
 """
 
+import warnings
 from abc import abstractmethod
 from collections.abc import Iterable as IterableAbc
 from functools import partial
@@ -22,7 +23,6 @@ from typing import (
     Type,
     TypeVar,
 )
-import warnings
 
 from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol

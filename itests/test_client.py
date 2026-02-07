@@ -271,7 +271,7 @@ async def test_request_body_streaming(session):
         # Simulate streaming by yielding chunks
         chunk_size = 8192
         for i in range(0, len(file_content), chunk_size):
-            yield file_content[i:i + chunk_size]
+            yield file_content[i : i + chunk_size]
 
     # Upload using StreamedContent
     content = StreamedContent(b"image/jpeg", file_provider)
@@ -297,7 +297,7 @@ async def test_request_body_streaming_with_expect_continue(session):
         # Stream the file in chunks
         chunk_size = 16384
         for i in range(0, len(file_content), chunk_size):
-            yield file_content[i:i + chunk_size]
+            yield file_content[i : i + chunk_size]
 
     # Upload with Expect: 100-continue header
     content = StreamedContent(b"image/jpeg", file_provider)
@@ -359,6 +359,7 @@ async def test_response_streaming_with_json(session):
 
     # Parse JSON from streamed content
     import json
+
     data = json.loads(full_content.decode("utf-8"))
 
     assert data["message"] == "Hello, World!"
@@ -408,11 +409,14 @@ async def test_request_streaming_with_files_handler(session):
         async def data_provider():
             async for chunk in FilesHandler().chunks(file_path):
                 yield chunk
+
         return data_provider
 
     # Upload using FilesHandler streaming
     content = StreamedContent(b"image/jpeg", get_file_provider(file_path))
-    response = await session.post("/upload-raw/files-handler-upload.jpg", content=content)
+    response = await session.post(
+        "/upload-raw/files-handler-upload.jpg", content=content
+    )
     ensure_success(response)
 
     # Verify the uploaded file
@@ -454,7 +458,7 @@ async def test_bidirectional_streaming(session):
         # Stream in smaller chunks to test concurrent behavior
         chunk_size = 4096
         for i in range(0, len(file_content), chunk_size):
-            yield file_content[i:i + chunk_size]
+            yield file_content[i : i + chunk_size]
 
     content = StreamedContent(b"image/jpeg", file_provider)
     response = await session.post("/upload-raw/bidirectional-test.jpg", content=content)

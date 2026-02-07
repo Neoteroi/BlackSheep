@@ -259,6 +259,25 @@ class FormPart:
                     break
                 yield chunk
 
+    async def save_to(self, path: str) -> int:
+        """Save file data to a specified path.
+
+        Args:
+            path: File path where data should be saved.
+
+        Returns:
+            Total number of bytes written.
+        """
+
+        def _copy():
+            self.file.seek(0)
+            with open(path, "wb") as dest:
+                bytes_written = shutil.copyfileobj(self.file, dest)
+            self.file.seek(0)
+            return bytes_written if bytes_written is not None else self.size
+
+        return await asyncio.to_thread(_copy)
+
     def __eq__(self, other):
         if isinstance(other, FormPart):
             return (

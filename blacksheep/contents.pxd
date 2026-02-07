@@ -46,6 +46,15 @@ cdef class FormPart:
     cdef readonly int size
 
 
+cdef class FileBuffer:
+    cdef public str name
+    cdef public str file_name
+    cdef public str content_type
+    cdef public object file
+    cdef public int size
+    cdef public str _charset
+
+
 cdef class StreamingFormPart:
     cdef readonly str name
     cdef readonly str file_name

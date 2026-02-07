@@ -341,7 +341,9 @@ class FileBuffer:
             name=form_part.name.decode(),
             file_name=form_part.file_name.decode() if form_part.file_name else None,
             file=form_part.file,
-            content_type=form_part.content_type.decode() if form_part.content_type else None,
+            content_type=(
+                form_part.content_type.decode() if form_part.content_type else None
+            ),
             size=form_part.size,
             charset=form_part.charset.decode() if form_part.charset else None,
         )

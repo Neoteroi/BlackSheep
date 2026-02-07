@@ -119,7 +119,6 @@ class FormPart:
     async def save_to(self, path: str) -> int: ...
     def __eq__(self, other) -> bool: ...
 
-
 class FileBuffer:
     """
     Represents an uploaded file with buffered data access.
@@ -168,7 +167,6 @@ class FileBuffer:
     @classmethod
     def from_form_part(cls, form_part: FormPart): ...
 
-
 class StreamingFormPart:
     """
     Represents a streaming part of a multipart/form-data request.
@@ -207,10 +205,8 @@ class StreamingFormPart:
         self._data_stream = data_stream
 
     async def stream(self) -> AsyncIterable[bytes]: ...
-
     async def save_to(self, path: str) -> int: ...
     def __repr__(self) -> str: ...
-
 
 class MultiPartFormData(Content):
     """
@@ -236,11 +232,9 @@ class MultiPartFormData(Content):
     async def stream(self) -> AsyncIterable[bytes]: ...
 
 def parse_www_form(content: str) -> dict[str, str | list[str]]: ...
-
 def write_www_form_urlencoded(
     data: dict[str, str] | list[tuple[str, str]],
 ) -> bytes: ...
-
 def simplify_multipart_data(data: dict | None) -> dict | None: ...
 
 class ServerSentEvent:

@@ -4,9 +4,10 @@ used types to reduce the verbosity of the imports statements.
 """
 
 __author__ = "Roberto Prevato <roberto.prevato@gmail.com>"
-__version__ = "2.5.1"
+__version__ = "2.6.0"
 
 from .contents import Content as Content
+from .contents import FileBuffer as FileBuffer
 from .contents import FormContent as FormContent
 from .contents import FormPart as FormPart
 from .contents import HTMLContent as HTMLContent
@@ -14,7 +15,6 @@ from .contents import JSONContent as JSONContent
 from .contents import MultiPartFormData as MultiPartFormData
 from .contents import StreamedContent as StreamedContent
 from .contents import TextContent as TextContent
-from .contents import FileBuffer as FileBuffer
 from .contents import parse_www_form as parse_www_form
 from .cookies import Cookie as Cookie
 from .cookies import CookieSameSiteMode as CookieSameSiteMode

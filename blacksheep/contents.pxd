@@ -38,10 +38,12 @@ cdef class FormContent(Content):
 
 cdef class FormPart:
     cdef readonly bytes name
-    cdef readonly bytes data
+    cdef object _data
+    cdef object _file
     cdef readonly bytes content_type
     cdef readonly bytes file_name
     cdef readonly bytes charset
+    cdef readonly int size
 
 
 cdef class StreamingFormPart:

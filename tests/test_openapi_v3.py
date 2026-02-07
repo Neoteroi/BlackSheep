@@ -35,6 +35,7 @@ from pydantic.types import (
     conint,
 )
 
+from blacksheep.contents import FileBuffer
 from blacksheep.messages import Response
 from blacksheep.server.application import Application
 from blacksheep.server.bindings import FromFiles, FromForm, FromText
@@ -4385,8 +4386,6 @@ async def test_handles_from_multipart_with_complex_type():
 
 async def test_handles_filedata_as_body_parameter():
     """Test that FileBuffer as a body parameter generates proper multipart/form-data documentation."""
-    from blacksheep import FileBuffer
-
     app = get_app()
 
     @app.router.post("/upload-single")
@@ -4415,8 +4414,6 @@ async def test_handles_filedata_as_body_parameter():
 
 async def test_handles_list_of_filedata_as_body_parameter():
     """Test that list[FileBuffer] as a body parameter generates proper multipart/form-data documentation."""
-    from blacksheep import FileBuffer
-
     app = get_app()
 
     @app.router.post("/upload-multiple")
@@ -4445,8 +4442,6 @@ async def test_handles_list_of_filedata_as_body_parameter():
 
 async def test_filedata_schema_generation():
     """Test that FileBuffer type generates correct OpenAPI schema."""
-    from blacksheep import FileBuffer
-
     docs = OpenAPIHandler(info=Info(title="Test API", version="0.0.1"))
 
     # Test single FileBuffer schema

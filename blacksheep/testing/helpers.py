@@ -93,19 +93,21 @@ def get_example_scope(
                 for key, value in cookies.items()
             ]
 
-    headers = (
-        [
-            (b"host", host.encode()),
-            (b"user-agent", user_agent),
-            (b"accept", accept),
-            (b"accept-language", accept_language),
-            (b"accept-encoding", accept_encoding),
-            (b"connection", b"keep-alive"),
-            (b"upgrade-insecure-requests", b"1"),
-        ]
-        + ([tuple(header) for header in extra_headers] if extra_headers else [])
-        + cookies_headers
-    )
+    headers = [
+        (b"host", host.encode()),
+        (b"user-agent", user_agent),
+        (b"accept", accept),
+        (b"accept-language", accept_language),
+        (b"accept-encoding", accept_encoding),
+        (b"connection", b"keep-alive"),
+        (b"upgrade-insecure-requests", b"1"),
+    ]
+
+    # Remove default headers that are overridden by extra_headers
+    extra_keys = {k for k, v in extra_headers} if extra_headers else set()
+    headers = [h for h in headers if h[0] not in extra_keys]
+    headers += ([tuple(header) for header in extra_headers] if extra_headers else [])
+    headers += cookies_headers
 
     return {
         "type": scheme,

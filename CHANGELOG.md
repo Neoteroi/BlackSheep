@@ -13,14 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `ASGIContext` class, `enable_asgi_context()` function, and `asgi_middleware_adapter()` function for preserving ASGI context on Request objects, enabling ASGI middlewares to be inserted anywhere in the BlackSheep middleware chain (advanced approach for fine-grained control).
   - Both approaches allow seamless integration with standard ASGI middleware ecosystem (e.g., `SentryAsgiMiddleware`, logging middlewares, authentication middlewares).
   - Zero overhead when not used - fully opt-in feature.
-  - Comprehensive test suite with 13 test cases covering both approaches.
 - **Significantly improve support for `multipart/form-data` forms** with memory-efficient streaming and file handling:
-- Add `Request.multipart_stream()` method for true streaming parsing of multipart data without buffering entire request body in memory, ideal for handling large file uploads and large text fields.
-- Refactor `Request.form()` and `Request.multipart()` to use `SpooledTemporaryFile` for memory-efficient file handling: small files (<1MB) are kept in memory, larger files automatically spill to temporary disk files.
-- Add `Request.dispose()` method to properly clean up `SpooledTemporaryFile` resources and prevent resource leaks when handling file uploads.
-- Add `FileBuffer` class wrapping `SpooledTemporaryFile` to provide a clean API for uploaded files with `read()`, `seek()`, `close()`, and `save_to()` methods.
-- Add `FormPart.stream()` async generator method to stream part data in chunks.
-- `FormPart` instances provide better memory management and a cleaner API.
+  - Add `Request.multipart_stream()` method for true streaming parsing of multipart data without buffering entire request body in memory, ideal for handling large file uploads and large text fields.
+  - Refactor `Request.form()` and `Request.multipart()` to use `SpooledTemporaryFile` for memory-efficient file handling: small files (<1MB) are kept in memory, larger files automatically spill to temporary disk files.
+  - Add `Request.dispose()` method to properly clean up `SpooledTemporaryFile` resources and prevent resource leaks when handling file uploads.
+  - Add `FileBuffer` class wrapping `SpooledTemporaryFile` to provide a clean API for uploaded files with `read()`, `seek()`, `close()`, and `save_to()` methods.
+  - Add `FormPart.stream()` async generator method to stream part data in chunks.
+  - `FormPart` instances provide better memory management and a cleaner API.
 - The framework automatically calls `Request.dispose()` at the end of each request-response cycle to clean up file resources.
 - Fix [#501](https://github.com/Neoteroi/BlackSheep/issues/501); accept to overwrite default headers when using `TestClient`, contributed by @ticapix.
 

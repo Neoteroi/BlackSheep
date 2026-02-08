@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `FormPart.stream()` async generator method to stream part data in chunks.
 - `FormPart` instances provide better memory management and a cleaner API.
 - The framework automatically calls `Request.dispose()` at the end of each request-response cycle to clean up file resources.
+- Fix [#501](https://github.com/Neoteroi/BlackSheep/issues/501), contributed by @ticapix.
 
 ## [2.5.1] - 2026-01-30 :wheel:
 

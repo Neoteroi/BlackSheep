@@ -273,3 +273,266 @@ def use_asgi_middleware(
         BlackSheep's typed Request/Response objects.
     """
     return ASGIMiddlewareWrapper(app, middleware_class, **middleware_kwargs)
+
+
+# ============================================================================
+# Enhanced Approach: ASGI Context Preservation
+# ============================================================================
+# The following classes and functions enable ASGI middlewares to be inserted
+# anywhere in the BlackSheep middleware chain by preserving ASGI context.
+
+
+class ASGIContext:
+    """
+    Container for ASGI protocol context (scope, receive, send).
+    
+    This class is attached to Request objects to preserve the raw ASGI
+    context, enabling ASGI middlewares to be invoked at any point in
+    the BlackSheep middleware chain.
+    
+    The context caches body chunks to allow re-reading if needed by
+    ASGI middlewares that are called after the body has been consumed.
+    """
+    
+    def __init__(self, scope: dict, receive: Callable, send: Callable):
+        self.scope = scope
+        self._receive = receive
+        self._send = send
+        self._body_chunks: list[bytes] = []
+        self._body_consumed = False
+        self._body_index = 0
+    
+    async def receive(self) -> dict:
+        """
+        Wrapped receive that caches body for potential re-reading.
+        
+        This allows ASGI middlewares inserted later in the chain to
+        still access the request body even if it was already consumed.
+        """
+        if self._body_consumed and self._body_index < len(self._body_chunks):
+            # Re-reading cached body
+            chunk = self._body_chunks[self._body_index]
+            self._body_index += 1
+            more_body = self._body_index < len(self._body_chunks)
+            return {
+                "type": "http.request",
+                "body": chunk,
+                "more_body": more_body,
+            }
+        
+        message = await self._receive()
+        
+        if message.get("type") == "http.request":
+            # Cache body chunk
+            body = message.get("body", b"")
+            if body:
+                self._body_chunks.append(body)
+            
+            # Mark if this is the last chunk
+            if not message.get("more_body", False):
+                self._body_consumed = True
+        
+        return message
+    
+    async def send(self, message: dict) -> None:
+        """Forward send to original callable."""
+        await self._send(message)
+
+
+def enable_asgi_context(app: Any) -> Any:
+    """
+    Enables ASGI context preservation on Request objects.
+    
+    This wrapper intercepts ASGI calls to the application and attaches
+    an ASGIContext to each HTTP request's scope. This preserved context
+    allows ASGI middlewares to be inserted anywhere in the BlackSheep
+    middleware chain using `asgi_middleware_adapter()`.
+    
+    Args:
+        app: The BlackSheep application to wrap
+    
+    Returns:
+        The wrapped application (same object, but with modified __call__)
+    
+    Example:
+        ```python
+        from blacksheep import Application
+        from blacksheep.middlewares import (
+            enable_asgi_context,
+            asgi_middleware_adapter,
+        )
+        from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+        
+        app = Application()
+        app = enable_asgi_context(app)  # Enable ASGI context preservation
+        
+        # Now ASGI middlewares can be inserted anywhere!
+        app.middlewares.append(some_blacksheep_middleware)
+        app.middlewares.append(asgi_middleware_adapter(SentryAsgiMiddleware))
+        app.middlewares.append(another_blacksheep_middleware)
+        ```
+    
+    Note:
+        This approach has more overhead than `use_asgi_middleware()` due to
+        context preservation and conversions. Use `use_asgi_middleware()` for
+        simple cases where ASGI middlewares only need to wrap the entire app.
+    """
+    original_call = app.__call__
+    
+    async def wrapped_call(scope: dict, receive: Callable, send: Callable):
+        if scope["type"] == "http":
+            # Store ASGI context for this request
+            asgi_context = ASGIContext(scope, receive, send)
+            scope["_blacksheep_asgi_context"] = asgi_context
+            
+            # Use the context's wrapped receive for body caching
+            receive = asgi_context.receive
+        
+        return await original_call(scope, receive, send)
+    
+    app.__call__ = wrapped_call
+    return app
+
+
+def asgi_middleware_adapter(
+    asgi_middleware_class: type,
+    **middleware_kwargs: Any,
+) -> Callable[..., Awaitable[Response]]:
+    """
+    Converts an ASGI middleware into a BlackSheep middleware.
+    
+    This adapter allows inserting ASGI middlewares at any point in the
+    BlackSheep middleware chain, as long as ASGI context is preserved
+    on the Request (by wrapping the app with `enable_asgi_context()`).
+    
+    The adapter handles the conversion between BlackSheep's Request/Response
+    objects and ASGI's scope/receive/send protocol.
+    
+    Args:
+        asgi_middleware_class: The ASGI middleware class
+        **middleware_kwargs: Arguments to pass to middleware constructor
+    
+    Returns:
+        A BlackSheep-compatible middleware function
+    
+    Example:
+        ```python
+        from blacksheep import Application
+        from blacksheep.middlewares import (
+            enable_asgi_context,
+            asgi_middleware_adapter,
+        )
+        from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+        
+        app = Application()
+        app = enable_asgi_context(app)
+        
+        # Mix BlackSheep and ASGI middlewares freely
+        async def logging_middleware(request, handler):
+            print(f"Request: {request.url}")
+            return await handler(request)
+        
+        app.middlewares.append(logging_middleware)
+        app.middlewares.append(asgi_middleware_adapter(SentryAsgiMiddleware))
+        ```
+    
+    Raises:
+        RuntimeError: If ASGI context is not found on the request (forgot to
+            call `enable_asgi_context()` on the app)
+    
+    Note:
+        This approach has performance overhead due to conversions between
+        BlackSheep and ASGI formats. For simple cases where ASGI middleware
+        only needs to wrap the entire app, use `use_asgi_middleware()` instead.
+    """
+    
+    async def blacksheep_middleware(request, handler: Callable):
+        # Extract ASGI context from request
+        asgi_context = request.scope.get("_blacksheep_asgi_context")
+        
+        if asgi_context is None:
+            raise RuntimeError(
+                "ASGI context not found on request. "
+                "Did you forget to wrap your app with enable_asgi_context()? "
+                "Example: app = enable_asgi_context(app)"
+            )
+        
+        # Container to capture the response from ASGI middleware
+        response_data: dict = {}
+        
+        # Wrapper for send that captures response
+        async def send_wrapper(message: dict):
+            if message["type"] == "http.response.start":
+                response_data["status"] = message["status"]
+                response_data["headers"] = message.get("headers", [])
+            elif message["type"] == "http.response.body":
+                body = message.get("body", b"")
+                if "body" not in response_data:
+                    response_data["body"] = body
+                else:
+                    response_data["body"] += body
+        
+        # Create a fake ASGI app that wraps the rest of the BlackSheep chain
+        async def fake_asgi_app(scope: dict, receive: Callable, send: Callable):
+            # Call the next BlackSheep middleware/handler
+            response = await handler(request)
+            
+            # Convert BlackSheep Response to ASGI messages
+            headers = []
+            if response.headers:
+                for header in response.headers:
+                    if isinstance(header, tuple) and len(header) == 2:
+                        name, value = header
+                        if isinstance(name, str):
+                            name = name.encode()
+                        if isinstance(value, str):
+                            value = value.encode()
+                        headers.append((name, value))
+            
+            await send({
+                "type": "http.response.start",
+                "status": response.status,
+                "headers": headers,
+            })
+            
+            # Send body
+            body = b""
+            if response.content:
+                if hasattr(response.content, "body"):
+                    body = response.content.body
+                    if isinstance(body, str):
+                        body = body.encode()
+                elif hasattr(response.content, "__aiter__"):
+                    # Handle streaming
+                    chunks = []
+                    async for chunk in response.content:
+                        if isinstance(chunk, str):
+                            chunk = chunk.encode()
+                        chunks.append(chunk)
+                    body = b"".join(chunks)
+            
+            await send({
+                "type": "http.response.body",
+                "body": body,
+            })
+        
+        # Instantiate and call the ASGI middleware
+        middleware = asgi_middleware_class(fake_asgi_app, **middleware_kwargs)
+        await middleware(asgi_context.scope, asgi_context.receive, send_wrapper)
+        
+        # Convert captured ASGI response back to BlackSheep Response
+        if response_data:
+            response = Response(
+                status=response_data.get("status", 200),
+                headers=response_data.get("headers", []),
+            )
+            body = response_data.get("body", b"")
+            if body:
+                from blacksheep.contents import Content
+                response.content = Content(b"application/octet-stream", body)
+            return response
+        
+        # Fallback: call handler normally if no response was captured
+        return await handler(request)
+    
+    return blacksheep_middleware

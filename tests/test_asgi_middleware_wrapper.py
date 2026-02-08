@@ -349,3 +349,242 @@ class TestASGIMiddlewareWrapper:
             "second_after",
             "third_after",
         ]
+
+
+# ============================================================================
+# Tests for Approach 2: ASGI Context Preservation
+# ============================================================================
+
+from blacksheep.middlewares import enable_asgi_context, asgi_middleware_adapter, ASGIContext
+
+
+class TestASGIContextPreservation:
+    """Tests for enable_asgi_context and asgi_middleware_adapter."""
+
+    async def test_enable_asgi_context_basic(self):
+        """Test that enable_asgi_context preserves ASGI context on requests."""
+        app = Application()
+        
+        @get("/")
+        async def home(request):
+            # Check that ASGI context is available
+            context = request.scope.get("_blacksheep_asgi_context")
+            assert context is not None
+            assert isinstance(context, ASGIContext)
+            return text("OK")
+        
+        await app.start()
+        app = enable_asgi_context(app)
+        
+        client = TestClient(app)
+        response = await client.get("/")
+        
+        assert response.status == 200
+        assert await response.text() == "OK"
+
+    async def test_asgi_middleware_adapter_basic(self):
+        """Test basic functionality of asgi_middleware_adapter."""
+        app = Application()
+        app = enable_asgi_context(app)
+        
+        @get("/")
+        async def home():
+            return text("Hello")
+        
+        # Add ASGI middleware via adapter
+        app.middlewares.append(asgi_middleware_adapter(MockASGIMiddleware))
+        
+        await app.start()
+        
+        client = TestClient(app)
+        response = await client.get("/")
+        
+        assert response.status == 200
+        assert await response.text() == "Hello"
+        assert response.headers.get(b"x-mock-middleware") == b"executed"
+
+    async def test_mixed_middlewares_with_adapter(self):
+        """Test mixing BlackSheep and ASGI middlewares via adapter."""
+        app = Application()
+        app = enable_asgi_context(app)
+        
+        execution_order = []
+        
+        # BlackSheep middleware
+        async def blacksheep_mw(request, handler):
+            execution_order.append("blacksheep_before")
+            response = await handler(request)
+            execution_order.append("blacksheep_after")
+            return response
+        
+        @get("/")
+        async def home():
+            execution_order.append("handler")
+            return text("Hello")
+        
+        # Add middlewares
+        app.middlewares.append(blacksheep_mw)
+        app.middlewares.append(
+            asgi_middleware_adapter(
+                OrderTrackingMiddleware,
+                name="asgi",
+                tracker=execution_order
+            )
+        )
+        
+        await app.start()
+        
+        client = TestClient(app)
+        response = await client.get("/")
+        
+        assert response.status == 200
+        # BlackSheep middleware runs first, then ASGI, then handler
+        assert "blacksheep_before" in execution_order
+        assert "asgi_before" in execution_order
+        assert "handler" in execution_order
+        assert "asgi_after" in execution_order
+        assert "blacksheep_after" in execution_order
+
+    async def test_asgi_middleware_without_context_raises_error(self):
+        """Test that using adapter without enable_asgi_context raises error."""
+        app = Application()
+        # Note: NOT enabling ASGI context
+        
+        @get("/")
+        async def home():
+            return text("Hello")
+        
+        # Try to add ASGI middleware via adapter (should fail at runtime)
+        app.middlewares.append(asgi_middleware_adapter(MockASGIMiddleware))
+        
+        await app.start()
+        
+        client = TestClient(app)
+        
+        # Should raise RuntimeError about missing ASGI context
+        with pytest.raises(RuntimeError, match="ASGI context not found"):
+            await client.get("/")
+
+    async def test_multiple_asgi_middlewares_with_adapter(self):
+        """Test chaining multiple ASGI middlewares via adapter."""
+        app = Application()
+        app = enable_asgi_context(app)
+        
+        execution_order = []
+        
+        @get("/")
+        async def home():
+            return text("Hello")
+        
+        # Add multiple ASGI middlewares
+        app.middlewares.append(
+            asgi_middleware_adapter(
+                OrderTrackingMiddleware,
+                name="asgi1",
+                tracker=execution_order
+            )
+        )
+        app.middlewares.append(
+            asgi_middleware_adapter(
+                OrderTrackingMiddleware,
+                name="asgi2",
+                tracker=execution_order
+            )
+        )
+        
+        await app.start()
+        
+        client = TestClient(app)
+        response = await client.get("/")
+        
+        assert response.status == 200
+        # Order: asgi1_before -> asgi2_before -> handler -> asgi2_after -> asgi1_after
+        assert execution_order == [
+            "asgi1_before",
+            "asgi2_before",
+            "asgi2_after",
+            "asgi1_after",
+        ]
+
+    async def test_asgi_context_body_caching(self):
+        """Test that ASGIContext caches body for re-reading."""
+        context = ASGIContext(
+            scope={"type": "http"},
+            receive=None,  # Will be mocked
+            send=None
+        )
+        
+        # Simulate receiving body chunks
+        context._body_chunks = [b"chunk1", b"chunk2"]
+        context._body_consumed = True
+        
+        # Re-read cached body
+        message1 = await context.receive()
+        assert message1["body"] == b"chunk1"
+        assert message1["more_body"] is True
+        
+        message2 = await context.receive()
+        assert message2["body"] == b"chunk2"
+        assert message2["more_body"] is False
+
+    async def test_adapter_preserves_response_headers(self):
+        """Test that adapter preserves custom headers from handler."""
+        app = Application()
+        app = enable_asgi_context(app)
+        
+        @get("/")
+        async def home():
+            response = Response(200)
+            response.set_header(b"X-Custom", b"Value")
+            return response.with_content(b"text/plain", b"Hello")
+        
+        app.middlewares.append(asgi_middleware_adapter(MockASGIMiddleware))
+        
+        await app.start()
+        
+        client = TestClient(app)
+        response = await client.get("/")
+        
+        assert response.status == 200
+        # Both custom header and ASGI middleware header
+        assert response.headers.get(b"x-custom") == b"Value"
+        assert response.headers.get(b"x-mock-middleware") == b"executed"
+
+    async def test_comparison_both_approaches(self):
+        """Test using both approaches together (wrapper + adapter)."""
+        app = Application()
+        app = enable_asgi_context(app)
+        
+        outer_tracker = []
+        inner_tracker = []
+        
+        @get("/")
+        async def home():
+            return text("Hello")
+        
+        # Add ASGI middleware via adapter (runs in chain)
+        app.middlewares.append(
+            asgi_middleware_adapter(
+                OrderTrackingMiddleware,
+                name="inner",
+                tracker=inner_tracker
+            )
+        )
+        
+        # Wrap with ASGI middleware (runs outside)
+        app = ASGIMiddlewareWrapper(
+            app,
+            OrderTrackingMiddleware,
+            name="outer",
+            tracker=outer_tracker
+        )
+        
+        client = TestClient(app)
+        response = await client.get("/")
+        
+        assert response.status == 200
+        # Outer wrapper runs first
+        assert outer_tracker == ["outer_before", "outer_after"]
+        # Inner adapter runs in the middleware chain
+        assert "inner_before" in inner_tracker
+        assert "inner_after" in inner_tracker

@@ -342,3 +342,158 @@ class TestIntegration:
 # Note: Full end-to-end tests with actual HTTP requests would require
 # using an ASGI test client like httpx.AsyncClient instead of BlackSheep's
 # TestClient, since TestClient bypasses the ASGI layer entirely.
+
+
+class TestEarlyResponseBlocking:
+    """Tests for early response handling - critical for auth/security middlewares."""
+    
+    class BlockingAuthMiddleware:
+        """Mock auth middleware that blocks unauthorized requests."""
+        
+        def __init__(self, app, **kwargs):
+            self.app = app
+        
+        async def __call__(self, scope, receive, send):
+            # Check for auth header
+            headers = dict(scope.get("headers", []))
+            auth_token = headers.get(b"authorization", b"").decode()
+            
+            if not auth_token or auth_token != "Bearer valid-token":
+                # Send 401 WITHOUT calling the app - handler should NOT execute
+                await send({
+                    "type": "http.response.start",
+                    "status": 401,
+                    "headers": [(b"content-type", b"text/plain")],
+                })
+                await send({
+                    "type": "http.response.body",
+                    "body": b"Unauthorized",
+                })
+                return  # Do NOT call self.app
+            
+            # Auth passed - call the app
+            await self.app(scope, receive, send)
+    
+    async def test_approach1_blocks_handler_on_early_response(self):
+        """Test that simple wrapper blocks handler when middleware responds early."""
+        handler_called = [False]
+        
+        app = Application()
+        
+        @get("/protected")
+        async def protected_resource():
+            handler_called[0] = True
+            return text("Secret data")
+        
+        await app.start()
+        app = use_asgi_middleware(app, self.BlockingAuthMiddleware)
+        
+        # Request without auth token
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/protected",
+            "raw_path": b"/protected",
+            "query_string": b"",
+            "root_path": "",
+            "headers": [],  # No auth header
+            "server": ("127.0.0.1", 8000),
+        }
+        
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+        
+        response_messages = []
+        async def send(message):
+            response_messages.append(message)
+        
+        await app(scope, receive, send)
+        
+        # Verify middleware sent 401
+        assert len(response_messages) == 2
+        assert response_messages[0]["type"] == "http.response.start"
+        assert response_messages[0]["status"] == 401
+        assert response_messages[1]["body"] == b"Unauthorized"
+        
+        # CRITICAL: Handler must NOT have been called
+        assert handler_called[0] is False
+    
+    async def test_approach2_blocks_handler_on_early_response(self):
+        """Test that adapter blocks handler when middleware responds early."""
+        from blacksheep import Request
+        
+        # Create adapter
+        adapter = asgi_middleware_adapter(self.BlockingAuthMiddleware)
+        
+        # Create request with ASGI context (no auth header)
+        request = Request("GET", b"/protected", None)
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/protected",
+            "headers": [],  # No auth header
+        }
+        
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+        
+        async def send(message):
+            pass
+        
+        asgi_context = ASGIContext(scope, receive, send)
+        request.scope = {"_blacksheep_asgi_context": asgi_context}
+        
+        handler_called = [False]
+        
+        async def handler(req):
+            handler_called[0] = True
+            return text("Secret data")
+        
+        # Call adapter
+        response = await adapter(request, handler)
+        
+        # Verify 401 response
+        assert response.status == 401
+        
+        # CRITICAL: Handler must NOT have been called
+        assert handler_called[0] is False
+    
+    async def test_approach2_calls_handler_with_valid_auth(self):
+        """Test that adapter calls handler when auth passes."""
+        from blacksheep import Request
+        
+        adapter = asgi_middleware_adapter(self.BlockingAuthMiddleware)
+        
+        # Create request with ASGI context WITH auth header
+        request = Request("GET", b"/protected", None)
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/protected",
+            "headers": [(b"authorization", b"Bearer valid-token")],
+        }
+        
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+        
+        async def send(message):
+            pass
+        
+        asgi_context = ASGIContext(scope, receive, send)
+        request.scope = {"_blacksheep_asgi_context": asgi_context}
+        
+        handler_called = [False]
+        
+        async def handler(req):
+            handler_called[0] = True
+            return text("Secret data")
+        
+        # Call adapter
+        response = await adapter(request, handler)
+        
+        # Handler SHOULD have been called
+        assert handler_called[0] is True
+        assert response.status == 200

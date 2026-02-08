@@ -4,7 +4,7 @@ and server code.
 """
 
 from enum import Enum
-from typing import Awaitable, Callable, Iterable, overload
+from typing import Any, Awaitable, Callable, Iterable, overload
 
 from blacksheep.messages import Response
 from blacksheep.normalization import copy_special_attributes
@@ -150,3 +150,126 @@ class MiddlewareList:
         """Get the sorted list of middleware functions"""
         self._ensure_sorted()
         return [m.middleware for m in self._middlewares]
+
+
+class ASGIMiddlewareWrapper:
+    """
+    Wrapper to make standard ASGI middlewares compatible with BlackSheep.
+    
+    This adapter allows using ASGI middlewares (such as SentryAsgiMiddleware,
+    OpenTelemetry middlewares, etc.) with BlackSheep applications by wrapping
+    the application at the ASGI protocol level.
+    
+    ASGI middlewares operate at the protocol level with raw scope/receive/send
+    callables, while BlackSheep's internal middlewares work with typed Request
+    and Response objects. This wrapper bridges that gap by intercepting at the
+    ASGI level before BlackSheep's request handling.
+    
+    Usage:
+        ```python
+        from blacksheep import Application
+        from blacksheep.middlewares import use_asgi_middleware
+        from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+        
+        app = Application()
+        
+        # Configure routes...
+        
+        # Wrap with ASGI middleware
+        app = use_asgi_middleware(app, SentryAsgiMiddleware)
+        ```
+    
+    Multiple ASGI middlewares can be chained by wrapping multiple times:
+        ```python
+        app = use_asgi_middleware(app, Middleware1)
+        app = use_asgi_middleware(app, Middleware2)
+        ```
+    
+    Args:
+        app: The BlackSheep application (or another ASGI application)
+        middleware_class: The ASGI middleware class to wrap with
+        **middleware_kwargs: Additional keyword arguments to pass to the
+            middleware constructor
+    
+    Note:
+        ASGI middlewares wrapped this way will execute before BlackSheep's
+        internal middleware chain. For precise ordering requirements, consider
+        the execution order when mixing ASGI and BlackSheep middlewares.
+    """
+
+    def __init__(
+        self,
+        app: Any,
+        middleware_class: type,
+        **middleware_kwargs: Any,
+    ):
+        self.app = app
+        self.middleware = middleware_class(app, **middleware_kwargs)
+
+    @property
+    def started(self) -> bool:
+        """Delegate to the wrapped app's started property."""
+        return getattr(self.app, "started", True)
+
+    async def __call__(self, scope: dict, receive: Callable, send: Callable) -> None:
+        """
+        ASGI application interface.
+        
+        Delegates to the wrapped ASGI middleware, which will eventually
+        call the wrapped BlackSheep application.
+        """
+        await self.middleware(scope, receive, send)
+
+
+def use_asgi_middleware(
+    app: Any,
+    middleware_class: type,
+    **middleware_kwargs: Any,
+) -> ASGIMiddlewareWrapper:
+    """
+    Wraps a BlackSheep application with a standard ASGI middleware.
+    
+    This helper function provides a convenient way to add ASGI middleware
+    compatibility to BlackSheep applications. It wraps the application at
+    the ASGI protocol level, allowing standard ASGI middlewares to intercept
+    requests before they reach BlackSheep's internal processing.
+    
+    Args:
+        app: The BlackSheep application to wrap
+        middleware_class: The ASGI middleware class (e.g., SentryAsgiMiddleware)
+        **middleware_kwargs: Additional keyword arguments to pass to the
+            middleware constructor
+    
+    Returns:
+        The wrapped application (ASGIMiddlewareWrapper instance)
+    
+    Example:
+        ```python
+        from blacksheep import Application
+        from blacksheep.middlewares import use_asgi_middleware
+        from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+        
+        app = Application()
+        
+        @app.route("/")
+        async def home():
+            return "Hello, World!"
+        
+        # Wrap with Sentry ASGI middleware
+        app = use_asgi_middleware(app, SentryAsgiMiddleware)
+        ```
+    
+    Multiple middlewares can be chained:
+        ```python
+        app = use_asgi_middleware(app, Middleware1)
+        app = use_asgi_middleware(app, Middleware2)
+        # Execution order: Middleware2 -> Middleware1 -> app
+        ```
+    
+    Note:
+        The wrapped ASGI middlewares execute at the ASGI protocol level,
+        before BlackSheep converts the ASGI scope into a Request object.
+        This means ASGI middlewares see the raw ASGI messages, not
+        BlackSheep's typed Request/Response objects.
+    """
+    return ASGIMiddlewareWrapper(app, middleware_class, **middleware_kwargs)

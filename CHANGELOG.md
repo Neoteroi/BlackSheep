@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.6.0] - 2026-??-??
 
 - Add support for handling `FromText`, `FromFiles` in OpenAPI Documentation ([#546](https://github.com/Neoteroi/BlackSheep/issues/546)).
+- **Add ASGI middleware interoperability support** with two complementary approaches ([#263](https://github.com/Neoteroi/BlackSheep/issues/263)):
+  - Add `ASGIMiddlewareWrapper` class and `use_asgi_middleware()` helper function for wrapping the entire application with ASGI middlewares (simple approach for common use cases like Sentry integration).
+  - Add `ASGIContext` class, `enable_asgi_context()` function, and `asgi_middleware_adapter()` function for preserving ASGI context on Request objects, enabling ASGI middlewares to be inserted anywhere in the BlackSheep middleware chain (advanced approach for fine-grained control).
+  - Both approaches allow seamless integration with standard ASGI middleware ecosystem (e.g., `SentryAsgiMiddleware`, logging middlewares, authentication middlewares).
+  - Zero overhead when not used - fully opt-in feature.
+  - Comprehensive test suite with 13 test cases covering both approaches.
 - **Significantly improve support for `multipart/form-data` forms** with memory-efficient streaming and file handling:
 - Add `Request.multipart_stream()` method for true streaming parsing of multipart data without buffering entire request body in memory, ideal for handling large file uploads and large text fields.
 - Refactor `Request.form()` and `Request.multipart()` to use `SpooledTemporaryFile` for memory-efficient file handling: small files (<1MB) are kept in memory, larger files automatically spill to temporary disk files.

@@ -4,7 +4,7 @@ import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
 from tempfile import SpooledTemporaryFile
-from typing import Any, AsyncIterable
+from typing import Any, AsyncIterable, AsyncIterator
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.settings.json import json_settings
@@ -237,7 +237,7 @@ class FormPart:
             raise TypeError("Missing file data")
         return self._file
 
-    async def stream(self, chunk_size: int = 8192) -> AsyncIterable[bytes]:
+    async def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
         """
         Async generator that yields the data in chunks.
 

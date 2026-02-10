@@ -304,7 +304,7 @@ cdef class FormPart:
             raise TypeError("Missing file data")
         return self._file
 
-    async def stream(self, int chunk_size=8192):
+    async def stream(self, chunk_size: int = 8192):
         """
         Async generator that yields the data in chunks.
 
@@ -321,7 +321,7 @@ cdef class FormPart:
             # For SpooledTemporaryFile, read and yield in chunks
             self._file.seek(0)
             while True:
-                chunk = self._file.read(chunk_size)
+                chunk = await asyncio.to_thread(self._file.read, chunk_size)
                 if not chunk:
                     break
                 yield chunk

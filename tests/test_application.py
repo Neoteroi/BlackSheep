@@ -4211,6 +4211,72 @@ async def test_application_sse_plain_text():
     assert streamed_data.decode("utf-8") == expected_events
 
 
+async def test_form_part_stream_with_bytes():
+    """
+    Test that FormPart.stream() correctly yields bytes data.
+    """
+    data = b"Hello, World! This is test data."
+    part = FormPart(
+        name=b"test_field",
+        data=data,
+        content_type=b"text/plain",
+    )
+
+    chunks = []
+
+    async for chunk in part.stream():
+        chunks.append(chunk)
+
+    assert len(chunks) == 1
+    assert chunks[0] == data
+    assert b"".join(chunks) == data
+
+
+async def test_form_part_stream_with_file():
+    """
+    Test that FormPart.stream() correctly yields file data in chunks.
+    """
+    from tempfile import SpooledTemporaryFile
+
+    # Create test data larger than default chunk size to test chunking
+    test_data = b"A" * 10000 + b"B" * 5000 + b"C" * 3000
+
+    # Create a SpooledTemporaryFile with the test data
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart(
+        name=b"test_file",
+        data=file,
+        file_name=b"test.bin",
+        content_type=b"application/octet-stream",
+        size=len(test_data),
+    )
+
+    # Stream with default chunk size
+    chunks = []
+    async for chunk in part.stream():
+        chunks.append(chunk)
+
+    # Verify we got multiple chunks
+    assert len(chunks) > 1
+    # Verify all data is correct when reassembled
+    assert b"".join(chunks) == test_data
+
+    # Test with custom chunk size
+    part._file.seek(0)  # Reset file position
+    chunks_small = []
+    async for chunk in part.stream(chunk_size=1024):
+        chunks_small.append(chunk)
+
+    assert len(chunks_small) > len(chunks)
+    assert b"".join(chunks_small) == test_data
+
+    # Clean up
+    file.close()
+
+
 async def test_middlewares_execute_for_no_route_by_default():
     """
     Test that middlewares are executed for not configured routes by default.

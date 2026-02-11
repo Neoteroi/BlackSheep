@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FormPart` instances provide better memory management and a cleaner API.
 - The framework automatically calls `Request.dispose()` at the end of each request-response cycle to clean up file resources.
 - Fix [#501](https://github.com/Neoteroi/BlackSheep/issues/501); accept to overwrite default headers when using `TestClient`, contributed by @ticapix.
+- Modify the `MultiPartFormData` to inherit `StreamedContent` and remove the immediate call to `write_multipart_form_data()` which loaded everything into memory.
 
 ## [2.5.1] - 2026-01-30 :wheel:
 

@@ -506,46 +506,60 @@ cdef class StreamingFormPart:
         return f"<StreamingFormPart {self.name} - at {id(self)}>"
 
 
-cdef class MultiPartFormData(Content):
+cdef class MultiPartFormData(StreamedContent):
     """
     Represents multipart/form-data content for responses.
 
-    WARNING: This class will be deprecated and intended only for small payloads.
-    It loads all form parts into memory at once, which can exhaust memory
-    for large uploads or files.
-
-    For handling multipart/form-data in requests, use FormPart with
-    SpooledTemporaryFile for memory-efficient streaming instead.
+    This class streams multipart/form-data in chunks, avoiding loading
+    all form parts into memory at once. It uses the StreamedContent API
+    for memory-efficient streaming.
 
     Attributes:
         parts: List of FormPart objects to encode as multipart/form-data.
         boundary: Randomly generated boundary string for separating parts.
     """
 
-    def __init__(self, list parts):
+    def __init__(self, parts: list[FormPart]):
         self.parts = parts
-        self.boundary = b'----' + str(uuid.uuid4()).replace('-', '').encode()
-        super().__init__(b'multipart/form-data; boundary=' + self.boundary, write_multipart_form_data(self))
+        self.boundary = b"----" + str(uuid.uuid4()).replace("-", "").encode()
+        super().__init__(
+            b"multipart/form-data; boundary=" + self.boundary,
+            self._generate_multipart_chunks,
+            data_length=-1,
+        )
 
-    async def stream(self):
-        # TODO: support chunked streaming from the content itself!
-        # change to StreamedContent type with actual generator sending multipart_form
-        # data in chunks
-        yield self.body
+    async def _generate_multipart_chunks(self) -> AsyncIterator[bytes]:
+        """Generate multipart/form-data content in chunks."""
+        for part in self.parts:
+            # Build headers as a single chunk
+            header = bytearray()
+            header.extend(b"--")
+            header.extend(self.boundary)
+            header.extend(b"\r\n")
+            header.extend(b'Content-Disposition: form-data; name="')
+            header.extend(part.name)
+            header.extend(b'"')
 
+            if part.file_name:
+                header.extend(b'; filename="')
+                header.extend(part.file_name)
+                header.extend(b'"\r\n')
 
-cpdef bytes write_multipart_form_data(MultiPartFormData data):
-    cdef bytearray contents = bytearray()
-    cdef FormPart part
-    for part in data.parts:
-        contents.extend(b'--')
-        contents.extend(data.boundary)
-        contents.extend(b'\r\n')
-        write_multipart_part(part, contents)
-    contents.extend(b'--')
-    contents.extend(data.boundary)
-    contents.extend(b'--\r\n')
-    return bytes(contents)
+            if part.content_type:
+                header.extend(b"Content-Type: ")
+                header.extend(part.content_type)
+
+            header.extend(b"\r\n\r\n")
+            yield bytes(header)
+
+            # Stream the part data
+            async for chunk in part.stream():
+                yield chunk
+
+            yield b"\r\n"
+
+        # Write final boundary
+        yield b"--" + self.boundary + b"--\r\n"
 
 
 cdef class ServerSentEvent:

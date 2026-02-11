@@ -98,7 +98,7 @@ async def test_multipart_form_data():
         ]
     )
 
-    whole = data.body
+    whole = await data.read()
 
     expected_result_lines = [
         b"--" + data.boundary,

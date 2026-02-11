@@ -4265,7 +4265,7 @@ async def test_form_part_stream_with_file():
     assert b"".join(chunks) == test_data
 
     # Test with custom chunk size
-    part._file.seek(0)  # Reset file position
+    part.file.seek(0)  # Reset file position
     chunks_small = []
     async for chunk in part.stream(chunk_size=1024):
         chunks_small.append(chunk)

@@ -254,7 +254,7 @@ class FormPart:
             # For SpooledTemporaryFile, read and yield in chunks
             self._file.seek(0)
             while True:
-                chunk = self._file.read(chunk_size)
+                chunk = await asyncio.to_thread(self._file.read, chunk_size)
                 if not chunk:
                     break
                 yield chunk
@@ -299,7 +299,7 @@ class FileBuffer:
     """
     Represents an uploaded file with buffered data access.
 
-    This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
+    This class wraps a **SpooledTemporaryFile** to provide memory-efficient file uploads.
     Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
 
     Attributes:
@@ -308,13 +308,6 @@ class FileBuffer:
         content_type: The MIME type (str or None).
         file: The underlying file-like object (SpooledTemporaryFile).
         size: The size in bytes (if known), or 0.
-
-    Usage:
-        # Access as file-like object
-        content = file_buffer.file.read()
-
-        # Or read all data
-        data = await file_buffer.read()
     """
 
     __slots__ = ("name", "file_name", "content_type", "file", "size", "_charset")
@@ -334,6 +327,24 @@ class FileBuffer:
         self.file = file
         self.size = size
         self._charset = charset
+
+    async def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
+        """
+        Async generator that yields the data in chunks.
+
+        Args:
+            chunk_size: Size of each chunk in bytes (default: 8192).
+
+        Yields:
+            Byte chunks of the form part data.
+        """
+        # For SpooledTemporaryFile, read and yield in chunks
+        self.file.seek(0)
+        while True:
+            chunk = await asyncio.to_thread(self.file.read, chunk_size)
+            if not chunk:
+                break
+            yield chunk
 
     @classmethod
     def from_form_part(cls, form_part: FormPart):

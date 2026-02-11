@@ -528,6 +528,9 @@ cdef class MultiPartFormData(Content):
         super().__init__(b'multipart/form-data; boundary=' + self.boundary, write_multipart_form_data(self))
 
     async def stream(self):
+        # TODO: support chunked streaming from the content itself!
+        # change to StreamedContent type with actual generator sending multipart_form
+        # data in chunks
         yield self.body
 
 

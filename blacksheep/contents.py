@@ -494,6 +494,9 @@ class MultiPartFormData(Content):
         )
 
     async def stream(self) -> AsyncIterable[bytes]:
+        # TODO: support chunked streaming from the content itself!
+        # change to StreamedContent type with actual generator sending multipart_form
+        # data in chunks
         yield self.body
 
 

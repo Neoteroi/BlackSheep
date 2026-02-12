@@ -3,8 +3,7 @@ import shutil
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
-from tempfile import SpooledTemporaryFile
-from typing import Any, AsyncIterable, AsyncIterator
+from typing import Any, AsyncIterable, AsyncIterator, BinaryIO
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.settings.json import json_settings
@@ -208,7 +207,7 @@ class FormPart:
     def __init__(
         self,
         name: bytes,
-        data: bytes | SpooledTemporaryFile,
+        data: bytes | BinaryIO,
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
@@ -216,7 +215,7 @@ class FormPart:
     ):
         self.name = name
         self._data = data if isinstance(data, bytes) else None
-        self._file = data if isinstance(data, SpooledTemporaryFile) else None
+        self._file = data if not isinstance(data, bytes) else None
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
@@ -232,7 +231,7 @@ class FormPart:
         return b""
 
     @property
-    def file(self) -> SpooledTemporaryFile:
+    def file(self) -> BinaryIO:
         if self._file is None:
             raise TypeError("Missing file data")
         return self._file
@@ -299,14 +298,11 @@ class FileBuffer:
     """
     Represents an uploaded file with buffered data access.
 
-    This class wraps a **SpooledTemporaryFile** to provide memory-efficient file uploads.
-    Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
-
     Attributes:
         name: The form field name (str).
         filename: The uploaded file's name (str).
         content_type: The MIME type (str or None).
-        file: The underlying file-like object (SpooledTemporaryFile).
+        file: The underlying file-like object (BinaryIO).
         size: The size in bytes (if known), or 0.
     """
 
@@ -316,7 +312,7 @@ class FileBuffer:
         self,
         name: str,
         file_name: str | None,
-        file,  # file-like object (SpooledTemporaryFile)
+        file: BinaryIO,
         content_type: str | None = None,
         size: int = 0,
         charset: str | None = None,
@@ -338,7 +334,6 @@ class FileBuffer:
         Yields:
             Byte chunks of the form part data.
         """
-        # For SpooledTemporaryFile, read and yield in chunks
         self.file.seek(0)
         while True:
             chunk = await asyncio.to_thread(self.file.read, chunk_size)

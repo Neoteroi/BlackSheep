@@ -5,6 +5,7 @@ import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
 from urllib.parse import parse_qsl, quote_plus
+from tempfile import SpooledTemporaryFile
 
 from blacksheep.settings.json import json_settings
 
@@ -273,17 +274,18 @@ cdef class FormPart:
         charset: The character encoding of the content (optional).
     """
 
-    def __init__(self,
-                 bytes name,
-                 object data,
-                 bytes content_type: bytes | None=None,
-                 bytes file_name: bytes | None=None,
-                 bytes charset: bytes | None = None,
-                 int size = 0):
-        from tempfile import SpooledTemporaryFile
+    def __init__(
+        self,
+        bytes name,
+        object data,
+        bytes content_type: bytes | None=None,
+        bytes file_name: bytes | None=None,
+        bytes charset: bytes | None = None,
+        int size = 0
+    ):
         self.name = name
         self._data = data if isinstance(data, bytes) else None
-        self._file = data if isinstance(data, SpooledTemporaryFile) else None
+        self._file = data if not isinstance(data, bytes) else None
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
@@ -318,7 +320,6 @@ cdef class FormPart:
             # For small in-memory data, yield it all at once
             yield self._data
         elif self._file:
-            # For SpooledTemporaryFile, read and yield in chunks
             self._file.seek(0)
             while True:
                 chunk = await asyncio.to_thread(self._file.read, chunk_size)

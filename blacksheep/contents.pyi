@@ -5,6 +5,7 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Awaitable,
+    BinaryIO,
     Callable,
     Union,
 )
@@ -98,7 +99,7 @@ class FormPart:
     def __init__(
         self,
         name: bytes,
-        data: bytes | SpooledTemporaryFile,
+        data: bytes | BinaryIO,
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
@@ -109,7 +110,7 @@ class FormPart:
 
         Args:
             name: The name of the form field.
-            data: The binary content or a SpooledTemporaryFile object.
+            data: The binary content or a file-like object (BinaryIO).
             content_type: The MIME type of the content (optional).
             file_name: The file name if this part represents a file upload (optional).
             charset: The character encoding of the content (optional).
@@ -117,7 +118,7 @@ class FormPart:
         """
         self.name = name
         self._data = data if isinstance(data, bytes) else None
-        self._file = data if isinstance(data, SpooledTemporaryFile) else None
+        self._file = data if not isinstance(data, bytes) else None
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
@@ -134,15 +135,15 @@ class FormPart:
         """
         ...
     @property
-    def file(self) -> SpooledTemporaryFile:
+    def file(self) -> BinaryIO:
         """
-        Returns the SpooledTemporaryFile object if the data is stored as a file.
+        Returns the file-like object if the data is stored as a file.
 
-        Use this property when the form part was initialized with a SpooledTemporaryFile,
-        typically for file uploads that exceeded the memory threshold.
+        Use this property when the form part was initialized with a file-like object
+        (BinaryIO), such as BytesIO, SpooledTemporaryFile, or file handles from open().
 
         Returns:
-            The SpooledTemporaryFile object containing the file data.
+            The file-like object containing the file data.
         """
         ...
     def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
@@ -221,7 +222,7 @@ class FileBuffer:
         self,
         name: str,
         file_name: str | None,
-        file: Any,
+        file: BinaryIO,
         content_type: str | None = None,
         size: int = 0,
         charset: str | None = None,

@@ -82,6 +82,3 @@ cdef class MultiPartFormData(Content):
 
 
 cdef dict parse_www_form_urlencoded(str content)
-
-
-cdef dict multiparts_to_dictionary(list parts)

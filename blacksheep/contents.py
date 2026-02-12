@@ -123,27 +123,6 @@ def try_decode(value: bytes, encoding: str):
         return value
 
 
-def multiparts_to_dictionary(parts: list) -> dict:
-    data = {}
-    for part in parts:
-        key = part.name.decode("utf8")
-        charset = part.charset.encode() if part.charset else None
-        if part.file_name:
-            if key in data:
-                data[key].append(part)
-            else:
-                data[key] = [part]
-        else:
-            if key in data:
-                if isinstance(data[key], list):
-                    data[key].append(try_decode(part.data, charset))
-                else:
-                    data[key] = [data[key], try_decode(part.data, charset)]
-            else:
-                data[key] = try_decode(part.data, charset)
-    return data
-
-
 def write_multipart_part(part, destination: bytearray):
     destination.extend(b'Content-Disposition: form-data; name="')
     destination.extend(part.name)
@@ -250,7 +229,6 @@ class FormPart:
             # For small in-memory data, yield it all at once
             yield self._data
         elif self._file:
-            # For SpooledTemporaryFile, read and yield in chunks
             self._file.seek(0)
             while True:
                 chunk = await asyncio.to_thread(self._file.read, chunk_size)

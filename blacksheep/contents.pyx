@@ -153,56 +153,6 @@ cdef object try_decode(bytes value, str encoding):
         return value
 
 
-cdef dict multiparts_to_dictionary(list parts):
-    cdef str key
-    cdef str charset
-    cdef data = {}
-    cdef FormPart part
-
-    for part in parts:
-        key = part.name.decode('utf8')
-        if part.charset:
-            charset = part.charset.encode()
-        else:
-            charset = None
-
-        # NB: we cannot assume that the value of a multipart form part can be decoded as UTF8;
-        # here we try to decode it, just to be more consistent with values read from www-urlencoded form data
-        if part.file_name:
-            # Files need special handling, must be kept as-is
-            if key in data:
-                data[key].append(part)
-            else:
-                data[key] = [part]
-        else:
-            if key in data:
-                if isinstance(data[key], list):
-                    data[key].append(try_decode(part.data, charset))
-                else:
-                    data[key] = [data[key], try_decode(part.data, charset)]
-            else:
-                data[key] = try_decode(part.data, charset)
-
-    return data
-
-
-cdef object _simplify_part(FormPart part):
-    import warnings
-    if part.file_name:
-        # keep as is
-        return part
-    if part.size > 1024 * 1024:
-        warnings.warn(
-            f"Form field '{part.name.decode('utf8', errors='replace')}' "
-            f"is {part.size / (1024 * 1024):.2f}MB and will be loaded into "
-            f"memory. Consider handling large form fields directly with "
-            f"request.multipart_stream instead.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return part.data.decode(part.charset.decode() if part.charset else "utf8")
-
-
 cpdef dict simplify_multipart_data(dict data):
     # This code is for backward compatibility,
     # probably this behavior will be changed in v3

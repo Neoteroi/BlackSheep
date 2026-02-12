@@ -313,13 +313,6 @@ class MultiPartFormData(Content):
     """
     Represents multipart/form-data content for responses.
 
-    WARNING: This class will be deprecated and intended only for small payloads.
-    It loads all form parts into memory at once, which can exhaust memory
-    for large uploads or files.
-
-    For handling multipart/form-data in requests, use FormPart with
-    SpooledTemporaryFile for memory-efficient streaming instead.
-
     Attributes:
         parts: List of FormPart objects to encode as multipart/form-data.
         boundary: Randomly generated boundary string for separating parts.

@@ -229,6 +229,72 @@ class FormPart:
         self.charset = charset
         self.size = size
 
+    @classmethod
+    def from_field(
+        cls,
+        name: str,
+        value: str | bytes,
+        content_type: str | None = None,
+        charset: str = "utf-8",
+    ) -> FormPart:
+        """
+        Create a FormPart for a simple form field.
+
+        This is a convenience method that accepts string parameters and converts
+        them to bytes internally, making it easier to create form parts without
+        manually encoding strings.
+
+        Args:
+            name: The name of the form field.
+            value: The field value (string or bytes).
+            content_type: Optional MIME type (defaults to text/plain for strings).
+            charset: Character encoding (default: utf-8).
+
+        Returns:
+            A new FormPart instance.
+
+        Example:
+            part = FormPart.from_field("username", "john_doe")
+        """
+        ...
+
+    @classmethod
+    def from_file(
+        cls,
+        part_name: str,
+        file_path: str,
+        content_type: str | None = None,
+    ) -> FormPart:
+        """
+        Create a FormPart for a file upload.
+
+        This is a convenience method that accepts string parameters and opens
+        the file at the specified path, making it easier to create file upload parts.
+
+        Args:
+            part_name: The name of the form field.
+            file_path: The path to the file to upload.
+            content_type: Optional MIME type (e.g., "image/jpeg"). If not provided,
+                         the MIME type will be inferred from the file extension.
+
+        Returns:
+            A new FormPart instance.
+
+        Example:
+            part = FormPart.from_file("photo", "photo.jpg", "image/jpeg")
+        """
+        ...
+            charset: Optional character encoding.
+
+        Returns:
+            A new FormPart instance.
+
+        Example:
+            with open("photo.jpg", "rb") as f:
+                part = FormPart.from_file("photo", "photo.jpg", f, "image/jpeg")
+        """
+        ...
+
     @property
     def data(self) -> bytes:
         """

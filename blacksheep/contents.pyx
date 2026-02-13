@@ -261,6 +261,116 @@ cdef class FormPart:
         self.charset = charset
         self.size = size
 
+    @classmethod
+    def from_field(
+        cls,
+        str name,
+        value,
+        str content_type = None,
+        str charset = "utf-8",
+    ):
+        """
+        Create a FormPart for a simple form field.
+
+        This is a convenience method that accepts string parameters and converts
+        them to bytes internally, making it easier to create form parts without
+        manually encoding strings.
+
+        Args:
+            name: The name of the form field.
+            value: The field value (string or bytes).
+            content_type: Optional MIME type (defaults to text/plain for strings).
+            charset: Character encoding (default: utf-8).
+
+        Returns:
+            A new FormPart instance.
+
+        Example:
+            part = FormPart.from_field("username", "john_doe")
+        """
+        cdef bytes data
+        cdef bytes content_type_bytes
+        cdef bytes charset_bytes = charset.encode("utf-8")
+
+        if isinstance(value, str):
+            data = value.encode(charset)
+        else:
+            data = value
+
+        if content_type is None and isinstance(value, str):
+            content_type_bytes = f"text/plain; charset={charset}".encode("utf-8")
+        elif content_type:
+            content_type_bytes = content_type.encode("utf-8")
+        else:
+            content_type_bytes = None
+
+        return cls(
+            name=name.encode("utf-8"),
+            data=data,
+            content_type=content_type_bytes,
+            charset=charset_bytes,
+            size=len(data),
+        )
+
+    @classmethod
+    def from_file(
+        cls,
+        str part_name,
+        str file_path,
+        str content_type = None,
+    ):
+        """
+        Create a FormPart for a file upload.
+
+        This is a convenience method that accepts string parameters and opens
+        the file at the specified path, making it easier to create file upload parts.
+
+        Args:
+            part_name: The name of the form field.
+            file_path: The path to the file to upload.
+            content_type: Optional MIME type (e.g., "image/jpeg"). If not provided,
+                         the MIME type will be inferred from the file extension.
+
+        Returns:
+            A new FormPart instance.
+
+        Example:
+            part = FormPart.from_file("photo", "photo.jpg", "image/jpeg")
+        """
+        cdef int size = 0
+        cdef bytes content_type_bytes = None
+
+        # We cannot close the file while used by FormPart
+        file = open(file_path, mode="rb")
+        file_name = file.name
+
+        # Get file size if possible
+        try:
+            current_pos = file.tell()
+            file.seek(0, 2)  # Seek to end
+            size = file.tell()
+            file.seek(current_pos)  # Restore position
+        except (OSError, AttributeError):
+            # File doesn't support seeking
+            pass
+
+        if content_type is None:
+            # Try obtaining mime type from the file name
+            from blacksheep.common.files.pathsutils import get_mime_type_from_name
+            content_type = get_mime_type_from_name(file_path)
+
+        if content_type:
+            content_type_bytes = content_type.encode("utf-8")
+
+        return cls(
+            name=part_name.encode("utf-8"),
+            data=file,
+            file_name=file_name.encode("utf-8"),
+            content_type=content_type_bytes,
+            charset=None,
+            size=size,
+        )
+
     @property
     def data(self):
         if isinstance(self._data, bytes):

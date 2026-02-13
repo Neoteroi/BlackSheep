@@ -6,6 +6,7 @@ from inspect import isasyncgenfunction
 from typing import Any, AsyncIterable, AsyncIterator, BinaryIO
 from urllib.parse import parse_qsl, quote_plus
 
+from blacksheep.common.files.pathsutils import get_mime_type_from_name
 from blacksheep.settings.json import json_settings
 
 from .exceptions import MessageAborted
@@ -290,6 +291,107 @@ class FormPart:
         self.content_type = content_type
         self.charset = charset
         self.size = size
+
+    @classmethod
+    def from_field(
+        cls,
+        name: str,
+        value: str | bytes,
+        content_type: str | None = None,
+        charset: str = "utf-8",
+    ) -> "FormPart":
+        """
+        Create a FormPart for a simple form field.
+
+        This is a convenience method that accepts string parameters and converts
+        them to bytes internally, making it easier to create form parts without
+        manually encoding strings.
+
+        Args:
+            name: The name of the form field.
+            value: The field value (string or bytes).
+            content_type: Optional MIME type (defaults to text/plain for strings).
+            charset: Character encoding (default: utf-8).
+
+        Returns:
+            A new FormPart instance.
+
+        Example:
+            part = FormPart.from_field("username", "john_doe")
+        """
+        data = value.encode(charset) if isinstance(value, str) else value
+
+        if content_type is None and isinstance(value, str):
+            content_type_bytes = f"text/plain; charset={charset}".encode("utf-8")
+        elif content_type:
+            content_type_bytes = content_type.encode("utf-8")
+        else:
+            content_type_bytes = None
+
+        return cls(
+            name=name.encode("utf-8"),
+            data=data,
+            content_type=content_type_bytes,
+            charset=charset.encode("utf-8"),
+            size=len(data),
+        )
+
+    @classmethod
+    def from_file(
+        cls,
+        part_name: str,
+        file_path: str,
+        file: BinaryIO | None = None,
+        content_type: str | None = None,
+    ) -> "FormPart":
+        """
+        Create a FormPart for a file upload.
+
+        This is a convenience method that accepts string parameters and converts
+        them to bytes internally, making it easier to create file upload parts.
+
+        Args:
+            name: The name of the form field.
+            file_name: The name of the file being uploaded.
+            file: The file-like object containing the file data.
+            content_type: Optional MIME type (e.g., "image/jpeg").
+            charset: Optional character encoding.
+
+        Returns:
+            A new FormPart instance.
+
+        Example:
+            with open("photo.jpg", "rb") as f:
+                part = FormPart.from_file("photo", "photo.jpg", f, "image/jpeg")
+        """
+        # We cannot close the file while used by FormPart
+        specified_file = file is not None
+        file = open(file_path, mode="rb") if file is None else file
+        file_name = file_path if specified_file else file.name
+
+        # Get file size if possible
+        size = 0
+        try:
+            current_pos = file.tell()
+            file.seek(0, 2)  # Seek to end
+            size = file.tell()
+            file.seek(current_pos)  # Restore position
+        except (OSError, AttributeError):
+            # File doesn't support seeking
+            pass
+
+        if content_type is None:
+            # Try obtaining mime type from the file name
+            content_type = get_mime_type_from_name(file_path)
+
+        return cls(
+            name=part_name.encode("utf-8"),
+            data=file,
+            file_name=file_name.encode("utf-8"),
+            content_type=content_type.encode("utf-8") if content_type else None,
+            charset=None,
+            size=size,
+        )
 
     @property
     def data(self) -> bytes:

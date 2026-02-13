@@ -4457,6 +4457,136 @@ async def test_file_buffer_save_to_raises_for_path_outside_cwd():
     file.close()
 
 
+async def test_form_part_from_field_with_string():
+    """
+    Test FormPart.from_field() class method with string value.
+    """
+    part = FormPart.from_field("username", "john_doe")
+
+    assert part.name == b"username"
+    assert part.data == b"john_doe"
+    assert part.content_type == b"text/plain; charset=utf-8"
+    assert part.charset == b"utf-8"
+    assert part.file_name is None
+    assert part.size == len(b"john_doe")
+
+
+async def test_form_part_from_field_with_bytes():
+    """
+    Test FormPart.from_field() class method with bytes value.
+    """
+    data = b"binary data here"
+    part = FormPart.from_field("data", data)
+
+    assert part.name == b"data"
+    assert part.data == data
+    assert part.content_type is None
+    assert part.charset == b"utf-8"
+    assert part.size == len(data)
+
+
+async def test_form_part_from_field_with_custom_content_type():
+    """
+    Test FormPart.from_field() with custom content type.
+    """
+    part = FormPart.from_field(
+        "json_data",
+        '{"key": "value"}',
+        content_type="application/json"
+    )
+
+    assert part.name == b"json_data"
+    assert part.data == b'{"key": "value"}'
+    assert part.content_type == b"application/json"
+
+
+async def test_form_part_from_field_with_custom_charset():
+    """
+    Test FormPart.from_field() with custom charset.
+    """
+    part = FormPart.from_field(
+        "text",
+        "Hello, World!",
+        charset="latin-1"
+    )
+
+    assert part.name == b"text"
+    assert part.data == "Hello, World!".encode("latin-1")
+    assert part.charset == b"latin-1"
+
+
+async def test_form_part_from_file():
+    """
+    Test FormPart.from_file() class method.
+    """
+    from tempfile import SpooledTemporaryFile
+
+    test_data = b"File content here!"
+
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart.from_file(
+        "photo",
+        "photo.jpg",
+        file=file,
+        content_type="image/jpeg"
+    )
+
+    assert part.name == b"photo"
+    assert part.file_name == b"photo.jpg"
+    assert part.content_type == b"image/jpeg"
+    assert part.size > 0  # Should have detected file size
+    assert part.data == test_data
+
+    file.close()
+
+
+async def test_form_part_from_file_stream_and_save():
+    """
+    Test that FormPart created with from_file() can be streamed and saved.
+    """
+    from tempfile import SpooledTemporaryFile
+    import os
+
+    ensure_folder("tests/out")
+
+    test_data = b"A" * 5000 + b"B" * 3000
+
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart.from_file(
+        "upload",
+        "test.bin",
+        file=file,
+        content_type="application/octet-stream"
+    )
+
+    # Test streaming
+    chunks = []
+    async for chunk in part.stream():
+        chunks.append(chunk)
+
+    assert b"".join(chunks) == test_data
+
+    # Test saving
+    test_path = "tests/out/test_from_file.bin"
+    try:
+        bytes_written = await part.save_to(test_path)
+        assert bytes_written == len(test_data)
+
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+    finally:
+        file.close()
+        if os.path.exists(test_path):
+            os.remove(test_path)
+
+
 async def test_middlewares_execute_for_no_route_by_default():
     """
     Test that middlewares are executed for not configured routes by default.

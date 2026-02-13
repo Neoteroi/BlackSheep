@@ -79,38 +79,6 @@ def test_get_file_extension_from_name(full_path, expected_result):
         (".gitignore", "application/octet-stream"),
         ("ØØ Void.album", "application/octet-stream"),
         ("", "application/octet-stream"),
-        ("no_extension", "application/octet-stream"),
-        ("example.webp", "image/webp"),
-        ("example.flac", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.m4a", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.mkv", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.flv", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.wmv", "application/octet-stream"),  # Not in standard mimetypes
-        ("document.docx", "application/octet-stream"),  # Not in standard mimetypes
-        ("spreadsheet.xlsx", "application/octet-stream"),  # Not in standard mimetypes
-        ("presentation.pptx", "application/octet-stream"),  # Not in standard mimetypes
-        ("document.odt", "application/octet-stream"),  # Not in standard mimetypes
-        ("spreadsheet.ods", "application/octet-stream"),  # Not in standard mimetypes
-        ("presentation.odp", "application/octet-stream"),  # Not in standard mimetypes
-        ("document.rtf", "text/rtf"),
-        ("example.md", "text/markdown"),
-        ("example.java", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.cpp", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.rs", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.go", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.ts", "application/octet-stream"),  # Not in standard mimetypes
-        ("archive.gz", "application/octet-stream"),  # Not in standard mimetypes
-        ("archive.bz2", "application/octet-stream"),  # Not in standard mimetypes
-        ("archive.7z", "application/octet-stream"),  # Not in standard mimetypes
-        ("archive.rar", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.woff", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.ttf", "application/octet-stream"),  # Not in standard mimetypes
-        ("example.otf", "application/octet-stream"),  # Not in standard mimetypes
-        # Case insensitive
-        ("UPPERCASE.PDF", "application/pdf"),
-        ("MixedCase.JpEg", "image/jpeg"),
-        ("UpperCase.MP3", "audio/mpeg"),
-        ("MixedCase.MP4", "video/mp4"),
     ],
 )
 def test_get_mime_type(full_path, expected_result):

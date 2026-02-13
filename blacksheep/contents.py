@@ -348,21 +348,33 @@ class FormPart:
         Create a FormPart for a file upload.
 
         This is a convenience method that accepts string parameters and converts
-        them to bytes internally, making it easier to create file upload parts.
+        them to bytes internally. It can automatically open the file or use an
+        already-opened file handle.
 
         Args:
-            name: The name of the form field.
-            file_name: The name of the file being uploaded.
-            file: The file-like object containing the file data.
-            content_type: Optional MIME type (e.g., "image/jpeg").
-            charset: Optional character encoding.
+            part_name: The name of the form field.
+            file_path: The path to the file to upload. Used for determining the
+                      filename and MIME type. If 'file' is not provided, the file
+                      at this path will be opened.
+            file: Optional file-like object. If provided, this will be used instead
+                 of opening the file at file_path. The file_path will still be used
+                 as the filename in the multipart data.
+            content_type: Optional MIME type (e.g., "image/jpeg"). If not provided,
+                         the MIME type will be inferred from the file extension.
 
         Returns:
             A new FormPart instance.
 
-        Example:
+        Examples:
+            # Automatic file opening
+            part = FormPart.from_file("photo", "photo.jpg")
+
+            # With explicit content type
+            part = FormPart.from_file("photo", "photo.jpg", content_type="image/jpeg")
+
+            # With already-opened file
             with open("photo.jpg", "rb") as f:
-                part = FormPart.from_file("photo", "photo.jpg", f, "image/jpeg")
+                part = FormPart.from_file("photo", "photo.jpg", file=f)
         """
         # We cannot close the file while used by FormPart
         specified_file = file is not None

@@ -317,32 +317,49 @@ cdef class FormPart:
         cls,
         str part_name,
         str file_path,
+        file = None,
         str content_type = None,
     ):
         """
         Create a FormPart for a file upload.
 
-        This is a convenience method that accepts string parameters and opens
-        the file at the specified path, making it easier to create file upload parts.
+        This is a convenience method that accepts string parameters and converts
+        them to bytes internally. It can automatically open the file or use an
+        already-opened file handle.
 
         Args:
             part_name: The name of the form field.
-            file_path: The path to the file to upload.
+            file_path: The path to the file to upload. Used for determining the
+                      filename and MIME type. If 'file' is not provided, the file
+                      at this path will be opened.
+            file: Optional file-like object. If provided, this will be used instead
+                 of opening the file at file_path. The file_path will still be used
+                 as the filename in the multipart data.
             content_type: Optional MIME type (e.g., "image/jpeg"). If not provided,
                          the MIME type will be inferred from the file extension.
 
         Returns:
             A new FormPart instance.
 
-        Example:
-            part = FormPart.from_file("photo", "photo.jpg", "image/jpeg")
+        Examples:
+            # Automatic file opening
+            part = FormPart.from_file("photo", "photo.jpg")
+
+            # With explicit content type
+            part = FormPart.from_file("photo", "photo.jpg", content_type="image/jpeg")
+
+            # With already-opened file
+            with open("photo.jpg", "rb") as f:
+                part = FormPart.from_file("photo", "photo.jpg", file=f)
         """
         cdef int size = 0
         cdef bytes content_type_bytes = None
+        cdef bint specified_file
 
         # We cannot close the file while used by FormPart
-        file = open(file_path, mode="rb")
-        file_name = file.name
+        specified_file = file is not None
+        file = open(file_path, mode="rb") if file is None else file
+        file_name = file_path if specified_file else file.name
 
         # Get file size if possible
         try:

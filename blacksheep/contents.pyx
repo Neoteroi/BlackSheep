@@ -12,6 +12,25 @@ from blacksheep.settings.json import json_settings
 from .exceptions cimport MessageAborted
 
 
+def ensure_in_cwd(path: str) -> None:
+    """
+    Security check to ensure the given path is within the current working directory.
+
+    This function prevents directory traversal attacks by verifying that the
+    absolute path of the provided path starts with the current working directory.
+
+    Args:
+        path (str): The file path to validate.
+
+    Raises:
+        ValueError: If the path is outside the current working directory.
+    """
+    abs_path = os.path.abspath(path)
+    cwd = os.getcwd()
+    if not abs_path.startswith(cwd):
+        raise ValueError("Cannot save file outside current working directory.")
+
+
 cdef class Content:
 
     def __init__(
@@ -260,7 +279,7 @@ cdef class FormPart:
                     break
                 yield chunk
 
-    async def save_to(self, path: str) -> int:
+    async def save_to(self, str path) -> int:
         """Save file data to a specified path.
 
         Args:
@@ -269,15 +288,13 @@ cdef class FormPart:
         Returns:
             Total number of bytes written.
         """
-
-        def _copy():
-            self.file.seek(0)
-            with open(path, "wb") as dest:
-                bytes_written = shutil.copyfileobj(self.file, dest)
-            self.file.seek(0)
-            return bytes_written if bytes_written is not None else self.size
-
-        return await asyncio.to_thread(_copy)
+        ensure_in_cwd(path)
+        total_bytes = 0
+        with open(path, "wb") as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
 
     def __eq__(self, other):
         if isinstance(other, FormPart):
@@ -360,14 +377,13 @@ cdef class FileBuffer:
         Returns:
             Total number of bytes written.
         """
-        def _copy():
-            self.file.seek(0)
-            with open(path, "wb") as dest:
-                bytes_written = shutil.copyfileobj(self.file, dest)
-            self.file.seek(0)
-            return bytes_written if bytes_written is not None else self.size
-
-        return await asyncio.to_thread(_copy)
+        ensure_in_cwd(path)
+        total_bytes = 0
+        with open(path, "wb") as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
 
     def close(self):
         """Close the underlying file."""
@@ -433,8 +449,9 @@ cdef class StreamingFormPart:
         Returns:
             Total number of bytes written.
         """
+        ensure_in_cwd(path)
         total_bytes = 0
-        with open(path, 'wb') as f:
+        with open(path, "wb") as f:
             async for chunk in self.stream():
                 f.write(chunk)
                 total_bytes += len(chunk)

@@ -1,6 +1,5 @@
 import asyncio
 import os
-import shutil
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
@@ -338,17 +337,15 @@ class FormPart:
             Total number of bytes written.
 
         Raises:
-            InvalidOperation: If the path is outside the current working directory.
+            ValueError: If the path is outside the current working directory.
         """
         ensure_in_cwd(path)
-        def _copy():
-            self.file.seek(0)
-            with open(path, "wb") as dest:
-                bytes_written = shutil.copyfileobj(self.file, dest)
-            self.file.seek(0)
-            return bytes_written if bytes_written is not None else self.size
-
-        return await asyncio.to_thread(_copy)
+        total_bytes = 0
+        with open(path, "wb") as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
 
     def __eq__(self, other):
         if isinstance(other, FormPart):
@@ -446,17 +443,15 @@ class FileBuffer:
             Total number of bytes written.
 
         Raises:
-            InvalidOperation: If the path is outside the current working directory.
+            ValueError: If the path is outside the current working directory.
         """
         ensure_in_cwd(path)
-        def _copy():
-            self.file.seek(0)
-            with open(path, "wb") as dest:
-                bytes_written = shutil.copyfileobj(self.file, dest)
-            self.file.seek(0)
-            return bytes_written if bytes_written is not None else self.size
-
-        return await asyncio.to_thread(_copy)
+        total_bytes = 0
+        with open(path, "wb") as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
 
     def close(self):
         """Close the underlying file."""
@@ -516,7 +511,6 @@ class StreamingFormPart:
         Yields:
             Byte chunks of the part data.
         """
-        # Stream from source
         async for chunk in self._data_stream:
             yield chunk
 
@@ -531,7 +525,7 @@ class StreamingFormPart:
             Total number of bytes written.
 
         Raises:
-            InvalidOperation: If the path is outside the current working directory.
+            ValueError: If the path is outside the current working directory.
         """
         ensure_in_cwd(path)
         total_bytes = 0

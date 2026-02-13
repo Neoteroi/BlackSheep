@@ -1,3 +1,4 @@
+import os
 import asyncio
 import json
 import shutil
@@ -170,6 +171,23 @@ cdef object try_decode(bytes value, str encoding):
         return value.decode(encoding or 'utf8')
     except:
         return value
+
+
+cdef object _simplify_part(FormPart part):
+    import warnings
+    if part.file_name:
+        # keep as is
+        return part
+    if part.size > 1024 * 1024:
+        warnings.warn(
+            f"Form field '{part.name.decode('utf8', errors='replace')}' "
+            f"is {part.size / (1024 * 1024):.2f}MB and will be loaded into "
+            f"memory. Consider handling large form fields directly with "
+            f"request.multipart_stream instead.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return part.data.decode(part.charset.decode() if part.charset else "utf8")
 
 
 cpdef dict simplify_multipart_data(dict data):
@@ -348,6 +366,23 @@ cdef class FileBuffer:
         self.file = file
         self.size = size
         self._charset = charset
+
+    async def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
+        """
+        Async generator that yields the data in chunks.
+
+        Args:
+            chunk_size: Size of each chunk in bytes (default: 8192).
+
+        Yields:
+            Byte chunks of the form part data.
+        """
+        self.file.seek(0)
+        while True:
+            chunk = await asyncio.to_thread(self.file.read, chunk_size)
+            if not chunk:
+                break
+            yield chunk
 
     @classmethod
     def from_form_part(cls, FormPart form_part):

@@ -76,7 +76,7 @@ cdef class TextServerSentEvent(ServerSentEvent):
     pass
 
 
-cdef class MultiPartFormData(Content):
+cdef class MultiPartFormData(StreamedContent):
     cdef readonly list parts
     cdef readonly bytes boundary
 

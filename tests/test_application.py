@@ -25,7 +25,7 @@ from blacksheep import (
     Response,
     TextContent,
 )
-from blacksheep.contents import FormPart
+from blacksheep.contents import FileBuffer, FormPart
 from blacksheep.exceptions import (
     Conflict,
     InternalServerError,
@@ -4272,6 +4272,186 @@ async def test_form_part_stream_with_file():
 
     assert len(chunks_small) > len(chunks)
     assert b"".join(chunks_small) == test_data
+
+    # Clean up
+    file.close()
+
+
+async def test_form_part_save_to_with_bytes():
+    """
+    Test that FormPart.save_to() correctly saves bytes data to a file.
+    """
+    from tempfile import NamedTemporaryFile
+    import os
+
+    ensure_folder("tests/out")
+
+    test_data = b"Hello, World! This is test data for FormPart."
+
+    part = FormPart(
+        name=b"test_field",
+        data=test_data,
+        content_type=b"text/plain",
+    )
+
+    # Save to a file in the tests/out directory
+    test_path = "tests/out/test_form_part_bytes.txt"
+    try:
+        bytes_written = await part.save_to(test_path)
+
+        # Verify bytes written
+        assert bytes_written == len(test_data)
+
+        # Verify file contents
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+    finally:
+        # Clean up
+        if os.path.exists(test_path):
+            os.remove(test_path)
+
+
+async def test_form_part_save_to_with_file():
+    """
+    Test that FormPart.save_to() correctly saves file data to a file.
+    """
+    from tempfile import SpooledTemporaryFile
+    import os
+
+    ensure_folder("tests/out")
+
+    # Create test data
+    test_data = b"A" * 10000 + b"B" * 5000 + b"C" * 3000
+
+    # Create a SpooledTemporaryFile with the test data
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart(
+        name=b"test_file",
+        data=file,
+        file_name=b"test.bin",
+        content_type=b"application/octet-stream",
+        size=len(test_data),
+    )
+
+    # Save to a file in the tests/out directory
+    test_path = "tests/out/test_form_part_file.bin"
+    try:
+        bytes_written = await part.save_to(test_path)
+
+        # Verify bytes written
+        assert bytes_written == len(test_data)
+
+        # Verify file contents
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+    finally:
+        # Clean up
+        file.close()
+        if os.path.exists(test_path):
+            os.remove(test_path)
+
+
+async def test_form_part_save_to_raises_for_path_outside_cwd():
+    """
+    Test that FormPart.save_to() raises ValueError when trying to save outside CWD.
+    """
+    test_data = b"Test data"
+
+    part = FormPart(
+        name=b"test_field",
+        data=test_data,
+        content_type=b"text/plain",
+    )
+
+    # Try to save to a path outside the current working directory
+    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+        await part.save_to("/tmp/../../etc/passwd")
+
+    # Try another path traversal
+    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+        await part.save_to("../../../etc/passwd")
+
+
+async def test_file_buffer_save_to():
+    """
+    Test that FileBuffer.save_to() correctly saves file data to a file.
+    """
+    from tempfile import SpooledTemporaryFile
+    import os
+
+    ensure_folder("tests/out")
+
+    # Create test data
+    test_data = b"FileBuffer test data: " + b"X" * 5000
+
+    # Create a SpooledTemporaryFile with the test data
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    file_buffer = FileBuffer(
+        name="test_file",
+        file_name="test.bin",
+        file=file,
+        content_type="application/octet-stream",
+        size=len(test_data),
+    )
+
+    # Save to a file in the tests/out directory
+    test_path = "tests/out/test_file_buffer.bin"
+    try:
+        bytes_written = await file_buffer.save_to(test_path)
+
+        # Verify bytes written
+        assert bytes_written == len(test_data)
+
+        # Verify file contents
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+
+        # Verify the original file position is reset (can read again)
+        file.seek(0)
+        assert file.read() == test_data
+    finally:
+        # Clean up
+        file.close()
+        if os.path.exists(test_path):
+            os.remove(test_path)
+
+
+async def test_file_buffer_save_to_raises_for_path_outside_cwd():
+    """
+    Test that FileBuffer.save_to() raises ValueError when trying to save outside CWD.
+    """
+    from tempfile import SpooledTemporaryFile
+
+    test_data = b"Test data"
+
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    file_buffer = FileBuffer(
+        name="test_file",
+        file_name="test.bin",
+        file=file,
+        content_type="text/plain",
+        size=len(test_data),
+    )
+
+    # Try to save to a path outside the current working directory
+    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+        await file_buffer.save_to("/tmp/../../etc/passwd")
+
+    # Try another path traversal
+    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+        await file_buffer.save_to("../../../etc/passwd")
 
     # Clean up
     file.close()

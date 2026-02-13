@@ -171,23 +171,6 @@ cpdef dict simplify_multipart_data(dict data):
     return simplified_data
 
 
-cpdef void write_multipart_part(FormPart part, bytearray destination):
-    # https://tools.ietf.org/html/rfc7578#page-4
-    destination.extend(b'Content-Disposition: form-data; name="')
-    destination.extend(part.name)
-    destination.extend(b'"')
-    if part.file_name:
-        destination.extend(b'; filename="')
-        destination.extend(part.file_name)
-        destination.extend(b'"\r\n')
-    if part.content_type:
-        destination.extend(b'Content-Type: ')
-        destination.extend(part.content_type)
-    destination.extend(b'\r\n\r\n')
-    destination.extend(part.data)
-    destination.extend(b'\r\n')
-
-
 cpdef bytes write_www_form_urlencoded(data: dict | list):
     # application/x-www-form-urlencoded
     if isinstance(data, list):
@@ -333,13 +316,15 @@ cdef class FileBuffer:
         data = await file_buffer.read()
     """
 
-    def __init__(self,
-                 str name,
-                 str file_name,
-                 object file,
-                 str content_type = None,
-                 int size = 0,
-                 str charset = None):
+    def __init__(
+        self,
+        str name,
+        str file_name,
+        object file,
+        str content_type = None,
+        int size = 0,
+        str charset = None
+    ):
         self.name = name
         self.file_name = file_name
         self.content_type = content_type
@@ -414,12 +399,14 @@ cdef class StreamingFormPart:
         charset: The character encoding of the content (optional).
     """
 
-    def __init__(self,
-                 str name,
-                 object data_stream,
-                 str content_type = None,
-                 str file_name = None,
-                 str charset = None):
+    def __init__(
+        self,
+        str name,
+        object data_stream,
+        str content_type = None,
+        str file_name = None,
+        str charset = None
+    ):
         self.name = name
         self.file_name = file_name
         self.content_type = content_type

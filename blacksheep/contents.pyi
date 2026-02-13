@@ -22,6 +22,19 @@ class Content:
     def dispose(self) -> None: ...
 
 class StreamedContent(Content):
+    """
+    Represents content that is streamed in chunks rather than loaded entirely into memory.
+
+    This class is designed for efficient handling of large content by providing
+    streaming capabilities. It wraps an async generator that produces chunks of bytes.
+
+    Attributes:
+        type: The content type (MIME type) as bytes.
+        body: The full body content (bytes or None if not yet read).
+        length: The content length in bytes, or -1 if unknown.
+        generator: The async generator function that produces content chunks.
+    """
+
     def __init__(
         self,
         content_type: bytes,
@@ -33,18 +46,110 @@ class StreamedContent(Content):
         self.length = data_length
         self.generator = data_provider
 
-    async def get_parts(self) -> AsyncIterable[bytes]: ...
+    async def read(self) -> bytes:
+        """
+        Read and return all content as bytes.
+
+        **WARNING**: This method loads the entire content into memory at once. For large
+        content, this can cause excessive memory usage and may lead to out-of-memory
+        errors. Use the `stream()` method instead for memory-efficient processing
+        of large content.
+
+        Returns:
+            The complete content as bytes.
+        """
+        ...
+
+    async def stream(self) -> AsyncIterable[bytes]:
+        """
+        Stream the content in chunks.
+
+        This method is the recommended way to process large content as it yields
+        chunks of data without loading everything into memory at once.
+
+        Yields:
+            Chunks of bytes from the content stream.
+        """
+        ...
+
+    async def get_parts(self) -> AsyncIterable[bytes]:
+        """
+        Stream the content in chunks.
+
+        This is an alias for `stream()` and provides the same functionality.
+
+        Yields:
+            Chunks of bytes from the content stream.
+        """
+        ...
 
 class ASGIContent(Content):
+    """
+    Represents content received from an ASGI application.
+
+    This class handles streaming content from ASGI messages, typically used
+    for request bodies in ASGI applications. It provides both streaming and
+    buffered reading capabilities.
+
+    Attributes:
+        type: The content type (MIME type), initially None.
+        body: The full body content (bytes or None if not yet read).
+        length: The content length in bytes, initially -1 (unknown).
+        receive: The ASGI receive callable for getting messages.
+    """
+
     def __init__(self, receive: Callable[[], Awaitable[dict]]):
+        """
+        Initialize ASGIContent with an ASGI receive callable.
+
+        Args:
+            receive: An ASGI receive callable that returns awaitable messages.
+        """
         self.type = None
         self.body = None
         self.length = -1
         self.receive = receive
 
-    def dispose(self) -> None: ...
-    def stream(self) -> AsyncIterable[bytes]: ...
-    async def read(self) -> bytes: ...
+    def dispose(self) -> None:
+        """
+        Dispose of the ASGI content by clearing references.
+
+        This method should be called when the content is no longer needed
+        to allow garbage collection and prevent memory leaks.
+        """
+        ...
+
+    def stream(self) -> AsyncIterable[bytes]:
+        """
+        Stream the content from ASGI messages in chunks.
+
+        This method is the recommended way to process large content as it yields
+        chunks of data without loading everything into memory at once.
+
+        Yields:
+            Byte chunks from ASGI message bodies.
+
+        Raises:
+            MessageAborted: If the HTTP connection is disconnected.
+        """
+        ...
+
+    async def read(self) -> bytes:
+        """
+        Read and return all content as bytes.
+
+        **WARNING**: This method loads the entire content into memory at once. For large
+        content, this can cause excessive memory usage and may lead to out-of-memory
+        errors. Use the `stream()` method instead for memory-efficient processing
+        of large content.
+
+        Returns:
+            The complete content as bytes.
+
+        Raises:
+            MessageAborted: If the HTTP connection is disconnected.
+        """
+        ...
 
 class TextContent(Content):
     def __init__(self, text: str):
@@ -162,19 +267,6 @@ class FormPart:
         ...
     async def save_to(self, path: str) -> int:
         """
-        Save the streamed form part content to a file.
-
-        This method streams the data directly to disk, making it suitable
-        for large file uploads without consuming excessive memory.
-
-        Args:
-            path: The file path where the content should be saved.
-
-        Returns:
-            The number of bytes written to the file.
-        """
-        ...
-        """
         Save the form part content to a file.
 
         Args:
@@ -182,6 +274,9 @@ class FormPart:
 
         Returns:
             The number of bytes written to the file.
+
+        Raises:
+            InvalidOperation: If the path is outside the current working directory.
         """
         ...
     def __eq__(self, other) -> bool:

@@ -1,4 +1,5 @@
 import asyncio
+import os
 import shutil
 import uuid
 from collections.abc import MutableSequence
@@ -9,6 +10,26 @@ from urllib.parse import parse_qsl, quote_plus
 from blacksheep.settings.json import json_settings
 
 from .exceptions import MessageAborted
+
+
+def ensure_in_cwd(path: str) -> None:
+    """
+    Security check to ensure the given path is within the current working directory.
+
+    This function prevents directory traversal attacks by verifying that the
+    absolute path of the provided path starts with the current working directory.
+
+    Args:
+        path (str): The file path to validate.
+
+    Raises:
+        ValueError: If the path is outside the current working directory.
+    """
+    abs_path = os.path.abspath(path)
+    cwd = os.getcwd()
+    if not abs_path.startswith(cwd):
+        raise ValueError("Cannot save file outside current working directory.")
+
 
 
 class Content:
@@ -22,6 +43,18 @@ class Content:
 
 
 class StreamedContent(Content):
+    """
+    Represents content that is streamed in chunks rather than loaded entirely into memory.
+
+    This class is designed for efficient handling of large content by providing
+    streaming capabilities. It wraps an async generator that produces chunks of bytes.
+
+    Attributes:
+        type: The content type (MIME type) as bytes.
+        body: The full body content (bytes or None if not yet read).
+        length: The content length in bytes, or -1 if unknown.
+        generator: The async generator function that produces content chunks.
+    """
     def __init__(self, content_type: bytes, data_provider, data_length: int = -1):
         self.type = content_type
         self.body = None
@@ -31,6 +64,17 @@ class StreamedContent(Content):
             raise ValueError("Data provider must be an async generator")
 
     async def read(self):
+        """
+        Read and return all content as bytes.
+
+        **WARNING**: This method loads the entire content into memory at once. For large
+        content, this can cause excessive memory usage and may lead to out-of-memory
+        errors. Use the `stream()` method instead for memory-efficient processing
+        of large content.
+
+        Returns:
+            The complete content as bytes.
+        """
         value = bytearray()
         async for chunk in self.generator():
             value.extend(chunk)
@@ -39,26 +83,71 @@ class StreamedContent(Content):
         return self.body
 
     async def stream(self):
+        """
+        Stream the content in chunks.
+
+        This method is the recommended way to process large content as it yields
+        chunks of data without loading everything into memory at once.
+
+        Yields:
+            Chunks of bytes from the content stream.
+        """
         async for chunk in self.generator():
             yield chunk
 
     async def get_parts(self):
+        """
+        Stream the content in chunks.
+
+        This is an alias for `stream()` and provides the same functionality.
+
+        Yields:
+            Chunks of bytes from the content stream.
+        """
         async for chunk in self.generator():
             yield chunk
 
 
 class ASGIContent(Content):
+    """
+    Represents content received from an ASGI application.
+
+    This class handles streaming content from ASGI messages, typically used
+    for request bodies in ASGI applications. It provides both streaming and
+    buffered reading capabilities.
+
+    Attributes:
+        type: The content type (MIME type), initially None.
+        body: The full body content (bytes or None if not yet read).
+        length: The content length in bytes, initially -1 (unknown).
+        receive: The ASGI receive callable for getting messages.
+    """
+
     def __init__(self, receive):
+        """
+        Initialize ASGIContent with an ASGI receive callable.
+
+        Args:
+            receive: An ASGI receive callable that returns awaitable messages.
+        """
         self.type = None
         self.body = None
         self.length = -1
         self.receive = receive
 
-    def dispose(self):
-        self.receive = None
-        self.body = None
-
     async def stream(self):
+        """
+        Stream the content from ASGI messages in chunks.
+
+        This method is the recommended way to process large content as it yields
+        chunks of data without loading everything into memory at once.
+
+        Yields:
+            Byte chunks from ASGI message bodies.
+
+        Raises:
+            MessageAborted: If the HTTP connection is disconnected.
+        """
         while True:
             message = await self.receive()
             if message.get("type") == "http.disconnect":
@@ -69,6 +158,15 @@ class ASGIContent(Content):
         yield b""
 
     async def read(self):
+        """
+        Read and return all content as bytes.
+
+        Returns:
+            The complete content as bytes.
+
+        Raises:
+            MessageAborted: If the HTTP connection is disconnected.
+        """
         if self.body is not None:
             return self.body
         value = bytearray()
@@ -82,6 +180,16 @@ class ASGIContent(Content):
         self.body = bytes(value)
         self.length = len(self.body)
         return self.body
+
+    def dispose(self):
+        """
+        Dispose of the ASGI content by clearing references.
+
+        This method should be called when the content is no longer needed
+        to allow garbage collection and prevent memory leaks.
+        """
+        self.receive = None
+        self.body = None
 
 
 class TextContent(Content):
@@ -121,22 +229,6 @@ def try_decode(value: bytes, encoding: str):
         return value.decode(encoding or "utf8")
     except Exception:
         return value
-
-
-def write_multipart_part(part, destination: bytearray):
-    destination.extend(b'Content-Disposition: form-data; name="')
-    destination.extend(part.name)
-    destination.extend(b'"')
-    if part.file_name:
-        destination.extend(b'; filename="')
-        destination.extend(part.file_name)
-        destination.extend(b'"\r\n')
-    if part.content_type:
-        destination.extend(b"Content-Type: ")
-        destination.extend(part.content_type)
-    destination.extend(b"\r\n\r\n")
-    destination.extend(part.data)
-    destination.extend(b"\r\n")
 
 
 def write_www_form_urlencoded(data: dict | list) -> bytes:
@@ -244,8 +336,11 @@ class FormPart:
 
         Returns:
             Total number of bytes written.
-        """
 
+        Raises:
+            InvalidOperation: If the path is outside the current working directory.
+        """
+        ensure_in_cwd(path)
         def _copy():
             self.file.seek(0)
             with open(path, "wb") as dest:
@@ -274,7 +369,8 @@ class FormPart:
 
 class FileBuffer:
     """
-    Represents an uploaded file with buffered data access.
+    Represents a file uploaded using multi-part/form-data.
+    This class provides buffered data access.
 
     Attributes:
         name: The form field name (str).
@@ -348,8 +444,11 @@ class FileBuffer:
 
         Returns:
             Total number of bytes written.
-        """
 
+        Raises:
+            InvalidOperation: If the path is outside the current working directory.
+        """
+        ensure_in_cwd(path)
         def _copy():
             self.file.seek(0)
             with open(path, "wb") as dest:
@@ -430,7 +529,11 @@ class StreamingFormPart:
 
         Returns:
             Total number of bytes written.
+
+        Raises:
+            InvalidOperation: If the path is outside the current working directory.
         """
+        ensure_in_cwd(path)
         total_bytes = 0
         with open(path, "wb") as f:
             async for chunk in self.stream():

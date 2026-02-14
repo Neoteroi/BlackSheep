@@ -559,3 +559,42 @@ async def test_multipart_stream_with_charset_field(session):
     assert data["fields"]["description"] == "Important documents for review"
     assert data["fields"]["notes"] == "Notas importantes: café, naïve, résumé"
     assert len(data["files"]) == 0
+
+
+async def test_multipart_stream_with_content_type_field(session):
+    """
+    Test multipart_stream handling with FormPart.field() using different content type.
+    This verifies proper charset handling in form fields.
+    """
+    # Create multipart data with charset field
+    parts = [
+        # Text field with UTF-8 charset (default)
+        FormPart.field(
+            "description",
+            "<h1>Important documents for review</h1>",
+            content_type="text/html"
+        ),
+        # Text field with explicit UTF-16 charset and special characters
+        FormPart.field(
+            "notes",
+            "Notas importantes: café, naïve, résumé",
+            charset="utf8",
+        ),
+    ]
+
+    # Create multipart content
+    content = MultiPartFormData(parts)
+
+    response = await session.post(
+        "/upload-multipart-stream",
+        content=content,
+    )
+    ensure_success(response)
+
+    # Verify response
+    data = await response.json()
+
+    assert data["folder"] == "out"
+    assert data["fields"]["description"] == "<h1>Important documents for review</h1>"
+    assert data["fields"]["notes"] == "Notas importantes: café, naïve, résumé"
+    assert len(data["files"]) == 0

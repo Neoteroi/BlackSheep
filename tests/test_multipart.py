@@ -1,3 +1,5 @@
+from io import BytesIO
+from typing import BinaryIO
 import pytest
 
 from blacksheep.contents import MultiPartFormData
@@ -157,3 +159,30 @@ async def test_parse_multipart_async():
     assert len(parts) == 2
     assert parts[0] == ("a", b"world")
     assert parts[1] == ("b", b"9000")
+
+
+async def test_multipart_write_1():
+    file = BytesIO()
+    file.write(b"Hello, World!")
+
+    content = MultiPartFormData([
+        FormPart.field(
+            "description",
+            "Important documents for review",
+        ),
+        FormPart.from_file(
+            "attachment",
+            "example.txt",
+            file=file
+        ),
+    ])
+
+    # data = await content.read()
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        parts.append(part)
+
+    assert len(parts) == 2
+    assert parts[0].name == "description"
+    assert parts[1].name == "attachment"
+    assert parts[1].file_name == "example.txt"

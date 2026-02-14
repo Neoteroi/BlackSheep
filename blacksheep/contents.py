@@ -1,15 +1,18 @@
 import asyncio
+import logging
 import os
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
-from typing import Any, AsyncIterable, AsyncIterator, BinaryIO
+from typing import Any, AsyncIterable, AsyncIterator, BinaryIO, Iterable
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.common.files.pathsutils import get_mime_type_from_name
+from blacksheep.exceptions import MessageAborted
 from blacksheep.settings.json import json_settings
 
-from .exceptions import MessageAborted
+
+logger = logging.getLogger("blacksheep.server")
 
 
 def ensure_in_cwd(path: str) -> None:
@@ -35,11 +38,17 @@ def ensure_in_cwd(path: str) -> None:
 class Content:
     def __init__(self, content_type: bytes, data: bytes):
         self.type = content_type
-        self.body = data
+        self.body  = data
         self.length = len(data)
 
     async def read(self) -> bytes:
-        return self.body
+        return self.body or b""
+
+    def dispose(self):
+        """
+        Dispose of the content.
+        """
+        self.body = None
 
 
 class StreamedContent(Content):
@@ -67,7 +76,7 @@ class StreamedContent(Content):
         """
         Read and return all content as bytes.
 
-        **WARNING**: This method loads the entire content into memory at once. For large
+        This method loads the entire content into memory at once. For large
         content, this can cause excessive memory usage and may lead to out-of-memory
         errors. Use the `stream()` method instead for memory-efficient processing
         of large content.
@@ -123,7 +132,7 @@ class ASGIContent(Content):
         receive: The ASGI receive callable for getting messages.
     """
 
-    def __init__(self, receive):
+    def __init__(self, receive: Receive):
         """
         Initialize ASGIContent with an ASGI receive callable.
 
@@ -149,6 +158,9 @@ class ASGIContent(Content):
             MessageAborted: If the HTTP connection is disconnected.
         """
         while True:
+            if self.receive is None:
+                break  # disposed
+
             message = await self.receive()
             if message.get("type") == "http.disconnect":
                 raise MessageAborted()
@@ -171,6 +183,9 @@ class ASGIContent(Content):
             return self.body
         value = bytearray()
         while True:
+            if self.receive is None:
+                break  # disposed
+
             message = await self.receive()
             if message.get("type") == "http.disconnect":
                 raise MessageAborted()
@@ -188,8 +203,8 @@ class ASGIContent(Content):
         This method should be called when the content is no longer needed
         to allow garbage collection and prevent memory leaks.
         """
+        super().dispose()
         self.receive = None
-        self.body = None
 
 
 class TextContent(Content):
@@ -669,6 +684,7 @@ class MultiPartFormData(StreamedContent):
     def __init__(self, parts: list[FormPart]):
         self.parts = parts
         self.boundary = b"----" + str(uuid.uuid4()).replace("-", "").encode()
+        self._disposed = False
         super().__init__(
             b"multipart/form-data; boundary=" + self.boundary,
             self._generate_multipart_chunks,
@@ -701,12 +717,35 @@ class MultiPartFormData(StreamedContent):
 
             # Stream the part data
             async for chunk in part.stream():
+                if self._disposed:
+                    break
                 yield chunk
 
             yield b"\r\n"
 
         # Write final boundary
         yield b"--" + self.boundary + b"--\r\n"
+
+    def dispose(self):
+        super().dispose()
+        self._disposed = True
+        self.try_dispose_parts(self.parts)
+
+    @staticmethod
+    def try_dispose_parts(parts: Iterable[FormPart]) -> None:
+        for part in parts:
+            try:
+                file = part.file
+            except TypeError:
+                pass
+            else:
+                try:
+                    file.close()
+                except Exception:
+                    logger.exception(
+                        "MultiPartFormData: failed to close file for part '%s' during disposal",
+                        part.name.decode('utf-8', errors='replace')
+                    )
 
 
 class ServerSentEvent:

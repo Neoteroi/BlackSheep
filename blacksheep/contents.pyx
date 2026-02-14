@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+import logging
 import shutil
 import uuid
 from collections.abc import MutableSequence
@@ -11,6 +12,9 @@ from tempfile import SpooledTemporaryFile
 from blacksheep.settings.json import json_settings
 
 from .exceptions cimport MessageAborted
+
+
+logger = logging.getLogger("blacksheep.server")
 
 
 def ensure_in_cwd(path: str) -> None:
@@ -44,7 +48,13 @@ cdef class Content:
         self.length = len(data)
 
     async def read(self):
-        return self.body
+        return self.body or b""
+
+    def dispose(self):
+        """
+        Dispose of the content.
+        """
+        self.body = None
 
 
 cdef class StreamedContent(Content):
@@ -91,11 +101,14 @@ cdef class ASGIContent(Content):
         self.receive = receive
 
     cpdef void dispose(self):
+        super().dispose()
         self.receive = None
-        self.body = None
 
     async def stream(self):
         while True:
+            if self.receive is None:
+                break  # disposed
+
             message = await self.receive()
 
             if message.get('type') == 'http.disconnect':
@@ -114,6 +127,9 @@ cdef class ASGIContent(Content):
         value = bytearray()
 
         while True:
+            if self.receive is None:
+                break  # disposed
+
             message = await self.receive()
 
             if message.get('type') == 'http.disconnect':
@@ -639,6 +655,7 @@ cdef class MultiPartFormData(StreamedContent):
     def __init__(self, parts: list[FormPart]):
         self.parts = parts
         self.boundary = b"----" + str(uuid.uuid4()).replace("-", "").encode()
+        self._disposed = False
         super().__init__(
             b"multipart/form-data; boundary=" + self.boundary,
             self._generate_multipart_chunks,
@@ -671,12 +688,32 @@ cdef class MultiPartFormData(StreamedContent):
 
             # Stream the part data
             async for chunk in part.stream():
+                if self._disposed:
+                    break
                 yield chunk
 
             yield b"\r\n"
 
         # Write final boundary
         yield b"--" + self.boundary + b"--\r\n"
+
+    def dispose(self):
+        super().dispose()
+        self._disposed = True
+
+        for part in self.parts:
+            try:
+                file = part.file
+            except TypeError:
+                pass
+            else:
+                try:
+                    file.close()
+                except Exception as e:
+                    logger.exception(
+                        "MultiPartFormData: failed to close file for part '%s' during disposal",
+                        part.name.decode('utf-8', errors='replace')
+                    )
 
 
 cdef class ServerSentEvent:

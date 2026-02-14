@@ -7,6 +7,7 @@ from typing import (
     Awaitable,
     BinaryIO,
     Callable,
+    Iterable,
     Union,
 )
 
@@ -490,6 +491,10 @@ class MultiPartFormData(Content):
         super().__init__(b"multipart/form-data; boundary=" + self.boundary, b"")
 
     def stream(self) -> AsyncIterable[bytes]: ...
+    def dispose(self) -> None: ...
+    @staticmethod
+    def try_dispose_parts(parts: Iterable[FormPart]) -> None: ...
+
 
 def parse_www_form(content: str) -> dict[str, str | list[str]]: ...
 def write_www_form_urlencoded(

@@ -12,9 +12,8 @@ from guardpost import Identity
 
 from blacksheep.multipart import (
     get_boundary_from_header,
-    parse_multipart,
     parse_multipart_async,
-    simplify_multipart_data,
+    simplify_multipart_data
 )
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings
@@ -24,6 +23,7 @@ from .contents import (
     ASGIContent,
     Content,
     FormPart,
+    MultiPartFormData,
     StreamedContent,
     StreamingFormPart,
     parse_www_form_urlencoded,
@@ -667,11 +667,9 @@ class Request(Message):
 
     def dispose(self):
         if hasattr(self, "_form_data") and self._form_data:
-            for parts in self._form_data.values():
-                for part in parts:
-                    if part.file:
-                        part.file.close()
-        self.content.dispose()  # type: ignore
+            MultiPartFormData.try_dispose_parts(self._form_data.values())
+        if self.content is not None:
+            self.content.dispose()
 
 
 class Response(Message):

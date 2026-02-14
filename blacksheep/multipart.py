@@ -1,7 +1,7 @@
 import warnings
 from typing import AsyncIterable, Generator, Iterable
 
-from blacksheep.contents import FormPart, StreamingFormPart
+from blacksheep.contents import FormPart, StreamedFormPart
 
 
 def get_boundary_from_header(value: bytes) -> bytes:
@@ -156,9 +156,9 @@ def _decode(value: bytes | None) -> str | None:
 
 async def parse_multipart_async(
     stream: AsyncIterable[bytes], boundary: bytes
-) -> AsyncIterable[StreamingFormPart]:
+) -> AsyncIterable[StreamedFormPart]:
     """
-    Parses multipart/form-data from an async stream, yielding StreamingFormPart
+    Parses multipart/form-data from an async stream, yielding StreamedFormPart
     objects for all parts (both files and form fields).
 
     This implementation provides true streaming support for all multipart parts,
@@ -175,7 +175,7 @@ async def parse_multipart_async(
         boundary: The boundary bytes from the Content-Type header
 
     Yields:
-        StreamingFormPart objects for all parts (data accessed via stream() or read())
+        StreamedFormPart objects for all parts (data accessed via stream() or read())
 
     Example:
         ```python
@@ -345,7 +345,7 @@ async def parse_multipart_async(
         current_data_gen = data_generator()
 
         # Yield the streaming part
-        yield StreamingFormPart(
+        yield StreamedFormPart(
             _decode(name),
             current_data_gen,
             _decode(content_type),

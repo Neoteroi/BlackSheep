@@ -474,3 +474,50 @@ async def test_bidirectional_streaming(session):
 
     # Verify uploaded file
     assert_files_equals("./out/bidirectional-test.jpg", file_path)
+
+
+async def test_multipart_stream_with_field_and_file(session):
+    """
+    Test multipart_stream handling with FormPart.field() and FormPart.from_file().
+    This verifies proper handling of mixed form fields and file uploads.
+    """
+    if os.path.exists("out"):
+        shutil.rmtree("out")
+
+    # Prepare file path
+    file_path = get_static_path("pexels-photo-923360.jpeg")
+
+    # Create multipart data using the convenience methods
+    parts = [
+        # Text field - use field() method
+        FormPart.field(
+            "description",
+            "Important documents for review",
+        ),
+        # File upload - use from_file() method
+        FormPart.from_file(
+            "attachment",
+            file_path,
+        ),
+    ]
+
+    # Create multipart content
+    content = MultiPartFormData(parts)
+
+    response = await session.post(
+        "/upload-multipart-stream",
+        content=content,
+    )
+    ensure_success(response)
+
+    # Verify response
+    data = await response.json()
+
+    assert data["folder"] == "out"
+    assert data["fields"]["description"] == "Important documents for review"
+    assert len(data["files"]) == 1
+    assert data["files"][0]["name"] == "pexels-photo-923360.jpeg"
+    assert data["files"][0]["size"] > 0
+
+    # Verify the uploaded file
+    assert_files_equals("./out/pexels-photo-923360.jpeg", file_path)

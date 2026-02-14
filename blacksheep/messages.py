@@ -25,7 +25,7 @@ from .contents import (
     FormPart,
     MultiPartFormData,
     StreamedContent,
-    StreamingFormPart,
+    StreamedFormPart,
     parse_www_form_urlencoded,
 )
 from .cookies import Cookie, parse_cookie, split_value, write_cookie_for_response
@@ -80,7 +80,7 @@ async def _multipart_to_dict_streaming(
     - Form fields: Buffered in memory with size limits
 
     Args:
-        stream_iter: Async iterator of StreamingFormPart objects
+        stream_iter: Async iterator of StreamedFormPart objects
         spool_max_size: Threshold for spooling files to disk (default: 1MB)
 
     Returns:
@@ -88,7 +88,7 @@ async def _multipart_to_dict_streaming(
     """
     data = defaultdict(list)
 
-    part: StreamingFormPart
+    part: StreamedFormPart
     async for part in stream_iter:
         key = part.name
 

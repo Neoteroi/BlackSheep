@@ -244,7 +244,7 @@ class FormPart:
         self.size = size
 
     @classmethod
-    def from_field(
+    def field(
         cls,
         name: str,
         value: str | bytes,
@@ -273,17 +273,17 @@ class FormPart:
 
         Examples:
             # Simple text field
-            username = FormPart.from_field("username", "john_doe")
+            username = FormPart.field("username", "john_doe")
 
             # Field with custom content type
-            json_data = FormPart.from_field(
+            json_data = FormPart.field(
                 "metadata",
                 '{"version": "1.0"}',
                 content_type="application/json"
             )
 
             # Pre-encoded bytes
-            binary_field = FormPart.from_field("data", b"\x00\x01\x02")
+            binary_field = FormPart.field("data", b"\x00\x01\x02")
         """
         ...
 
@@ -471,11 +471,11 @@ class FileBuffer:
     @classmethod
     def from_form_part(cls, form_part: FormPart): ...
 
-class StreamingFormPart:
+class StreamedFormPart:
     """
     Represents a streaming part of a multipart/form-data request.
 
-    Unlike FormPart, which uses a SpooledTemporaryFile, StreamingFormPart provides
+    Unlike FormPart, which uses a SpooledTemporaryFile, StreamedFormPart provides
     access to streams of bytes as they are parsed in a multipart/form-data request.
 
     Attributes:
@@ -507,6 +507,14 @@ class StreamingFormPart:
         self.charset = charset
         self._data_stream = data_stream
 
+    async def read(self) -> bytes:
+        """
+        Read the entire part stream and return it as bytes.
+
+        **Warning:** use this method only if you expect small
+        multipart/form-data fields or files.
+        """
+
     def stream(self) -> AsyncIterable[bytes]:
         """
         Stream the form part content as bytes.
@@ -518,7 +526,6 @@ class StreamingFormPart:
         Yields:
             Chunks of binary data as they are received.
         """
-        ...
 
     async def save_to(self, path: str) -> int:
         """
@@ -533,7 +540,6 @@ class StreamingFormPart:
         Returns:
             The number of bytes written to the file.
         """
-        ...
 
     def __repr__(self) -> str: ...
 

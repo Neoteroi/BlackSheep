@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `Request.dispose()` method to properly clean up `SpooledTemporaryFile` resources and prevent resource leaks when handling file uploads.
   - Add `FileBuffer` class wrapping `SpooledTemporaryFile` to provide a clean API for uploaded files with `read()`, `seek()`, `close()`, and `save_to()` methods.
   - Add `FormPart.stream()` async generator method to stream part data in chunks.
-  - Add `save_to()` method to `FormPart`, `FileBuffer`, and `StreamingFormPart` for saving uploaded data to disk with automatic security validation via `ensure_in_cwd()` to prevent directory traversal attacks.
-  - Add `FormPart.from_field()` class method as a convenience for creating form parts from string values without manual encoding (accepts `name`, `value`, optional `content_type` and `charset`).
+  - Add `save_to()` method to `FormPart`, `FileBuffer`, and `StreamedFormPart` for saving uploaded data to disk with automatic security validation via `ensure_in_cwd()` to prevent directory traversal attacks.
+  - Add `FormPart.field()` class method as a convenience for creating form parts from string values without manual encoding (accepts `name`, `value`, optional `content_type` and `charset`).
   - Add `FormPart.from_file()` class method as a convenience for creating file upload parts that automatically opens files, detects MIME types from file extensions, and handles both file paths and pre-opened file handles.
   - `FormPart` instances provide better memory management and a cleaner API.
   - The framework automatically calls `Request.dispose()` at the end of each request-response cycle to clean up file resources.

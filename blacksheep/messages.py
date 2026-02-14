@@ -667,7 +667,8 @@ class Request(Message):
 
     def dispose(self):
         if hasattr(self, "_form_data") and self._form_data:
-            MultiPartFormData.try_dispose_parts(self._form_data.values())
+            for parts in self._form_data.values():
+                MultiPartFormData.try_dispose_parts(parts)
         if self.content is not None:
             self.content.dispose()
 

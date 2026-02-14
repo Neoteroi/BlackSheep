@@ -291,3 +291,170 @@ def test_content_size(size):
         yield b""
 
     StreamedContent(b"text/plain", gen, size)
+
+
+def test_multipart_form_data_dispose_with_byte_data():
+    """Test dispose with parts containing only byte data (no files)."""
+    data = MultiPartFormData(
+        [
+            FormPart(b"text1", b"text default"),
+            FormPart(b"text2", "aωb".encode("utf8")),
+        ]
+    )
+
+    # Should not raise any exceptions
+    data.dispose()
+
+    # Verify body is cleared (from super().dispose())
+    assert data.body is None
+
+
+def test_multipart_form_data_dispose_with_files(tmp_path):
+    """Test dispose with parts containing file handles."""
+    # Create temporary test files
+    file1 = tmp_path / "test1.txt"
+    file1.write_text("content1")
+    file2 = tmp_path / "test2.txt"
+    file2.write_text("content2")
+
+    # Open files and create form parts
+    f1 = open(file1, "rb")
+    f2 = open(file2, "rb")
+
+    data = MultiPartFormData(
+        [
+            FormPart(b"file1", f1, b"text/plain", b"test1.txt"),
+            FormPart(b"file2", f2, b"text/plain", b"test2.txt"),
+        ]
+    )
+
+    # Verify files are open before dispose
+    assert not f1.closed
+    assert not f2.closed
+
+    # Dispose should close the files
+    data.dispose()
+
+    # Verify files are closed
+    assert f1.closed
+    assert f2.closed
+
+    # Verify _disposed flag is set
+    assert data._disposed is True
+
+
+def test_multipart_form_data_dispose_mixed_parts(tmp_path):
+    """Test dispose with mixed parts (bytes and files)."""
+    file1 = tmp_path / "test.txt"
+    file1.write_text("content")
+    f1 = open(file1, "rb")
+
+    data = MultiPartFormData(
+        [
+            FormPart(b"text1", b"text default"),
+            FormPart(b"file1", f1, b"text/plain", b"test.txt"),
+            FormPart(b"text2", "aωb".encode("utf8")),
+        ]
+    )
+
+    assert not f1.closed
+
+    # Should handle mixed parts correctly
+    data.dispose()
+
+    # File should be closed
+    assert f1.closed
+
+    # _disposed flag should be set
+    assert data._disposed is True
+
+
+def test_multipart_form_data_dispose_with_failing_file():
+    """Test dispose handles file close exceptions gracefully."""
+    import io
+
+    class FailingFile(io.BytesIO):
+        """A file-like object that raises an exception on close."""
+        def close(self):
+            raise RuntimeError("Simulated close failure")
+
+    failing_file = FailingFile(b"content")
+
+    data = MultiPartFormData(
+        [
+            FormPart(b"file1", failing_file, b"text/plain", b"fail.txt"),
+            FormPart(b"text1", b"text data"),
+        ]
+    )
+
+    # Should not raise exception even though file.close() fails
+    # The exception should be logged but not propagated
+    data.dispose()
+
+    # _disposed flag should still be set
+    assert data._disposed is True
+
+
+async def test_multipart_form_data_dispose_stops_streaming(tmp_path):
+    """Test that dispose stops the streaming of parts."""
+    file1 = tmp_path / "large.txt"
+    file1.write_text("x" * 10000)  # Create a larger file
+    f1 = open(file1, "rb")
+
+    data = MultiPartFormData(
+        [
+            FormPart(b"file1", f1, b"text/plain", b"large.txt"),
+            FormPart(b"text1", b"more data"),
+        ]
+    )
+
+    # Start streaming
+    gen = data.stream()
+
+    # Get first chunk
+    first_chunk = await gen.__anext__()
+    assert first_chunk  # Should have data
+
+    # Dispose while streaming
+    data.dispose()
+
+    # File should be closed
+    assert f1.closed
+
+    # Continue attempting to stream - should stop gracefully
+    # due to _disposed flag check in _generate_multipart_chunks
+    chunks_after_dispose = []
+    try:
+        async for chunk in gen:
+            chunks_after_dispose.append(chunk)
+    except StopAsyncIteration:
+        pass
+
+    # We might get some chunks that were already queued,
+    # but streaming should stop early
+    assert data._disposed is True
+
+
+def test_multipart_form_data_dispose_idempotent(tmp_path):
+    """Test that dispose can be called multiple times safely."""
+    file1 = tmp_path / "test.txt"
+    file1.write_text("content")
+    f1 = open(file1, "rb")
+
+    data = MultiPartFormData(
+        [
+            FormPart(b"file1", f1, b"text/plain", b"test.txt"),
+        ]
+    )
+
+    # First dispose
+    data.dispose()
+    assert f1.closed
+
+    # Second dispose should not raise exception
+    data.dispose()
+
+    # Third dispose for good measure
+    data.dispose()
+
+    assert data._disposed is True

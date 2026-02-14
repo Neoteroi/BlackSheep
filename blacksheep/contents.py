@@ -132,7 +132,7 @@ class ASGIContent(Content):
         receive: The ASGI receive callable for getting messages.
     """
 
-    def __init__(self, receive: Receive):
+    def __init__(self, receive):
         """
         Initialize ASGIContent with an ASGI receive callable.
 
@@ -449,6 +449,10 @@ class FormPart:
             # For small in-memory data, yield it all at once
             yield self._data
         elif self._file:
+            if self._file.closed:
+                yield b""
+                return
+
             self._file.seek(0)
             while True:
                 chunk = await asyncio.to_thread(self._file.read, chunk_size)
@@ -739,6 +743,8 @@ class MultiPartFormData(StreamedContent):
             except TypeError:
                 pass
             else:
+                if file.closed:
+                    continue
                 try:
                     file.close()
                 except Exception:

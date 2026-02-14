@@ -338,7 +338,7 @@ class FormPart:
         """
         ...
 
-    def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
+    def stream(self, chunk_size: int = 131072) -> AsyncIterator[bytes]:
         """
         Stream the form part content in chunks.
 
@@ -346,7 +346,7 @@ class FormPart:
         data in chunks instead of loading everything into memory at once.
 
         Args:
-            chunk_size: The size of each chunk in bytes (default: 8192).
+            chunk_size: The size of each chunk in bytes (default: 131072).
 
         Yields:
             Chunks of binary data.

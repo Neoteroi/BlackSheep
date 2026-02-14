@@ -4239,7 +4239,7 @@ async def test_form_part_stream_with_file():
     from tempfile import SpooledTemporaryFile
 
     # Create test data larger than default chunk size to test chunking
-    test_data = b"A" * 10000 + b"B" * 5000 + b"C" * 3000
+    test_data = b"A" * 100000 + b"B" * 50000 + b"C" * 30000
 
     # Create a SpooledTemporaryFile with the test data
     file = SpooledTemporaryFile(max_size=1024)

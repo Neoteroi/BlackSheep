@@ -217,8 +217,8 @@ async def parse_multipart_async(
         ```python
         async for part in parse_multipart_async(stream, boundary):
             if part.file_name:
-                # File upload - stream to disk
-                await part.save_to(f"uploads/{part.file_name.decode()}")
+                # Stream large files directly to disk
+                await part.save_to(f"uploads/{part.file_name}")
             else:
                 # Form field - read value
                 value = await part.read()
@@ -384,24 +384,21 @@ async def parse_multipart_async(
                 return
             continue
 
-        # Create data generator for this part and eagerly read all data
-        # This allows parts to be stored and consumed later
+        # Create data generator for this part
         current_data_gen = data_generator()
-        part_data = bytearray()
-        async for chunk in current_data_gen:
-            part_data.extend(chunk)
-        current_data_gen = None  # Mark as consumed
 
-        # Yield the part with data already read
+        # Yield the streaming part
         yield StreamedFormPart(
             _decode(name),
-            bytes(part_data),
+            current_data_gen,
             _decode(content_type),
             _decode(filename),
             _decode(charset),
         )
 
-        # Data already consumed, skip to next boundary
+        # After yield returns (caller asked for next part), drain any unconsumed
+        # data and skip to the next boundary
+        await drain_current_part()
         if not await skip_to_boundary():
             return
 

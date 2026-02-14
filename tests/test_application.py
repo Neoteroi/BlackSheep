@@ -4281,8 +4281,8 @@ async def test_form_part_save_to_with_bytes():
     """
     Test that FormPart.save_to() correctly saves bytes data to a file.
     """
-    from tempfile import NamedTemporaryFile
     import os
+    from tempfile import NamedTemporaryFile
 
     ensure_folder("tests/out")
 
@@ -4316,8 +4316,8 @@ async def test_form_part_save_to_with_file():
     """
     Test that FormPart.save_to() correctly saves file data to a file.
     """
-    from tempfile import SpooledTemporaryFile
     import os
+    from tempfile import SpooledTemporaryFile
 
     ensure_folder("tests/out")
 
@@ -4369,11 +4369,15 @@ async def test_form_part_save_to_raises_for_path_outside_cwd():
     )
 
     # Try to save to a path outside the current working directory
-    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
         await part.save_to("/tmp/../../etc/passwd")
 
     # Try another path traversal
-    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
         await part.save_to("../../../etc/passwd")
 
 
@@ -4381,8 +4385,8 @@ async def test_file_buffer_save_to():
     """
     Test that FileBuffer.save_to() correctly saves file data to a file.
     """
-    from tempfile import SpooledTemporaryFile
     import os
+    from tempfile import SpooledTemporaryFile
 
     ensure_folder("tests/out")
 
@@ -4446,11 +4450,15 @@ async def test_file_buffer_save_to_raises_for_path_outside_cwd():
     )
 
     # Try to save to a path outside the current working directory
-    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
         await file_buffer.save_to("/tmp/../../etc/passwd")
 
     # Try another path traversal
-    with pytest.raises(ValueError, match="Cannot save file outside current working directory"):
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
         await file_buffer.save_to("../../../etc/passwd")
 
     # Clean up
@@ -4490,9 +4498,7 @@ async def test_form_part_from_field_with_custom_content_type():
     Test FormPart.from_field() with custom content type.
     """
     part = FormPart.from_field(
-        "json_data",
-        '{"key": "value"}',
-        content_type="application/json"
+        "json_data", '{"key": "value"}', content_type="application/json"
     )
 
     assert part.name == b"json_data"
@@ -4504,11 +4510,7 @@ async def test_form_part_from_field_with_custom_charset():
     """
     Test FormPart.from_field() with custom charset.
     """
-    part = FormPart.from_field(
-        "text",
-        "Hello, World!",
-        charset="latin-1"
-    )
+    part = FormPart.from_field("text", "Hello, World!", charset="latin-1")
 
     assert part.name == b"text"
     assert part.data == "Hello, World!".encode("latin-1")
@@ -4528,10 +4530,7 @@ async def test_form_part_from_file():
     file.seek(0)
 
     part = FormPart.from_file(
-        "photo",
-        "photo.jpg",
-        file=file,
-        content_type="image/jpeg"
+        "photo", "photo.jpg", file=file, content_type="image/jpeg"
     )
 
     assert part.name == b"photo"
@@ -4547,8 +4546,8 @@ async def test_form_part_from_file_stream_and_save():
     """
     Test that FormPart created with from_file() can be streamed and saved.
     """
-    from tempfile import SpooledTemporaryFile
     import os
+    from tempfile import SpooledTemporaryFile
 
     ensure_folder("tests/out")
 
@@ -4559,10 +4558,7 @@ async def test_form_part_from_file_stream_and_save():
     file.seek(0)
 
     part = FormPart.from_file(
-        "upload",
-        "test.bin",
-        file=file,
-        content_type="application/octet-stream"
+        "upload", "test.bin", file=file, content_type="application/octet-stream"
     )
 
     # Test streaming

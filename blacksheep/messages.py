@@ -13,7 +13,7 @@ from guardpost import Identity
 from blacksheep.multipart import (
     get_boundary_from_header,
     parse_multipart_async,
-    simplify_multipart_data
+    simplify_multipart_data,
 )
 from blacksheep.settings.encodings import encodings_settings
 from blacksheep.settings.json import json_settings

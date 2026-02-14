@@ -325,6 +325,7 @@ class FormPart:
         instead for memory-efficient processing of large content.
         """
         ...
+
     @property
     def file(self) -> BinaryIO:
         """
@@ -337,6 +338,7 @@ class FormPart:
             The file-like object containing the file data.
         """
         ...
+
     def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
         """
         Stream the form part content in chunks.
@@ -351,6 +353,7 @@ class FormPart:
             Chunks of binary data.
         """
         ...
+
     async def save_to(self, path: str) -> int:
         """
         Save the form part content to a file.
@@ -365,6 +368,7 @@ class FormPart:
             InvalidOperation: If the path is outside the current working directory.
         """
         ...
+
     def __eq__(self, other) -> bool:
         """
         Compare this FormPart with another object for equality.
@@ -473,6 +477,7 @@ class StreamingFormPart:
             Chunks of binary data as they are received.
         """
         ...
+
     async def save_to(self, path: str) -> int:
         """
         Save the streamed form part content to a file.
@@ -487,8 +492,8 @@ class StreamingFormPart:
             The number of bytes written to the file.
         """
         ...
-    def __repr__(self) -> str: ...
 
+    def __repr__(self) -> str: ...
 
 class MultiPartFormData(Content):
     """
@@ -508,7 +513,6 @@ class MultiPartFormData(Content):
     def dispose(self) -> None: ...
     @staticmethod
     def try_dispose_parts(parts: Iterable[FormPart]) -> None: ...
-
 
 def parse_www_form(content: str) -> dict[str, str | list[str]]: ...
 def write_www_form_urlencoded(

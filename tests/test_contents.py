@@ -375,6 +375,7 @@ def test_multipart_form_data_dispose_with_failing_file():
 
     class FailingFile(io.BytesIO):
         """A file-like object that raises an exception on close."""
+
         def close(self):
             raise RuntimeError("Simulated close failure")
 

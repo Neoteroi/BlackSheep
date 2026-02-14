@@ -11,7 +11,6 @@ from blacksheep.common.files.pathsutils import get_mime_type_from_name
 from blacksheep.exceptions import MessageAborted
 from blacksheep.settings.json import json_settings
 
-
 logger = logging.getLogger("blacksheep.server")
 
 
@@ -34,11 +33,10 @@ def ensure_in_cwd(path: str) -> None:
         raise ValueError("Cannot save file outside current working directory.")
 
 
-
 class Content:
     def __init__(self, content_type: bytes, data: bytes):
         self.type = content_type
-        self.body  = data
+        self.body = data
         self.length = len(data)
 
     async def read(self) -> bytes:
@@ -64,6 +62,7 @@ class StreamedContent(Content):
         length: The content length in bytes, or -1 if unknown.
         generator: The async generator function that produces content chunks.
     """
+
     def __init__(self, content_type: bytes, data_provider, data_length: int = -1):
         self.type = content_type
         self.body = None
@@ -763,7 +762,7 @@ class MultiPartFormData(StreamedContent):
                 except Exception:
                     logger.exception(
                         "MultiPartFormData: failed to close file for part '%s' during disposal",
-                        part.name.decode('utf-8', errors='replace')
+                        part.name.decode("utf-8", errors="replace"),
                     )
 
 

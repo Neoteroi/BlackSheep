@@ -9,6 +9,7 @@ from typing import (
     Callable,
     Iterable,
     Union,
+    cast,
 )
 
 class Content:
@@ -202,6 +203,15 @@ class FormPart:
         "size",
     )
 
+    # Type annotations for attributes
+    name: bytes
+    _data: bytes | None
+    _file: BinaryIO | None
+    file_name: bytes | None
+    content_type: bytes | None
+    charset: bytes | None
+    size: int
+
     def __init__(
         self,
         name: bytes,
@@ -223,8 +233,12 @@ class FormPart:
             size: The size of the content in bytes (default: 0).
         """
         self.name = name
-        self._data = data if isinstance(data, bytes) else None
-        self._file = data if not isinstance(data, bytes) else None
+        if isinstance(data, bytes):
+            self._data = cast(bytes, data)
+            self._file = None
+        else:
+            self._data = None
+            self._file = cast(BinaryIO, data)
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset

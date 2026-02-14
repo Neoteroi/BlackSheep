@@ -25,7 +25,7 @@ from blacksheep import (
     Response,
     TextContent,
 )
-from blacksheep.contents import FormPart
+from blacksheep.contents import FileBuffer, FormPart
 from blacksheep.exceptions import (
     Conflict,
     InternalServerError,
@@ -4209,6 +4209,378 @@ async def test_application_sse_plain_text():
         "data: Hello World 0\n\n" "data: Hello World 1\n\n" "data: Hello World 2\n\n"
     )
     assert streamed_data.decode("utf-8") == expected_events
+
+
+async def test_form_part_stream_with_bytes():
+    """
+    Test that FormPart.stream() correctly yields bytes data.
+    """
+    data = b"Hello, World! This is test data."
+    part = FormPart(
+        name=b"test_field",
+        data=data,
+        content_type=b"text/plain",
+    )
+
+    chunks = []
+
+    async for chunk in part.stream():
+        chunks.append(chunk)
+
+    assert len(chunks) == 1
+    assert chunks[0] == data
+    assert b"".join(chunks) == data
+
+
+async def test_form_part_stream_with_file():
+    """
+    Test that FormPart.stream() correctly yields file data in chunks.
+    """
+    from tempfile import SpooledTemporaryFile
+
+    # Create test data larger than default chunk size to test chunking
+    test_data = b"A" * 100000 + b"B" * 50000 + b"C" * 30000
+
+    # Create a SpooledTemporaryFile with the test data
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart(
+        name=b"test_file",
+        data=file,
+        file_name=b"test.bin",
+        content_type=b"application/octet-stream",
+        size=len(test_data),
+    )
+
+    # Stream with default chunk size
+    chunks = []
+    async for chunk in part.stream():
+        chunks.append(chunk)
+
+    # Verify we got multiple chunks
+    assert len(chunks) > 1
+    # Verify all data is correct when reassembled
+    assert b"".join(chunks) == test_data
+
+    # Test with custom chunk size
+    part.file.seek(0)  # Reset file position
+    chunks_small = []
+    async for chunk in part.stream(chunk_size=1024):
+        chunks_small.append(chunk)
+
+    assert len(chunks_small) > len(chunks)
+    assert b"".join(chunks_small) == test_data
+
+    # Clean up
+    file.close()
+
+
+async def test_form_part_save_to_with_bytes():
+    """
+    Test that FormPart.save_to() correctly saves bytes data to a file.
+    """
+    import os
+    from tempfile import NamedTemporaryFile
+
+    ensure_folder("tests/out")
+
+    test_data = b"Hello, World! This is test data for FormPart."
+
+    part = FormPart(
+        name=b"test_field",
+        data=test_data,
+        content_type=b"text/plain",
+    )
+
+    # Save to a file in the tests/out directory
+    test_path = "tests/out/test_form_part_bytes.txt"
+    try:
+        bytes_written = await part.save_to(test_path)
+
+        # Verify bytes written
+        assert bytes_written == len(test_data)
+
+        # Verify file contents
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+    finally:
+        # Clean up
+        if os.path.exists(test_path):
+            os.remove(test_path)
+
+
+async def test_form_part_save_to_with_file():
+    """
+    Test that FormPart.save_to() correctly saves file data to a file.
+    """
+    import os
+    from tempfile import SpooledTemporaryFile
+
+    ensure_folder("tests/out")
+
+    # Create test data
+    test_data = b"A" * 10000 + b"B" * 5000 + b"C" * 3000
+
+    # Create a SpooledTemporaryFile with the test data
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart(
+        name=b"test_file",
+        data=file,
+        file_name=b"test.bin",
+        content_type=b"application/octet-stream",
+        size=len(test_data),
+    )
+
+    # Save to a file in the tests/out directory
+    test_path = "tests/out/test_form_part_file.bin"
+    try:
+        bytes_written = await part.save_to(test_path)
+
+        # Verify bytes written
+        assert bytes_written == len(test_data)
+
+        # Verify file contents
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+    finally:
+        # Clean up
+        file.close()
+        if os.path.exists(test_path):
+            os.remove(test_path)
+
+
+async def test_form_part_save_to_raises_for_path_outside_cwd():
+    """
+    Test that FormPart.save_to() raises ValueError when trying to save outside CWD.
+    """
+    test_data = b"Test data"
+
+    part = FormPart(
+        name=b"test_field",
+        data=test_data,
+        content_type=b"text/plain",
+    )
+
+    # Try to save to a path outside the current working directory
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
+        await part.save_to("/tmp/../../etc/passwd")
+
+    # Try another path traversal
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
+        await part.save_to("../../../etc/passwd")
+
+
+async def test_file_buffer_save_to():
+    """
+    Test that FileBuffer.save_to() correctly saves file data to a file.
+    """
+    import os
+    from tempfile import SpooledTemporaryFile
+
+    ensure_folder("tests/out")
+
+    # Create test data
+    test_data = b"FileBuffer test data: " + b"X" * 5000
+
+    # Create a SpooledTemporaryFile with the test data
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    file_buffer = FileBuffer(
+        name="test_file",
+        file_name="test.bin",
+        file=file,
+        content_type="application/octet-stream",
+        size=len(test_data),
+    )
+
+    # Save to a file in the tests/out directory
+    test_path = "tests/out/test_file_buffer.bin"
+    try:
+        bytes_written = await file_buffer.save_to(test_path)
+
+        # Verify bytes written
+        assert bytes_written == len(test_data)
+
+        # Verify file contents
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+
+        # Verify the original file position is reset (can read again)
+        file.seek(0)
+        assert file.read() == test_data
+    finally:
+        # Clean up
+        file.close()
+        if os.path.exists(test_path):
+            os.remove(test_path)
+
+
+async def test_file_buffer_save_to_raises_for_path_outside_cwd():
+    """
+    Test that FileBuffer.save_to() raises ValueError when trying to save outside CWD.
+    """
+    from tempfile import SpooledTemporaryFile
+
+    test_data = b"Test data"
+
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    file_buffer = FileBuffer(
+        name="test_file",
+        file_name="test.bin",
+        file=file,
+        content_type="text/plain",
+        size=len(test_data),
+    )
+
+    # Try to save to a path outside the current working directory
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
+        await file_buffer.save_to("/tmp/../../etc/passwd")
+
+    # Try another path traversal
+    with pytest.raises(
+        ValueError, match="Cannot save file outside current working directory"
+    ):
+        await file_buffer.save_to("../../../etc/passwd")
+
+    # Clean up
+    file.close()
+
+
+async def test_form_part_from_field_with_string():
+    """
+    Test FormPart.from_field() class method with string value.
+    """
+    part = FormPart.from_field("username", "john_doe")
+
+    assert part.name == b"username"
+    assert part.data == b"john_doe"
+    assert part.content_type == b"text/plain; charset=utf-8"
+    assert part.charset == b"utf-8"
+    assert part.file_name is None
+    assert part.size == len(b"john_doe")
+
+
+async def test_form_part_from_field_with_bytes():
+    """
+    Test FormPart.from_field() class method with bytes value.
+    """
+    data = b"binary data here"
+    part = FormPart.from_field("data", data)
+
+    assert part.name == b"data"
+    assert part.data == data
+    assert part.content_type is None
+    assert part.charset == b"utf-8"
+    assert part.size == len(data)
+
+
+async def test_form_part_from_field_with_custom_content_type():
+    """
+    Test FormPart.from_field() with custom content type.
+    """
+    part = FormPart.from_field(
+        "json_data", '{"key": "value"}', content_type="application/json"
+    )
+
+    assert part.name == b"json_data"
+    assert part.data == b'{"key": "value"}'
+    assert part.content_type == b"application/json"
+
+
+async def test_form_part_from_field_with_custom_charset():
+    """
+    Test FormPart.from_field() with custom charset.
+    """
+    part = FormPart.from_field("text", "Hello, World!", charset="latin-1")
+
+    assert part.name == b"text"
+    assert part.data == "Hello, World!".encode("latin-1")
+    assert part.charset == b"latin-1"
+
+
+async def test_form_part_from_file():
+    """
+    Test FormPart.from_file() class method.
+    """
+    from tempfile import SpooledTemporaryFile
+
+    test_data = b"File content here!"
+
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart.from_file(
+        "photo", "photo.jpg", file=file, content_type="image/jpeg"
+    )
+
+    assert part.name == b"photo"
+    assert part.file_name == b"photo.jpg"
+    assert part.content_type == b"image/jpeg"
+    assert part.size > 0  # Should have detected file size
+    assert part.data == test_data
+
+    file.close()
+
+
+async def test_form_part_from_file_stream_and_save():
+    """
+    Test that FormPart created with from_file() can be streamed and saved.
+    """
+    import os
+    from tempfile import SpooledTemporaryFile
+
+    ensure_folder("tests/out")
+
+    test_data = b"A" * 5000 + b"B" * 3000
+
+    file = SpooledTemporaryFile(max_size=1024)
+    file.write(test_data)
+    file.seek(0)
+
+    part = FormPart.from_file(
+        "upload", "test.bin", file=file, content_type="application/octet-stream"
+    )
+
+    # Test streaming
+    chunks = []
+    async for chunk in part.stream():
+        chunks.append(chunk)
+
+    assert b"".join(chunks) == test_data
+
+    # Test saving
+    test_path = "tests/out/test_from_file.bin"
+    try:
+        bytes_written = await part.save_to(test_path)
+        assert bytes_written == len(test_data)
+
+        with open(test_path, "rb") as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+    finally:
+        file.close()
+        if os.path.exists(test_path):
+            os.remove(test_path)
 
 
 async def test_middlewares_execute_for_no_route_by_default():

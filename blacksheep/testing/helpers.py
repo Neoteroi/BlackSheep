@@ -106,7 +106,7 @@ def get_example_scope(
     # Remove default headers that are overridden by extra_headers
     extra_keys = {k for k, v in extra_headers} if extra_headers else set()
     headers = [h for h in headers if h[0] not in extra_keys]
-    headers += ([tuple(header) for header in extra_headers] if extra_headers else [])
+    headers += [tuple(header) for header in extra_headers] if extra_headers else []
     headers += cookies_headers
 
     return {

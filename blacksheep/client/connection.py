@@ -482,10 +482,13 @@ class HTTP2Connection(HTTPConnection):
                     self.last_used = time.time()
                     return await self._receive_response(stream_id)
 
+            DRAIN_THRESHOLD = 65536  # Drain every 64KB for network efficiency
             # Send body
             max_frame_size = self.h2_conn.max_outbound_frame_size
             if use_streaming:
-                # Stream the content in chunks
+                # Stream the content in chunks with batched drains
+                bytes_since_drain = 0
+
                 async for chunk in request.content.get_parts():
                     if chunk:
                         # Send chunk in frame-sized pieces
@@ -496,19 +499,32 @@ class HTTP2Connection(HTTPConnection):
                                 stream_id, frame_chunk, end_stream=False
                             )
                             self.writer.write(self.h2_conn.data_to_send())
-                            await self.writer.drain()
+                            bytes_since_drain += len(frame_chunk)
+
+                            # Only drain when we've buffered enough data
+                            if bytes_since_drain >= DRAIN_THRESHOLD:
+                                await self.writer.drain()
+                                bytes_since_drain = 0
+
                 # Send final empty frame with end_stream=True
                 self.h2_conn.send_data(stream_id, b"", end_stream=True)
                 self.writer.write(self.h2_conn.data_to_send())
                 await self.writer.drain()
             elif body:
-                # Handle flow control for large bodies
+                # Handle flow control for large bodies with batched drains
+                bytes_since_drain = 0
+
                 for i in range(0, len(body), max_frame_size):
                     chunk = body[i : i + max_frame_size]
                     is_last = i + max_frame_size >= len(body)
                     self.h2_conn.send_data(stream_id, chunk, end_stream=is_last)
                     self.writer.write(self.h2_conn.data_to_send())
-                    await self.writer.drain()
+                    bytes_since_drain += len(chunk)
+
+                    # Only drain when we've buffered enough data or on last chunk
+                    if bytes_since_drain >= DRAIN_THRESHOLD or is_last:
+                        await self.writer.drain()
+                        bytes_since_drain = 0
 
             self.request_count += 1
             self.last_used = time.time()
@@ -1076,10 +1092,14 @@ class HTTP11Connection(HTTPConnection):
             # Send body
             if use_streaming:
                 # Stream the content in chunks
+                # Note: For optimal performance, drain frequency should balance
+                # between context switch overhead and buffer utilization
                 async for chunk in request.content.get_parts():
                     if chunk:
                         data = self._h11_conn.send(h11.Data(data=chunk))
                         self.writer.write(data)
+                        # Drain after every chunk to avoid filling buffers
+                        # TODO: Make this configurable for different network scenarios
                         await self.writer.drain()
             elif body:
                 # Send body directly

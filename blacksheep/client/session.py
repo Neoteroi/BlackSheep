@@ -385,7 +385,9 @@ class ClientSession:
         if not request.has_header(b"user-agent"):
             request.add_header(b"user-agent", self.USER_AGENT)
 
-        return await self._send_using_connection(request)
+        response = await self._send_using_connection(request)
+        request.dispose()
+        return response
 
     async def _send_using_connection(self, request, attempt: int = 1) -> Response:
         connection = await self.get_connection(request.url)

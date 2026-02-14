@@ -1,15 +1,36 @@
 import asyncio
-import shutil
+import logging
+import os
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
-from tempfile import SpooledTemporaryFile
-from typing import Any, AsyncIterable
+from typing import IO, Any, AsyncIterable, AsyncIterator, Iterable, cast
 from urllib.parse import parse_qsl, quote_plus
 
+from blacksheep.common.files.pathsutils import get_mime_type_from_name
+from blacksheep.exceptions import MessageAborted
 from blacksheep.settings.json import json_settings
 
-from .exceptions import MessageAborted
+logger = logging.getLogger("blacksheep.server")
+
+
+def ensure_in_cwd(path: str) -> None:
+    """
+    Security check to ensure the given path is within the current working directory.
+
+    This function prevents directory traversal attacks by verifying that the
+    absolute path of the provided path starts with the current working directory.
+
+    Args:
+        path (str): The file path to validate.
+
+    Raises:
+        ValueError: If the path is outside the current working directory.
+    """
+    abs_path = os.path.abspath(path)
+    cwd = os.getcwd()
+    if not abs_path.startswith(cwd):
+        raise ValueError("Cannot save file outside current working directory.")
 
 
 class Content:
@@ -19,10 +40,29 @@ class Content:
         self.length = len(data)
 
     async def read(self) -> bytes:
-        return self.body
+        return self.body or b""
+
+    def dispose(self):
+        """
+        Dispose of the content.
+        """
+        self.body = None
 
 
 class StreamedContent(Content):
+    """
+    Represents content that is streamed in chunks rather than loaded entirely into memory.
+
+    This class is designed for efficient handling of large content by providing
+    streaming capabilities. It wraps an async generator that produces chunks of bytes.
+
+    Attributes:
+        type: The content type (MIME type) as bytes.
+        body: The full body content (bytes or None if not yet read).
+        length: The content length in bytes, or -1 if unknown.
+        generator: The async generator function that produces content chunks.
+    """
+
     def __init__(self, content_type: bytes, data_provider, data_length: int = -1):
         self.type = content_type
         self.body = None
@@ -32,6 +72,17 @@ class StreamedContent(Content):
             raise ValueError("Data provider must be an async generator")
 
     async def read(self):
+        """
+        Read and return all content as bytes.
+
+        This method loads the entire content into memory at once. For large
+        content, this can cause excessive memory usage and may lead to out-of-memory
+        errors. Use the `stream()` method instead for memory-efficient processing
+        of large content.
+
+        Returns:
+            The complete content as bytes.
+        """
         value = bytearray()
         async for chunk in self.generator():
             value.extend(chunk)
@@ -40,27 +91,75 @@ class StreamedContent(Content):
         return self.body
 
     async def stream(self):
+        """
+        Stream the content in chunks.
+
+        This method is the recommended way to process large content as it yields
+        chunks of data without loading everything into memory at once.
+
+        Yields:
+            Chunks of bytes from the content stream.
+        """
         async for chunk in self.generator():
             yield chunk
 
     async def get_parts(self):
+        """
+        Stream the content in chunks.
+
+        This is an alias for `stream()` and provides the same functionality.
+
+        Yields:
+            Chunks of bytes from the content stream.
+        """
         async for chunk in self.generator():
             yield chunk
 
 
 class ASGIContent(Content):
+    """
+    Represents content received from an ASGI application.
+
+    This class handles streaming content from ASGI messages, typically used
+    for request bodies in ASGI applications. It provides both streaming and
+    buffered reading capabilities.
+
+    Attributes:
+        type: The content type (MIME type), initially None.
+        body: The full body content (bytes or None if not yet read).
+        length: The content length in bytes, initially -1 (unknown).
+        receive: The ASGI receive callable for getting messages.
+    """
+
     def __init__(self, receive):
+        """
+        Initialize ASGIContent with an ASGI receive callable.
+
+        Args:
+            receive: An ASGI receive callable that returns awaitable messages.
+        """
         self.type = None
         self.body = None
         self.length = -1
         self.receive = receive
 
-    def dispose(self):
-        self.receive = None
-        self.body = None
-
     async def stream(self):
+        """
+        Stream the content from ASGI messages in chunks.
+
+        This method is the recommended way to process large content as it yields
+        chunks of data without loading everything into memory at once.
+
+        Yields:
+            Byte chunks from ASGI message bodies.
+
+        Raises:
+            MessageAborted: If the HTTP connection is disconnected.
+        """
         while True:
+            if self.receive is None:
+                break  # disposed
+
             message = await self.receive()
             if message.get("type") == "http.disconnect":
                 raise MessageAborted()
@@ -70,10 +169,22 @@ class ASGIContent(Content):
         yield b""
 
     async def read(self):
+        """
+        Read and return all content as bytes.
+
+        Returns:
+            The complete content as bytes.
+
+        Raises:
+            MessageAborted: If the HTTP connection is disconnected.
+        """
         if self.body is not None:
             return self.body
         value = bytearray()
         while True:
+            if self.receive is None:
+                break  # disposed
+
             message = await self.receive()
             if message.get("type") == "http.disconnect":
                 raise MessageAborted()
@@ -83,6 +194,16 @@ class ASGIContent(Content):
         self.body = bytes(value)
         self.length = len(self.body)
         return self.body
+
+    def dispose(self):
+        """
+        Dispose of the ASGI content by clearing references.
+
+        This method should be called when the content is no longer needed
+        to allow garbage collection and prevent memory leaks.
+        """
+        super().dispose()
+        self.receive = None
 
 
 class TextContent(Content):
@@ -122,43 +243,6 @@ def try_decode(value: bytes, encoding: str):
         return value.decode(encoding or "utf8")
     except Exception:
         return value
-
-
-def multiparts_to_dictionary(parts: list) -> dict:
-    data = {}
-    for part in parts:
-        key = part.name.decode("utf8")
-        charset = part.charset.encode() if part.charset else None
-        if part.file_name:
-            if key in data:
-                data[key].append(part)
-            else:
-                data[key] = [part]
-        else:
-            if key in data:
-                if isinstance(data[key], list):
-                    data[key].append(try_decode(part.data, charset))
-                else:
-                    data[key] = [data[key], try_decode(part.data, charset)]
-            else:
-                data[key] = try_decode(part.data, charset)
-    return data
-
-
-def write_multipart_part(part, destination: bytearray):
-    destination.extend(b'Content-Disposition: form-data; name="')
-    destination.extend(part.name)
-    destination.extend(b'"')
-    if part.file_name:
-        destination.extend(b'; filename="')
-        destination.extend(part.file_name)
-        destination.extend(b'"\r\n')
-    if part.content_type:
-        destination.extend(b"Content-Type: ")
-        destination.extend(part.content_type)
-    destination.extend(b"\r\n\r\n")
-    destination.extend(part.data)
-    destination.extend(b"\r\n")
 
 
 def write_www_form_urlencoded(data: dict | list) -> bytes:
@@ -205,44 +289,219 @@ class FormPart:
         "size",
     )
 
+    # Type annotations for attributes
+    name: bytes
+    _data: bytes | None
+    _file: IO[bytes] | None
+    file_name: bytes | None
+    content_type: bytes | None
+    charset: bytes | None
+    size: int
+
     def __init__(
         self,
         name: bytes,
-        data: bytes | SpooledTemporaryFile,
+        data: bytes | IO[bytes],
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
         size: int = 0,
     ):
         self.name = name
-        self._data = data if isinstance(data, bytes) else None
-        self._file = data if isinstance(data, SpooledTemporaryFile) else None
+        if isinstance(data, bytes):
+            self._data = data
+            self._file = None
+        else:
+            self._data = None
+            self._file = cast(IO[bytes], data)
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
         self.size = size
+
+    @classmethod
+    def from_field(
+        cls,
+        name: str,
+        value: str | bytes,
+        content_type: str | None = None,
+        charset: str = "utf-8",
+    ) -> "FormPart":
+        """
+        Create a FormPart for a simple text or string field in multipart/form-data.
+
+        This convenience method simplifies creating form parts for non-file fields
+        by accepting string parameters and automatically handling encoding. Use this
+        for typical form inputs like text fields, hidden inputs, or any field that
+        contains string data rather than binary file content.
+
+        Args:
+            name: The name of the form field (e.g., "username", "email").
+            value: The field value as a string or pre-encoded bytes.
+            content_type: MIME type for the field. If None and value is a string,
+                         defaults to "text/plain; charset={charset}".
+            charset: Character encoding to use when converting strings to bytes
+                    (default: "utf-8").
+
+        Returns:
+            A new FormPart instance with the field data encoded and ready for
+            multipart transmission.
+
+        Examples:
+            # Simple text field
+            username = FormPart.from_field("username", "john_doe")
+
+            # Field with custom content type
+            json_data = FormPart.from_field(
+                "metadata",
+                '{"version": "1.0"}',
+                content_type="application/json"
+            )
+
+            # Pre-encoded bytes
+            binary_field = FormPart.from_field("data", b"\x00\x01\x02")
+        """
+        data = value.encode(charset) if isinstance(value, str) else value
+
+        if content_type is None and isinstance(value, str):
+            content_type_bytes = f"text/plain; charset={charset}".encode("utf-8")
+        elif content_type:
+            content_type_bytes = content_type.encode("utf-8")
+        else:
+            content_type_bytes = None
+
+        return cls(
+            name=name.encode("utf-8"),
+            data=data,
+            content_type=content_type_bytes,
+            charset=charset.encode("utf-8"),
+            size=len(data),
+        )
+
+    @classmethod
+    def from_file(
+        cls,
+        part_name: str,
+        file_path: str,
+        file: IO[bytes] | None = None,
+        content_type: str | None = None,
+    ) -> "FormPart":
+        """
+        Create a FormPart for uploading a file from the filesystem.
+
+        This method creates a multipart form part for file uploads. It can either
+        automatically open a file from the filesystem or use an already-opened file
+        handle. The file content is read lazily and can be streamed efficiently for
+        large files.
+
+        Args:
+            part_name: The name of the form field (e.g., "avatar", "document").
+            file_path: Path to the file on the filesystem. This path is used to:
+                      - Determine the filename sent in the multipart data
+                      - Infer the MIME type if content_type is not provided
+                      - Open the file (if 'file' parameter is None)
+                      Note: Only the basename is used as the filename.
+            file: Optional file-like object opened in binary mode. If provided,
+                 this file handle will be used instead of opening file_path.
+                 You are responsible for closing the file after the request completes.
+                 If None, the file at file_path will be opened automatically.
+            content_type: MIME type for the file (e.g., "image/jpeg", "application/pdf").
+                         If None, the type is automatically inferred from the file
+                         extension in file_path.
+
+        Returns:
+            A new FormPart instance configured for file upload.
+
+        Note:
+            When the file is auto-opened (file=None), FormPart will manage the file
+            handle. When you provide a file handle, you must close it yourself after
+            the multipart data is sent.
+
+        Examples:
+            # Upload a file (auto-opens and manages the file)
+            photo = FormPart.from_file("photo", "vacation.jpg")
+
+            # Upload with explicit MIME type
+            doc = FormPart.from_file(
+                "document",
+                "report.pdf",
+                content_type="application/pdf"
+            )
+
+            # Use an already-opened file handle
+            with open("large_video.mp4", "rb") as f:
+                video = FormPart.from_file(
+                    "video",
+                    "large_video.mp4",
+                    file=f,
+                    content_type="video/mp4"
+                )
+                # Send the multipart request here while file is open
+            # File is closed when exiting the context manager
+
+            # Upload file from a different location with custom filename
+            data = FormPart.from_file(
+                "attachment",
+                "/tmp/generated_file.dat",  # Actual file location
+                content_type="application/octet-stream"
+            )
+        """
+        # We cannot close the file while used by FormPart
+        specified_file = file is not None
+        file = open(file_path, mode="rb") if file is None else file
+        file_name = (
+            os.path.basename(file_path)
+            if specified_file
+            else os.path.basename(file.name)
+        )
+
+        # Get file size if possible
+        size = 0
+        try:
+            current_pos = file.tell()
+            file.seek(0, 2)  # Seek to end
+            size = file.tell()
+            file.seek(current_pos)  # Restore position
+        except (OSError, AttributeError):
+            # File doesn't support seeking
+            pass
+
+        if content_type is None:
+            # Try obtaining mime type from the file name
+            content_type = get_mime_type_from_name(file_path)
+
+        return cls(
+            name=part_name.encode("utf-8"),
+            data=file,
+            file_name=file_name.encode("utf-8"),
+            content_type=content_type.encode("utf-8") if content_type else None,
+            charset=None,
+            size=size,
+        )
 
     @property
     def data(self) -> bytes:
         if isinstance(self._data, bytes):
             return self._data
         if self._file:
+            if self._file.closed:
+                return b""
             self._file.seek(0)
             return self._file.read()
         return b""
 
     @property
-    def file(self) -> SpooledTemporaryFile:
+    def file(self) -> IO[bytes]:
         if self._file is None:
             raise TypeError("Missing file data")
         return self._file
 
-    async def stream(self, chunk_size: int = 8192) -> AsyncIterable[bytes]:
+    async def stream(self, chunk_size: int = 131072) -> AsyncIterator[bytes]:
         """
         Async generator that yields the data in chunks.
 
         Args:
-            chunk_size: Size of each chunk in bytes (default: 8192).
+            chunk_size: Size of each chunk in bytes (default: 131072 = 128KB).
 
         Yields:
             Byte chunks of the form part data.
@@ -251,13 +510,22 @@ class FormPart:
             # For small in-memory data, yield it all at once
             yield self._data
         elif self._file:
-            # For SpooledTemporaryFile, read and yield in chunks
+            if self._file.closed:
+                yield b""
+                return
+
             self._file.seek(0)
+            bytes_since_sleep = 0
+            sleep_threshold = 131072  # 128KB
             while True:
                 chunk = self._file.read(chunk_size)
                 if not chunk:
                     break
                 yield chunk
+                bytes_since_sleep += len(chunk)
+                if bytes_since_sleep >= sleep_threshold:
+                    await asyncio.sleep(0)
+                    bytes_since_sleep = 0
 
     async def save_to(self, path: str) -> int:
         """Save file data to a specified path.
@@ -267,16 +535,17 @@ class FormPart:
 
         Returns:
             Total number of bytes written.
+
+        Raises:
+            ValueError: If the path is outside the current working directory.
         """
-
-        def _copy():
-            self.file.seek(0)
-            with open(path, "wb") as dest:
-                bytes_written = shutil.copyfileobj(self.file, dest)
-            self.file.seek(0)
-            return bytes_written if bytes_written is not None else self.size
-
-        return await asyncio.to_thread(_copy)
+        ensure_in_cwd(path)
+        total_bytes = 0
+        with open(path, "wb") as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
 
     def __eq__(self, other):
         if isinstance(other, FormPart):
@@ -297,24 +566,15 @@ class FormPart:
 
 class FileBuffer:
     """
-    Represents an uploaded file with buffered data access.
-
-    This class wraps a SpooledTemporaryFile to provide memory-efficient file uploads.
-    Small files (<1MB) are kept in memory, larger files are automatically spooled to disk.
+    Represents a file uploaded using multi-part/form-data.
+    This class provides buffered data access.
 
     Attributes:
         name: The form field name (str).
         filename: The uploaded file's name (str).
         content_type: The MIME type (str or None).
-        file: The underlying file-like object (SpooledTemporaryFile).
+        file: The underlying file-like object (IO[bytes]).
         size: The size in bytes (if known), or 0.
-
-    Usage:
-        # Access as file-like object
-        content = file_buffer.file.read()
-
-        # Or read all data
-        data = await file_buffer.read()
     """
 
     __slots__ = ("name", "file_name", "content_type", "file", "size", "_charset")
@@ -323,7 +583,7 @@ class FileBuffer:
         self,
         name: str,
         file_name: str | None,
-        file,  # file-like object (SpooledTemporaryFile)
+        file: IO[bytes],
         content_type: str | None = None,
         size: int = 0,
         charset: str | None = None,
@@ -334,6 +594,29 @@ class FileBuffer:
         self.file = file
         self.size = size
         self._charset = charset
+
+    async def stream(self, chunk_size: int = 131072) -> AsyncIterator[bytes]:
+        """
+        Async generator that yields the data in chunks.
+
+        Args:
+            chunk_size: Size of each chunk in bytes (default: 131072 = 128KB).
+
+        Yields:
+            Byte chunks of the form part data.
+        """
+        self.file.seek(0)
+        bytes_since_sleep = 0
+        sleep_threshold = 131072  # 128KB
+        while True:
+            chunk = self.file.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+            bytes_since_sleep += len(chunk)
+            if bytes_since_sleep >= sleep_threshold:
+                await asyncio.sleep(0)
+                bytes_since_sleep = 0
 
     @classmethod
     def from_form_part(cls, form_part: FormPart):
@@ -364,16 +647,17 @@ class FileBuffer:
 
         Returns:
             Total number of bytes written.
+
+        Raises:
+            ValueError: If the path is outside the current working directory.
         """
-
-        def _copy():
-            self.file.seek(0)
-            with open(path, "wb") as dest:
-                bytes_written = shutil.copyfileobj(self.file, dest)
-            self.file.seek(0)
-            return bytes_written if bytes_written is not None else self.size
-
-        return await asyncio.to_thread(_copy)
+        ensure_in_cwd(path)
+        total_bytes = 0
+        with open(path, "wb") as f:
+            async for chunk in self.stream():
+                f.write(chunk)
+                total_bytes += len(chunk)
+        return total_bytes
 
     def close(self):
         """Close the underlying file."""
@@ -433,7 +717,6 @@ class StreamingFormPart:
         Yields:
             Byte chunks of the part data.
         """
-        # Stream from source
         async for chunk in self._data_stream:
             yield chunk
 
@@ -446,7 +729,11 @@ class StreamingFormPart:
 
         Returns:
             Total number of bytes written.
+
+        Raises:
+            ValueError: If the path is outside the current working directory.
         """
+        ensure_in_cwd(path)
         total_bytes = 0
         with open(path, "wb") as f:
             async for chunk in self.stream():
@@ -458,16 +745,13 @@ class StreamingFormPart:
         return f"<StreamingFormPart {self.name} - at {id(self)}>"
 
 
-class MultiPartFormData(Content):
+class MultiPartFormData(StreamedContent):
     """
     Represents multipart/form-data content for responses.
 
-    WARNING: This class will be deprecated and intended only for small payloads.
-    It loads all form parts into memory at once, which can exhaust memory
-    for large uploads or files.
-
-    For handling multipart/form-data in requests, use FormPart with
-    SpooledTemporaryFile for memory-efficient streaming instead.
+    This class streams multipart/form-data in chunks, avoiding loading
+    all form parts into memory at once. It uses the StreamedContent API
+    for memory-efficient streaming.
 
     Attributes:
         parts: List of FormPart objects to encode as multipart/form-data.
@@ -477,26 +761,70 @@ class MultiPartFormData(Content):
     def __init__(self, parts: list[FormPart]):
         self.parts = parts
         self.boundary = b"----" + str(uuid.uuid4()).replace("-", "").encode()
+        self._disposed = False
         super().__init__(
             b"multipart/form-data; boundary=" + self.boundary,
-            write_multipart_form_data(self),
+            self._generate_multipart_chunks,
+            data_length=-1,
         )
 
-    async def stream(self) -> AsyncIterable[bytes]:
-        yield self.body
+    async def _generate_multipart_chunks(self) -> AsyncIterator[bytes]:
+        """Generate multipart/form-data content in chunks."""
+        for part in self.parts:
+            # Build headers as a single chunk
+            header = bytearray()
+            header.extend(b"--")
+            header.extend(self.boundary)
+            header.extend(b"\r\n")
+            header.extend(b'Content-Disposition: form-data; name="')
+            header.extend(part.name)
+            header.extend(b'"')
 
+            if part.file_name:
+                header.extend(b'; filename="')
+                header.extend(part.file_name)
+                header.extend(b'"\r\n')
 
-def write_multipart_form_data(data: "MultiPartFormData") -> bytes:
-    contents = bytearray()
-    for part in data.parts:
-        contents.extend(b"--")
-        contents.extend(data.boundary)
-        contents.extend(b"\r\n")
-        write_multipart_part(part, contents)
-    contents.extend(b"--")
-    contents.extend(data.boundary)
-    contents.extend(b"--\r\n")
-    return bytes(contents)
+            if part.content_type:
+                header.extend(b"Content-Type: ")
+                header.extend(part.content_type)
+
+            header.extend(b"\r\n\r\n")
+            yield bytes(header)
+
+            # Stream the part data
+            async for chunk in part.stream():
+                if self._disposed:
+                    break
+                yield chunk
+
+            yield b"\r\n"
+
+        # Write final boundary
+        yield b"--" + self.boundary + b"--\r\n"
+
+    def dispose(self):
+        super().dispose()
+        self._disposed = True
+        self.try_dispose_parts(self.parts)
+
+    @staticmethod
+    def try_dispose_parts(parts: Iterable[FormPart]) -> None:
+        for part in parts:
+            try:
+                file = part.file
+            except TypeError:
+                pass
+            else:
+                if file.closed:
+                    continue
+                try:
+                    file.close()
+                except Exception:
+                    logger.exception(
+                        "MultiPartFormData: failed to close file for part '%s' during disposal",
+                        part.name.decode("utf-8", errors="replace"),
+                    )
 
 
 class ServerSentEvent:

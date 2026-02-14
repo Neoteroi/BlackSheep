@@ -9,6 +9,7 @@ cdef class Content:
     cdef readonly bytes type
     cdef readonly bytes body
     cdef readonly long long length
+    cpdef void dispose(self)
 
 
 cdef class StreamedContent(Content):
@@ -17,7 +18,6 @@ cdef class StreamedContent(Content):
 
 cdef class ASGIContent(Content):
     cdef readonly object receive
-    cpdef void dispose(self)
 
 
 cdef class TextContent(Content):
@@ -76,12 +76,10 @@ cdef class TextServerSentEvent(ServerSentEvent):
     pass
 
 
-cdef class MultiPartFormData(Content):
+cdef class MultiPartFormData(StreamedContent):
     cdef readonly list parts
     cdef readonly bytes boundary
+    cdef readonly bint _disposed
 
 
 cdef dict parse_www_form_urlencoded(str content)
-
-
-cdef dict multiparts_to_dictionary(list parts)

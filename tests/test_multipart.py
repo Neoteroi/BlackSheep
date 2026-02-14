@@ -142,7 +142,8 @@ async def test_parse_multipart_async():
     data = MultiPartFormData([FormPart(b"a", b"world"), FormPart(b"b", b"9000")])
 
     async def stream():
-        yield data.body
+        async for chunk in data.stream():
+            yield chunk
 
     parts = []
     async for part in parse_multipart_async(stream(), data.boundary):

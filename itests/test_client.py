@@ -521,3 +521,41 @@ async def test_multipart_stream_with_field_and_file(session):
 
     # Verify the uploaded file
     assert_files_equals("./out/pexels-photo-923360.jpeg", file_path)
+
+
+async def test_multipart_stream_with_charset_field(session):
+    """
+    Test multipart_stream handling with FormPart.field() using different charset.
+    This verifies proper charset handling in form fields.
+    """
+    # Create multipart data with charset field
+    parts = [
+        # Text field with UTF-8 charset (default)
+        FormPart.field(
+            "description",
+            "Important documents for review",
+        ),
+        # Text field with explicit UTF-16 charset and special characters
+        FormPart.field(
+            "notes",
+            "Notas importantes: café, naïve, résumé",
+            charset="utf8",
+        ),
+    ]
+
+    # Create multipart content
+    content = MultiPartFormData(parts)
+
+    response = await session.post(
+        "/upload-multipart-stream",
+        content=content,
+    )
+    ensure_success(response)
+
+    # Verify response
+    data = await response.json()
+
+    assert data["folder"] == "out"
+    assert data["fields"]["description"] == "Important documents for review"
+    assert data["fields"]["notes"] == "Notas importantes: café, naïve, résumé"
+    assert len(data["files"]) == 0

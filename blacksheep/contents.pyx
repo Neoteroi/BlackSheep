@@ -420,12 +420,12 @@ cdef class FormPart:
             raise TypeError("Missing file data")
         return self._file
 
-    async def stream(self, chunk_size: int = 8192):
+    async def stream(self, chunk_size: int = 131072):
         """
         Async generator that yields the data in chunks.
 
         Args:
-            chunk_size: Size of each chunk in bytes (default: 8192).
+            chunk_size: Size of each chunk in bytes (default: 131072 = 128KB).
 
         Yields:
             Byte chunks of the form part data.
@@ -438,12 +438,17 @@ cdef class FormPart:
                 yield b""
                 return
             self._file.seek(0)
+            bytes_since_sleep = 0
+            sleep_threshold = 131072  # 128KB
             while True:
                 chunk = self._file.read(chunk_size)
                 if not chunk:
                     break
                 yield chunk
-                await asyncio.sleep(0)
+                bytes_since_sleep += len(chunk)
+                if bytes_since_sleep >= sleep_threshold:
+                    await asyncio.sleep(0)
+                    bytes_since_sleep = 0
 
     async def save_to(self, str path) -> int:
         """Save file data to a specified path.
@@ -515,23 +520,28 @@ cdef class FileBuffer:
         self.size = size
         self._charset = charset
 
-    async def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
+    async def stream(self, chunk_size: int = 131072) -> AsyncIterator[bytes]:
         """
         Async generator that yields the data in chunks.
 
         Args:
-            chunk_size: Size of each chunk in bytes (default: 8192).
+            chunk_size: Size of each chunk in bytes (default: 131072 = 128KB).
 
         Yields:
             Byte chunks of the form part data.
         """
         self.file.seek(0)
+        bytes_since_sleep = 0
+        sleep_threshold = 131072  # 128KB
         while True:
             chunk = self.file.read(chunk_size)
             if not chunk:
                 break
             yield chunk
-            await asyncio.sleep(0)
+            bytes_since_sleep += len(chunk)
+            if bytes_since_sleep >= sleep_threshold:
+                await asyncio.sleep(0)
+                bytes_since_sleep = 0
 
     @classmethod
     def from_form_part(cls, FormPart form_part):

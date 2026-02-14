@@ -376,7 +376,14 @@ def test_multipart_form_data_dispose_with_failing_file():
     class FailingFile(io.BytesIO):
         """A file-like object that raises an exception on close."""
 
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._close_called = False
+
         def close(self):
+            if self._close_called:
+                return  # Don't raise on second close (during GC)
+            self._close_called = True
             raise RuntimeError("Simulated close failure")
 
     failing_file = FailingFile(b"content")

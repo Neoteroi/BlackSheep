@@ -49,7 +49,7 @@ cdef class Content:
     async def read(self):
         return self.body or b""
 
-    def dispose(self):
+    cpdef void dispose(self):
         """
         Dispose of the content.
         """
@@ -100,7 +100,7 @@ cdef class ASGIContent(Content):
         self.receive = receive
 
     cpdef void dispose(self):
-        super().dispose()
+        Content.dispose(self)
         self.receive = None
 
     async def stream(self):
@@ -408,6 +408,8 @@ cdef class FormPart:
         if isinstance(self._data, bytes):
             return self._data
         if self._file:
+            if self._file.closed:
+                return b""
             self._file.seek(0)
             return self._file.read()
         return b""
@@ -432,6 +434,9 @@ cdef class FormPart:
             # For small in-memory data, yield it all at once
             yield self._data
         elif self._file:
+            if self._file.closed:
+                yield b""
+                return
             self._file.seek(0)
             while True:
                 chunk = await asyncio.to_thread(self._file.read, chunk_size)
@@ -696,8 +701,8 @@ cdef class MultiPartFormData(StreamedContent):
         # Write final boundary
         yield b"--" + self.boundary + b"--\r\n"
 
-    def dispose(self):
-        super().dispose()
+    cpdef void dispose(self):
+        Content.dispose(self)
         self._disposed = True
 
         for part in self.parts:

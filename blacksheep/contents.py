@@ -406,7 +406,7 @@ class FormPart:
         # We cannot close the file while used by FormPart
         specified_file = file is not None
         file = open(file_path, mode="rb") if file is None else file
-        file_name = file_path if specified_file else file.name
+        file_name = os.path.basename(file_path) if specified_file else os.path.basename(file.name)
 
         # Get file size if possible
         size = 0

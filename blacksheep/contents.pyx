@@ -266,7 +266,7 @@ cdef class FormPart:
         bytes content_type: bytes | None=None,
         bytes file_name: bytes | None=None,
         bytes charset: bytes | None = None,
-        int size = 0
+        long long size = 0
     ):
         self.name = name
         self._data = data if isinstance(data, bytes) else None
@@ -367,14 +367,14 @@ cdef class FormPart:
             with open("photo.jpg", "rb") as f:
                 part = FormPart.from_file("photo", "photo.jpg", file=f)
         """
-        cdef int size = 0
+        cdef long long size = 0
         cdef bytes content_type_bytes = None
         cdef bint specified_file
 
         # We cannot close the file while used by FormPart
         specified_file = file is not None
         file = open(file_path, mode="rb") if file is None else file
-        file_name = file_path if specified_file else file.name
+        file_name = os.path.basename(file_path) if specified_file else os.path.basename(file.name)
 
         # Get file size if possible
         try:
@@ -504,7 +504,7 @@ cdef class FileBuffer:
         str file_name,
         object file,
         str content_type = None,
-        int size = 0,
+        long long size = 0,
         str charset = None
     ):
         self.name = name

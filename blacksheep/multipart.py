@@ -154,6 +154,42 @@ def _decode(value: bytes | None) -> str | None:
     return value.decode("utf8")
 
 
+def parse_content_type_and_charset(
+    content_type_header: bytes | None,
+) -> tuple[bytes | None, bytes | None]:
+    """
+    Parse a Content-Type header value to extract the media type and charset.
+
+    Args:
+        content_type_header: Raw Content-Type header value (e.g., b'text/plain; charset=utf-8')
+
+    Returns:
+        Tuple of (content_type, charset) where both can be None
+    """
+    if not content_type_header:
+        return None, None
+
+    # Split on semicolon to separate media type from parameters
+    parts = content_type_header.split(b";", 1)
+    content_type = parts[0].strip()
+
+    charset = None
+    if len(parts) > 1:
+        # Parse parameters (e.g., "charset=utf-8")
+        params_str = parts[1]
+        for param in params_str.split(b";"):
+            param = param.strip()
+            if b"=" in param:
+                key, value = param.split(b"=", 1)
+                key = key.strip().lower()
+                value = value.strip().strip(b'"')
+                if key == b"charset":
+                    charset = value
+                    break
+
+    return content_type, charset
+
+
 async def parse_multipart_async(
     stream: AsyncIterable[bytes], boundary: bytes
 ) -> AsyncIterable[StreamedFormPart]:
@@ -327,7 +363,14 @@ async def parse_multipart_async(
         cd_values = parse_content_disposition_values(content_disposition)
         name = cd_values.get(b"name", b"")
         filename = cd_values.get(b"filename")
-        content_type = headers.get(b"content-type")
+        content_type_header = headers.get(b"content-type")
+
+        # Parse content-type and charset from the Content-Type header
+        content_type, charset = parse_content_type_and_charset(content_type_header)
+
+        # If no charset in Content-Type, use the default charset
+        if charset is None:
+            charset = default_charset
 
         # Handle special _charset_ field
         if name == b"_charset_":
@@ -341,21 +384,24 @@ async def parse_multipart_async(
                 return
             continue
 
-        # Create data generator for this part
+        # Create data generator for this part and eagerly read all data
+        # This allows parts to be stored and consumed later
         current_data_gen = data_generator()
+        part_data = bytearray()
+        async for chunk in current_data_gen:
+            part_data.extend(chunk)
+        current_data_gen = None  # Mark as consumed
 
-        # Yield the streaming part
+        # Yield the part with data already read
         yield StreamedFormPart(
             _decode(name),
-            current_data_gen,
+            bytes(part_data),
             _decode(content_type),
             _decode(filename),
-            _decode(default_charset),
+            _decode(charset),
         )
 
-        # After yield returns (caller asked for next part), drain any unconsumed
-        # data and skip to the next boundary
-        await drain_current_part()
+        # Data already consumed, skip to next boundary
         if not await skip_to_boundary():
             return
 

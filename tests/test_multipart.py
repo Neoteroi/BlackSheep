@@ -177,12 +177,16 @@ async def test_multipart_write_1():
         ),
     ])
 
-    # data = await content.read()
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
         parts.append(part)
 
     assert len(parts) == 2
     assert parts[0].name == "description"
+    assert parts[0].content_type == "text/plain"
+    assert parts[0].charset == "utf-8"
     assert parts[1].name == "attachment"
     assert parts[1].file_name == "example.txt"
+
+    data = await parts[1].read()
+    assert data == b"Hello, World!"

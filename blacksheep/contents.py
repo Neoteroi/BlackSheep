@@ -694,13 +694,14 @@ class StreamedFormPart:
         "file_name",
         "content_type",
         "charset",
+        "_data",
         "_data_stream",
     )
 
     def __init__(
         self,
         name: str,
-        data_stream: AsyncIterable[bytes],
+        data: bytes | AsyncIterable[bytes],
         content_type: str | None = None,
         file_name: str | None = None,
         charset: str | None = None,
@@ -709,7 +710,14 @@ class StreamedFormPart:
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
-        self._data_stream = data_stream
+
+        # Support both bytes and async iterables
+        if isinstance(data, bytes):
+            self._data = data
+            self._data_stream = None
+        else:
+            self._data = None
+            self._data_stream = data
 
     async def read(self) -> bytes:
         """
@@ -718,10 +726,15 @@ class StreamedFormPart:
         **Warning:** use this method only if you expect small
         multipart/form-data fields or files.
         """
+        if self._data is not None:
+            return self._data
+
+        # Read from stream if not cached
         value = bytearray()
         async for chunk in self.stream():
             value.extend(chunk)
-        return bytes(value)
+        self._data = bytes(value)
+        return self._data
 
     async def stream(self) -> AsyncIterable[bytes]:
         """
@@ -730,8 +743,15 @@ class StreamedFormPart:
         Yields:
             Byte chunks of the part data.
         """
-        async for chunk in self._data_stream:
-            yield chunk
+        if self._data is not None:
+            # Yield cached data in chunks
+            chunk_size = 8192
+            for i in range(0, len(self._data), chunk_size):
+                yield self._data[i:i + chunk_size]
+        elif self._data_stream is not None:
+            # Stream from the data stream
+            async for chunk in self._data_stream:
+                yield chunk
 
     async def save_to(self, path: str) -> int:
         """
@@ -796,13 +816,16 @@ class MultiPartFormData(StreamedContent):
             if part.file_name:
                 header.extend(b'; filename="')
                 header.extend(part.file_name)
-                header.extend(b'"\r\n')
+                header.extend(b'"')
+
+            header.extend(b"\r\n")
 
             if part.content_type:
                 header.extend(b"Content-Type: ")
                 header.extend(part.content_type)
+                header.extend(b"\r\n")
 
-            header.extend(b"\r\n\r\n")
+            header.extend(b"\r\n")
             yield bytes(header)
 
             # Stream the part data

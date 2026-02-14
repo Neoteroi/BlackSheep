@@ -196,6 +196,49 @@ def test_post_multipart_form_with_files(session_1):
     assert_files_equals("./out/two.jpg", get_static_path("pexels-photo-923360.jpeg"))
 
 
+def test_post_multipart_stream_with_field_and_file(session_1):
+    """
+    Test multipart_stream handling with form fields and file uploads using requests.
+    This verifies proper handling of mixed form fields and file uploads.
+    """
+    if os.path.exists("out"):
+        shutil.rmtree("out")
+
+    # Prepare file path
+    file_path = get_static_path("pexels-photo-923360.jpeg")
+
+    # Use requests multipart handling with both data and files
+    response = session_1.post(
+        "/upload-multipart-stream",
+        data={
+            "description": "Important documents for review",
+        },
+        files=[
+            (
+                "attachment",
+                (
+                    "pexels-photo-923360.jpeg",
+                    open(file_path, "rb"),
+                    "image/jpeg",
+                ),
+            ),
+        ],
+    )
+    ensure_success(response)
+
+    # Verify response
+    data = response.json()
+
+    assert data["folder"] == "out"
+    assert data["fields"]["description"] == "Important documents for review"
+    assert len(data["files"]) == 1
+    assert data["files"][0]["name"] == "pexels-photo-923360.jpeg"
+    assert data["files"][0]["size"] > 0
+
+    # Verify the uploaded file
+    assert_files_equals("./out/pexels-photo-923360.jpeg", file_path)
+
+
 def test_exception_handling_with_details(session_1):
     response = session_1.get("/crash")
 

@@ -295,7 +295,7 @@ async def upload_multipart_stream(request: Request):
             # It's a regular form field
             field_name = part.name
             field_value = await part.read()
-            fields[field_name] = field_value
+            fields[field_name] = field_value.decode("utf8")
 
     return json(
         {

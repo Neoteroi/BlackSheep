@@ -328,23 +328,38 @@ class FormPart:
         charset: str = "utf-8",
     ) -> "FormPart":
         """
-        Create a FormPart for a simple form field.
+        Create a FormPart for a simple text or string field in multipart/form-data.
 
-        This is a convenience method that accepts string parameters and converts
-        them to bytes internally, making it easier to create form parts without
-        manually encoding strings.
+        This convenience method simplifies creating form parts for non-file fields
+        by accepting string parameters and automatically handling encoding. Use this
+        for typical form inputs like text fields, hidden inputs, or any field that
+        contains string data rather than binary file content.
 
         Args:
-            name: The name of the form field.
-            value: The field value (string or bytes).
-            content_type: Optional MIME type (defaults to text/plain for strings).
-            charset: Character encoding (default: utf-8).
+            name: The name of the form field (e.g., "username", "email").
+            value: The field value as a string or pre-encoded bytes.
+            content_type: MIME type for the field. If None and value is a string,
+                         defaults to "text/plain; charset={charset}".
+            charset: Character encoding to use when converting strings to bytes
+                    (default: "utf-8").
 
         Returns:
-            A new FormPart instance.
+            A new FormPart instance with the field data encoded and ready for
+            multipart transmission.
 
-        Example:
-            part = FormPart.from_field("username", "john_doe")
+        Examples:
+            # Simple text field
+            username = FormPart.from_field("username", "john_doe")
+
+            # Field with custom content type
+            json_data = FormPart.from_field(
+                "metadata",
+                '{"version": "1.0"}',
+                content_type="application/json"
+            )
+
+            # Pre-encoded bytes
+            binary_field = FormPart.from_field("data", b"\x00\x01\x02")
         """
         data = value.encode(charset) if isinstance(value, str) else value
 
@@ -372,36 +387,64 @@ class FormPart:
         content_type: str | None = None,
     ) -> "FormPart":
         """
-        Create a FormPart for a file upload.
+        Create a FormPart for uploading a file from the filesystem.
 
-        This is a convenience method that accepts string parameters and converts
-        them to bytes internally. It can automatically open the file or use an
-        already-opened file handle.
+        This method creates a multipart form part for file uploads. It can either
+        automatically open a file from the filesystem or use an already-opened file
+        handle. The file content is read lazily and can be streamed efficiently for
+        large files.
 
         Args:
-            part_name: The name of the form field.
-            file_path: The path to the file to upload. Used for determining the
-                      filename and MIME type. If 'file' is not provided, the file
-                      at this path will be opened.
-            file: Optional file-like object. If provided, this will be used instead
-                 of opening the file at file_path. The file_path will still be used
-                 as the filename in the multipart data.
-            content_type: Optional MIME type (e.g., "image/jpeg"). If not provided,
-                         the MIME type will be inferred from the file extension.
+            part_name: The name of the form field (e.g., "avatar", "document").
+            file_path: Path to the file on the filesystem. This path is used to:
+                      - Determine the filename sent in the multipart data
+                      - Infer the MIME type if content_type is not provided
+                      - Open the file (if 'file' parameter is None)
+                      Note: Only the basename is used as the filename.
+            file: Optional file-like object opened in binary mode. If provided,
+                 this file handle will be used instead of opening file_path.
+                 You are responsible for closing the file after the request completes.
+                 If None, the file at file_path will be opened automatically.
+            content_type: MIME type for the file (e.g., "image/jpeg", "application/pdf").
+                         If None, the type is automatically inferred from the file
+                         extension in file_path.
 
         Returns:
-            A new FormPart instance.
+            A new FormPart instance configured for file upload.
+
+        Note:
+            When the file is auto-opened (file=None), FormPart will manage the file
+            handle. When you provide a file handle, you must close it yourself after
+            the multipart data is sent.
 
         Examples:
-            # Automatic file opening
-            part = FormPart.from_file("photo", "photo.jpg")
+            # Upload a file (auto-opens and manages the file)
+            photo = FormPart.from_file("photo", "vacation.jpg")
 
-            # With explicit content type
-            part = FormPart.from_file("photo", "photo.jpg", content_type="image/jpeg")
+            # Upload with explicit MIME type
+            doc = FormPart.from_file(
+                "document",
+                "report.pdf",
+                content_type="application/pdf"
+            )
 
-            # With already-opened file
-            with open("photo.jpg", "rb") as f:
-                part = FormPart.from_file("photo", "photo.jpg", file=f)
+            # Use an already-opened file handle
+            with open("large_video.mp4", "rb") as f:
+                video = FormPart.from_file(
+                    "video",
+                    "large_video.mp4",
+                    file=f,
+                    content_type="video/mp4"
+                )
+                # Send the multipart request here while file is open
+            # File is closed when exiting the context manager
+
+            # Upload file from a different location with custom filename
+            data = FormPart.from_file(
+                "attachment",
+                "/tmp/generated_file.dat",  # Actual file location
+                content_type="application/octet-stream"
+            )
         """
         # We cannot close the file while used by FormPart
         specified_file = file is not None

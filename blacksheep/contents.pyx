@@ -439,10 +439,11 @@ cdef class FormPart:
                 return
             self._file.seek(0)
             while True:
-                chunk = await asyncio.to_thread(self._file.read, chunk_size)
+                chunk = self._file.read(chunk_size)
                 if not chunk:
                     break
                 yield chunk
+                await asyncio.sleep(0)
 
     async def save_to(self, str path) -> int:
         """Save file data to a specified path.
@@ -526,10 +527,11 @@ cdef class FileBuffer:
         """
         self.file.seek(0)
         while True:
-            chunk = await asyncio.to_thread(self.file.read, chunk_size)
+            chunk = self.file.read(chunk_size)
             if not chunk:
                 break
             yield chunk
+            await asyncio.sleep(0)
 
     @classmethod
     def from_form_part(cls, FormPart form_part):

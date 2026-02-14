@@ -449,12 +449,12 @@ class FormPart:
             raise TypeError("Missing file data")
         return self._file
 
-    async def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
+    async def stream(self, chunk_size: int = 65536) -> AsyncIterator[bytes]:
         """
         Async generator that yields the data in chunks.
 
         Args:
-            chunk_size: Size of each chunk in bytes (default: 8192).
+            chunk_size: Size of each chunk in bytes (default: 65536 = 64KB).
 
         Yields:
             Byte chunks of the form part data.
@@ -469,10 +469,11 @@ class FormPart:
 
             self._file.seek(0)
             while True:
-                chunk = await asyncio.to_thread(self._file.read, chunk_size)
+                chunk = self._file.read(chunk_size)
                 if not chunk:
                     break
                 yield chunk
+                await asyncio.sleep(0)
 
     async def save_to(self, path: str) -> int:
         """Save file data to a specified path.
@@ -542,22 +543,23 @@ class FileBuffer:
         self.size = size
         self._charset = charset
 
-    async def stream(self, chunk_size: int = 8192) -> AsyncIterator[bytes]:
+    async def stream(self, chunk_size: int = 65536) -> AsyncIterator[bytes]:
         """
         Async generator that yields the data in chunks.
 
         Args:
-            chunk_size: Size of each chunk in bytes (default: 8192).
+            chunk_size: Size of each chunk in bytes (default: 65536 = 64KB).
 
         Yields:
             Byte chunks of the form part data.
         """
         self.file.seek(0)
         while True:
-            chunk = await asyncio.to_thread(self.file.read, chunk_size)
+            chunk = self.file.read(chunk_size)
             if not chunk:
                 break
             yield chunk
+            await asyncio.sleep(0)
 
     @classmethod
     def from_form_part(cls, form_part: FormPart):

@@ -1,11 +1,10 @@
 import uuid
-from tempfile import SpooledTemporaryFile
 from typing import (
+    IO,
     Any,
     AsyncIterable,
     AsyncIterator,
     Awaitable,
-    BinaryIO,
     Callable,
     Iterable,
     Union,
@@ -206,7 +205,7 @@ class FormPart:
     # Type annotations for attributes
     name: bytes
     _data: bytes | None
-    _file: BinaryIO | None
+    _file: IO[bytes] | None
     file_name: bytes | None
     content_type: bytes | None
     charset: bytes | None
@@ -215,7 +214,7 @@ class FormPart:
     def __init__(
         self,
         name: bytes,
-        data: bytes | BinaryIO,
+        data: bytes | IO[bytes],
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
@@ -226,7 +225,7 @@ class FormPart:
 
         Args:
             name: The name of the form field.
-            data: The binary content or a file-like object (BinaryIO).
+            data: The binary content or a file-like object (IO[bytes]).
             content_type: The MIME type of the content (optional).
             file_name: The file name if this part represents a file upload (optional).
             charset: The character encoding of the content (optional).
@@ -238,7 +237,7 @@ class FormPart:
             self._file = None
         else:
             self._data = None
-            self._file = cast(BinaryIO, data)
+            self._file = cast(IO[bytes], data)
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
@@ -278,7 +277,7 @@ class FormPart:
         cls,
         part_name: str,
         file_path: str,
-        file: BinaryIO | None = None,
+        file: IO[bytes] | None = None,
         content_type: str | None = None,
     ) -> FormPart:
         """
@@ -327,12 +326,12 @@ class FormPart:
         ...
 
     @property
-    def file(self) -> BinaryIO:
+    def file(self) -> IO[bytes]:
         """
         Returns the file-like object if the data is stored as a file.
 
         Use this property when the form part was initialized with a file-like object
-        (BinaryIO), such as BytesIO, SpooledTemporaryFile, or file handles from open().
+        (IO[bytes]), such as BytesIO, SpooledTemporaryFile, or file handles from open().
 
         Returns:
             The file-like object containing the file data.
@@ -407,7 +406,7 @@ class FileBuffer:
         self,
         name: str,
         file_name: str | None,
-        file: BinaryIO,
+        file: IO[bytes],
         content_type: str | None = None,
         size: int = 0,
         charset: str | None = None,

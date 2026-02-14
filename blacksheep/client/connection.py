@@ -487,7 +487,9 @@ class HTTP2Connection(HTTPConnection):
             if use_streaming:
                 # Stream the content in chunks with batched drains
                 bytes_since_drain = 0
-                DRAIN_THRESHOLD = 16384  # Drain every 16KB (was 64KB, too aggressive for localhost)
+                DRAIN_THRESHOLD = (
+                    16384  # Drain every 16KB (was 64KB, too aggressive for localhost)
+                )
 
                 async for chunk in request.content.get_parts():
                     if chunk:
@@ -513,7 +515,9 @@ class HTTP2Connection(HTTPConnection):
             elif body:
                 # Handle flow control for large bodies with batched drains
                 bytes_since_drain = 0
-                DRAIN_THRESHOLD = 16384  # Drain every 16KB (was 64KB, too aggressive for localhost)
+                DRAIN_THRESHOLD = (
+                    16384  # Drain every 16KB (was 64KB, too aggressive for localhost)
+                )
 
                 for i in range(0, len(body), max_frame_size):
                     chunk = body[i : i + max_frame_size]

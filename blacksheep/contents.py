@@ -4,7 +4,7 @@ import os
 import uuid
 from collections.abc import MutableSequence
 from inspect import isasyncgenfunction
-from typing import Any, AsyncIterable, AsyncIterator, BinaryIO, Iterable, cast
+from typing import IO, Any, AsyncIterable, AsyncIterator, Iterable, cast
 from urllib.parse import parse_qsl, quote_plus
 
 from blacksheep.common.files.pathsutils import get_mime_type_from_name
@@ -292,7 +292,7 @@ class FormPart:
     # Type annotations for attributes
     name: bytes
     _data: bytes | None
-    _file: BinaryIO | None
+    _file: IO[bytes] | None
     file_name: bytes | None
     content_type: bytes | None
     charset: bytes | None
@@ -301,7 +301,7 @@ class FormPart:
     def __init__(
         self,
         name: bytes,
-        data: bytes | BinaryIO,
+        data: bytes | IO[bytes],
         content_type: bytes | None = None,
         file_name: bytes | None = None,
         charset: bytes | None = None,
@@ -313,7 +313,7 @@ class FormPart:
             self._file = None
         else:
             self._data = None
-            self._file = cast(BinaryIO, data)
+            self._file = cast(IO[bytes], data)
         self.file_name = file_name
         self.content_type = content_type
         self.charset = charset
@@ -368,7 +368,7 @@ class FormPart:
         cls,
         part_name: str,
         file_path: str,
-        file: BinaryIO | None = None,
+        file: IO[bytes] | None = None,
         content_type: str | None = None,
     ) -> "FormPart":
         """
@@ -406,7 +406,11 @@ class FormPart:
         # We cannot close the file while used by FormPart
         specified_file = file is not None
         file = open(file_path, mode="rb") if file is None else file
-        file_name = os.path.basename(file_path) if specified_file else os.path.basename(file.name)
+        file_name = (
+            os.path.basename(file_path)
+            if specified_file
+            else os.path.basename(file.name)
+        )
 
         # Get file size if possible
         size = 0
@@ -444,7 +448,7 @@ class FormPart:
         return b""
 
     @property
-    def file(self) -> BinaryIO:
+    def file(self) -> IO[bytes]:
         if self._file is None:
             raise TypeError("Missing file data")
         return self._file
@@ -526,7 +530,7 @@ class FileBuffer:
         name: The form field name (str).
         filename: The uploaded file's name (str).
         content_type: The MIME type (str or None).
-        file: The underlying file-like object (BinaryIO).
+        file: The underlying file-like object (IO[bytes]).
         size: The size in bytes (if known), or 0.
     """
 
@@ -536,7 +540,7 @@ class FileBuffer:
         self,
         name: str,
         file_name: str | None,
-        file: BinaryIO,
+        file: IO[bytes],
         content_type: str | None = None,
         size: int = 0,
         charset: str | None = None,

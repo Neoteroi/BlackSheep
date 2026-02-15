@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix [#501](https://github.com/Neoteroi/BlackSheep/issues/501); accept to overwrite default headers when using `TestClient`, contributed by @ticapix.
 - Modify the `MultiPartFormData` to inherit `StreamedContent` and remove the immediate call to `write_multipart_form_data()` which loaded everything into memory.
 
+> [!NOTE]
+> Support for efficient `multipart/form-data` handling was previously neglected as
+> BlackSheep focused primarily on JSON-based Web APIs, Web Apps serving HTML and static
+> files, and raw request body streaming to handle uploads for large uploads.
+> This release improves support for this format, adding support for memory-efficient
+> uploads of big files using `multipart/form-data`, both parsing on the server-side and
+> in the HTTP Client, through the `MultiPartFormData` content class.
+
 ## [2.5.1] - 2026-01-30 :wheel:
 
 - Fix problem in workflow and the PyPy distribution wheels.

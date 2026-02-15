@@ -275,5 +275,36 @@ def check_asgi_receive_readable(request: Request):
     return "OK"
 
 
+@app.router.post("/upload-multipart-stream")
+async def upload_multipart_stream(request: Request):
+    """Test handler for multipart_stream functionality."""
+    folder = "out"
+    ensure_folder(folder)
+
+    fields = {}
+    files = []
+
+    async for part in request.multipart_stream():
+        if part.file_name:
+            # It's a file upload
+            file_name = part.file_name
+            file_path = f"./{folder}/{file_name}"
+            bytes_written = await part.save_to(file_path)
+            files.append({"name": file_name, "size": bytes_written})
+        else:
+            # It's a regular form field
+            field_name = part.name
+            field_value = await part.read()
+            fields[field_name] = field_value.decode("utf8")
+
+    return json(
+        {
+            "folder": folder,
+            "fields": fields,
+            "files": files,
+        }
+    )
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=44567, log_level="debug")

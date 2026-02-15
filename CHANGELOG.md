@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.0] - 2026-02-14 :cupid:
+## [2.6.0] - 2026-02-15 :cupid:
 
 - Add support for handling `FromText`, `FromFiles` in OpenAPI Documentation ([#546](https://github.com/Neoteroi/BlackSheep/issues/546)).
 - **Significantly improve support for `multipart/form-data` forms** with memory-efficient streaming and file handling:
@@ -14,13 +14,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `Request.dispose()` method to properly clean up `SpooledTemporaryFile` resources and prevent resource leaks when handling file uploads.
   - Add `FileBuffer` class wrapping `SpooledTemporaryFile` to provide a clean API for uploaded files with `read()`, `seek()`, `close()`, and `save_to()` methods.
   - Add `FormPart.stream()` async generator method to stream part data in chunks.
-  - Add `save_to()` method to `FormPart`, `FileBuffer`, and `StreamingFormPart` for saving uploaded data to disk with automatic security validation via `ensure_in_cwd()` to prevent directory traversal attacks.
-  - Add `FormPart.from_field()` class method as a convenience for creating form parts from string values without manual encoding (accepts `name`, `value`, optional `content_type` and `charset`).
+  - Add `save_to()` method to `FormPart`, `FileBuffer`, and `StreamedFormPart` for saving uploaded data to disk with automatic security validation via `ensure_in_cwd()` to prevent directory traversal attacks.
+  - Add `FormPart.field()` class method as a convenience for creating form parts from string values without manual encoding (accepts `name`, `value`, optional `content_type` and `charset`).
   - Add `FormPart.from_file()` class method as a convenience for creating file upload parts that automatically opens files, detects MIME types from file extensions, and handles both file paths and pre-opened file handles.
   - `FormPart` instances provide better memory management and a cleaner API.
   - The framework automatically calls `Request.dispose()` at the end of each request-response cycle to clean up file resources.
 - Fix [#501](https://github.com/Neoteroi/BlackSheep/issues/501); accept to overwrite default headers when using `TestClient`, contributed by @ticapix.
 - Modify the `MultiPartFormData` to inherit `StreamedContent` and remove the immediate call to `write_multipart_form_data()` which loaded everything into memory.
+
+> [!NOTE]
+> Support for efficient handling of `multipart/form-data` was previously neglected as
+> BlackSheep focused primarily on JSON-based Web APIs, Web Apps serving HTML and static
+> files, and raw request body streaming for large uploads.
+> This release improves support for this format, adding support for memory-efficient
+> handling of `multipart/form-data`, both when parsing on the server-side and
+> when writing payloads for the BlackSheep HTTP Client, through the `MultiPartFormData`
+> content class.
 
 ## [2.5.1] - 2026-01-30 :wheel:
 

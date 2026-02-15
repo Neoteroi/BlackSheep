@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, redirect, request
 from flask.wrappers import Response
 from markupsafe import escape
+import os
 
 from itests.utils import ensure_folder
 
@@ -122,6 +123,36 @@ def upload_raw_file(filename):
             "folder": folder,
             "filename": filename,
             "size": len(request.data),
+        }
+    )
+
+
+@app.route("/upload-multipart-stream", methods=["POST"])
+def upload_multipart_stream():
+    """Test handler for multipart stream functionality (Flask equivalent)."""
+    folder = "out"
+    ensure_folder(folder)
+
+    fields = {}
+    files = []
+
+    # Handle form fields
+    for key, value in request.form.items():
+        fields[key] = value
+
+    # Handle files
+    for key, file in request.files.items():
+        if file.filename:
+            file_path = f"./{folder}/{file.filename}"
+            file.save(file_path)
+            file_size = os.path.getsize(file_path)
+            files.append({"name": file.filename, "size": file_size})
+
+    return jsonify(
+        {
+            "folder": folder,
+            "fields": fields,
+            "files": files,
         }
     )
 

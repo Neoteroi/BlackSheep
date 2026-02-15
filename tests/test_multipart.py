@@ -1,3 +1,5 @@
+from io import BytesIO
+from typing import BinaryIO
 import pytest
 
 from blacksheep.contents import MultiPartFormData
@@ -157,3 +159,231 @@ async def test_parse_multipart_async():
     assert len(parts) == 2
     assert parts[0] == ("a", b"world")
     assert parts[1] == ("b", b"9000")
+
+
+async def test_multipart_write_1():
+    file = BytesIO()
+    file.write(b"Hello, World!")
+
+    content = MultiPartFormData([
+        FormPart.field(
+            "description",
+            "Important documents for review",
+        ),
+        FormPart.from_file(
+            "attachment",
+            "example.txt",
+            file=file
+        ),
+    ])
+
+    i = 0
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        if i == 0:
+            assert part.name == "description"
+            assert part.content_type == "text/plain"
+            assert part.charset == "utf-8"
+            data = await part.read()
+            assert data == b'Important documents for review'
+        if i == 1:
+            assert part.name == "attachment"
+            assert part.file_name == "example.txt"
+
+            data = await part.read()
+            assert data == b"Hello, World!"
+        i += 1
+
+
+async def test_multipart_write_multiple_files():
+    """Test uploading multiple files with text fields."""
+    file1 = BytesIO()
+    file1.write(b"Content of first file")
+
+    file2 = BytesIO()
+    file2.write(b"Content of second file")
+
+    file3 = BytesIO()
+    file3.write(b"Content of third file")
+
+    content = MultiPartFormData([
+        FormPart.field("title", "Multiple File Upload Test"),
+        FormPart.from_file("file1", "document1.txt", file=file1),
+        FormPart.field("category", "documents"),
+        FormPart.from_file("file2", "document2.txt", file=file2),
+        FormPart.from_file("file3", "document3.txt", file=file3),
+    ])
+
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({
+            "name": part.name,
+            "data": data,
+            "file_name": part.file_name,
+            "content_type": part.content_type,
+        })
+
+    assert len(parts) == 5
+    assert parts[0]["name"] == "title"
+    assert parts[0]["data"] == b"Multiple File Upload Test"
+    assert parts[1]["name"] == "file1"
+    assert parts[1]["data"] == b"Content of first file"
+    assert parts[1]["file_name"] == "document1.txt"
+    assert parts[2]["name"] == "category"
+    assert parts[2]["data"] == b"documents"
+    assert parts[3]["name"] == "file2"
+    assert parts[3]["data"] == b"Content of second file"
+    assert parts[4]["name"] == "file3"
+    assert parts[4]["data"] == b"Content of third file"
+
+
+async def test_multipart_write_empty_file():
+    """Test uploading an empty file."""
+    empty_file = BytesIO()
+
+    content = MultiPartFormData([
+        FormPart.field("description", "Empty file upload"),
+        FormPart.from_file("empty", "empty.txt", file=empty_file),
+    ])
+
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({"name": part.name, "data": data})
+
+    assert len(parts) == 2
+    assert parts[0]["data"] == b"Empty file upload"
+    assert parts[1]["data"] == b""
+
+
+async def test_multipart_write_only_fields():
+    """Test multipart form with only text fields, no files."""
+    content = MultiPartFormData([
+        FormPart.field("username", "john_doe"),
+        FormPart.field("email", "john@example.com"),
+        FormPart.field("age", "30"),
+        FormPart.field("bio", "Software developer\nLoves coding"),
+    ])
+
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append((part.name, data.decode("utf-8")))
+
+    assert len(parts) == 4
+    assert parts[0] == ("username", "john_doe")
+    assert parts[1] == ("email", "john@example.com")
+    assert parts[2] == ("age", "30")
+    assert parts[3] == ("bio", "Software developer\nLoves coding")
+
+
+async def test_multipart_write_binary_data():
+    """Test uploading binary data (simulating an image)."""
+    # Simulate binary image data
+    binary_data = bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])  # PNG header
+    binary_data += b"\x00" * 100  # Add some null bytes
+
+    binary_file = BytesIO()
+    binary_file.write(binary_data)
+
+    content = MultiPartFormData([
+        FormPart.field("image_name", "test_image"),
+        FormPart.from_file("image", "test.png", file=binary_file),
+    ])
+
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({
+            "name": part.name,
+            "data": data,
+            "file_name": part.file_name,
+        })
+
+    assert len(parts) == 2
+    assert parts[0]["data"] == b"test_image"
+    assert parts[1]["data"] == binary_data
+    assert parts[1]["file_name"] == "test.png"
+
+
+async def test_multipart_write_large_content():
+    """Test handling larger content."""
+    large_text = "A" * 10000  # 10KB of text
+
+    large_file = BytesIO()
+    large_file.write(large_text.encode("utf-8"))
+
+    content = MultiPartFormData([
+        FormPart.field("size_info", "Large file test"),
+        FormPart.from_file("large_file", "large.txt", file=large_file),
+    ])
+
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({"name": part.name, "data": data})
+
+    assert len(parts) == 2
+    assert parts[0]["data"] == b"Large file test"
+    assert parts[1]["data"] == large_text.encode("utf-8")
+    assert len(parts[1]["data"]) == 10000
+
+
+async def test_multipart_write_special_characters():
+    """Test multipart form with special characters and Unicode."""
+    content = MultiPartFormData([
+        FormPart.field("name", "José García"),
+        FormPart.field("emoji", "Hello 👋 World 🌍"),
+        FormPart.field("symbols", "Special: @#$%^&*()_+-=[]{}|;:',.<>?/"),
+        FormPart.field("multiline", "Line 1\nLine 2\r\nLine 3"),
+    ])
+
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append((part.name, data.decode("utf-8")))
+
+    assert len(parts) == 4
+    assert parts[0] == ("name", "José García")
+    assert parts[1] == ("emoji", "Hello 👋 World 🌍")
+    assert parts[2] == ("symbols", "Special: @#$%^&*()_+-=[]{}|;:',.<>?/")
+    assert parts[3] == ("multiline", "Line 1\nLine 2\r\nLine 3")
+
+
+async def test_multipart_write_mixed_content_types():
+    """Test multipart form with various content types."""
+    text_file = BytesIO()
+    text_file.write(b"Plain text content")
+
+    json_data = b'{"key": "value", "number": 42}'
+    json_file = BytesIO()
+    json_file.write(json_data)
+
+    csv_data = b"name,age,city\nAlice,30,NYC\nBob,25,LA"
+    csv_file = BytesIO()
+    csv_file.write(csv_data)
+
+    content = MultiPartFormData([
+        FormPart.field("description", "Mixed content types"),
+        FormPart.from_file("text_doc", "readme.txt", file=text_file),
+        FormPart.from_file("json_doc", "data.json", file=json_file),
+        FormPart.from_file("csv_doc", "data.csv", file=csv_file),
+    ])
+
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({
+            "name": part.name,
+            "data": data,
+            "file_name": part.file_name,
+        })
+
+    assert len(parts) == 4
+    assert parts[0]["data"] == b"Mixed content types"
+    assert parts[1]["data"] == b"Plain text content"
+    assert parts[1]["file_name"] == "readme.txt"
+    assert parts[2]["data"] == json_data
+    assert parts[2]["file_name"] == "data.json"
+    assert parts[3]["data"] == csv_data
+    assert parts[3]["file_name"] == "data.csv"

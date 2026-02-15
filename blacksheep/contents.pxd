@@ -55,7 +55,7 @@ cdef class FileBuffer:
     cdef public str _charset
 
 
-cdef class StreamingFormPart:
+cdef class StreamedFormPart:
     cdef readonly str name
     cdef readonly str file_name
     cdef readonly str content_type

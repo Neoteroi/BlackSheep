@@ -4465,11 +4465,11 @@ async def test_file_buffer_save_to_raises_for_path_outside_cwd():
     file.close()
 
 
-async def test_form_part_from_field_with_string():
+async def test_form_part_field_with_string():
     """
-    Test FormPart.from_field() class method with string value.
+    Test FormPart.field() class method with string value.
     """
-    part = FormPart.from_field("username", "john_doe")
+    part = FormPart.field("username", "john_doe")
 
     assert part.name == b"username"
     assert part.data == b"john_doe"
@@ -4479,12 +4479,12 @@ async def test_form_part_from_field_with_string():
     assert part.size == len(b"john_doe")
 
 
-async def test_form_part_from_field_with_bytes():
+async def test_form_part_field_with_bytes():
     """
-    Test FormPart.from_field() class method with bytes value.
+    Test FormPart.field() class method with bytes value.
     """
     data = b"binary data here"
-    part = FormPart.from_field("data", data)
+    part = FormPart.field("data", data)
 
     assert part.name == b"data"
     assert part.data == data
@@ -4493,11 +4493,11 @@ async def test_form_part_from_field_with_bytes():
     assert part.size == len(data)
 
 
-async def test_form_part_from_field_with_custom_content_type():
+async def test_form_part_field_with_custom_content_type():
     """
-    Test FormPart.from_field() with custom content type.
+    Test FormPart.field() with custom content type.
     """
-    part = FormPart.from_field(
+    part = FormPart.field(
         "json_data", '{"key": "value"}', content_type="application/json"
     )
 
@@ -4506,11 +4506,11 @@ async def test_form_part_from_field_with_custom_content_type():
     assert part.content_type == b"application/json"
 
 
-async def test_form_part_from_field_with_custom_charset():
+async def test_form_part_field_with_custom_charset():
     """
-    Test FormPart.from_field() with custom charset.
+    Test FormPart.field() with custom charset.
     """
-    part = FormPart.from_field("text", "Hello, World!", charset="latin-1")
+    part = FormPart.field("text", "Hello, World!", charset="latin-1")
 
     assert part.name == b"text"
     assert part.data == "Hello, World!".encode("latin-1")

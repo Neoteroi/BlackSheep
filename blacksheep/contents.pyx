@@ -277,7 +277,7 @@ cdef class FormPart:
         self.size = size
 
     @classmethod
-    def from_field(
+    def field(
         cls,
         str name,
         value,
@@ -301,7 +301,7 @@ cdef class FormPart:
             A new FormPart instance.
 
         Example:
-            part = FormPart.from_field("username", "john_doe")
+            part = FormPart.field("username", "john_doe")
         """
         cdef bytes data
         cdef bytes content_type_bytes
@@ -594,11 +594,11 @@ cdef class FileBuffer:
         self.close()
 
 
-cdef class StreamingFormPart:
+cdef class StreamedFormPart:
     """
     Represents a streaming part of a multipart/form-data request.
 
-    Unlike FormPart, which loads all data into memory, StreamingFormPart provides
+    Unlike FormPart, which loads all data into memory, StreamedFormPart provides
     lazy access to file content through async iteration, making it suitable for
     large file uploads without memory pressure.
 
@@ -622,6 +622,19 @@ cdef class StreamingFormPart:
         self.content_type = content_type
         self.charset = charset
         self._data_stream = data_stream
+
+    async def read(self) -> bytes:
+        """
+        Read the entire part stream and return it as bytes.
+
+        **Warning:** use this method only if you expect small
+        multipart/form-data fields or files.
+        """
+        # Read from stream if not cached
+        value = bytearray()
+        async for chunk in self._data_stream:
+            value.extend(chunk)
+        return bytes(value)
 
     async def stream(self):
         """
@@ -652,7 +665,7 @@ cdef class StreamingFormPart:
         return total_bytes
 
     def __repr__(self):
-        return f"<StreamingFormPart {self.name} - at {id(self)}>"
+        return f"<StreamedFormPart {self.name} - at {id(self)}>"
 
 
 cdef class MultiPartFormData(StreamedContent):
@@ -693,13 +706,16 @@ cdef class MultiPartFormData(StreamedContent):
             if part.file_name:
                 header.extend(b'; filename="')
                 header.extend(part.file_name)
-                header.extend(b'"\r\n')
+                header.extend(b'"')
+
+            header.extend(b"\r\n")
 
             if part.content_type:
                 header.extend(b"Content-Type: ")
                 header.extend(part.content_type)
+                header.extend(b"\r\n")
 
-            header.extend(b"\r\n\r\n")
+            header.extend(b"\r\n")
             yield bytes(header)
 
             # Stream the part data

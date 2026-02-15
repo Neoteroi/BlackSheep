@@ -1,7 +1,7 @@
 import warnings
 from typing import AsyncIterable, Generator, Iterable
 
-from blacksheep.contents import FormPart, StreamingFormPart
+from blacksheep.contents import FormPart, StreamedFormPart
 
 
 def get_boundary_from_header(value: bytes) -> bytes:
@@ -154,11 +154,47 @@ def _decode(value: bytes | None) -> str | None:
     return value.decode("utf8")
 
 
+def parse_content_type_and_charset(
+    content_type_header: bytes | None,
+) -> tuple[bytes | None, bytes | None]:
+    """
+    Parse a Content-Type header value to extract the media type and charset.
+
+    Args:
+        content_type_header: Raw Content-Type header value (e.g., b'text/plain; charset=utf-8')
+
+    Returns:
+        Tuple of (content_type, charset) where both can be None
+    """
+    if not content_type_header:
+        return None, None
+
+    # Split on semicolon to separate media type from parameters
+    parts = content_type_header.split(b";", 1)
+    content_type = parts[0].strip()
+
+    charset = None
+    if len(parts) > 1:
+        # Parse parameters (e.g., "charset=utf-8")
+        params_str = parts[1]
+        for param in params_str.split(b";"):
+            param = param.strip()
+            if b"=" in param:
+                key, value = param.split(b"=", 1)
+                key = key.strip().lower()
+                value = value.strip().strip(b'"')
+                if key == b"charset":
+                    charset = value
+                    break
+
+    return content_type, charset
+
+
 async def parse_multipart_async(
     stream: AsyncIterable[bytes], boundary: bytes
-) -> AsyncIterable[StreamingFormPart]:
+) -> AsyncIterable[StreamedFormPart]:
     """
-    Parses multipart/form-data from an async stream, yielding StreamingFormPart
+    Parses multipart/form-data from an async stream, yielding StreamedFormPart
     objects for all parts (both files and form fields).
 
     This implementation provides true streaming support for all multipart parts,
@@ -175,14 +211,14 @@ async def parse_multipart_async(
         boundary: The boundary bytes from the Content-Type header
 
     Yields:
-        StreamingFormPart objects for all parts (data accessed via stream() or read())
+        StreamedFormPart objects for all parts (data accessed via stream() or read())
 
     Example:
         ```python
         async for part in parse_multipart_async(stream, boundary):
             if part.file_name:
-                # File upload - stream to disk
-                await part.save_to(f"uploads/{part.file_name.decode()}")
+                # Stream large files directly to disk
+                await part.save_to(f"uploads/{part.file_name}")
             else:
                 # Form field - read value
                 value = await part.read()
@@ -327,7 +363,14 @@ async def parse_multipart_async(
         cd_values = parse_content_disposition_values(content_disposition)
         name = cd_values.get(b"name", b"")
         filename = cd_values.get(b"filename")
-        content_type = headers.get(b"content-type")
+        content_type_header = headers.get(b"content-type")
+
+        # Parse content-type and charset from the Content-Type header
+        content_type, charset = parse_content_type_and_charset(content_type_header)
+
+        # If no charset in Content-Type, use the default charset
+        if charset is None:
+            charset = default_charset
 
         # Handle special _charset_ field
         if name == b"_charset_":
@@ -345,12 +388,12 @@ async def parse_multipart_async(
         current_data_gen = data_generator()
 
         # Yield the streaming part
-        yield StreamingFormPart(
+        yield StreamedFormPart(
             _decode(name),
             current_data_gen,
             _decode(content_type),
             _decode(filename),
-            _decode(default_charset),
+            _decode(charset),
         )
 
         # After yield returns (caller asked for next part), drain any unconsumed

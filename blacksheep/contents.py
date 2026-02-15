@@ -320,7 +320,7 @@ class FormPart:
         self.size = size
 
     @classmethod
-    def from_field(
+    def field(
         cls,
         name: str,
         value: str | bytes,
@@ -349,17 +349,17 @@ class FormPart:
 
         Examples:
             # Simple text field
-            username = FormPart.from_field("username", "john_doe")
+            username = FormPart.field("username", "john_doe")
 
             # Field with custom content type
-            json_data = FormPart.from_field(
+            json_data = FormPart.field(
                 "metadata",
                 '{"version": "1.0"}',
                 content_type="application/json"
             )
 
             # Pre-encoded bytes
-            binary_field = FormPart.from_field("data", b"\x00\x01\x02")
+            binary_field = FormPart.field("data", b"\x00\x01\x02")
         """
         data = value.encode(charset) if isinstance(value, str) else value
 
@@ -387,7 +387,8 @@ class FormPart:
         content_type: str | None = None,
     ) -> "FormPart":
         """
-        Create a FormPart for uploading a file from the filesystem.
+        Create a FormPart for uploading a file read from the filesystem, or from a
+        given file object.
 
         This method creates a multipart form part for file uploads. It can either
         automatically open a file from the filesystem or use an already-opened file
@@ -673,11 +674,11 @@ class FileBuffer:
         self.close()
 
 
-class StreamingFormPart:
+class StreamedFormPart:
     """
     Represents a streaming part of a multipart/form-data request.
 
-    Unlike FormPart, which loads all data into memory, StreamingFormPart provides
+    Unlike FormPart, which loads all data into memory, StreamedFormPart provides
     lazy access to file content through async iteration, making it suitable for
     large file uploads without memory pressure.
 
@@ -693,6 +694,7 @@ class StreamingFormPart:
         "file_name",
         "content_type",
         "charset",
+        "_data",
         "_data_stream",
     )
 
@@ -709,6 +711,18 @@ class StreamingFormPart:
         self.content_type = content_type
         self.charset = charset
         self._data_stream = data_stream
+
+    async def read(self) -> bytes:
+        """
+        Read the entire part stream and return it as bytes.
+
+        **Warning:** use this method only if you expect small
+        multipart/form-data fields or files.
+        """
+        value = bytearray()
+        async for chunk in self._data_stream:
+            value.extend(chunk)
+        return bytes(value)
 
     async def stream(self) -> AsyncIterable[bytes]:
         """
@@ -742,7 +756,7 @@ class StreamingFormPart:
         return total_bytes
 
     def __repr__(self):
-        return f"<StreamingFormPart {self.name} - at {id(self)}>"
+        return f"<StreamedFormPart {self.name} - at {id(self)}>"
 
 
 class MultiPartFormData(StreamedContent):
@@ -783,13 +797,16 @@ class MultiPartFormData(StreamedContent):
             if part.file_name:
                 header.extend(b'; filename="')
                 header.extend(part.file_name)
-                header.extend(b'"\r\n')
+                header.extend(b'"')
+
+            header.extend(b"\r\n")
 
             if part.content_type:
                 header.extend(b"Content-Type: ")
                 header.extend(part.content_type)
+                header.extend(b"\r\n")
 
-            header.extend(b"\r\n\r\n")
+            header.extend(b"\r\n")
             yield bytes(header)
 
             # Stream the part data

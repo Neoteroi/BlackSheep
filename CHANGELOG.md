@@ -23,12 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Modify the `MultiPartFormData` to inherit `StreamedContent` and remove the immediate call to `write_multipart_form_data()` which loaded everything into memory.
 
 > [!NOTE]
-> Support for efficient `multipart/form-data` handling was previously neglected as
+> Support for efficient handling of `multipart/form-data` was previously neglected as
 > BlackSheep focused primarily on JSON-based Web APIs, Web Apps serving HTML and static
-> files, and raw request body streaming to handle uploads for large uploads.
+> files, and raw request body streaming for large uploads.
 > This release improves support for this format, adding support for memory-efficient
-> uploads of big files using `multipart/form-data`, both parsing on the server-side and
-> in the HTTP Client, through the `MultiPartFormData` content class.
+> handling of `multipart/form-data`, both when parsing on the server-side and
+> when writing payloads for the BlackSheep HTTP Client, through the `MultiPartFormData`
+> content class.
 
 ## [2.5.1] - 2026-01-30 :wheel:
 

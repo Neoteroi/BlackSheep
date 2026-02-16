@@ -4,7 +4,7 @@ used types to reduce the verbosity of the imports statements.
 """
 
 __author__ = "Roberto Prevato <roberto.prevato@gmail.com>"
-__version__ = "2.6.0"
+__version__ = "2.6.1"
 
 from .contents import Content as Content
 from .contents import FileBuffer as FileBuffer

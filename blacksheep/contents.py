@@ -784,6 +784,9 @@ class MultiPartFormData(StreamedContent):
 
     async def _generate_multipart_chunks(self) -> AsyncIterator[bytes]:
         """Generate multipart/form-data content in chunks."""
+        # Import the escape function from multipart module
+        from blacksheep.multipart import _escape_quoted_string
+
         for part in self.parts:
             # Build headers as a single chunk
             header = bytearray()
@@ -791,12 +794,14 @@ class MultiPartFormData(StreamedContent):
             header.extend(self.boundary)
             header.extend(b"\r\n")
             header.extend(b'Content-Disposition: form-data; name="')
-            header.extend(part.name)
+            # Escape field name to handle quotes and backslashes
+            header.extend(_escape_quoted_string(part.name))
             header.extend(b'"')
 
             if part.file_name:
                 header.extend(b'; filename="')
-                header.extend(part.file_name)
+                # Escape filename to handle quotes and backslashes
+                header.extend(_escape_quoted_string(part.file_name))
                 header.extend(b'"')
 
             header.extend(b"\r\n")

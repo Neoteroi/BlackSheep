@@ -9,7 +9,7 @@ def get_boundary_from_header(value: bytes) -> bytes:
 
 
 def _escape_quoted_string(value: bytes) -> bytes:
-    """
+    r"""
     Escape special characters in a quoted string for Content-Disposition header.
 
     According to RFC 2183, backslashes and double quotes must be escaped:

@@ -1,5 +1,4 @@
 from io import BytesIO
-from typing import BinaryIO
 import pytest
 
 from blacksheep.contents import MultiPartFormData
@@ -500,14 +499,15 @@ async def test_multipart_filename_with_backslashes():
     file1.write(b"Content")
 
     content = MultiPartFormData([
-        FormPart.from_file("upload", 'path\\to\\file.txt', file=file1),
+        FormPart.from_file("upload", r"path\to\file.txt", file=file1),
     ])
 
-    # Verify the encoded format
+    # Verify the encoded format contains escaped backslashes
     encoded = b""
     async for chunk in content.stream():
         encoded += chunk
 
+    # path\to\file.txt becomes path\\to\\file.txt
     assert b'filename="path\\\\to\\\\file.txt"' in encoded
 
     # Verify round-trip
@@ -520,7 +520,7 @@ async def test_multipart_filename_with_backslashes():
         })
 
     assert len(parts) == 1
-    assert parts[0]["file_name"] == 'path\\to\\file.txt'
+    assert parts[0]["file_name"] == r'path\to\file.txt'
 
 
 async def test_multipart_quotes_and_backslashes_combined():
@@ -531,11 +531,10 @@ async def test_multipart_quotes_and_backslashes_combined():
     """
     file1 = BytesIO()
     file1.write(b"File content")
-
     content = MultiPartFormData([
-        FormPart.field('field\\"name', "value1"),  # Contains backslash and quote
-        FormPart.field('a"b\\c"d', "value2"),
-        FormPart.from_file("upload", 'file\\"test".txt', file=file1),
+        FormPart.field(r'field\\"name', "value1"),  # Contains backslash and quote
+        FormPart.field(r'a"b\\c"d', "value2"),
+        FormPart.from_file("upload", r'file\"test".txt', file=file1),
     ])
 
     # Verify encoding
@@ -544,11 +543,11 @@ async def test_multipart_quotes_and_backslashes_combined():
         encoded += chunk
 
     # Both backslashes and quotes should be escaped
-    # field\\"name becomes field\\\\"name (backslash->\\, quote->\")
-    assert b'name="field\\\\\\"name"' in encoded
-    # a"b\c"d becomes a\"b\\c\"d
-    assert b'name="a\\"b\\\\c\\"d"' in encoded
-    # file\\"test".txt becomes file\\\\"test\".txt
+    # field\\"name becomes field\\\\\\\\\\"name (backslash->\\, quote->\")
+    assert b'name="field\\\\\\\\\\"name"' in encoded
+    # a"b\\c"d becomes a\"b\\\\c\"d
+    assert b'name="a\\"b\\\\\\\\c\\"d"' in encoded
+    # file\"test".txt becomes file\\\"test\".txt (backslash->\\, quotes->\")
     assert b'filename="file\\\\\\"test\\".txt"' in encoded
 
     # Verify round-trip
@@ -562,9 +561,9 @@ async def test_multipart_quotes_and_backslashes_combined():
         })
 
     assert len(parts) == 3
-    assert parts[0]["name"] == 'field\\"name'
-    assert parts[0]["data"] == "value1"
-    assert parts[1]["name"] == 'a"b\\c"d'
-    assert parts[1]["data"] == "value2"
-    assert parts[2]["file_name"] == 'file\\"test".txt'
+    assert parts[0]["name"] == r'field\\"name'
+    assert parts[0]["data"] == r"value1"
+    assert parts[1]["name"] == r'a"b\\c"d'
+    assert parts[1]["data"] == r"value2"
+    assert parts[2]["file_name"] == r'file\"test".txt'
     assert parts[2]["data"] == b"File content"

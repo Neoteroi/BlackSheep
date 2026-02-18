@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import BinaryIO
+from pathlib import Path
 import pytest
 
 from blacksheep.contents import MultiPartFormData
@@ -387,3 +387,191 @@ async def test_multipart_write_mixed_content_types():
     assert parts[2]["file_name"] == "data.json"
     assert parts[3]["data"] == csv_data
     assert parts[3]["file_name"] == "data.csv"
+
+
+async def test_multipart_field_name_with_quotes():
+    """Test that field names containing double quotes are properly escaped.
+
+    According to RFC 2183, double quotes in quoted strings must be escaped
+    with a backslash: \"
+    """
+    content = MultiPartFormData([
+        FormPart.field('field"name', "value1"),
+        FormPart.field('my"field"with"quotes', "value2"),
+    ])
+
+    # Verify the encoded format contains escaped quotes
+    encoded = b""
+    async for chunk in content.stream():
+        encoded += chunk
+
+    # Field names should have escaped quotes: field\"name
+    assert b'name="field\\"name"' in encoded
+    assert b'name="my\\"field\\"with\\"quotes"' in encoded
+
+    # Verify round-trip: parse back and get original field names
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append((part.name, data.decode("utf-8")))
+
+    assert len(parts) == 2
+    assert parts[0] == ('field"name', "value1")
+    assert parts[1] == ('my"field"with"quotes', "value2")
+
+
+async def test_multipart_filename_with_quotes():
+    """Test that filenames containing double quotes are properly escaped.
+
+    According to RFC 2183, double quotes in quoted strings must be escaped
+    with a backslash: \"
+    """
+    file1 = BytesIO()
+    file1.write(b"Content 1")
+
+    file2 = BytesIO()
+    file2.write(b"Content 2")
+
+    content = MultiPartFormData([
+        FormPart.from_file("upload", 'file"name.txt', file=file1),
+        FormPart.from_file("document", 'my"document"2024.pdf', file=file2),
+    ])
+
+    # Verify the encoded format contains escaped quotes
+    encoded = b""
+    async for chunk in content.stream():
+        encoded += chunk
+
+    # Filenames should have escaped quotes
+    assert b'filename="file\\"name.txt"' in encoded
+    assert b'filename="my\\"document\\"2024.pdf"' in encoded
+
+    # Verify round-trip: parse back and get original filenames
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({
+            "name": part.name,
+            "file_name": part.file_name,
+            "data": data,
+        })
+
+    assert len(parts) == 2
+    assert parts[0]["file_name"] == 'file"name.txt'
+    assert parts[0]["data"] == b"Content 1"
+    assert parts[1]["file_name"] == 'my"document"2024.pdf'
+    assert parts[1]["data"] == b"Content 2"
+
+
+async def test_multipart_field_name_with_backslashes():
+    """Test that field names containing backslashes are properly escaped.
+
+    According to RFC 2183, backslashes in quoted strings must be escaped
+    with another backslash: \\
+    """
+    content = MultiPartFormData([
+        FormPart.field('field\\name', "value1"),
+        FormPart.field('path\\to\\field', "value2"),
+    ])
+
+    # Verify the encoded format contains escaped backslashes
+    encoded = b""
+    async for chunk in content.stream():
+        encoded += chunk
+
+    # Backslashes should be escaped
+    assert b'name="field\\\\name"' in encoded
+    assert b'name="path\\\\to\\\\field"' in encoded
+
+    # Verify round-trip
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append((part.name, data.decode("utf-8")))
+
+    assert len(parts) == 2
+    assert parts[0] == ('field\\name', "value1")
+    assert parts[1] == ('path\\to\\field', "value2")
+
+
+async def test_multipart_filename_with_backslashes():
+    """Test that file paths are handled correctly across platforms.
+
+    from_file uses os.path.basename to extract the filename from the path,
+    so only the final component of the path is used as the filename in the
+    Content-Disposition header.
+    """
+    file1 = BytesIO()
+    file1.write(b"Content")
+
+    file_path = Path("path") / "to" / "file.txt"
+    content = MultiPartFormData([
+        FormPart.from_file("upload", str(file_path), file=file1),
+    ])
+
+    # Verify the encoded format uses only the basename of the path
+    encoded = b""
+    async for chunk in content.stream():
+        encoded += chunk
+
+    # os.path.basename extracts only the filename component
+    assert b'filename="file.txt"' in encoded
+
+    # Verify round-trip
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({
+            "file_name": part.file_name,
+            "data": data,
+        })
+
+    assert len(parts) == 1
+    assert parts[0]["file_name"] == "file.txt"
+
+
+async def test_multipart_quotes_and_backslashes_combined():
+    """Test field names and filenames with both quotes and backslashes.
+
+    This is the most complex case: both characters need escaping, and the
+    backslash itself is the escape character.
+    """
+    file1 = BytesIO()
+    file1.write(b"File content")
+    file_path = Path("file") / "test.txt"
+    content = MultiPartFormData([
+        FormPart.field(r'field\\"name', "value1"),  # Contains backslash and quote
+        FormPart.field(r'a"b\\c"d', "value2"),
+        FormPart.from_file("upload", str(file_path), file=file1),
+    ])
+
+    # Verify encoding
+    encoded = b""
+    async for chunk in content.stream():
+        encoded += chunk
+
+    # Both backslashes and quotes should be escaped
+    # field\\"name becomes field\\\\\\\\\\"name (backslash->\\, quote->\")
+    assert b'name="field\\\\\\\\\\"name"' in encoded
+    # a"b\\c"d becomes a\"b\\\\c\"d
+    assert b'name="a\\"b\\\\\\\\c\\"d"' in encoded
+    # os.path.basename extracts only the filename component: test.txt (no special chars)
+    assert b'filename="test.txt"' in encoded
+
+    # Verify round-trip
+    parts = []
+    async for part in parse_multipart_async(content.stream(), content.boundary):
+        data = await part.read()
+        parts.append({
+            "name": part.name,
+            "file_name": part.file_name,
+            "data": data.decode("utf-8") if part.file_name is None else data,
+        })
+
+    assert len(parts) == 3
+    assert parts[0]["name"] == r'field\\"name'
+    assert parts[0]["data"] == r"value1"
+    assert parts[1]["name"] == r'a"b\\c"d'
+    assert parts[1]["data"] == r"value2"
+    assert parts[2]["file_name"] == "test.txt"
+    assert parts[2]["data"] == b"File content"

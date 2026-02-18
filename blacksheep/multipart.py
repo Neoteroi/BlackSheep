@@ -8,6 +8,56 @@ def get_boundary_from_header(value: bytes) -> bytes:
     return value.split(b"=", 1)[1].split(b" ", 1)[0]
 
 
+def _escape_quoted_string(value: bytes) -> bytes:
+    r"""
+    Escape special characters in a quoted string for Content-Disposition header.
+
+    According to RFC 2183, backslashes and double quotes must be escaped:
+    - Backslash (\) becomes \\
+    - Double quote (") becomes \"
+
+    Note: Backslashes must be escaped first to avoid double-escaping.
+
+    Args:
+        value: The raw bytes to escape
+
+    Returns:
+        Escaped bytes suitable for use in a quoted string
+    """
+    # Escape backslashes first (otherwise we'd double-escape)
+    value = value.replace(b"\\", b"\\\\")
+    # Then escape quotes
+    value = value.replace(b'"', b'\\"')
+    return value
+
+
+def _unescape_quoted_string(value: bytes) -> bytes:
+    """
+    Unescape a quoted string from a Content-Disposition header.
+
+    According to RFC 2183, escaped sequences are:
+    - \\" becomes "
+    - \\\\ becomes \\
+
+    Args:
+        value: The escaped bytes
+
+    Returns:
+        Unescaped bytes
+    """
+    result = bytearray()
+    i = 0
+    while i < len(value):
+        if value[i:i+1] == b'\\' and i + 1 < len(value):
+            # Escaped character - take the next character literally
+            result.extend(value[i+1:i+2])
+            i += 2
+        else:
+            result.extend(value[i:i+1])
+            i += 1
+    return bytes(result)
+
+
 def _remove_last_crlf(value: bytes) -> bytes:
     if value.endswith(b"\r\n"):
         return value[:-2]
@@ -53,11 +103,18 @@ def split_content_disposition_values(
 ) -> Iterable[tuple[bytes, bytes]] | None:
     """
     Parses a single header into key, value pairs.
+
+    This function properly handles escaped quotes and backslashes in quoted strings
+    according to RFC 2183.
     """
     for part in value.split(b";"):
         if b"=" in part:
             name, value = part.split(b"=", 1)
-            yield name.lower().strip(b" "), value.strip(b'" ')
+            value = value.strip(b" ")
+            # Remove surrounding quotes and unescape if quoted
+            if value.startswith(b'"') and value.endswith(b'"'):
+                value = _unescape_quoted_string(value[1:-1])
+            yield name.lower().strip(b" "), value
         else:
             yield b"type", part
 
@@ -225,7 +282,6 @@ async def parse_multipart_async(
         ```
     """
     boundary_delimiter = b"--" + boundary
-    end_boundary = boundary_delimiter + b"--"
 
     # Use manual iterator control to avoid buffering the entire stream
     stream_iter = stream.__aiter__()

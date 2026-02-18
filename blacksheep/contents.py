@@ -425,7 +425,7 @@ class FormPart:
             # Upload with explicit MIME type
             doc = FormPart.from_file(
                 "document",
-                "report.pdf",
+                "report.pdf",  # Actual file location
                 content_type="application/pdf"
             )
 
@@ -433,7 +433,7 @@ class FormPart:
             with open("large_video.mp4", "rb") as f:
                 video = FormPart.from_file(
                     "video",
-                    "large_video.mp4",
+                    "large_video.mp4",  # Actual file location
                     file=f,
                     content_type="video/mp4"
                 )
@@ -442,19 +442,15 @@ class FormPart:
 
             # Upload file from a different location with custom filename
             data = FormPart.from_file(
-                "attachment",
+                "attachment",  # Form part name
                 "/tmp/generated_file.dat",  # Actual file location
                 content_type="application/octet-stream"
             )
         """
         # We cannot close the file while used by FormPart
-        specified_file = file is not None
         file = open(file_path, mode="rb") if file is None else file
-        file_name = (
-            os.path.basename(file_path)
-            if specified_file
-            else os.path.basename(file.name)
-        )
+        # os.path.basename behaves differently on Windows and Linux
+        file_name = os.path.basename(file_path)
 
         # Get file size if possible
         size = 0
@@ -784,6 +780,9 @@ class MultiPartFormData(StreamedContent):
 
     async def _generate_multipart_chunks(self) -> AsyncIterator[bytes]:
         """Generate multipart/form-data content in chunks."""
+        # Import the escape function from multipart module
+        from blacksheep.multipart import _escape_quoted_string
+
         for part in self.parts:
             # Build headers as a single chunk
             header = bytearray()
@@ -791,12 +790,14 @@ class MultiPartFormData(StreamedContent):
             header.extend(self.boundary)
             header.extend(b"\r\n")
             header.extend(b'Content-Disposition: form-data; name="')
-            header.extend(part.name)
+            # Escape field name to handle quotes and backslashes
+            header.extend(_escape_quoted_string(part.name))
             header.extend(b'"')
 
             if part.file_name:
                 header.extend(b'; filename="')
-                header.extend(part.file_name)
+                # Escape filename to handle quotes and backslashes
+                header.extend(_escape_quoted_string(part.file_name))
                 header.extend(b'"')
 
             header.extend(b"\r\n")

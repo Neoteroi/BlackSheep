@@ -1,4 +1,5 @@
 from io import BytesIO
+from pathlib import Path
 import pytest
 
 from blacksheep.contents import MultiPartFormData
@@ -494,21 +495,27 @@ async def test_multipart_field_name_with_backslashes():
 
 
 async def test_multipart_filename_with_backslashes():
-    """Test that filenames containing backslashes are properly escaped."""
+    """Test that file paths are handled correctly across platforms.
+
+    from_file uses os.path.basename to extract the filename from the path,
+    so only the final component of the path is used as the filename in the
+    Content-Disposition header.
+    """
     file1 = BytesIO()
     file1.write(b"Content")
 
+    file_path = Path("path") / "to" / "file.txt"
     content = MultiPartFormData([
-        FormPart.from_file("upload", r"path\to\file.txt", file=file1),
+        FormPart.from_file("upload", str(file_path), file=file1),
     ])
 
-    # Verify the encoded format contains escaped backslashes
+    # Verify the encoded format uses only the basename of the path
     encoded = b""
     async for chunk in content.stream():
         encoded += chunk
 
-    # path\to\file.txt becomes path\\to\\file.txt
-    assert b'filename="path\\\\to\\\\file.txt"' in encoded
+    # os.path.basename extracts only the filename component
+    assert b'filename="file.txt"' in encoded
 
     # Verify round-trip
     parts = []
@@ -520,7 +527,7 @@ async def test_multipart_filename_with_backslashes():
         })
 
     assert len(parts) == 1
-    assert parts[0]["file_name"] == r'path\to\file.txt'
+    assert parts[0]["file_name"] == "file.txt"
 
 
 async def test_multipart_quotes_and_backslashes_combined():
@@ -531,10 +538,11 @@ async def test_multipart_quotes_and_backslashes_combined():
     """
     file1 = BytesIO()
     file1.write(b"File content")
+    file_path = Path("file") / "test.txt"
     content = MultiPartFormData([
         FormPart.field(r'field\\"name', "value1"),  # Contains backslash and quote
         FormPart.field(r'a"b\\c"d', "value2"),
-        FormPart.from_file("upload", r'file\"test".txt', file=file1),
+        FormPart.from_file("upload", str(file_path), file=file1),
     ])
 
     # Verify encoding
@@ -547,8 +555,8 @@ async def test_multipart_quotes_and_backslashes_combined():
     assert b'name="field\\\\\\\\\\"name"' in encoded
     # a"b\\c"d becomes a\"b\\\\c\"d
     assert b'name="a\\"b\\\\\\\\c\\"d"' in encoded
-    # file\"test".txt becomes file\\\"test\".txt (backslash->\\, quotes->\")
-    assert b'filename="file\\\\\\"test\\".txt"' in encoded
+    # os.path.basename extracts only the filename component: test.txt (no special chars)
+    assert b'filename="test.txt"' in encoded
 
     # Verify round-trip
     parts = []
@@ -565,5 +573,5 @@ async def test_multipart_quotes_and_backslashes_combined():
     assert parts[0]["data"] == r"value1"
     assert parts[1]["name"] == r'a"b\\c"d'
     assert parts[1]["data"] == r"value2"
-    assert parts[2]["file_name"] == r'file\"test".txt'
+    assert parts[2]["file_name"] == "test.txt"
     assert parts[2]["data"] == b"File content"

@@ -425,7 +425,7 @@ class FormPart:
             # Upload with explicit MIME type
             doc = FormPart.from_file(
                 "document",
-                "report.pdf",
+                "report.pdf",  # Actual file location
                 content_type="application/pdf"
             )
 
@@ -433,7 +433,7 @@ class FormPart:
             with open("large_video.mp4", "rb") as f:
                 video = FormPart.from_file(
                     "video",
-                    "large_video.mp4",
+                    "large_video.mp4",  # Actual file location
                     file=f,
                     content_type="video/mp4"
                 )
@@ -442,19 +442,15 @@ class FormPart:
 
             # Upload file from a different location with custom filename
             data = FormPart.from_file(
-                "attachment",
+                "attachment",  # Form part name
                 "/tmp/generated_file.dat",  # Actual file location
                 content_type="application/octet-stream"
             )
         """
         # We cannot close the file while used by FormPart
-        specified_file = file is not None
         file = open(file_path, mode="rb") if file is None else file
-        file_name = (
-            os.path.basename(file_path)
-            if specified_file
-            else os.path.basename(file.name)
-        )
+        # os.path.basename behaves differently on Windows and Linux
+        file_name = os.path.basename(file_path)
 
         # Get file size if possible
         size = 0

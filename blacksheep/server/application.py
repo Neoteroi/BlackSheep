@@ -813,9 +813,18 @@ class Application(BaseApplication):
                 )
 
     def instantiate_request(self, scope, receive) -> Request:
+        # ASGI spec: raw_path is optional. If missing (e.g., in a2wsgi),
+        # generate it from the required 'path' field by encoding to bytes.
+        # Using try/except for performance: no overhead when raw_path exists.
+        try:
+            raw_path = scope["raw_path"]
+        except KeyError:
+            raw_path = scope["path"].encode("utf-8")
+            scope["raw_path"] = raw_path
+
         request = Request.incoming(
             scope["method"],
-            scope["raw_path"],
+            raw_path,
             scope["query_string"],
             list(scope["headers"]),
         )

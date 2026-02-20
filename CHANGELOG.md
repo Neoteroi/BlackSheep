@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix missing escaping in `multipart/form-data` filenames and content-disposition headers.
 - Fix [#193](https://github.com/Neoteroi/BlackSheep/issues/193), adding support for [`a2wsgi`](https://github.com/abersheeran/a2wsgi).
-- `raw_path` is optional in ASGI specification. If not present, it is automatically obtained from `path` and set in `scope["raw_path"]`.
+- `raw_path` is optional in ASGI specification. If not present, now the `instantiate_request` method it is automatically obtained from `path` and set in `scope["raw_path"]`.
 - Static files are now served with `Content-Length` header instead of `Transfer-Encoding: chunked` when file size is known. This improves compatibility with `WSGI` servers via `a2wsgi`.
+- Automatically run the `Application` start logic if the `__call__` method is called with **http** or **websocket** messages. This is useful when `lifespan` events are not supported, like when using `WSGI`.
 
 ## [2.6.0] - 2026-02-15 :cupid:
 

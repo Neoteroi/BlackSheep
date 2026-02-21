@@ -75,18 +75,19 @@ def get_files_list_html_response(
     parent_folder_path: str,
     contents: Sequence[FilePathInfo],
     root_path: str,
+    base_path: str = "",
 ) -> Response:
     info_lines = []
     for item in contents:
         rel_path = item.get("rel_path")
         assert rel_path is not None
         full_rel_path = html.escape(
-            join_fragments(root_path, parent_folder_path, rel_path)
+            join_fragments(base_path, root_path, parent_folder_path, rel_path)
         )
         info_lines.append(f'<li><a href="{full_rel_path}">{rel_path}</a></li>')
     info = "".join(info_lines)
     p = []
-    whole_p = [root_path]
+    whole_p = [join_fragments(base_path, root_path)]
     for fragment in parent_folder_path.split("/"):
         if fragment:
             whole_p.append(html.escape(fragment))
@@ -130,11 +131,18 @@ def get_response_for_resource_path(
     if os.path.isdir(resource_path):
         # Request for a path that matches a folder: e.g. /foo/
         if discovery:
+            # Use scope["root_path"] as the base_path: it carries the full mount
+            # context (parent prefix + mount point) set by the ASGI server or by
+            # handle_mount_path.  This is intentionally distinct from
+            # request.base_path, which PathPrefixMixin sets to the child router's
+            # own prefix — a value already captured in root_path at configure time.
+            scope_root_path = (request.scope or {}).get("root_path", "")
             return get_files_list_html_response(
                 files_list_html,
                 tail.rstrip("/"),
                 list(get_files_to_serve(Path(resource_path.rstrip("/")), extensions)),
                 root_path,
+                base_path=scope_root_path,
             )
         else:
             if index_document is not None:

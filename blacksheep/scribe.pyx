@@ -14,7 +14,7 @@ cdef bint should_use_chunked_encoding(Content content):
     return content.length < 0
 
 
-cdef void set_headers_for_response_content(Response message):
+cpdef void set_headers_for_response_content(Response message):
     cdef Content content = message.content
 
     if not content:

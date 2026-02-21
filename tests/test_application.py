@@ -3749,6 +3749,66 @@ def test_mounting_self_raises(app):
         app.mount("/nope", app)
 
 
+async def test_mounted_app_receives_request_without_trailing_slash():
+    # Issue #396: When accessing a mounted app's root without trailing slash,
+    # the request should be forwarded directly to the mounted app (not redirected),
+    # preserving all original request headers.
+    parent_app = FakeApplication()
+    child_app = FakeApplication()
+
+    received_auth_header = None
+
+    @child_app.router.get("/")
+    async def child_home(request: Request):
+        nonlocal received_auth_header
+        received_auth_header = request.get_first_header(b"authorization")
+        return text("OK")
+
+    parent_app.mount("/sub-child", child_app)
+
+    await parent_app.start()
+    await child_app.start()
+
+    # Access without trailing slash - should work and preserve headers
+    scope = get_example_scope(
+        "GET",
+        "/sub-child",
+        [(b"authorization", b"Bearer token123")],
+    )
+    await parent_app(scope, MockReceive(), MockSend())
+
+    assert received_auth_header == b"Bearer token123"
+
+
+async def test_mounted_app_receives_request_with_trailing_slash():
+    # Issue #396: Access with trailing slash should still work correctly.
+    parent_app = FakeApplication()
+    child_app = FakeApplication()
+
+    received_auth_header = None
+
+    @child_app.router.get("/")
+    async def child_home(request: Request):
+        nonlocal received_auth_header
+        received_auth_header = request.get_first_header(b"authorization")
+        return text("OK")
+
+    parent_app.mount("/sub-child", child_app)
+
+    await parent_app.start()
+    await child_app.start()
+
+    # Access with trailing slash - should also work and preserve headers
+    scope = get_example_scope(
+        "GET",
+        "/sub-child/",
+        [(b"authorization", b"Bearer token123")],
+    )
+    await parent_app(scope, MockReceive(), MockSend())
+
+    assert received_auth_header == b"Bearer token123"
+
+
 @pytest.mark.parametrize("param", [404, NotFound])
 async def test_custom_handler_for_404_not_found(app, param):
     # Issue #538

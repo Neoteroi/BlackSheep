@@ -299,11 +299,18 @@ class Application(BaseApplication):
         if app is self:
             raise TypeError("Cannot mount an application into itself")
 
-        self._mount_registry.mount(path, app)
+        # Include the parent router's prefix in the registered mount path so that
+        # incoming raw_paths (which already carry the prefix) are matched correctly.
+        effective_path = (
+            join_fragments(self.router.prefix, path) if self.router.prefix else path
+        )
+        self._mount_registry.mount(effective_path, app)
 
         if isinstance(app, Application):
             app.base_path = (
-                join_fragments(self.base_path, path) if self.base_path else path
+                join_fragments(self.base_path, effective_path)
+                if self.base_path
+                else effective_path
             )
 
             if self._mount_registry.auto_events:
@@ -898,6 +905,12 @@ class MountMixin:
         assert tail is not None
         tail = "/" + tail
 
+        # Update root_path per the ASGI spec: the child app must know its mount
+        # prefix so it can generate correct absolute URLs (analogous to WSGI
+        # SCRIPT_NAME).  root_path = parent root_path + the stripped mount prefix.
+        mount_prefix = scope["path"][: -len(tail)] if tail != "/" else scope["path"].rstrip("/")
+        scope["root_path"] = scope.get("root_path", "") + mount_prefix
+
         scope["path"] = tail
         scope["raw_path"] = tail.encode("utf8")
 
@@ -935,14 +948,17 @@ class MountMixin:
         )
         await send_asgi_response(response, send)
 
+    def _get_request_scope(self, scope):
+        ...
+
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
             return await super()._handle_lifespan(receive, send)  # type: ignore
 
+        raw_path = scope["raw_path"]
         for route in self.mount_registry.mounted_apps:  # type: ignore
-            route_match = route.match_by_path(scope["raw_path"])
+            route_match = route.match_by_path(raw_path)
             if route_match:
-                raw_path = scope["raw_path"]
                 if (
                     raw_path == route.pattern.rstrip(b"/*")
                     and scope["type"] == "http"

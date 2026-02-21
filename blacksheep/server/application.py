@@ -891,7 +891,11 @@ class PathPrefixMixin:
 
     def instantiate_request(self, scope, receive) -> Request:
         request = super().instantiate_request(scope, receive)  # type: ignore
-        request.base_path = self.router.prefix
+        # Combine any upstream mount context (scope["root_path"], e.g. from a
+        # parent app or a reverse proxy) with the router's own prefix so that
+        # get_absolute_url_to_path and OIDC redirects produce fully-qualified paths.
+        scope_root_path = scope.get("root_path", "")
+        request.base_path = join_fragments(scope_root_path, self.router.prefix)
         return request
 
 

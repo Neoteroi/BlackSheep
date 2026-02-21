@@ -5,6 +5,7 @@ This module tests that BlackSheep applications work correctly with a2wsgi,
 which bridges ASGI applications to WSGI servers. a2wsgi requires proper
 Content-Length headers instead of chunked transfer encoding for static files.
 """
+
 import asyncio
 import os
 import tempfile
@@ -13,8 +14,8 @@ from pathlib import Path
 import pytest
 
 from blacksheep import Application, Response, json, text
-from blacksheep.server.files import get_response_for_file
 from blacksheep.common.files.asyncfs import FilesHandler
+from blacksheep.server.files import get_response_for_file
 from blacksheep.server.resources import get_resource_file_path
 
 
@@ -27,8 +28,8 @@ class TestA2WSGICompatibility:
 
     async def test_static_files_have_content_length(self):
         """Verify static files are served with Content-Length header."""
-        from blacksheep.scribe import set_headers_for_response_content
         from blacksheep import Request
+        from blacksheep.scribe import set_headers_for_response_content
 
         test_file = get_file_path("example.txt")
 
@@ -36,7 +37,7 @@ class TestA2WSGICompatibility:
             FilesHandler(),
             Request("GET", b"/static/example.txt", None),
             test_file,
-            3600
+            3600,
         )
 
         # Simulate what the framework does
@@ -93,7 +94,9 @@ class TestA2WSGICompatibility:
 
         # Verify Content-Length header is present
         content_length_headers = response.headers.get(b"content-length")
-        assert content_length_headers, "Static files must have Content-Length for a2wsgi"
+        assert (
+            content_length_headers
+        ), "Static files must have Content-Length for a2wsgi"
         assert len(content_length_headers) > 0
         content_length = int(content_length_headers[0])
         assert content_length == 447
@@ -104,7 +107,7 @@ class TestA2WSGICompatibility:
 
     @pytest.mark.skipif(
         os.getenv("TEST_A2WSGI_REAL") != "1",
-        reason="Requires a2wsgi package - set TEST_A2WSGI_REAL=1 to run"
+        reason="Requires a2wsgi package - set TEST_A2WSGI_REAL=1 to run",
     )
     async def test_with_actual_a2wsgi(self):
         """Test with actual a2wsgi package if available."""
@@ -159,8 +162,9 @@ class TestA2WSGICompatibility:
             assert status.startswith("200"), f"Expected 200 status, got {status}"
 
             # Verify Content-Length header exists
-            assert "Content-Length" in headers or "content-length" in headers, \
-                "a2wsgi requires Content-Length header"
+            assert (
+                "Content-Length" in headers or "content-length" in headers
+            ), "a2wsgi requires Content-Length header"
 
             # Verify body was returned
             assert len(body_parts) > 0, "Should have response body"
@@ -181,10 +185,7 @@ class TestContentLengthBehavior:
 
         test_file = get_file_path("example.txt")
         response = get_response_for_file(
-            FilesHandler(),
-            Request("GET", b"/file.txt", None),
-            test_file,
-            3600
+            FilesHandler(), Request("GET", b"/file.txt", None), test_file, 3600
         )
 
         set_headers_for_response_content(response)
@@ -200,10 +201,7 @@ class TestContentLengthBehavior:
 
         test_file = get_file_path("pexels-photo-126407.jpeg")
         response = get_response_for_file(
-            FilesHandler(),
-            Request("GET", b"/photo.jpeg", None),
-            test_file,
-            3600
+            FilesHandler(), Request("GET", b"/photo.jpeg", None), test_file, 3600
         )
 
         set_headers_for_response_content(response)
@@ -219,10 +217,7 @@ class TestContentLengthBehavior:
 
         test_file = get_file_path("example.txt")
         response = get_response_for_file(
-            FilesHandler(),
-            Request("HEAD", b"/file.txt", None),
-            test_file,
-            3600
+            FilesHandler(), Request("HEAD", b"/file.txt", None), test_file, 3600
         )
 
         # HEAD requests set headers directly, no need for set_headers_for_response_content
@@ -255,7 +250,7 @@ class TestTemporaryFileServing:
                 FilesHandler(),
                 Request("GET", b"/temp.txt", None),
                 temp_path,
-                0  # No cache
+                0,  # No cache
             )
 
             set_headers_for_response_content(response)

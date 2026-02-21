@@ -1,7 +1,8 @@
+import os
+
 from flask import Flask, jsonify, redirect, request
 from flask.wrappers import Response
 from markupsafe import escape
-import os
 
 from itests.utils import ensure_folder
 

@@ -48,12 +48,12 @@ def _unescape_quoted_string(value: bytes) -> bytes:
     result = bytearray()
     i = 0
     while i < len(value):
-        if value[i:i+1] == b'\\' and i + 1 < len(value):
+        if value[i : i + 1] == b"\\" and i + 1 < len(value):
             # Escaped character - take the next character literally
-            result.extend(value[i+1:i+2])
+            result.extend(value[i + 1 : i + 2])
             i += 2
         else:
-            result.extend(value[i:i+1])
+            result.extend(value[i : i + 1])
             i += 1
     return bytes(result)
 

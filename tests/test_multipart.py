@@ -1,5 +1,6 @@
 from io import BytesIO
 from pathlib import Path
+
 import pytest
 
 from blacksheep.contents import MultiPartFormData
@@ -165,17 +166,15 @@ async def test_multipart_write_1():
     file = BytesIO()
     file.write(b"Hello, World!")
 
-    content = MultiPartFormData([
-        FormPart.field(
-            "description",
-            "Important documents for review",
-        ),
-        FormPart.from_file(
-            "attachment",
-            "example.txt",
-            file=file
-        ),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field(
+                "description",
+                "Important documents for review",
+            ),
+            FormPart.from_file("attachment", "example.txt", file=file),
+        ]
+    )
 
     i = 0
     async for part in parse_multipart_async(content.stream(), content.boundary):
@@ -184,7 +183,7 @@ async def test_multipart_write_1():
             assert part.content_type == "text/plain"
             assert part.charset == "utf-8"
             data = await part.read()
-            assert data == b'Important documents for review'
+            assert data == b"Important documents for review"
         if i == 1:
             assert part.name == "attachment"
             assert part.file_name == "example.txt"
@@ -205,23 +204,27 @@ async def test_multipart_write_multiple_files():
     file3 = BytesIO()
     file3.write(b"Content of third file")
 
-    content = MultiPartFormData([
-        FormPart.field("title", "Multiple File Upload Test"),
-        FormPart.from_file("file1", "document1.txt", file=file1),
-        FormPart.field("category", "documents"),
-        FormPart.from_file("file2", "document2.txt", file=file2),
-        FormPart.from_file("file3", "document3.txt", file=file3),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("title", "Multiple File Upload Test"),
+            FormPart.from_file("file1", "document1.txt", file=file1),
+            FormPart.field("category", "documents"),
+            FormPart.from_file("file2", "document2.txt", file=file2),
+            FormPart.from_file("file3", "document3.txt", file=file3),
+        ]
+    )
 
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
         data = await part.read()
-        parts.append({
-            "name": part.name,
-            "data": data,
-            "file_name": part.file_name,
-            "content_type": part.content_type,
-        })
+        parts.append(
+            {
+                "name": part.name,
+                "data": data,
+                "file_name": part.file_name,
+                "content_type": part.content_type,
+            }
+        )
 
     assert len(parts) == 5
     assert parts[0]["name"] == "title"
@@ -241,10 +244,12 @@ async def test_multipart_write_empty_file():
     """Test uploading an empty file."""
     empty_file = BytesIO()
 
-    content = MultiPartFormData([
-        FormPart.field("description", "Empty file upload"),
-        FormPart.from_file("empty", "empty.txt", file=empty_file),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("description", "Empty file upload"),
+            FormPart.from_file("empty", "empty.txt", file=empty_file),
+        ]
+    )
 
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
@@ -258,12 +263,14 @@ async def test_multipart_write_empty_file():
 
 async def test_multipart_write_only_fields():
     """Test multipart form with only text fields, no files."""
-    content = MultiPartFormData([
-        FormPart.field("username", "john_doe"),
-        FormPart.field("email", "john@example.com"),
-        FormPart.field("age", "30"),
-        FormPart.field("bio", "Software developer\nLoves coding"),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("username", "john_doe"),
+            FormPart.field("email", "john@example.com"),
+            FormPart.field("age", "30"),
+            FormPart.field("bio", "Software developer\nLoves coding"),
+        ]
+    )
 
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
@@ -286,19 +293,23 @@ async def test_multipart_write_binary_data():
     binary_file = BytesIO()
     binary_file.write(binary_data)
 
-    content = MultiPartFormData([
-        FormPart.field("image_name", "test_image"),
-        FormPart.from_file("image", "test.png", file=binary_file),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("image_name", "test_image"),
+            FormPart.from_file("image", "test.png", file=binary_file),
+        ]
+    )
 
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
         data = await part.read()
-        parts.append({
-            "name": part.name,
-            "data": data,
-            "file_name": part.file_name,
-        })
+        parts.append(
+            {
+                "name": part.name,
+                "data": data,
+                "file_name": part.file_name,
+            }
+        )
 
     assert len(parts) == 2
     assert parts[0]["data"] == b"test_image"
@@ -313,10 +324,12 @@ async def test_multipart_write_large_content():
     large_file = BytesIO()
     large_file.write(large_text.encode("utf-8"))
 
-    content = MultiPartFormData([
-        FormPart.field("size_info", "Large file test"),
-        FormPart.from_file("large_file", "large.txt", file=large_file),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("size_info", "Large file test"),
+            FormPart.from_file("large_file", "large.txt", file=large_file),
+        ]
+    )
 
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
@@ -331,12 +344,14 @@ async def test_multipart_write_large_content():
 
 async def test_multipart_write_special_characters():
     """Test multipart form with special characters and Unicode."""
-    content = MultiPartFormData([
-        FormPart.field("name", "José García"),
-        FormPart.field("emoji", "Hello 👋 World 🌍"),
-        FormPart.field("symbols", "Special: @#$%^&*()_+-=[]{}|;:',.<>?/"),
-        FormPart.field("multiline", "Line 1\nLine 2\r\nLine 3"),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("name", "José García"),
+            FormPart.field("emoji", "Hello 👋 World 🌍"),
+            FormPart.field("symbols", "Special: @#$%^&*()_+-=[]{}|;:',.<>?/"),
+            FormPart.field("multiline", "Line 1\nLine 2\r\nLine 3"),
+        ]
+    )
 
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
@@ -363,21 +378,25 @@ async def test_multipart_write_mixed_content_types():
     csv_file = BytesIO()
     csv_file.write(csv_data)
 
-    content = MultiPartFormData([
-        FormPart.field("description", "Mixed content types"),
-        FormPart.from_file("text_doc", "readme.txt", file=text_file),
-        FormPart.from_file("json_doc", "data.json", file=json_file),
-        FormPart.from_file("csv_doc", "data.csv", file=csv_file),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("description", "Mixed content types"),
+            FormPart.from_file("text_doc", "readme.txt", file=text_file),
+            FormPart.from_file("json_doc", "data.json", file=json_file),
+            FormPart.from_file("csv_doc", "data.csv", file=csv_file),
+        ]
+    )
 
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
         data = await part.read()
-        parts.append({
-            "name": part.name,
-            "data": data,
-            "file_name": part.file_name,
-        })
+        parts.append(
+            {
+                "name": part.name,
+                "data": data,
+                "file_name": part.file_name,
+            }
+        )
 
     assert len(parts) == 4
     assert parts[0]["data"] == b"Mixed content types"
@@ -395,10 +414,12 @@ async def test_multipart_field_name_with_quotes():
     According to RFC 2183, double quotes in quoted strings must be escaped
     with a backslash: \"
     """
-    content = MultiPartFormData([
-        FormPart.field('field"name', "value1"),
-        FormPart.field('my"field"with"quotes', "value2"),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field('field"name', "value1"),
+            FormPart.field('my"field"with"quotes', "value2"),
+        ]
+    )
 
     # Verify the encoded format contains escaped quotes
     encoded = b""
@@ -432,10 +453,12 @@ async def test_multipart_filename_with_quotes():
     file2 = BytesIO()
     file2.write(b"Content 2")
 
-    content = MultiPartFormData([
-        FormPart.from_file("upload", 'file"name.txt', file=file1),
-        FormPart.from_file("document", 'my"document"2024.pdf', file=file2),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.from_file("upload", 'file"name.txt', file=file1),
+            FormPart.from_file("document", 'my"document"2024.pdf', file=file2),
+        ]
+    )
 
     # Verify the encoded format contains escaped quotes
     encoded = b""
@@ -450,11 +473,13 @@ async def test_multipart_filename_with_quotes():
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
         data = await part.read()
-        parts.append({
-            "name": part.name,
-            "file_name": part.file_name,
-            "data": data,
-        })
+        parts.append(
+            {
+                "name": part.name,
+                "file_name": part.file_name,
+                "data": data,
+            }
+        )
 
     assert len(parts) == 2
     assert parts[0]["file_name"] == 'file"name.txt'
@@ -469,10 +494,12 @@ async def test_multipart_field_name_with_backslashes():
     According to RFC 2183, backslashes in quoted strings must be escaped
     with another backslash: \\
     """
-    content = MultiPartFormData([
-        FormPart.field('field\\name', "value1"),
-        FormPart.field('path\\to\\field', "value2"),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field("field\\name", "value1"),
+            FormPart.field("path\\to\\field", "value2"),
+        ]
+    )
 
     # Verify the encoded format contains escaped backslashes
     encoded = b""
@@ -490,8 +517,8 @@ async def test_multipart_field_name_with_backslashes():
         parts.append((part.name, data.decode("utf-8")))
 
     assert len(parts) == 2
-    assert parts[0] == ('field\\name', "value1")
-    assert parts[1] == ('path\\to\\field', "value2")
+    assert parts[0] == ("field\\name", "value1")
+    assert parts[1] == ("path\\to\\field", "value2")
 
 
 async def test_multipart_filename_with_backslashes():
@@ -505,9 +532,11 @@ async def test_multipart_filename_with_backslashes():
     file1.write(b"Content")
 
     file_path = Path("path") / "to" / "file.txt"
-    content = MultiPartFormData([
-        FormPart.from_file("upload", str(file_path), file=file1),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.from_file("upload", str(file_path), file=file1),
+        ]
+    )
 
     # Verify the encoded format uses only the basename of the path
     encoded = b""
@@ -521,10 +550,12 @@ async def test_multipart_filename_with_backslashes():
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
         data = await part.read()
-        parts.append({
-            "file_name": part.file_name,
-            "data": data,
-        })
+        parts.append(
+            {
+                "file_name": part.file_name,
+                "data": data,
+            }
+        )
 
     assert len(parts) == 1
     assert parts[0]["file_name"] == "file.txt"
@@ -539,11 +570,13 @@ async def test_multipart_quotes_and_backslashes_combined():
     file1 = BytesIO()
     file1.write(b"File content")
     file_path = Path("file") / "test.txt"
-    content = MultiPartFormData([
-        FormPart.field(r'field\\"name', "value1"),  # Contains backslash and quote
-        FormPart.field(r'a"b\\c"d', "value2"),
-        FormPart.from_file("upload", str(file_path), file=file1),
-    ])
+    content = MultiPartFormData(
+        [
+            FormPart.field(r'field\\"name', "value1"),  # Contains backslash and quote
+            FormPart.field(r'a"b\\c"d', "value2"),
+            FormPart.from_file("upload", str(file_path), file=file1),
+        ]
+    )
 
     # Verify encoding
     encoded = b""
@@ -562,11 +595,13 @@ async def test_multipart_quotes_and_backslashes_combined():
     parts = []
     async for part in parse_multipart_async(content.stream(), content.boundary):
         data = await part.read()
-        parts.append({
-            "name": part.name,
-            "file_name": part.file_name,
-            "data": data.decode("utf-8") if part.file_name is None else data,
-        })
+        parts.append(
+            {
+                "name": part.name,
+                "file_name": part.file_name,
+                "data": data.decode("utf-8") if part.file_name is None else data,
+            }
+        )
 
     assert len(parts) == 3
     assert parts[0]["name"] == r'field\\"name'

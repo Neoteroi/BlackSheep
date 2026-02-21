@@ -291,7 +291,7 @@ def get_response_for_file(
         )
     else:
         content = StreamedContent(
-            mime, get_file_getter(files_handler, resource_path, info.size)
+            mime, get_file_getter(files_handler, resource_path, info.size), info.size
         )
 
     return Response(status, headers, content)

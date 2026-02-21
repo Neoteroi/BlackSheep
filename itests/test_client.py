@@ -572,7 +572,7 @@ async def test_multipart_stream_with_content_type_field(session):
         FormPart.field(
             "description",
             "<h1>Important documents for review</h1>",
-            content_type="text/html"
+            content_type="text/html",
         ),
         # Text field with explicit UTF-16 charset and special characters
         FormPart.field(

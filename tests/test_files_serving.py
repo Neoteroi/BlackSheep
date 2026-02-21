@@ -933,3 +933,53 @@ async def test_serve_files_index_html_options_fallback(
     response = app.response
     assert response.status == 200
     assert response.headers[b"cache-control"] != (b"no-cache, no-store",)
+
+
+async def test_files_served_with_content_length_for_a2wsgi():
+    """
+    Test that files are served with Content-Length header instead of
+    Transfer-Encoding: chunked, which is required for a2wsgi compatibility.
+
+    a2wsgi requires exact Content-Length headers to properly bridge between
+    ASGI and WSGI. This test verifies that static files use the file size
+    obtained from os.stat() to set Content-Length instead of using chunked
+    transfer encoding.
+    """
+    from blacksheep.scribe import set_headers_for_response_content
+
+    test_file = get_file_path("example.txt")
+
+    # Test GET request
+    response = get_response_for_file(
+        FilesHandler(), Request("GET", b"/example.txt", None), test_file, 1200
+    )
+
+    # Set headers (simulating what the framework does before sending)
+    set_headers_for_response_content(response)
+
+    # Verify Content-Length is set
+    content_length = response.get_first_header(b"content-length")
+    assert content_length is not None, "Content-Length header must be set for a2wsgi"
+    assert int(content_length) == 447, "Content-Length should match file size"
+
+    # Verify Transfer-Encoding is NOT set to chunked
+    transfer_encoding = response.get_first_header(b"transfer-encoding")
+    assert transfer_encoding is None, "Transfer-Encoding should not be set for files"
+
+    # Verify the StreamedContent has the correct length
+    assert response.content.length == 447, "StreamedContent should have file size"
+
+    # Test with a larger file (jpeg)
+    large_file = get_file_path("pexels-photo-126407.jpeg")
+    response = get_response_for_file(
+        FilesHandler(), Request("GET", b"/photo.jpeg", None), large_file, 1200
+    )
+
+    set_headers_for_response_content(response)
+
+    content_length = response.get_first_header(b"content-length")
+    assert content_length is not None
+    assert int(content_length) == 212034, "Content-Length should match jpeg file size"
+
+    transfer_encoding = response.get_first_header(b"transfer-encoding")
+    assert transfer_encoding is None, "Large files should also use Content-Length"

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from functools import wraps
@@ -200,6 +201,7 @@ class Application(BaseApplication):
         self.on_stop = ApplicationEvent(self)
         self.on_middlewares_configuration = ApplicationSyncEvent(self)
         self.started = False
+        self._started_complete = asyncio.Event()
         self.files_handler = FilesHandler()
         self.server_error_details_handler = ServerErrorDetailsHandler()
         self.base_path: str = ""  # TODO: deprecate
@@ -732,6 +734,7 @@ class Application(BaseApplication):
 
     async def start(self):
         if self.started:
+            await self._started_complete.wait()
             return
 
         self.started = True
@@ -756,9 +759,12 @@ class Application(BaseApplication):
         if self.after_start:
             await self.after_start.fire()
 
+        self._started_complete.set()
+
     async def stop(self):
         await self.on_stop.fire()
         self.started = False
+        self._started_complete.clear()
 
     async def _handle_lifespan(self, receive, send) -> None:
         message = await receive()
@@ -779,6 +785,9 @@ class Application(BaseApplication):
         await send({"type": "lifespan.shutdown.complete"})
 
     async def _handle_websocket(self, scope, receive, send) -> None:
+        if not self.started:
+            await self.start()
+
         ws = WebSocket(scope, receive, send)
         # TODO: support filters
         route = self.router.get_match_by_method_and_path(
@@ -813,9 +822,18 @@ class Application(BaseApplication):
                 )
 
     def instantiate_request(self, scope, receive) -> Request:
+        # ASGI spec: raw_path is optional. If missing (e.g., in a2wsgi),
+        # generate it from the required 'path' field by encoding to bytes.
+        # Using try/except for performance: no overhead when raw_path exists.
+        try:
+            raw_path = scope["raw_path"]
+        except KeyError:
+            raw_path = scope["path"].encode("utf-8")
+            scope["raw_path"] = raw_path
+
         request = Request.incoming(
             scope["method"],
-            scope["raw_path"],
+            raw_path,
             scope["query_string"],
             list(scope["headers"]),
         )
@@ -835,6 +853,9 @@ class Application(BaseApplication):
             self.extend(PathPrefixMixin)
 
     async def _handle_http(self, scope, receive, send) -> None:
+        if not self.started:
+            await self.start()
+
         assert scope["type"] == "http"
 
         request = self.instantiate_request(scope, receive)
@@ -845,6 +866,7 @@ class Application(BaseApplication):
         request.dispose()
 
     async def __call__(self, scope, receive, send):
+
         if scope["type"] == "http":
             return await self._handle_http(scope, receive, send)
 

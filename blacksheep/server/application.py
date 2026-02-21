@@ -901,11 +901,24 @@ class MountMixin:
         scope["path"] = tail
         scope["raw_path"] = tail.encode("utf8")
 
+    def _is_browser_navigation(self, scope) -> bool:
+        """
+        Returns True if the request is a browser top-level page navigation,
+        detected via the Sec-Fetch-Mode: navigate header sent by modern browsers.
+        API clients and programmatic HTTP libraries do not set this header.
+        """
+        for header_name, header_value in scope.get("headers", ()):
+            if header_name == b"sec-fetch-mode":
+                return header_value == b"navigate"
+        return False
+
     async def _handle_redirect_to_mount_root(self, scope, send):
         """
-        A request to the path "https://.../{mount_path}" must result in a
-        307 Temporary Redirect to the root of the mount: "https://.../{mount_path}/"
-        including a trailing slash.
+        A browser navigation to "https://.../{mount_path}" is redirected to
+        "https://.../{mount_path}/" (with trailing slash) so that relative URLs
+        in HTML pages served by the mounted app resolve correctly.
+        Only issued when Sec-Fetch-Mode: navigate is present (browser page loads);
+        programmatic clients are forwarded directly to preserve request headers.
         """
         response = Response(
             307,
@@ -930,7 +943,11 @@ class MountMixin:
             route_match = route.match_by_path(scope["raw_path"])
             if route_match:
                 raw_path = scope["raw_path"]
-                if raw_path == route.pattern.rstrip(b"/*") and scope["type"] == "http":
+                if (
+                    raw_path == route.pattern.rstrip(b"/*")
+                    and scope["type"] == "http"
+                    and self._is_browser_navigation(scope)
+                ):
                     return await self._handle_redirect_to_mount_root(scope, send)
                 self.handle_mount_path(scope, route_match)
                 return await route.handler(scope, receive, send)

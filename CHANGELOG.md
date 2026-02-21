@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `raw_path` is optional in ASGI specification. If not present, now the `instantiate_request` method automatically obtains it from `path` and sets it in the scope.
 - Static files are now served with `Content-Length` header instead of `Transfer-Encoding: chunked` when file size is known. This improves compatibility with `WSGI` servers via `a2wsgi`.
 - Automatically run the `Application` start logic if the `__call__` method is called with **http** or **websocket** messages. This is useful when `lifespan` events are not supported, like when using `WSGI`.
+- Fix the issue [#396](https://github.com/Neoteroi/BlackSheep/issues/396). Requests for mounted apps are redirected to a directory (ending with '/') only if the request includes a `Sec-Fetch-Mode: navigate`, which is used by modern browsers to inform the server the request is for navigation. This way, mounted apps serving HTML documents containing relative links work properly (their path must end with `/`). Reported by @satori1995.
 
 ## [2.6.0] - 2026-02-15 :cupid:
 

@@ -3749,6 +3749,67 @@ def test_mounting_self_raises(app):
         app.mount("/nope", app)
 
 
+async def test_mounted_app_without_trailing_slash_browser_navigation_redirects():
+    # When a browser navigates to /sub-child (no trailing slash), a 307 redirect
+    # to /sub-child/ is issued so relative URLs in the child app's HTML resolve correctly.
+    # Detected via Sec-Fetch-Mode: navigate (only set by browsers on page loads).
+    parent_app = FakeApplication()
+    child_app = FakeApplication()
+
+    @child_app.router.get("/")
+    async def child_home():
+        return text("OK")
+
+    parent_app.mount("/sub-child", child_app)
+    await parent_app.start()
+    await child_app.start()
+
+    scope = get_example_scope(
+        "GET",
+        "/sub-child",
+        [(b"sec-fetch-mode", b"navigate")],
+    )
+    mock_send = MockSend()
+    await parent_app(scope, MockReceive(), mock_send)
+
+    # The redirect is written directly to ASGI send, not through app.response
+    assert len(mock_send.messages) >= 1
+    start_message = mock_send.messages[0]
+    assert start_message["type"] == "http.response.start"
+    assert start_message["status"] == 307
+    headers = dict(start_message["headers"])
+    assert b"Location" in headers
+    assert headers[b"Location"].endswith(b"/sub-child/")
+
+
+async def test_mounted_app_without_trailing_slash_api_client_forwards_directly():
+    # Issue #396: API clients (no Sec-Fetch-Mode header) must NOT be redirected,
+    # so that request headers like Authorization are forwarded intact to the child app.
+    parent_app = FakeApplication()
+    child_app = FakeApplication()
+
+    received_auth_header = None
+
+    @child_app.router.get("/")
+    async def child_home(request: Request):
+        nonlocal received_auth_header
+        received_auth_header = request.get_first_header(b"authorization")
+        return text("OK")
+
+    parent_app.mount("/sub-child", child_app)
+    await parent_app.start()
+    await child_app.start()
+
+    scope = get_example_scope(
+        "GET",
+        "/sub-child",
+        [(b"authorization", b"Bearer token123")],
+    )
+    await parent_app(scope, MockReceive(), MockSend())
+
+    assert received_auth_header == b"Bearer token123"
+
+
 @pytest.mark.parametrize("param", [404, NotFound])
 async def test_custom_handler_for_404_not_found(app, param):
     # Issue #538

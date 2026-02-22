@@ -1147,12 +1147,61 @@ def validate_default_router():
     if set(router):
         # The default router has routes defined, ensure that it is bound to an
         # application
-        # verify that
         try:
             _apps_by_router_id[id(router)]
         except KeyError:
             # Not good
             raise OrphanDefaultRouterError() from None
+
+
+class URLResolver:
+    """
+    Resolves named route URLs in the context of the current request.
+
+    Composes the router's named-route registry with the request's base_path,
+    so that generated URLs are correct when the application is served behind
+    a reverse proxy or mounted at a sub-path.
+
+    This class is intended to be used as a scoped dependency injected into
+    request handlers. The framework wires both the singleton Router and the
+    current Request automatically, so handlers only need to declare it:
+
+        async def handler(url_resolver: URLResolver) -> Response:
+            location = url_resolver.url_for("cat-detail", cat_id=42)
+            return redirect(location)
+
+    Methods:
+        url_for(name, **params) -> str
+            Returns base_path + the path for the named route, with route
+            parameters substituted by the given values.
+
+        absolute_url_for(name, **params) -> str
+            Returns a fully qualified URL (scheme + host + base_path + path)
+            for the named route.
+    """
+    def __init__(self, router: Router, request: Request):
+        self._router = router
+        self._request = request
+
+    def url_for(self, name: str, **params: str) -> str:
+        """Returns base_path + path for the named route.
+
+        ``Router.url_for`` already includes the router's own prefix in the
+        returned path.  The only extra prefix that must be prepended here is
+        the *external* root path set by an upstream reverse-proxy or by the
+        parent application when this app is mounted as a sub-application
+        (ASGI ``scope["root_path"]``).
+        """
+        path = self._router.url_for(name, **params)
+        scope = getattr(self._request, "scope", None)
+        external_base = scope.get("root_path", "") if scope else ""
+        return f"{external_base}{path}" if external_base else path
+
+    def absolute_url_for(self, name: str, **params: str) -> str:
+        """Returns a fully qualified URL including scheme and host."""
+        path = self.url_for(name, **params)
+        req = self._request
+        return f"{req.scheme}://{req.host}{path}"
 
 
 # Singleton router used to store initial configuration, before the application starts.

@@ -12,6 +12,7 @@ class FakeApplication(Application):
         self.auto_start: bool = True
         self.request: Request | None = None
         self.response: Response | None = None
+        self.register_default_di_types()
 
     @deprecated(
         "This function is not needed anymore, and will be removed. Rely instead on "

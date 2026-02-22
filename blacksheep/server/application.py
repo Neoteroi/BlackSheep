@@ -751,6 +751,7 @@ class Application(BaseApplication):
         if not self.router.fallback:
             self.router.fallback = default_fallback
 
+        self.register_default_di_types()
         self.router.apply_routes()
 
         if self.on_start:
@@ -772,6 +773,13 @@ class Application(BaseApplication):
         await self.on_stop.fire()
         self.started = False
         self._started_complete.clear()
+
+    def register_default_di_types(self):
+        """
+        Registers default DI types in the Application DI controller.
+        """
+        if Router not in self._services:
+            self._services.register(Router, instance=self.router)
 
     async def _handle_lifespan(self, receive, send) -> None:
         message = await receive()

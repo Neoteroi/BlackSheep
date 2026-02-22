@@ -66,6 +66,7 @@ from .server.responses import text as text
 from .server.responses import unauthorized as unauthorized
 from .server.routing import Route as Route
 from .server.routing import RouteException as RouteException
+from .server.routing import RouteNotFound as RouteNotFound
 from .server.routing import Router as Router
 from .server.routing import RoutesRegistry as RoutesRegistry
 from .server.routing import connect as connect

@@ -252,7 +252,7 @@ def serve_files_dynamic(
     *,
     discovery: bool,
     cache_time: int,
-    extensions: Set[str | None],
+    extensions: Set[str] | None,
     root_path: str,
     index_document: str | None,
     fallback_document: str | None,

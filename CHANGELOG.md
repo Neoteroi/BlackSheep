@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.1] - 2026-??-??
+## [2.6.1] - 2026-02-22 :cat:
 
 - Fix missing escaping in `multipart/form-data` filenames and content-disposition headers.
 - Fix [#193](https://github.com/Neoteroi/BlackSheep/issues/193), adding support for [`a2wsgi`](https://github.com/abersheeran/a2wsgi).
@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Static files are now served with `Content-Length` header instead of `Transfer-Encoding: chunked` when file size is known. This improves compatibility with `WSGI` servers via `a2wsgi`.
 - Automatically run the `Application` start logic if the `__call__` method is called with **http** or **websocket** messages. This is useful when `lifespan` events are not supported, like when using `WSGI`.
 - Fix the issue [#396](https://github.com/Neoteroi/BlackSheep/issues/396). Requests for mounted apps are redirected to a directory (ending with '/') only if the request includes a `Sec-Fetch-Mode: navigate`, which is used by modern browsers to inform the server the request is for navigation. This way, mounted apps serving HTML documents containing relative links work properly (their path must end with `/`). Reported by @satori1995.
+- Fix the issue [#256](https://github.com/Neoteroi/BlackSheep/issues/256): add support
+  for configuring names for routes, and for obtaining URLs by route name. Example:
+
+  ```python
+    from blacksheep.routing import URLResolver
+
+
+    @app.router.get("/cats/{cat_id}", name="cat-detail")
+    async def get_cat_detail(cat_id: int) -> Response:
+        return Response(200)
+
+    @app.router.get("/redirect")
+    async def redirect_handler(url_resolver: URLResolver) -> Response:
+        return redirect(url_resolver.url_for("cat-detail", cat_id="42"))
+  ```
 
 ## [2.6.0] - 2026-02-15 :cupid:
 

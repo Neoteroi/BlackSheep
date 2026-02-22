@@ -8,7 +8,6 @@ See:
     https://www.neoteroi.dev/blacksheep/binders/
 """
 
-import warnings
 from abc import abstractmethod
 from collections.abc import Iterable as IterableAbc
 from functools import partial
@@ -27,10 +26,11 @@ from typing import (
 from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol
 
-from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
+from blacksheep.messages import Request
 from blacksheep.server.bindings.converters import class_converters, converters
+from blacksheep.server.routing import Router, URLResolver
 from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
 
@@ -870,3 +870,28 @@ class FilesBinder(Binder):
 
     async def get_value(self, request: Request) -> list[FormPart]:
         return await request.files()
+
+
+class URLResolverBinder(Binder):
+    """
+    Binder that injects a URLResolver into request handlers.
+    The URLResolver is constructed per-request from the singleton Router and the
+    current Request, so it correctly reflects the request's base_path for
+    generating URLs relative to the mount root.
+    """
+
+    type_alias = URLResolver
+
+    def __init__(self, router: Router, implicit: bool = True):
+        super().__init__(URLResolver, implicit=implicit)
+        self._router = router
+
+    @classmethod
+    def from_alias(cls, services: ContainerProtocol) -> "URLResolverBinder":
+        from blacksheep.server import Application
+
+        app: Application = services.resolve(Application)
+        return cls(app.router)
+
+    async def get_value(self, request: Request) -> URLResolver:
+        return URLResolver(self._router, request)

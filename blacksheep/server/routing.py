@@ -116,6 +116,15 @@ class InvalidValuePatternName(RouteException):
         self.matched_parameter = matched_parameter
 
 
+class RouteNotFound(RouteException):
+    def __init__(self, name: str) -> None:
+        super().__init__(
+            f"Cannot find a route with name: '{name}'. "
+            "Ensure the route is registered with the given name."
+        )
+        self.name = name
+
+
 class RouteMatch:
     __slots__ = ("_values", "pattern", "handler")
 
@@ -422,6 +431,16 @@ class Route:
 
         return RouteMatch(self, match.groupdict() if self.has_params else None)
 
+    def url(self, **params: str) -> str:
+        """
+        Returns the URL for this route, substituting route parameters with
+        the given values.
+        """
+        pattern = self.mustache_pattern
+        for param_name, param_value in params.items():
+            pattern = pattern.replace(f"{{{param_name}}}", str(param_value))
+        return pattern
+
 
 class FilterRoute(Route):
     """
@@ -478,6 +497,8 @@ class RouterBase(ABC):
         method: str,
         pattern: str,
         handler: Callable,
+        *,
+        name: str | None = None,
     ) -> None:
         """Adds a request handler for the given HTTP method and route pattern."""
 
@@ -491,6 +512,7 @@ class RouterBase(ABC):
         self,
         method: str,
         pattern: str | None = "/",
+        name: str | None = None,
     ) -> Callable[..., Any]:
         def decorator(fn):
             nonlocal pattern
@@ -506,80 +528,122 @@ class RouterBase(ABC):
                     pattern,
                     fn.__qualname__,
                 )
-            self.add(method, pattern, fn)
+            self.add(method, pattern, fn, name=name)
             return fn
 
         return decorator
 
-    def add_head(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.HEAD, pattern, handler)
+    def add_head(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.HEAD, pattern, handler, name=name)
 
-    def add_get(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.GET, pattern, handler)
+    def add_get(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.GET, pattern, handler, name=name)
 
-    def add_post(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.POST, pattern, handler)
+    def add_post(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.POST, pattern, handler, name=name)
 
-    def add_put(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.PUT, pattern, handler)
+    def add_put(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.PUT, pattern, handler, name=name)
 
-    def add_delete(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.DELETE, pattern, handler)
+    def add_delete(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.DELETE, pattern, handler, name=name)
 
-    def add_trace(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.TRACE, pattern, handler)
+    def add_trace(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.TRACE, pattern, handler, name=name)
 
-    def add_options(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.OPTIONS, pattern, handler)
+    def add_options(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.OPTIONS, pattern, handler, name=name)
 
-    def add_connect(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.CONNECT, pattern, handler)
+    def add_connect(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.CONNECT, pattern, handler, name=name)
 
-    def add_patch(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.PATCH, pattern, handler)
+    def add_patch(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.PATCH, pattern, handler, name=name)
 
-    def add_ws(self, pattern: str, handler: Callable[..., Any]) -> None:
-        self.add(RouteMethod.GET_WS, pattern, handler)
+    def add_ws(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
+        self.add(RouteMethod.GET_WS, pattern, handler, name=name)
 
-    def head(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.HEAD, pattern)
+    def head(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.HEAD, pattern, name)
 
-    def get(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.GET, pattern)
+    def get(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.GET, pattern, name)
 
-    def post(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.POST, pattern)
+    def post(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.POST, pattern, name)
 
-    def put(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.PUT, pattern)
+    def put(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.PUT, pattern, name)
 
-    def delete(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.DELETE, pattern)
+    def delete(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.DELETE, pattern, name)
 
-    def trace(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.TRACE, pattern)
+    def trace(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.TRACE, pattern, name)
 
-    def options(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.OPTIONS, pattern)
+    def options(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.OPTIONS, pattern, name)
 
-    def connect(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.CONNECT, pattern)
+    def connect(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.CONNECT, pattern, name)
 
-    def patch(self, pattern: str | None = "/") -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.PATCH, pattern)
+    def patch(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.PATCH, pattern, name)
 
-    def ws(self, pattern) -> Callable[..., Any]:
-        return self._get_decorator(RouteMethod.GET_WS, pattern)
+    def ws(self, pattern, *, name: str | None = None) -> Callable[..., Any]:
+        return self._get_decorator(RouteMethod.GET_WS, pattern, name)
 
     def route(
-        self, pattern: str, methods: Sequence[str] | None = None
+        self,
+        pattern: str,
+        methods: Sequence[str] | None = None,
+        *,
+        name: str | None = None,
     ) -> Callable[..., Any]:
         if methods is None:
             methods = ["GET"]
 
         def decorator(f):
             for method in methods:
-                self.add(method, pattern, f)
+                self.add(method, pattern, f, name=name)
             return f
 
         return decorator
@@ -670,6 +734,7 @@ class Router(RouterBase):
         "_filters",
         "_prefix",
         "_registered_routes",
+        "_named_routes",
     )
 
     def __init__(
@@ -698,6 +763,7 @@ class Router(RouterBase):
         self.controllers_routes = RoutesRegistry()  # used during controllers setup
         self._sub_routers = sub_routers
         self._registered_routes = []  # used during setup
+        self._named_routes: dict[str, Route] = {}
 
         if self._filters:
             extend(self, RouterFiltersMixin)
@@ -714,6 +780,7 @@ class Router(RouterBase):
         self._map = {}
         self._fallback = None
         self.routes = defaultdict(list)
+        self._named_routes = {}
         self.controllers_routes.reset()
         if self._sub_routers:
             for sub_router in self._sub_routers:
@@ -819,9 +886,13 @@ class Router(RouterBase):
         pattern: AnyStr,
         handler: Any,
         filters: list[RouteFilter] | None = None,
+        *,
+        name: str | None = None,
     ):
         new_route = self.create_route(pattern, handler, filters)
         self._registered_routes.append((method, new_route))
+        if name:
+            self._named_routes[name] = new_route
 
     def create_route(
         self,
@@ -949,6 +1020,24 @@ class Router(RouterBase):
                 return route
         return None
 
+    def url_for(self, name: str, **params: str) -> str:
+        """
+        Returns the URL for a named route, substituting route parameters with
+        the given values.
+
+        Raises RouteNotFound if no route with the given name is registered.
+        """
+        route = self._named_routes.get(name)
+        if route is not None:
+            return route.url(**params)
+        if self._sub_routers:
+            for sub_router in self._sub_routers:
+                try:
+                    return sub_router.url_for(name, **params)
+                except RouteNotFound:
+                    pass
+        raise RouteNotFound(name)
+
 
 class RegisteredRoute:
     __slots__ = ("method", "pattern", "handler")
@@ -1001,6 +1090,8 @@ class RoutesRegistry(RouterBase):
         method: str,
         pattern: str,
         handler: Callable,
+        *,
+        name: str | None = None,
     ):
         self.mark_handler(handler)
         self.routes.append(RegisteredRoute(method, pattern, handler))
@@ -1098,12 +1189,62 @@ def validate_default_router():
     if set(router):
         # The default router has routes defined, ensure that it is bound to an
         # application
-        # verify that
         try:
             _apps_by_router_id[id(router)]
         except KeyError:
             # Not good
             raise OrphanDefaultRouterError() from None
+
+
+class URLResolver:
+    """
+    Resolves named route URLs in the context of the current request.
+
+    Composes the router's named-route registry with the request's base_path,
+    so that generated URLs are correct when the application is served behind
+    a reverse proxy or mounted at a sub-path.
+
+    This class is intended to be used as a scoped dependency injected into
+    request handlers. The framework wires both the singleton Router and the
+    current Request automatically, so handlers only need to declare it:
+
+        async def handler(url_resolver: URLResolver) -> Response:
+            location = url_resolver.url_for("cat-detail", cat_id=42)
+            return redirect(location)
+
+    Methods:
+        url_for(name, **params) -> str
+            Returns base_path + the path for the named route, with route
+            parameters substituted by the given values.
+
+        absolute_url_for(name, **params) -> str
+            Returns a fully qualified URL (scheme + host + base_path + path)
+            for the named route.
+    """
+
+    def __init__(self, router: Router, request: Request):
+        self._router = router
+        self._request = request
+
+    def url_for(self, name: str, **params: str) -> str:
+        """Returns base_path + path for the named route.
+
+        ``Router.url_for`` already includes the router's own prefix in the
+        returned path.  The only extra prefix that must be prepended here is
+        the *external* root path set by an upstream reverse-proxy or by the
+        parent application when this app is mounted as a sub-application
+        (ASGI ``scope["root_path"]``).
+        """
+        path = self._router.url_for(name, **params)
+        scope = getattr(self._request, "scope", None)
+        external_base = scope.get("root_path", "") if scope else ""
+        return f"{external_base}{path}" if external_base else path
+
+    def absolute_url_for(self, name: str, **params: str) -> str:
+        """Returns a fully qualified URL including scheme and host."""
+        path = self.url_for(name, **params)
+        req = self._request
+        return f"{req.scheme}://{req.host}{path}"
 
 
 # Singleton router used to store initial configuration, before the application starts.

@@ -31,6 +31,7 @@ from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
 from blacksheep.server.bindings.converters import class_converters, converters
+from blacksheep.server.routing import Router, URLResolver
 from blacksheep.server.websocket import WebSocket
 from blacksheep.url import URL
 
@@ -870,3 +871,26 @@ class FilesBinder(Binder):
 
     async def get_value(self, request: Request) -> list[FormPart]:
         return await request.files()
+
+
+class URLResolverBinder(Binder):
+    """
+    Binder that injects a URLResolver into request handlers.
+    The URLResolver is constructed per-request from the singleton Router and the
+    current Request, so it correctly reflects the request's base_path for
+    generating URLs relative to the mount root.
+    """
+
+    type_alias = URLResolver
+
+    def __init__(self, router: Router, implicit: bool = True):
+        super().__init__(URLResolver, implicit=implicit)
+        self._router = router
+
+    @classmethod
+    def from_alias(cls, services: ContainerProtocol) -> "URLResolverBinder":
+        router: Router = services.resolve(Router)
+        return cls(router)
+
+    async def get_value(self, request: Request) -> URLResolver:
+        return URLResolver(self._router, request)

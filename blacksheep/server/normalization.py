@@ -23,7 +23,7 @@ from rodi import ContainerProtocol
 from blacksheep.messages import Request, Response
 from blacksheep.normalization import copy_special_attributes
 from blacksheep.server import responses
-from blacksheep.server.routing import Route, Router, URLResolver
+from blacksheep.server.routing import Route
 from blacksheep.server.sse import ServerSentEvent, ServerSentEventsResponse
 from blacksheep.server.websocket import WebSocket
 
@@ -41,28 +41,6 @@ from .bindings import (
     get_binder_by_type,
 )
 
-
-class URLResolverBinder(Binder):
-    """
-    Binder that injects a URLResolver into request handlers.
-    The URLResolver is constructed per-request from the singleton Router and the
-    current Request, so it correctly reflects the request's base_path for
-    generating URLs relative to the mount root.
-    """
-
-    type_alias = URLResolver
-
-    def __init__(self, router: Router, implicit: bool = True):
-        super().__init__(URLResolver, implicit=implicit)
-        self._router = router
-
-    @classmethod
-    def from_alias(cls, services: ContainerProtocol) -> "URLResolverBinder":
-        router: Router = services.resolve(Router)
-        return cls(router)
-
-    async def get_value(self, request: Request) -> URLResolver:
-        return URLResolver(self._router, request)
 
 _next_handler_binder = object()
 

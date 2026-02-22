@@ -22,12 +22,11 @@ import pytest
 
 from blacksheep import Response
 from blacksheep.server.application import Application
-from blacksheep.server.routing import Router, URLResolver
 from blacksheep.server.responses import redirect
+from blacksheep.server.routing import Router, URLResolver
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from tests.utils.application import FakeApplication
-
 
 # ---------------------------------------------------------------------------
 # helpers

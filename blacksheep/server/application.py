@@ -777,9 +777,10 @@ class Application(BaseApplication):
     def register_default_di_types(self):
         """
         Registers default DI types in the Application DI controller.
+        By default, only the Application object is registered in the DI controller.
         """
-        if Router not in self._services:
-            self._services.register(Router, instance=self.router)
+        if Application not in self._services:
+            self._services.register(Application, instance=self)
 
     async def _handle_lifespan(self, receive, send) -> None:
         message = await receive()
@@ -920,7 +921,9 @@ class MountMixin:
         # Update root_path per the ASGI spec: the child app must know its mount
         # prefix so it can generate correct absolute URLs (analogous to WSGI
         # SCRIPT_NAME).  root_path = parent root_path + the stripped mount prefix.
-        mount_prefix = scope["path"][: -len(tail)] if tail != "/" else scope["path"].rstrip("/")
+        mount_prefix = (
+            scope["path"][: -len(tail)] if tail != "/" else scope["path"].rstrip("/")
+        )
         scope["root_path"] = scope.get("root_path", "") + mount_prefix
 
         scope["path"] = tail
@@ -960,8 +963,7 @@ class MountMixin:
         )
         await send_asgi_response(response, send)
 
-    def _get_request_scope(self, scope):
-        ...
+    def _get_request_scope(self, scope): ...
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":

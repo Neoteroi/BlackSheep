@@ -533,68 +533,110 @@ class RouterBase(ABC):
 
         return decorator
 
-    def add_head(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_head(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.HEAD, pattern, handler, name=name)
 
-    def add_get(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_get(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.GET, pattern, handler, name=name)
 
-    def add_post(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_post(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.POST, pattern, handler, name=name)
 
-    def add_put(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_put(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.PUT, pattern, handler, name=name)
 
-    def add_delete(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_delete(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.DELETE, pattern, handler, name=name)
 
-    def add_trace(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_trace(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.TRACE, pattern, handler, name=name)
 
-    def add_options(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_options(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.OPTIONS, pattern, handler, name=name)
 
-    def add_connect(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_connect(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.CONNECT, pattern, handler, name=name)
 
-    def add_patch(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_patch(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.PATCH, pattern, handler, name=name)
 
-    def add_ws(self, pattern: str, handler: Callable[..., Any], *, name: str | None = None) -> None:
+    def add_ws(
+        self, pattern: str, handler: Callable[..., Any], *, name: str | None = None
+    ) -> None:
         self.add(RouteMethod.GET_WS, pattern, handler, name=name)
 
-    def head(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def head(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.HEAD, pattern, name)
 
-    def get(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def get(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.GET, pattern, name)
 
-    def post(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def post(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.POST, pattern, name)
 
-    def put(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def put(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.PUT, pattern, name)
 
-    def delete(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def delete(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.DELETE, pattern, name)
 
-    def trace(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def trace(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.TRACE, pattern, name)
 
-    def options(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def options(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.OPTIONS, pattern, name)
 
-    def connect(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def connect(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.CONNECT, pattern, name)
 
-    def patch(self, pattern: str | None = "/", *, name: str | None = None) -> Callable[..., Any]:
+    def patch(
+        self, pattern: str | None = "/", *, name: str | None = None
+    ) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.PATCH, pattern, name)
 
     def ws(self, pattern, *, name: str | None = None) -> Callable[..., Any]:
         return self._get_decorator(RouteMethod.GET_WS, pattern, name)
 
     def route(
-        self, pattern: str, methods: Sequence[str] | None = None, *, name: str | None = None
+        self,
+        pattern: str,
+        methods: Sequence[str] | None = None,
+        *,
+        name: str | None = None,
     ) -> Callable[..., Any]:
         if methods is None:
             methods = ["GET"]
@@ -1179,6 +1221,7 @@ class URLResolver:
             Returns a fully qualified URL (scheme + host + base_path + path)
             for the named route.
     """
+
     def __init__(self, router: Router, request: Request):
         self._router = router
         self._request = request

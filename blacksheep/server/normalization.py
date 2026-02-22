@@ -41,7 +41,6 @@ from .bindings import (
     get_binder_by_type,
 )
 
-
 _next_handler_binder = object()
 
 

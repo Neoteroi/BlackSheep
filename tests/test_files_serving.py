@@ -7,7 +7,6 @@ import pytest
 from essentials.folders import get_file_extension
 
 from blacksheep import Application, Request
-from blacksheep.server.routing import Router
 from blacksheep.common.files.asyncfs import FileContext, FilesHandler
 from blacksheep.exceptions import BadRequest, InvalidArgument
 from blacksheep.ranges import Range, RangePart
@@ -25,6 +24,7 @@ from blacksheep.server.files.static import get_response_for_static_content
 from blacksheep.server.headers.cache import CacheControlHeaderValue
 from blacksheep.server.resources import get_resource_file_path
 from blacksheep.server.responses import text
+from blacksheep.server.routing import Router
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
 from blacksheep.utils.aio import get_running_loop

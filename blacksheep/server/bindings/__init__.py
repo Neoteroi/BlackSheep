@@ -8,7 +8,6 @@ See:
     https://www.neoteroi.dev/blacksheep/binders/
 """
 
-import warnings
 from abc import abstractmethod
 from collections.abc import Iterable as IterableAbc
 from functools import partial
@@ -27,9 +26,9 @@ from typing import (
 from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol
 
-from blacksheep import Request
 from blacksheep.contents import FormPart
 from blacksheep.exceptions import BadRequest
+from blacksheep.messages import Request
 from blacksheep.server.bindings.converters import class_converters, converters
 from blacksheep.server.routing import Router, URLResolver
 from blacksheep.server.websocket import WebSocket
@@ -889,8 +888,10 @@ class URLResolverBinder(Binder):
 
     @classmethod
     def from_alias(cls, services: ContainerProtocol) -> "URLResolverBinder":
-        router: Router = services.resolve(Router)
-        return cls(router)
+        from blacksheep.server import Application
+
+        app: Application = services.resolve(Application)
+        return cls(app.router)
 
     async def get_value(self, request: Request) -> URLResolver:
         return URLResolver(self._router, request)

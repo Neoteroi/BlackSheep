@@ -1105,6 +1105,7 @@ def test_router_with_combined_prefix(env_prefix, prefix):
 
 # Tests for url_for feature
 
+
 def test_url_for_simple_route():
     router = Router()
 
@@ -1152,7 +1153,9 @@ def test_url_for_with_multiple_params():
     def get_friend(): ...
 
     router.apply_routes()
-    assert router.url_for("get_friend", cat_id="1", friend_id="2") == "/cats/1/friends/2"
+    assert (
+        router.url_for("get_friend", cat_id="1", friend_id="2") == "/cats/1/friends/2"
+    )
 
 
 def test_url_for_not_found_raises():

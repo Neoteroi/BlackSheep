@@ -11,6 +11,7 @@ from blacksheep.server.routing import (
     RouteException,
     RouteFilter,
     RouteMethod,
+    RouteNotFound,
     Router,
     normalize_filters,
 )
@@ -1100,3 +1101,122 @@ def test_router_with_env_prefix(prefix):
 def test_router_with_combined_prefix(env_prefix, prefix):
     with modified_env(APP_ROUTE_PREFIX=env_prefix):
         _router_prefix_scenario_1(Router(prefix=prefix), env_prefix + prefix)
+
+
+# Tests for url_for feature
+
+def test_url_for_simple_route():
+    router = Router()
+
+    @router.get("/", name="home")
+    def home(): ...
+
+    router.apply_routes()
+    assert router.url_for("home") == "/"
+
+
+def test_url_for_with_route_params():
+    router = Router()
+
+    @router.get("/users/:username", name="user_detail")
+    def user_detail(): ...
+
+    router.apply_routes()
+    assert router.url_for("user_detail", username="johndoe") == "/users/johndoe"
+
+
+def test_url_for_with_mustache_params():
+    router = Router()
+
+    @router.get("/cats/{cat_id}", name="get_cat")
+    def get_cat(): ...
+
+    router.apply_routes()
+    assert router.url_for("get_cat", cat_id="123") == "/cats/123"
+
+
+def test_url_for_with_typed_params():
+    router = Router()
+
+    @router.get("/cats/{int:cat_id}", name="get_cat")
+    def get_cat(): ...
+
+    router.apply_routes()
+    assert router.url_for("get_cat", cat_id="42") == "/cats/42"
+
+
+def test_url_for_with_multiple_params():
+    router = Router()
+
+    @router.get("/cats/:cat_id/friends/:friend_id", name="get_friend")
+    def get_friend(): ...
+
+    router.apply_routes()
+    assert router.url_for("get_friend", cat_id="1", friend_id="2") == "/cats/1/friends/2"
+
+
+def test_url_for_not_found_raises():
+    router = Router()
+
+    @router.get("/", name="home")
+    def home(): ...
+
+    router.apply_routes()
+
+    with pytest.raises(RouteNotFound):
+        router.url_for("nonexistent")
+
+
+def test_url_for_with_prefix():
+    router = Router(prefix="/api/v1")
+
+    @router.get("/users", name="user_list")
+    def user_list(): ...
+
+    router.apply_routes()
+    assert router.url_for("user_list") == "/api/v1/users"
+
+
+def test_url_for_via_add_method():
+    router = Router()
+
+    def home(): ...
+
+    router.add_get("/", home, name="home")
+    router.apply_routes()
+    assert router.url_for("home") == "/"
+
+
+def test_url_for_via_add_shortcut():
+    router = Router()
+
+    def user_detail(): ...
+
+    router.add("GET", "/users/:username", user_detail, name="user_detail")
+    router.apply_routes()
+    assert router.url_for("user_detail", username="alice") == "/users/alice"
+
+
+def test_url_for_with_sub_router():
+    sub_router = Router()
+
+    @sub_router.get("/items/:item_id", name="get_item")
+    def get_item(): ...
+
+    router = Router(sub_routers=[sub_router])
+
+    @router.get("/", name="home")
+    def home(): ...
+
+    router.apply_routes()
+
+    # Named route in sub-router is found
+    assert router.url_for("get_item", item_id="99") == "/items/99"
+    # Named route in main router still works
+    assert router.url_for("home") == "/"
+
+
+def test_route_not_found_exception_has_name():
+    exc = RouteNotFound("my_route")
+    assert exc.name == "my_route"
+    assert "my_route" in str(exc)

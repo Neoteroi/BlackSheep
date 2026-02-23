@@ -434,6 +434,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         security_schemes: dict[str, SecurityScheme] | None = None,
         servers: Sequence[Server] | None = None,
         serializer: Serializer | None = None,
+        spec_file: str | None = None,
     ) -> None:
         super().__init__(
             ui_path=ui_path,
@@ -442,6 +443,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             preferred_format=preferred_format,
             anonymous_access=anonymous_access,
             serializer=serializer,
+            spec_file=spec_file,
         )
         self.info = info
         self._tags = tags

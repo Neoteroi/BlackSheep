@@ -4454,3 +4454,156 @@ async def test_filedata_schema_generation():
     assert list_schema.type == ValueType.ARRAY
     assert list_schema.items.type == ValueType.STRING
     assert list_schema.items.format == ValueFormat.BINARY
+
+
+# ---------------------------------------------------------------------------
+# Tests for save_spec / spec_file (PYTHONOPTIMIZE=2 support)
+# ---------------------------------------------------------------------------
+
+
+def test_save_spec_raises_if_not_built():
+    """save_spec raises RuntimeError when called before the app has started."""
+    docs = OpenAPIHandler(info=Info("Test API", "0.0.1"))
+    with pytest.raises(RuntimeError, match="not been built yet"):
+        docs.save_spec("/tmp/openapi.json")
+
+
+async def test_save_spec_writes_both_formats(tmp_path):
+    """save_spec always writes both a .json and a .yaml file."""
+    import json as _json
+
+    app = Application()
+
+    @app.router.get("/hello")
+    async def hello():
+        """Returns a greeting."""
+        return "Hello"
+
+    docs = OpenAPIHandler(info=Info("Test API", "0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    destination = str(tmp_path / "openapi.json")
+    docs.save_spec(destination)
+
+    json_path = tmp_path / "openapi.json"
+    yaml_path = tmp_path / "openapi.yaml"
+
+    assert json_path.exists(), "JSON spec file should be written"
+    assert yaml_path.exists(), "YAML spec file should be written"
+
+    # Both files should be valid and contain the /hello path
+    data = _json.loads(json_path.read_bytes())
+    assert "/hello" in data["paths"]
+
+    yaml_text = yaml_path.read_text()
+    assert "/hello" in yaml_text
+
+
+async def test_save_spec_yaml_destination_writes_both_formats(tmp_path):
+    """save_spec writes both formats even when destination has .yaml extension."""
+    app = Application()
+
+    @app.router.get("/ping")
+    async def ping():
+        return "pong"
+
+    docs = OpenAPIHandler(info=Info("Test API", "0.0.1"))
+    docs.bind_app(app)
+    await app.start()
+
+    destination = str(tmp_path / "openapi.yaml")
+    docs.save_spec(destination)
+
+    assert (tmp_path / "openapi.yaml").exists()
+    assert (tmp_path / "openapi.json").exists()
+
+
+async def test_spec_file_loads_json_on_build_docs(tmp_path):
+    """When spec_file is set, build_docs loads the spec from disk."""
+    import json as _json
+
+    # Step 1: build and bake the spec
+    app_bake = Application()
+
+    @app_bake.router.get("/cats")
+    async def get_cats():
+        return []
+
+    docs_bake = OpenAPIHandler(info=Info("Cats API", "1.0.0"))
+    docs_bake.bind_app(app_bake)
+    await app_bake.start()
+    docs_bake.save_spec(str(tmp_path / "openapi.json"))
+
+    # Step 2: load the spec at "runtime" via spec_file=
+    app_runtime = Application()
+    docs_runtime = OpenAPIHandler(
+        info=Info("Cats API", "1.0.0"),
+        spec_file=str(tmp_path / "openapi.json"),
+    )
+    docs_runtime.bind_app(app_runtime)
+    await app_runtime.start()
+
+    # The loaded JSON should match what was baked
+    loaded = _json.loads(docs_runtime._json_docs)
+    assert "/cats" in loaded["paths"]
+
+    # The YAML variant should also be populated
+    assert b"/cats" in docs_runtime._yaml_docs
+
+
+async def test_spec_file_loads_yaml_on_build_docs(tmp_path):
+    """When spec_file points to a .yaml file, build_docs loads both formats."""
+    import json as _json
+
+    app_bake = Application()
+
+    @app_bake.router.get("/dogs")
+    async def get_dogs():
+        return []
+
+    docs_bake = OpenAPIHandler(info=Info("Dogs API", "1.0.0"))
+    docs_bake.bind_app(app_bake)
+    await app_bake.start()
+    docs_bake.save_spec(str(tmp_path / "openapi.yaml"))
+
+    app_runtime = Application()
+    docs_runtime = OpenAPIHandler(
+        info=Info("Dogs API", "1.0.0"),
+        spec_file=str(tmp_path / "openapi.yaml"),
+    )
+    docs_runtime.bind_app(app_runtime)
+    await app_runtime.start()
+
+    loaded = _json.loads(docs_runtime._json_docs)
+    assert "/dogs" in loaded["paths"]
+
+    assert b"/dogs" in docs_runtime._yaml_docs
+
+
+def test_get_spec_file_paths_json_extension():
+    docs = OpenAPIHandler(info=Info("Test", "0.0.1"))
+    json_path, yaml_path = docs._get_spec_file_paths("/tmp/spec/openapi.json")
+    assert json_path == "/tmp/spec/openapi.json"
+    assert yaml_path == "/tmp/spec/openapi.yaml"
+
+
+def test_get_spec_file_paths_yaml_extension():
+    docs = OpenAPIHandler(info=Info("Test", "0.0.1"))
+    json_path, yaml_path = docs._get_spec_file_paths("/tmp/spec/openapi.yaml")
+    assert json_path == "/tmp/spec/openapi.json"
+    assert yaml_path == "/tmp/spec/openapi.yaml"
+
+
+def test_get_spec_file_paths_yml_extension():
+    docs = OpenAPIHandler(info=Info("Test", "0.0.1"))
+    json_path, yaml_path = docs._get_spec_file_paths("/tmp/spec/openapi.yml")
+    assert json_path == "/tmp/spec/openapi.json"
+    assert yaml_path == "/tmp/spec/openapi.yml"
+
+
+def test_get_spec_file_paths_no_extension():
+    docs = OpenAPIHandler(info=Info("Test", "0.0.1"))
+    json_path, yaml_path = docs._get_spec_file_paths("/tmp/spec/openapi")
+    assert json_path == "/tmp/spec/openapi.json"
+    assert yaml_path == "/tmp/spec/openapi.yaml"

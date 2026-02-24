@@ -24,3 +24,4 @@ pytest-cov==6.1.1
 uvicorn==0.34.2
 pydantic==2.12.3
 pydantic_core==2.41.4
+defusedxml>=0.7.1

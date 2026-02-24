@@ -199,6 +199,23 @@ class FromForm(BoundValue[T]):
     default_value_type = dict
 
 
+class FromXML(BoundValue[T]):
+    """
+    A parameter obtained from an XML request body (``application/xml`` or ``text/xml``).
+
+    Requires ``defusedxml`` for safe parsing against common XML attacks (XXE, entity
+    expansion, DTD injection). Install it with::
+
+        pip install blacksheep[xml]
+
+    The root element tag is ignored; its child elements are mapped to model fields by
+    name.  All standard field-type coercions (int, float, datetime, UUID …) apply via
+    the same converter chain used by JSON and form binders.
+    """
+
+    default_value_type = dict
+
+
 class FromBody(BoundValue[T]):
     """
     A parameter obtained from the request body, accepting multiple content types.
@@ -589,6 +606,92 @@ class TextBinder(BodyBinder):
 
     async def read_data(self, request: Request) -> Any:
         return await request.text()
+
+
+def _element_to_dict(element) -> dict:
+    """Recursively convert an ElementTree element to a plain dict.
+
+    - Strips XML namespaces from tag names.
+    - Multiple sibling elements with the same tag are collected into a list.
+    - Attributes of the element are merged into the dict.
+    """
+    result: dict = {}
+
+    # Include element attributes first so child tags can override them if needed
+    for attr_name, attr_value in element.attrib.items():
+        if "}" in attr_name:
+            attr_name = attr_name.split("}", 1)[1]
+        result[attr_name] = attr_value
+
+    for child in element:
+        tag = child.tag
+        if "}" in tag:
+            tag = tag.split("}", 1)[1]
+
+        child_value = _element_to_dict(child) if len(child) > 0 else child.text
+
+        if tag in result:
+            existing = result[tag]
+            if not isinstance(existing, list):
+                result[tag] = [existing]
+            result[tag].append(child_value)
+        else:
+            result[tag] = child_value
+
+    return result
+
+
+class XMLBinder(BodyBinder):
+    """
+    Extracts a model from an XML request body (``application/xml`` or ``text/xml``).
+
+    Uses ``defusedxml`` to protect against XXE injection, entity expansion (billion
+    laughs), and DTD-based attacks.  Install the extra with::
+
+        pip install blacksheep[xml]
+
+    The root element tag is ignored; its direct children are mapped to model fields by
+    name.  The same type-coercion converters used by the JSON and form binders apply,
+    so ``int``, ``float``, ``datetime``, ``UUID``, and other annotated field types are
+    automatically coerced from their string representation.
+    """
+
+    handle = FromXML
+
+    @property
+    def content_type(self) -> str:
+        return "application/xml;text/xml"
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_content_type(
+            b"application/xml"
+        ) or request.declares_content_type(b"text/xml")
+
+    async def read_data(self, request: Request) -> Any:
+        raw = await request.read()
+        if not raw:
+            return None
+        return self._parse_xml(raw)
+
+    @staticmethod
+    def _parse_xml(content: bytes) -> dict:
+        try:
+            import defusedxml.ElementTree as _ET  # type: ignore[import]
+            from defusedxml import DefusedXmlException  # type: ignore[import]
+        except ImportError as exc:
+            raise ImportError(
+                "defusedxml is required for safe XML parsing. "
+                "Install it with: pip install blacksheep[xml]"
+            ) from exc
+
+        try:
+            root = _ET.fromstring(content)
+        except DefusedXmlException:
+            raise  # security violations (XXE, entity expansion, DTD) propagate as-is
+        except Exception as exc:
+            raise InvalidRequestBody(f"Invalid XML: {exc}") from exc
+
+        return _element_to_dict(root)
 
 
 class MultiFormatBodyBinder(BodyBinder):

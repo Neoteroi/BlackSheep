@@ -49,11 +49,13 @@ version = { attr = "blacksheep.__version__" }
 
 [project.optional-dependencies]
 jinja = ["Jinja2~=3.1.6"]
+xml = ["defusedxml>=0.7.1"]
 full = [
     "cryptography>=45.0.2,<47.0.0",
     "PyJWT~=2.10.1",
     "websockets~=15.0.1",
     "Jinja2~=3.1.6",
+    "defusedxml>=0.7.1",
 ]
 
 [project.urls]

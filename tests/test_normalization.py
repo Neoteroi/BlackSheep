@@ -762,4 +762,18 @@ def test_regular_optional_body_not_treated_as_multi_format():
     assert not isinstance(body_binder, MultiFormatBodyBinder)
 
 
+def test_union_with_xml_creates_multi_format_binder():
+    """FromJSON[T] | FromXML[T] should produce a MultiFormatBodyBinder."""
+    from blacksheep.server.bindings import FromXML, XMLBinder
+
+    def handler(data: FromJSON[NormItem] | FromXML[NormItem]): ...
+
+    binders = get_binders(Route(b"/", handler), Container())
+    body_binder = next(b for b in binders if isinstance(b, MultiFormatBodyBinder))
+    assert body_binder.expected_type is NormItem
+    binder_types = {type(b) for b in body_binder.inner_binders}
+    assert JSONBinder in binder_types
+    assert XMLBinder in binder_types
+
+
 # endregion

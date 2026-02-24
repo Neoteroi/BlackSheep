@@ -4787,4 +4787,47 @@ async def test_optional_union_body_generates_not_required(
     assert "required: false" in yaml
 
 
+async def test_xml_body_binder_generates_xml_content_types(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """FromXML[T] should document application/xml and text/xml content types."""
+    from blacksheep.server.bindings import FromXML
+
+    app = get_app()
+
+    @app.router.post("/items")
+    def create_item(data: FromXML[CreateFooInput]) -> Foo: ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert "application/xml:" in yaml
+    assert "text/xml:" in yaml
+    assert "$ref: '#/components/schemas/CreateFooInput'" in yaml
+
+
+async def test_json_xml_union_generates_all_content_types(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """FromJSON[T] | FromXML[T] should document both JSON and XML content types."""
+    from blacksheep.server.bindings import FromJSON, FromXML
+
+    app = get_app()
+
+    @app.router.post("/items")
+    def create_item(data: FromJSON[CreateFooInput] | FromXML[CreateFooInput]) -> Foo: ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert "application/json:" in yaml
+    assert "application/xml:" in yaml
+    assert "text/xml:" in yaml
+    assert yaml.count("$ref: '#/components/schemas/CreateFooInput'") == 3
+
+
 # endregion

@@ -42,6 +42,7 @@ from .server.bindings import FromQuery as FromQuery
 from .server.bindings import FromRoute as FromRoute
 from .server.bindings import FromServices as FromServices
 from .server.bindings import FromText as FromText
+from .server.bindings import FromXML as FromXML
 from .server.bindings import ServerInfo as ServerInfo
 from .server.responses import ContentDispositionType as ContentDispositionType
 from .server.responses import FileInput as FileInput

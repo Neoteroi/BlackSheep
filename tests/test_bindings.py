@@ -1358,3 +1358,136 @@ def test_multi_format_binder_content_type_combines_inner():
 
 
 # endregion
+
+
+# region XMLBinder tests
+
+from blacksheep.contents import Content
+from blacksheep.server.bindings import FromXML, XMLBinder
+
+
+XML_ITEM = b"<Item><name>hello</name><value>7</value></Item>"
+XML_NESTED = b"<Root><inner><x>1</x></inner></Root>"
+XML_ATTR = b'<Item id="99"><name>attr</name></Item>'
+XML_LIST = b"<Items><tag>a</tag><tag>b</tag></Items>"
+
+
+async def test_xml_binder_parses_simple_fields():
+    binder = XMLBinder(MultiItem, "body", required=True)
+    request = Request(
+        "POST", b"/", [(b"content-type", b"application/xml")]
+    ).with_content(Content(b"application/xml", XML_ITEM))
+
+    result = await binder.get_value(request)
+    assert isinstance(result, MultiItem)
+    assert result.name == "hello"
+    assert result.value == 7  # coerced from string
+
+
+async def test_xml_binder_accepts_text_xml_content_type():
+    binder = XMLBinder(MultiItem, "body", required=True)
+    request = Request(
+        "POST", b"/", [(b"content-type", b"text/xml")]
+    ).with_content(Content(b"text/xml", XML_ITEM))
+
+    result = await binder.get_value(request)
+    assert isinstance(result, MultiItem)
+
+
+async def test_xml_binder_does_not_match_json_content_type():
+    binder = XMLBinder(MultiItem, "body", required=False)
+    request = Request(
+        "POST", b"/", [(b"content-type", b"application/json")]
+    ).with_content(JSONContent({"name": "x", "value": 1}))
+
+    result = await binder.get_value(request)
+    assert result is None
+
+
+async def test_xml_binder_raises_bad_request_for_malformed_xml():
+    binder = XMLBinder(dict, "body", required=True)
+    request = Request(
+        "POST", b"/", [(b"content-type", b"application/xml")]
+    ).with_content(Content(b"application/xml", b"<unclosed"))
+
+    with pytest.raises(InvalidRequestBody):
+        await binder.get_value(request)
+
+
+async def test_xml_binder_raises_missing_body_for_empty_content():
+    binder = XMLBinder(dict, "body", required=True)
+    # required=True and content-type matches, so empty body → MissingBodyError
+    request = Request("POST", b"/", [(b"content-type", b"application/xml")])
+
+    with pytest.raises(MissingBodyError):
+        await binder.get_value(request)
+
+
+def test_xml_binder_rejects_xxe_attack():
+    """Verify defusedxml blocks external entity injection."""
+    import defusedxml
+
+    xxe_payload = (
+        b'<?xml version="1.0"?>'
+        b'<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+        b"<Item><name>&xxe;</name><value>1</value></Item>"
+    )
+    with pytest.raises(
+        (defusedxml.DTDForbidden, defusedxml.EntitiesForbidden, defusedxml.ExternalReferenceForbidden)
+    ):
+        XMLBinder._parse_xml(xxe_payload)
+
+
+def test_xml_binder_rejects_billion_laughs():
+    """Verify defusedxml blocks entity expansion (billion laughs)."""
+    import defusedxml
+
+    billion_laughs = (
+        b'<?xml version="1.0"?>'
+        b"<!DOCTYPE lolz ["
+        b'  <!ENTITY lol "lol">'
+        b'  <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">'
+        b"]>"
+        b"<Item><name>&lol2;</name><value>1</value></Item>"
+    )
+    with pytest.raises((defusedxml.DTDForbidden, defusedxml.EntitiesForbidden)):
+        XMLBinder._parse_xml(billion_laughs)
+
+
+def test_element_to_dict_handles_attributes():
+    from blacksheep.server.bindings import _element_to_dict
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(XML_ATTR)
+    d = _element_to_dict(root)
+    assert d["id"] == "99"
+    assert d["name"] == "attr"
+
+
+def test_element_to_dict_handles_nested():
+    from blacksheep.server.bindings import _element_to_dict
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(XML_NESTED)
+    d = _element_to_dict(root)
+    assert isinstance(d["inner"], dict)
+    assert d["inner"]["x"] == "1"
+
+
+def test_element_to_dict_collects_repeated_tags_as_list():
+    from blacksheep.server.bindings import _element_to_dict
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(XML_LIST)
+    d = _element_to_dict(root)
+    assert d["tag"] == ["a", "b"]
+
+
+def test_xml_binder_content_type():
+    binder = XMLBinder(dict, "body")
+    parts = binder.content_type.split(";")
+    assert "application/xml" in parts
+    assert "text/xml" in parts
+
+
+# endregion

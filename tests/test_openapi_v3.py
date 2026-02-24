@@ -4657,3 +4657,59 @@ async def test_app_spec_file_env_var_not_set_generates_spec(monkeypatch):
 
     loaded = _json.loads(docs._json_docs)
     assert "/fish" in loaded["paths"]
+
+
+async def test_spec_file_auto_saves_on_first_start(tmp_path, monkeypatch):
+    """When spec_file is set but files don't exist yet, the spec is generated,
+    saved to disk, and subsequent startups load from the saved files."""
+    import json as _json
+
+    monkeypatch.delenv("APP_SPEC_FILE", raising=False)
+
+    spec_path = str(tmp_path / "openapi.json")
+
+    # First startup: files don't exist yet → generate and auto-save
+    app_first = Application()
+
+    @app_first.router.get("/frogs")
+    async def get_frogs():
+        return []
+
+    docs_first = OpenAPIHandler(info=Info("Frogs API", "1.0.0"), spec_file=spec_path)
+    docs_first.bind_app(app_first)
+    await app_first.start()
+
+    assert (tmp_path / "openapi.json").exists(), "JSON spec should be auto-saved"
+    assert (tmp_path / "openapi.yaml").exists(), "YAML spec should be auto-saved"
+    assert "/frogs" in _json.loads(docs_first._json_docs)["paths"]
+
+    # Second startup: files exist → loaded from disk, generation is skipped
+    app_second = Application()
+    docs_second = OpenAPIHandler(info=Info("Frogs API", "1.0.0"), spec_file=spec_path)
+    docs_second.bind_app(app_second)
+    await app_second.start()
+
+    assert "/frogs" in _json.loads(docs_second._json_docs)["paths"]
+    assert b"/frogs" in docs_second._yaml_docs
+
+
+async def test_spec_file_env_var_auto_saves_on_first_start(tmp_path, monkeypatch):
+    """APP_SPEC_FILE pointing to a non-existent file causes auto-save on first start."""
+    import json as _json
+
+    spec_path = str(tmp_path / "openapi.json")
+    monkeypatch.setenv("APP_SPEC_FILE", spec_path)
+
+    app = Application()
+
+    @app.router.get("/foxes")
+    async def get_foxes():
+        return []
+
+    docs = OpenAPIHandler(info=Info("Foxes API", "1.0.0"))
+    docs.bind_app(app)
+    await app.start()
+
+    assert (tmp_path / "openapi.json").exists()
+    assert (tmp_path / "openapi.yaml").exists()
+    assert "/foxes" in _json.loads(docs._json_docs)["paths"]

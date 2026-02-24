@@ -19,6 +19,7 @@ See
 """
 
 import re
+import sys
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -510,15 +511,28 @@ def parse_docstring(
 
 
 _handlers_docstring_info = WeakKeyDictionary()
+_optimize_warning_issued = False
 
 
 def get_handler_docstring_info(handler) -> DocstringInfo:
+    global _optimize_warning_issued
     if handler not in _handlers_docstring_info:
         docs = handler.__doc__
 
         if docs:
             docstring_info = parse_docstring(docs)
         else:
+            if sys.flags.optimize >= 2 and not _optimize_warning_issued:
+                _optimize_warning_issued = True
+                warnings.warn(
+                    "Python is running with PYTHONOPTIMIZE=2 (or -OO), so docstrings "
+                    "are not available and cannot be used to enrich OpenAPI "
+                    "Documentation. Consider baking the OpenAPI spec to a file before "
+                    "deploying: call docs.save_spec() after starting the application "
+                    "once without -OO, then set APP_SPEC_FILE to the saved path so "
+                    "that BlackSheep loads it at runtime instead of regenerating it.",
+                    stacklevel=2,
+                )
             docstring_info = None
         _handlers_docstring_info[handler] = docstring_info
     return _handlers_docstring_info[handler]

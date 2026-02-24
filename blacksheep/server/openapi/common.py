@@ -316,7 +316,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self.events = OpenAPIEvents(self)
         self.handle_optional_response_with_404 = True
         self._serializer = serializer
-        self._spec_file = spec_file
+        self._spec_file = spec_file or os.environ.get("APP_SPEC_FILE")
 
     def __call__(
         self,
@@ -572,7 +572,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         with .json. Otherwise the YAML companion uses the same base with .yaml.
         """
         base, ext = os.path.splitext(spec_file)
-        if ext in (".yaml", ".yml"):
+        if ext.lower() in (".yaml", ".yml"):
             return base + ".json", spec_file
         json_path = spec_file if ext == ".json" else spec_file + ".json"
         return json_path, base + ".yaml"
@@ -629,6 +629,10 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
                 spec_file="openapi.json",
             )
 
+           If the files do not exist yet when the application starts, they are
+           generated and saved automatically on the first startup, then loaded
+           from disk on every subsequent startup.
+
         Args:
             destination: file path with a ``.json`` or ``.yaml``/``.yml``
                 extension.  The companion format is written next to it
@@ -647,9 +651,9 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             fp.write(self._yaml_docs)
 
     async def build_docs(self, app: Application) -> None:
-        effective_spec_file = self._spec_file or os.environ.get("APP_SPEC_FILE")
-        if effective_spec_file and self._load_spec_from_file(effective_spec_file):
-            # Files read from file system
+        spec_file = self._spec_file
+        if spec_file and self._load_spec_from_file(spec_file):
+            # Files are read from file system
             ...
         else:
             docs = self.generate_documentation(app)
@@ -657,6 +661,8 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             serializer = self._serializer or DefaultSerializer()
             self._json_docs = serializer.to_json(docs).encode("utf8")
             self._yaml_docs = serializer.to_yaml(docs).encode("utf8")
+            if spec_file:
+                self.save_spec(spec_file)
 
         ui_options = UIOptions(
             spec_url=self.get_spec_path(), page_title=self.get_ui_page_title()

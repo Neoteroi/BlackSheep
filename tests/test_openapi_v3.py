@@ -4607,3 +4607,53 @@ def test_get_spec_file_paths_no_extension():
     json_path, yaml_path = docs._get_spec_file_paths("/tmp/spec/openapi")
     assert json_path == "/tmp/spec/openapi.json"
     assert yaml_path == "/tmp/spec/openapi.yaml"
+
+
+async def test_app_spec_file_env_var_is_used_when_set(tmp_path, monkeypatch):
+    """When APP_SPEC_FILE env var is set, build_docs loads from that file."""
+    import json as _json
+
+    # Bake a spec first
+    app_bake = Application()
+
+    @app_bake.router.get("/birds")
+    async def get_birds():
+        return []
+
+    docs_bake = OpenAPIHandler(info=Info("Birds API", "1.0.0"))
+    docs_bake.bind_app(app_bake)
+    await app_bake.start()
+    docs_bake.save_spec(str(tmp_path / "openapi.json"))
+
+    # Now simulate what a deploy environment looks like: no spec_file kwarg,
+    # only the env var is set.
+    monkeypatch.setenv("APP_SPEC_FILE", str(tmp_path / "openapi.json"))
+
+    app_runtime = Application()
+    docs_runtime = OpenAPIHandler(info=Info("Birds API", "1.0.0"))
+    docs_runtime.bind_app(app_runtime)
+    await app_runtime.start()
+
+    loaded = _json.loads(docs_runtime._json_docs)
+    assert "/birds" in loaded["paths"]
+    assert b"/birds" in docs_runtime._yaml_docs
+
+
+async def test_app_spec_file_env_var_not_set_generates_spec(monkeypatch):
+    """When APP_SPEC_FILE is not set, the spec is generated normally."""
+    monkeypatch.delenv("APP_SPEC_FILE", raising=False)
+
+    app = Application()
+
+    @app.router.get("/fish")
+    async def get_fish():
+        return []
+
+    docs = OpenAPIHandler(info=Info("Fish API", "1.0.0"))
+    docs.bind_app(app)
+    await app.start()
+
+    import json as _json
+
+    loaded = _json.loads(docs._json_docs)
+    assert "/fish" in loaded["paths"]

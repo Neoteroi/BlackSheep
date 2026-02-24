@@ -450,7 +450,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         # any normalization
         return route.handler  # pragma: no cover
 
-    def get_handler_tags(self, handler: Any) -> list[str | None]:
+    def get_handler_tags(self, handler: Any) -> list[str] | None:
         docs = self.get_handler_docs(handler)
         if docs and docs.tags:
             return docs.tags
@@ -577,18 +577,19 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         json_path = spec_file if ext == ".json" else spec_file + ".json"
         return json_path, base + ".yaml"
 
-    def _load_spec_from_file(self, spec_file: str) -> None:
+    def _load_spec_from_file(self, spec_file: str) -> bool:
         """
         Loads pre-baked OpenAPI specification bytes from disk.
-        Reads both the JSON and YAML variants (whichever exist).
+        Reads both the JSON and YAML variants. Returns True if both files are present,
+        False otherwise.
         """
         json_path, yaml_path = self._get_spec_file_paths(spec_file)
-        if os.path.isfile(json_path):
-            with open(json_path, "rb") as fp:
-                self._json_docs = fp.read()
-        if os.path.isfile(yaml_path):
-            with open(yaml_path, "rb") as fp:
-                self._yaml_docs = fp.read()
+        both_exist = os.path.isfile(json_path) and os.path.isfile(yaml_path)
+        with open(json_path, "rb") as fp:
+            self._json_docs = fp.read()
+        with open(yaml_path, "rb") as fp:
+            self._yaml_docs = fp.read()
+        return both_exist
 
     def save_spec(self, destination: str) -> None:
         """
@@ -598,21 +599,33 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
         This is meant to be used to "bake" the spec at build/CI time (without
         ``PYTHONOPTIMIZE=2``) so that it can be loaded at runtime when docstrings
-        are stripped. Typical usage::
+        are stripped.
 
-            # bake_spec.py  – run once, without -OO
+        **Typical workflow**
+
+        1. Bake the spec once (e.g. in a CI step, without ``-OO``)::
+
+            # bake_spec.py
             import asyncio
             from myapp import app, docs
 
             asyncio.run(app.start())
-            docs.save_spec("./static/openapi.json")
-            # also writes ./static/openapi.yaml
+            docs.save_spec("./openapi.json")
+            # also writes ./openapi.yaml
 
-        Then configure the handler to load the file at runtime::
+        2. Ship the baked files alongside the application.
+
+        3. At runtime (TEST / PROD) set the environment variable so that
+           BlackSheep loads the baked spec instead of regenerating it::
+
+            APP_SPEC_FILE=openapi.json
+
+           No code change is needed between environments.  Alternatively,
+           pass the path explicitly::
 
             docs = OpenAPIHandler(
                 info=Info("My API", "1.0"),
-                spec_file="./static/openapi.json",
+                spec_file="openapi.json",
             )
 
         Args:
@@ -633,8 +646,10 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
             fp.write(self._yaml_docs)
 
     async def build_docs(self, app: Application) -> None:
-        if self._spec_file:
-            self._load_spec_from_file(self._spec_file)
+        effective_spec_file = self._spec_file or os.environ.get("APP_SPEC_FILE")
+        if effective_spec_file and self._load_spec_from_file(effective_spec_file):
+            # Files read from file system
+            ...
         else:
             docs = self.generate_documentation(app)
             self.on_docs_generated(docs)

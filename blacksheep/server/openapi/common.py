@@ -580,16 +580,17 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     def _load_spec_from_file(self, spec_file: str) -> bool:
         """
         Loads pre-baked OpenAPI specification bytes from disk.
-        Reads both the JSON and YAML variants. Returns True if both files are present,
-        False otherwise.
+        Reads both the JSON and YAML variants. Returns True if both files are
+        found and loaded, False if either is missing (falling back to generation).
         """
         json_path, yaml_path = self._get_spec_file_paths(spec_file)
-        both_exist = os.path.isfile(json_path) and os.path.isfile(yaml_path)
+        if not os.path.isfile(json_path) or not os.path.isfile(yaml_path):
+            return False
         with open(json_path, "rb") as fp:
             self._json_docs = fp.read()
         with open(yaml_path, "rb") as fp:
             self._yaml_docs = fp.read()
-        return both_exist
+        return True
 
     def save_spec(self, destination: str) -> None:
         """

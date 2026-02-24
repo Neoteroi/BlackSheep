@@ -76,6 +76,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   )
   ```
 
+- Fix [#514](https://github.com/Neoteroi/BlackSheep/issues/514) — add support for
+  **multiple request body formats** on a single endpoint.
+  - New `MultiFormatBodyBinder`: holds an ordered list of inner `BodyBinder`s and
+    dispatches `get_value` to the first whose `matches_content_type` returns `True`.
+    Returns HTTP **415 Unsupported Media Type** when the binder is required and no
+    inner binder matches the request's `Content-Type`.
+  - **Union annotation syntax** — the normalization layer detects a union of
+    body-binder `BoundValue` types and automatically builds a
+    `MultiFormatBodyBinder`:
+
+    ```python
+    async def create_item(data: FromJSON[Item] | FromForm[Item]) -> Item: ...
+    # optional variant
+    async def create_item(data: FromJSON[Item] | FromForm[Item] | None) -> Item: ...
+    ```
+
+  - New **`FromBody[T]`** convenience type: equivalent to
+    `FromJSON[T] | FromForm[T]`, useful when you want to accept both structured
+    formats without being explicit:
+
+    ```python
+    async def create_item(data: FromBody[Item]) -> Item: ...
+    ```
+
+  - New **`FromXML[T]`** and **`XMLBinder`**: parse `application/xml` / `text/xml`
+    request bodies using [`defusedxml`](https://github.com/tiran/defusedxml),
+    protecting against **XXE injection**, **entity expansion (billion laughs)**,
+    and **DTD-based attacks**. Security exceptions propagate unmodified so the
+    application can distinguish attack attempts from ordinary malformed input.
+    Install the extra with `pip install blacksheep[xml]`.
+  - All new types compose freely:
+
+    ```python
+    async def create_item(data: FromJSON[Item] | FromXML[Item] | FromForm[Item]): ...
+    ```
+
+  - **OpenAPI Specification** is generated correctly for all combinations: each
+    accepted content type appears as a separate entry under `requestBody.content`,
+    all referencing the same schema.
+
 ## [2.6.1] - 2026-02-22 :cat:
 
 - Fix missing escaping in `multipart/form-data` filenames and content-disposition headers.

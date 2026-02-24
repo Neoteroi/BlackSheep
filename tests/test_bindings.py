@@ -1249,3 +1249,112 @@ async def test_from_body_json_binding_empty_dict(expected_type):
     assert value.age == 25
     assert isinstance(value.contacts, dict)
     assert len(value.contacts) == 0
+
+
+# region MultiFormatBodyBinder tests
+
+from blacksheep.exceptions import UnsupportedMediaType as UnsupportedMediaTypeExc
+from blacksheep.server.bindings import FormBinder, MultiFormatBodyBinder
+
+
+@dataclass
+class MultiItem:
+    name: str
+    value: int
+
+
+async def test_multi_format_binder_dispatches_to_json():
+    binder = MultiFormatBodyBinder(
+        [JSONBinder(MultiItem, "body", False, True), FormBinder(MultiItem, "body", False, True)],
+        MultiItem,
+        "body",
+        required=True,
+    )
+    request = Request(
+        "POST", b"/", [(b"content-type", b"application/json")]
+    ).with_content(JSONContent({"name": "test", "value": 42}))
+
+    result = await binder.get_value(request)
+    assert isinstance(result, MultiItem)
+    assert result.name == "test"
+    assert result.value == 42
+
+
+async def test_multi_format_binder_dispatches_to_form():
+    binder = MultiFormatBodyBinder(
+        [JSONBinder(MultiItem, "body", False, True), FormBinder(MultiItem, "body", False, True)],
+        MultiItem,
+        "body",
+        required=True,
+    )
+    request = Request(
+        "POST", b"/", [(b"content-type", b"application/x-www-form-urlencoded")]
+    ).with_content(FormContent({"name": "test", "value": "42"}))
+
+    result = await binder.get_value(request)
+    assert isinstance(result, MultiItem)
+    assert result.name == "test"
+
+
+async def test_multi_format_binder_raises_415_for_unsupported_content_type():
+    binder = MultiFormatBodyBinder(
+        [JSONBinder(MultiItem, "body", False, True), FormBinder(MultiItem, "body", False, True)],
+        MultiItem,
+        "body",
+        required=True,
+    )
+    from blacksheep.contents import Content
+
+    request = Request(
+        "POST", b"/", [(b"content-type", b"application/xml")]
+    ).with_content(Content(b"application/xml", b"<MultiItem/>"))
+
+    with pytest.raises(UnsupportedMediaTypeExc):
+        await binder.get_value(request)
+
+
+async def test_multi_format_binder_returns_none_when_optional_and_no_match():
+    binder = MultiFormatBodyBinder(
+        [JSONBinder(MultiItem, "body", False, False), FormBinder(MultiItem, "body", False, False)],
+        MultiItem,
+        "body",
+        required=False,
+    )
+    from blacksheep.contents import Content
+
+    request = Request(
+        "POST", b"/", [(b"content-type", b"application/xml")]
+    ).with_content(Content(b"application/xml", b"<MultiItem/>"))
+
+    result = await binder.get_value(request)
+    assert result is None
+
+
+async def test_multi_format_binder_skips_excluded_methods():
+    binder = MultiFormatBodyBinder(
+        [JSONBinder(dict, "body", False, False)],
+        dict,
+        "body",
+        required=False,
+    )
+    for method in ("GET", "HEAD", "TRACE"):
+        request = Request(
+            method, b"/", [(b"content-type", b"application/json")]
+        ).with_content(JSONContent({"x": 1}))
+        result = await binder.get_value(request)
+        assert result is None
+
+
+def test_multi_format_binder_content_type_combines_inner():
+    binder = MultiFormatBodyBinder(
+        [JSONBinder(dict, "body"), FormBinder(dict, "body")],
+        dict,
+        "body",
+    )
+    parts = binder.content_type.split(";")
+    assert "application/json" in parts
+    assert "multipart/form-data" in parts
+    assert "application/x-www-form-urlencoded" in parts
+
+
+# endregion

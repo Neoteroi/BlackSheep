@@ -27,7 +27,7 @@ from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol
 
 from blacksheep.contents import FormPart
-from blacksheep.exceptions import BadRequest
+from blacksheep.exceptions import BadRequest, UnsupportedMediaType
 from blacksheep.messages import Request
 from blacksheep.server.bindings.converters import class_converters, converters
 from blacksheep.server.routing import Router, URLResolver
@@ -194,6 +194,17 @@ class FromForm(BoundValue[T]):
             # data.value.name and data.value.email are strings
             # data.value.avatar is the uploaded file as bytes
             return {"status": "created"}
+    """
+
+    default_value_type = dict
+
+
+class FromBody(BoundValue[T]):
+    """
+    A parameter obtained from the request body, accepting multiple content types.
+    By default accepts application/json and application/x-www-form-urlencoded /
+    multipart/form-data. For explicit format control use a union annotation such as
+    ``FromJSON[T] | FromForm[T]``, which is handled identically at runtime.
     """
 
     default_value_type = dict
@@ -578,6 +589,85 @@ class TextBinder(BodyBinder):
 
     async def read_data(self, request: Request) -> Any:
         return await request.text()
+
+
+class MultiFormatBodyBinder(BodyBinder):
+    """
+    A BodyBinder that accepts multiple content types by delegating to a list of inner
+    BodyBinders. The first inner binder whose ``matches_content_type`` returns True is
+    used to read and parse the request body.
+
+    Instances are created automatically by the normalization layer when a union of
+    body-binder annotations is used (e.g. ``FromJSON[T] | FromForm[T]``), or when
+    ``FromBody[T]`` is used.
+    """
+
+    def __init__(
+        self,
+        inner_binders: "list[BodyBinder]",
+        expected_type=None,
+        name: str = "body",
+        implicit: bool = False,
+        required: bool = False,
+    ):
+        # Pass a no-op converter so BodyBinder.__init__ doesn't build one unnecessarily;
+        # get_value is fully overridden and never calls self.converter.
+        super().__init__(
+            expected_type
+            or (inner_binders[0].expected_type if inner_binders else object),
+            name,
+            implicit,
+            required,
+            converter=lambda data: data,
+        )
+        self.inner_binders = inner_binders
+
+    @property
+    def content_type(self) -> str:
+        return ";".join(b.content_type for b in self.inner_binders)
+
+    def matches_content_type(self, request: Request) -> bool:
+        return any(b.matches_content_type(request) for b in self.inner_binders)
+
+    async def read_data(self, request: Request) -> Any:  # pragma: no cover
+        raise NotImplementedError()
+
+    async def get_value(self, request: Request) -> Any:
+        if request.method in self._excluded_methods:
+            return None
+        for binder in self.inner_binders:
+            if binder.matches_content_type(request):
+                return await binder.get_value(request)
+        if self.required:
+            if not request.has_body():
+                raise MissingBodyError()
+            raise UnsupportedMediaType(
+                f"None of the supported content types matched the request. "
+                f"Accepted: {', '.join(b.content_type for b in self.inner_binders)}"
+            )
+        return None
+
+
+class FromBodyBinder(MultiFormatBodyBinder):
+    """
+    Binder for ``FromBody[T]``. Accepts JSON and form-encoded bodies by default.
+    """
+
+    handle = FromBody
+
+    def __init__(
+        self,
+        expected_type,
+        name: str = "body",
+        implicit: bool = False,
+        required: bool = False,
+        converter=None,
+    ):
+        inner: list[BodyBinder] = [
+            JSONBinder(expected_type, name, implicit, required),
+            FormBinder(expected_type, name, implicit, required),
+        ]
+        super().__init__(inner, expected_type, name, implicit, required)
 
 
 class BytesBinder(Binder):

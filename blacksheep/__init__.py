@@ -31,6 +31,7 @@ from .server.application import Application as Application
 from .server.authorization import allow_anonymous as allow_anonymous
 from .server.authorization import auth as auth
 from .server.bindings import ClientInfo as ClientInfo
+from .server.bindings import FromBody as FromBody
 from .server.bindings import FromBytes as FromBytes
 from .server.bindings import FromCookie as FromCookie
 from .server.bindings import FromFiles as FromFiles

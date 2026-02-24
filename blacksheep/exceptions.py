@@ -51,6 +51,11 @@ class Conflict(HTTPException):
         super().__init__(409, message or "Conflict")
 
 
+class UnsupportedMediaType(HTTPException):
+    def __init__(self, message=None):
+        super().__init__(415, message or "Unsupported media type")
+
+
 class RangeNotSatisfiable(HTTPException):
     def __init__(self):
         super().__init__(416, "Range not satisfiable")

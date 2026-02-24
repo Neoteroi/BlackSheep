@@ -27,7 +27,7 @@ from guardpost import Identity
 from rodi import CannotResolveTypeException, ContainerProtocol
 
 from blacksheep.contents import FormPart
-from blacksheep.exceptions import BadRequest
+from blacksheep.exceptions import BadRequest, UnsupportedMediaType
 from blacksheep.messages import Request
 from blacksheep.server.bindings.converters import class_converters, converters
 from blacksheep.server.routing import Router, URLResolver
@@ -194,6 +194,34 @@ class FromForm(BoundValue[T]):
             # data.value.name and data.value.email are strings
             # data.value.avatar is the uploaded file as bytes
             return {"status": "created"}
+    """
+
+    default_value_type = dict
+
+
+class FromXML(BoundValue[T]):
+    """
+    A parameter obtained from an XML request body (``application/xml`` or ``text/xml``).
+
+    Requires ``defusedxml`` for safe parsing against common XML attacks (XXE, entity
+    expansion, DTD injection). Install it with::
+
+        pip install blacksheep[xml]
+
+    The root element tag is ignored; its child elements are mapped to model fields by
+    name.  All standard field-type coercions (int, float, datetime, UUID …) apply via
+    the same converter chain used by JSON and form binders.
+    """
+
+    default_value_type = dict
+
+
+class FromBody(BoundValue[T]):
+    """
+    A parameter obtained from the request body, accepting multiple content types.
+    By default accepts application/json and application/x-www-form-urlencoded /
+    multipart/form-data. For explicit format control use a union annotation such as
+    ``FromJSON[T] | FromForm[T]``, which is handled identically at runtime.
     """
 
     default_value_type = dict
@@ -578,6 +606,175 @@ class TextBinder(BodyBinder):
 
     async def read_data(self, request: Request) -> Any:
         return await request.text()
+
+
+def _element_to_dict(element) -> dict:
+    """Recursively convert an ElementTree element to a plain dict.
+
+    - Strips XML namespaces from tag names.
+    - Multiple sibling elements with the same tag are collected into a list.
+    - Attributes of the element are merged into the dict.
+    """
+    result: dict = {}
+
+    # Include element attributes first so child tags can override them if needed
+    for attr_name, attr_value in element.attrib.items():
+        if "}" in attr_name:
+            attr_name = attr_name.split("}", 1)[1]
+        result[attr_name] = attr_value
+
+    for child in element:
+        tag = child.tag
+        if "}" in tag:
+            tag = tag.split("}", 1)[1]
+
+        child_value = _element_to_dict(child) if len(child) > 0 else child.text
+
+        if tag in result:
+            existing = result[tag]
+            if not isinstance(existing, list):
+                result[tag] = [existing]
+            result[tag].append(child_value)
+        else:
+            result[tag] = child_value
+
+    return result
+
+
+class XMLBinder(BodyBinder):
+    """
+    Extracts a model from an XML request body (``application/xml`` or ``text/xml``).
+
+    Uses ``defusedxml`` to protect against XXE injection, entity expansion (billion
+    laughs), and DTD-based attacks.  Install the extra with::
+
+        pip install blacksheep[xml]
+
+    The root element tag is ignored; its direct children are mapped to model fields by
+    name.  The same type-coercion converters used by the JSON and form binders apply,
+    so ``int``, ``float``, ``datetime``, ``UUID``, and other annotated field types are
+    automatically coerced from their string representation.
+    """
+
+    handle = FromXML
+
+    @property
+    def content_type(self) -> str:
+        return "application/xml;text/xml"
+
+    def matches_content_type(self, request: Request) -> bool:
+        return request.declares_content_type(
+            b"application/xml"
+        ) or request.declares_content_type(b"text/xml")
+
+    async def read_data(self, request: Request) -> Any:
+        raw = await request.read()
+        if not raw:
+            return None
+        return self._parse_xml(raw)
+
+    @staticmethod
+    def _parse_xml(content: bytes) -> dict:
+        try:
+            import defusedxml.ElementTree as _ET  # type: ignore[import]
+            from defusedxml import DefusedXmlException  # type: ignore[import]
+        except ImportError as exc:
+            raise ImportError(
+                "defusedxml is required for safe XML parsing. "
+                "Install it with: pip install blacksheep[xml]"
+            ) from exc
+
+        try:
+            root = _ET.fromstring(content)
+        except DefusedXmlException:
+            raise  # security violations (XXE, entity expansion, DTD) propagate as-is
+        except Exception as exc:
+            raise InvalidRequestBody(f"Invalid XML: {exc}") from exc
+
+        return _element_to_dict(root)
+
+
+class MultiFormatBodyBinder(BodyBinder):
+    """
+    A BodyBinder that accepts multiple content types by delegating to a list of inner
+    BodyBinders. The first inner binder whose ``matches_content_type`` returns True is
+    used to read and parse the request body.
+
+    Instances are created automatically by the normalization layer when a union of
+    body-binder annotations is used (e.g. ``FromJSON[T] | FromForm[T]``), or when
+    ``FromBody[T]`` is used.
+    """
+
+    def __init__(
+        self,
+        inner_binders: "list[BodyBinder]",
+        expected_type=None,
+        name: str = "body",
+        implicit: bool = False,
+        required: bool = False,
+    ):
+        # Pass a no-op converter so BodyBinder.__init__ doesn't build one unnecessarily;
+        # get_value is fully overridden and never calls self.converter.
+        super().__init__(
+            expected_type
+            or (inner_binders[0].expected_type if inner_binders else object),
+            name,
+            implicit,
+            required,
+            converter=lambda data: data,
+        )
+        self.inner_binders = inner_binders
+
+    @property
+    def content_type(self) -> str:
+        return ";".join(b.content_type for b in self.inner_binders)
+
+    def matches_content_type(self, request: Request) -> bool:
+        return any(b.matches_content_type(request) for b in self.inner_binders)
+
+    async def read_data(self, request: Request) -> Any:  # pragma: no cover
+        raise NotImplementedError()
+
+    async def get_value(self, request: Request) -> Any:
+        if request.method in self._excluded_methods:
+            return None
+        for binder in self.inner_binders:
+            if binder.matches_content_type(request):
+                return await binder.get_value(request)
+        if self.required:
+            if not request.has_body():
+                raise MissingBodyError()
+            raise UnsupportedMediaType(
+                f"None of the supported content types matched the request. "
+                f"Accepted: {', '.join(b.content_type for b in self.inner_binders)}"
+            )
+        return None
+
+
+class FromBodyBinder(MultiFormatBodyBinder):
+    """
+    Binder for ``FromBody[T]``. By default accepts only JSON bodies.
+    To support additional formats, configure the ``binder_types`` class attribute::
+
+        FromBodyBinder.binder_types = [JSONBinder, FormBinder]
+    """
+
+    handle = FromBody
+    binder_types: list[type[BodyBinder]] = [JSONBinder]
+
+    def __init__(
+        self,
+        expected_type,
+        name: str = "body",
+        implicit: bool = False,
+        required: bool = False,
+        converter=None,
+    ):
+        inner = [
+            binder_type(expected_type, name, implicit, required)
+            for binder_type in self.binder_types
+        ]
+        super().__init__(inner, expected_type, name, implicit, required)
 
 
 class BytesBinder(Binder):

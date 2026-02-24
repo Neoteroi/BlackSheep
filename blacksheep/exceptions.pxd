@@ -33,6 +33,10 @@ cdef class InvalidOperation(Exception):
     pass
 
 
+cdef class UnsupportedMediaType(HTTPException):
+    pass
+
+
 cdef class FailedRequestError(HTTPException):
     cdef public str data
 

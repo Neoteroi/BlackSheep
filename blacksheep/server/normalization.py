@@ -29,11 +29,13 @@ from blacksheep.server.websocket import WebSocket
 
 from .bindings import (
     Binder,
+    BinderNotRegisteredForValueType,
     BodyBinder,
     BoundValue,
     ControllerBinder,
     IdentityBinder,
     JSONBinder,
+    MultiFormatBodyBinder,
     QueryBinder,
     RouteBinder,
     ServiceBinder,
@@ -321,6 +323,58 @@ def _get_bound_value_type(bound_type: Type[BoundValue]) -> Type[Any]:
     return value_type
 
 
+def _get_multi_body_union_args(annotation: Any) -> "list | None":
+    """
+    If *annotation* is a union whose non-None members are all BoundValue types handled
+    by a BodyBinder subclass, returns those non-None args.  Otherwise returns None.
+
+    Handles both ``typing.Union[A, B]`` and PEP 604 ``A | B`` syntax.
+    Requires at least two non-None body-binder args (a single-arg union like
+    ``FromJSON[T] | None`` is handled by the existing Optional unwrap logic).
+    """
+    is_union = (
+        hasattr(annotation, "__origin__") and annotation.__origin__ is Union
+    ) or _is_union_type(annotation)
+    if not is_union:
+        return None
+
+    args = annotation.__args__
+    non_none = [a for a in args if a is not type(None)]
+
+    if len(non_none) < 2:
+        return None
+
+    for arg in non_none:
+        try:
+            if not _is_bound_value_annotation(arg):
+                return None
+            binder_cls = get_binder_by_type(arg)
+            if not issubclass(binder_cls, BodyBinder):
+                return None
+        except (BinderNotRegisteredForValueType, AttributeError):
+            return None
+
+    return non_none
+
+
+def _build_multi_format_binder(
+    args: list, name: str, required: bool
+) -> MultiFormatBodyBinder:
+    """Construct a MultiFormatBodyBinder from a list of BoundValue annotations."""
+    inner_binders: list[BodyBinder] = []
+    for arg in args:
+        binder_cls = get_binder_by_type(arg)
+        expected_type = _get_bound_value_type(arg)
+        inner_binders.append(binder_cls(expected_type, name, False, required))
+    return MultiFormatBodyBinder(
+        inner_binders,
+        inner_binders[0].expected_type,
+        name,
+        implicit=True,
+        required=required,
+    )
+
+
 def _get_parameter_binder(
     parameter: ParamInfo,
     services: ContainerProtocol,
@@ -336,6 +390,13 @@ def _get_parameter_binder(
 
     if original_annotation is _empty:
         return _get_parameter_binder_without_annotation(services, route, name)
+
+    # Detect a union of BodyBinder-handled BoundValue types before the generic
+    # _check_union, which would raise a NormalizationError for such unions.
+    multi_args = _get_multi_body_union_args(original_annotation)
+    if multi_args is not None:
+        has_none = type(None) in original_annotation.__args__
+        return _build_multi_format_binder(multi_args, name, required=not has_none)
 
     # unwrap the Optional[] annotation, if present:
     is_root_optional, annotation = _check_union(parameter, original_annotation, method)

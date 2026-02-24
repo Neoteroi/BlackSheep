@@ -673,3 +673,108 @@ def test_get_asyncgen_yield_type():
 
     assert get_asyncgen_yield_type(example_1) is int
     assert get_asyncgen_yield_type(example_2) is str
+
+
+# region MultiFormatBodyBinder normalization tests
+
+from dataclasses import dataclass
+
+from blacksheep import FormContent, JSONContent, Request
+from blacksheep.server.bindings import FormBinder, FromBody, FromBodyBinder, FromForm, MultiFormatBodyBinder
+
+
+@dataclass
+class NormItem:
+    name: str
+    value: int
+
+
+def test_union_body_annotation_creates_multi_format_binder():
+    """FromJSON[T] | FromForm[T] should produce a MultiFormatBodyBinder."""
+
+    def handler(data: FromJSON[NormItem] | FromForm[NormItem]): ...
+
+    binders = get_binders(Route(b"/", handler), Container())
+    body_binder = next(b for b in binders if isinstance(b, MultiFormatBodyBinder))
+    assert body_binder.expected_type is NormItem
+    assert body_binder.required is True
+    binder_types = {type(b) for b in body_binder.inner_binders}
+    assert JSONBinder in binder_types
+    assert FormBinder in binder_types
+
+
+def test_optional_union_body_annotation_creates_optional_multi_format_binder():
+    """FromJSON[T] | FromForm[T] | None should produce an optional MultiFormatBodyBinder."""
+
+    def handler(data: FromJSON[NormItem] | FromForm[NormItem] | None): ...
+
+    binders = get_binders(Route(b"/", handler), Container())
+    body_binder = next(b for b in binders if isinstance(b, MultiFormatBodyBinder))
+    assert body_binder.required is False
+
+
+def test_from_body_annotation_creates_multi_format_binder(monkeypatch):
+    """FromBody[T] should produce a MultiFormatBodyBinder accepting JSON and form."""
+    monkeypatch.setattr(FromBodyBinder, "binder_types", [JSONBinder, FormBinder])
+
+    def handler(data: FromBody[NormItem]): ...
+
+    binders = get_binders(Route(b"/", handler), Container())
+    body_binder = next(b for b in binders if isinstance(b, MultiFormatBodyBinder))
+    assert body_binder.expected_type is NormItem
+    binder_types = {type(b) for b in body_binder.inner_binders}
+    assert JSONBinder in binder_types
+    assert FormBinder in binder_types
+
+
+async def test_union_body_binder_dispatches_correctly_in_handler():
+    """End-to-end: handler with union annotation parses JSON and form requests."""
+
+    async def handler(data: FromJSON[NormItem] | FromForm[NormItem]):
+        return data
+
+    from blacksheep.server.normalization import normalize_handler
+
+    route = Route(b"/", handler)
+    normalized = normalize_handler(route, Container())
+
+    json_request = Request(
+        "POST", b"/", [(b"content-type", b"application/json")]
+    ).with_content(JSONContent({"name": "hello", "value": 1}))
+    result = await normalized(json_request)
+    assert result is not None
+
+    form_request = Request(
+        "POST", b"/", [(b"content-type", b"application/x-www-form-urlencoded")]
+    ).with_content(FormContent({"name": "hello", "value": "1"}))
+    result = await normalized(form_request)
+    assert result is not None
+
+
+def test_regular_optional_body_not_treated_as_multi_format():
+    """FromJSON[T] | None should still work as a regular optional single binder."""
+
+    def handler(data: FromJSON[NormItem] | None): ...
+
+    binders = get_binders(Route(b"/", handler), Container())
+    body_binder = next(b for b in binders if isinstance(b, JSONBinder))
+    # root_required=False marks the parameter as optional at the handler level
+    assert body_binder.root_required is False
+    assert not isinstance(body_binder, MultiFormatBodyBinder)
+
+
+def test_union_with_xml_creates_multi_format_binder():
+    """FromJSON[T] | FromXML[T] should produce a MultiFormatBodyBinder."""
+    from blacksheep.server.bindings import FromXML, XMLBinder
+
+    def handler(data: FromJSON[NormItem] | FromXML[NormItem]): ...
+
+    binders = get_binders(Route(b"/", handler), Container())
+    body_binder = next(b for b in binders if isinstance(b, MultiFormatBodyBinder))
+    assert body_binder.expected_type is NormItem
+    binder_types = {type(b) for b in body_binder.inner_binders}
+    assert JSONBinder in binder_types
+    assert XMLBinder in binder_types
+
+
+# endregion

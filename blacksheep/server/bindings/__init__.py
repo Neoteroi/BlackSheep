@@ -753,10 +753,14 @@ class MultiFormatBodyBinder(BodyBinder):
 
 class FromBodyBinder(MultiFormatBodyBinder):
     """
-    Binder for ``FromBody[T]``. Accepts JSON and form-encoded bodies by default.
+    Binder for ``FromBody[T]``. By default accepts only JSON bodies.
+    To support additional formats, configure the ``binder_types`` class attribute::
+
+        FromBodyBinder.binder_types = [JSONBinder, FormBinder]
     """
 
     handle = FromBody
+    binder_types: list[type[BodyBinder]] = [JSONBinder]
 
     def __init__(
         self,
@@ -766,9 +770,9 @@ class FromBodyBinder(MultiFormatBodyBinder):
         required: bool = False,
         converter=None,
     ):
-        inner: list[BodyBinder] = [
-            JSONBinder(expected_type, name, implicit, required),
-            FormBinder(expected_type, name, implicit, required),
+        inner = [
+            binder_type(expected_type, name, implicit, required)
+            for binder_type in self.binder_types
         ]
         super().__init__(inner, expected_type, name, implicit, required)
 

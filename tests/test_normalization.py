@@ -680,7 +680,7 @@ def test_get_asyncgen_yield_type():
 from dataclasses import dataclass
 
 from blacksheep import FormContent, JSONContent, Request
-from blacksheep.server.bindings import FormBinder, FromBody, FromForm, MultiFormatBodyBinder
+from blacksheep.server.bindings import FormBinder, FromBody, FromBodyBinder, FromForm, MultiFormatBodyBinder
 
 
 @dataclass
@@ -713,8 +713,9 @@ def test_optional_union_body_annotation_creates_optional_multi_format_binder():
     assert body_binder.required is False
 
 
-def test_from_body_annotation_creates_multi_format_binder():
+def test_from_body_annotation_creates_multi_format_binder(monkeypatch):
     """FromBody[T] should produce a MultiFormatBodyBinder accepting JSON and form."""
+    monkeypatch.setattr(FromBodyBinder, "binder_types", [JSONBinder, FormBinder])
 
     def handler(data: FromBody[NormItem]): ...
 

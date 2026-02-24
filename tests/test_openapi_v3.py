@@ -4743,10 +4743,12 @@ async def test_multi_format_union_body_generates_all_content_types(
 
 
 async def test_from_body_generates_json_and_form_content_types(
-    docs: OpenAPIHandler, serializer: Serializer
+    docs: OpenAPIHandler, serializer: Serializer, monkeypatch
 ):
     """FromBody[T] should document both JSON and form content types."""
-    from blacksheep.server.bindings import FromBody
+    from blacksheep.server.bindings import FormBinder, FromBody, FromBodyBinder, JSONBinder
+
+    monkeypatch.setattr(FromBodyBinder, "binder_types", [JSONBinder, FormBinder])
 
     app = get_app()
 

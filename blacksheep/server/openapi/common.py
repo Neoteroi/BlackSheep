@@ -304,7 +304,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self._handlers_docs: dict[Any, EndpointDocs] = {}
         self._controllers_docs: dict[Any, ControllerDocs] = {}
         self.use_docstrings: bool = True
-        self.include: Callable[[str, Route | None, bool]] = None
+        self.include: Callable[[str, Route], bool] | None = None
         self.json_spec_path = json_spec_path
         self.yaml_spec_path = yaml_spec_path
         self._json_docs: bytes = b""

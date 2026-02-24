@@ -4713,3 +4713,78 @@ async def test_spec_file_env_var_auto_saves_on_first_start(tmp_path, monkeypatch
     assert (tmp_path / "openapi.json").exists()
     assert (tmp_path / "openapi.yaml").exists()
     assert "/foxes" in _json.loads(docs._json_docs)["paths"]
+
+
+# region MultiFormatBodyBinder OpenAPI tests
+
+
+async def test_multi_format_union_body_generates_all_content_types(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """Union annotation FromJSON[T] | FromForm[T] should document all content types."""
+    from blacksheep.server.bindings import FromJSON
+
+    app = get_app()
+
+    @app.router.post("/items")
+    def create_item(data: FromJSON[CreateFooInput] | FromForm[CreateFooInput]) -> Foo: ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert "application/json:" in yaml
+    assert "multipart/form-data:" in yaml
+    assert "application/x-www-form-urlencoded:" in yaml
+    # All three content types reference the same schema
+    assert yaml.count("$ref: '#/components/schemas/CreateFooInput'") == 3
+    assert "required: true" in yaml
+
+
+async def test_from_body_generates_json_and_form_content_types(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """FromBody[T] should document both JSON and form content types."""
+    from blacksheep.server.bindings import FromBody
+
+    app = get_app()
+
+    @app.router.post("/items")
+    def create_item(data: FromBody[CreateFooInput]) -> Foo: ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert "application/json:" in yaml
+    assert "multipart/form-data:" in yaml
+    assert "application/x-www-form-urlencoded:" in yaml
+    assert yaml.count("$ref: '#/components/schemas/CreateFooInput'") == 3
+    assert "required: true" in yaml
+
+
+async def test_optional_union_body_generates_not_required(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """FromJSON[T] | FromForm[T] | None should emit required: false."""
+    from blacksheep.server.bindings import FromJSON
+
+    app = get_app()
+
+    @app.router.post("/items")
+    def create_item(
+        data: FromJSON[CreateFooInput] | FromForm[CreateFooInput] | None,
+    ) -> Foo: ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    yaml = serializer.to_yaml(docs.generate_documentation(app))
+
+    assert "application/json:" in yaml
+    assert "required: false" in yaml
+
+
+# endregion

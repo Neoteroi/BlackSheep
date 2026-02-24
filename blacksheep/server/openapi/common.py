@@ -299,11 +299,12 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         preferred_format: Format = Format.JSON,
         anonymous_access: bool = True,
         serializer: Serializer | None = None,
+        spec_file: str | None = None,
     ) -> None:
         self._handlers_docs: dict[Any, EndpointDocs] = {}
         self._controllers_docs: dict[Any, ControllerDocs] = {}
         self.use_docstrings: bool = True
-        self.include: Callable[[str, Route | None, bool]] = None
+        self.include: Callable[[str, Route], bool] | None = None
         self.json_spec_path = json_spec_path
         self.yaml_spec_path = yaml_spec_path
         self._json_docs: bytes = b""
@@ -315,6 +316,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         self.events = OpenAPIEvents(self)
         self.handle_optional_response_with_404 = True
         self._serializer = serializer
+        self._spec_file = spec_file or os.environ.get("APP_SPEC_FILE")
 
     def __call__(
         self,
@@ -448,7 +450,7 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
         # any normalization
         return route.handler  # pragma: no cover
 
-    def get_handler_tags(self, handler: Any) -> list[str | None]:
+    def get_handler_tags(self, handler: Any) -> list[str] | None:
         docs = self.get_handler_docs(handler)
         if docs and docs.tags:
             return docs.tags
@@ -563,10 +565,104 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
     def get_ui_page_title(self) -> str:
         return "API Docs"  # pragma: no cover
 
+    def _get_spec_file_paths(self, spec_file: str) -> tuple[str, str]:
+        """
+        Returns (json_path, yaml_path) derived from a given spec file path.
+        If the extension is .yaml or .yml, the JSON companion uses the same base
+        with .json. Otherwise the YAML companion uses the same base with .yaml.
+        """
+        base, ext = os.path.splitext(spec_file)
+        if ext.lower() in (".yaml", ".yml"):
+            return base + ".json", spec_file
+        json_path = spec_file if ext == ".json" else spec_file + ".json"
+        return json_path, base + ".yaml"
+
+    def _load_spec_from_file(self, spec_file: str) -> bool:
+        """
+        Loads pre-baked OpenAPI specification bytes from disk.
+        Reads both the JSON and YAML variants. Returns True if both files are
+        found and loaded, False if either is missing (falling back to generation).
+        """
+        json_path, yaml_path = self._get_spec_file_paths(spec_file)
+        if not os.path.isfile(json_path) or not os.path.isfile(yaml_path):
+            return False
+        with open(json_path, "rb") as fp:
+            self._json_docs = fp.read()
+        with open(yaml_path, "rb") as fp:
+            self._yaml_docs = fp.read()
+        return True
+
+    def save_spec(self, destination: str) -> None:
+        """
+        Saves the current in-memory OpenAPI specification to disk.
+        Both JSON and YAML variants are always written, regardless of the
+        extension given in *destination*.
+
+        This is meant to be used to "bake" the spec at build/CI time (without
+        ``PYTHONOPTIMIZE=2``) so that it can be loaded at runtime when docstrings
+        are stripped.
+
+        **Typical workflow**
+
+        1. Bake the spec once (e.g. in a CI step, without ``-OO``)::
+
+            # bake_spec.py
+            import asyncio
+            from myapp import app, docs
+
+            asyncio.run(app.start())
+            docs.save_spec("./openapi.json")
+            # also writes ./openapi.yaml
+
+        2. Ship the baked files alongside the application.
+
+        3. At runtime (TEST / PROD) set the environment variable so that
+           BlackSheep loads the baked spec instead of regenerating it::
+
+            APP_SPEC_FILE=openapi.json
+
+           No code change is needed between environments.  Alternatively,
+           pass the path explicitly::
+
+            docs = OpenAPIHandler(
+                info=Info("My API", "1.0"),
+                spec_file="openapi.json",
+            )
+
+           If the files do not exist yet when the application starts, they are
+           generated and saved automatically on the first startup, then loaded
+           from disk on every subsequent startup.
+
+        Args:
+            destination: file path with a ``.json`` or ``.yaml``/``.yml``
+                extension.  The companion format is written next to it
+                automatically.
+        """
+        if not self._json_docs and not self._yaml_docs:
+            raise RuntimeError(
+                "The specification has not been built yet. "
+                "Call save_spec() only after the application has started "
+                "(e.g. after asyncio.run(app.start()))."
+            )
+        json_path, yaml_path = self._get_spec_file_paths(destination)
+        with open(json_path, "wb") as fp:
+            fp.write(self._json_docs)
+        with open(yaml_path, "wb") as fp:
+            fp.write(self._yaml_docs)
+
     async def build_docs(self, app: Application) -> None:
-        docs = self.generate_documentation(app)
-        self.on_docs_generated(docs)
-        serializer = self._serializer or DefaultSerializer()
+        spec_file = self._spec_file
+        if spec_file and self._load_spec_from_file(spec_file):
+            # Files are read from file system
+            ...
+        else:
+            docs = self.generate_documentation(app)
+            self.on_docs_generated(docs)
+            serializer = self._serializer or DefaultSerializer()
+            self._json_docs = serializer.to_json(docs).encode("utf8")
+            self._yaml_docs = serializer.to_yaml(docs).encode("utf8")
+            if spec_file:
+                self.save_spec(spec_file)
 
         ui_options = UIOptions(
             spec_url=self.get_spec_path(), page_title=self.get_ui_page_title()
@@ -574,9 +670,6 @@ class APIDocsHandler(Generic[OpenAPIRootType], ABC):
 
         for ui_provider in self.ui_providers:
             ui_provider.build_ui(ui_options)
-
-        self._json_docs = serializer.to_json(docs).encode("utf8")
-        self._yaml_docs = serializer.to_yaml(docs).encode("utf8")
 
     def bind_app(self, app: Application) -> None:
         if app.started:

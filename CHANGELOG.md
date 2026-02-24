@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-??-??
+
+- Fix [#561](https://github.com/Neoteroi/BlackSheep/issues/561).
+- Add support for baking OpenAPI Specification files to disk, to support running
+  with `PYTHONOPTIMIZE=2` (or `-OO`) where docstrings are stripped and cannot be
+  used to enrich OpenAPI Documentation automatically.
+  - Add `save_spec(destination)` method to `OpenAPIHandler`: writes both the JSON
+    and YAML variants of the current in-memory spec to disk.
+  - Add `spec_file` parameter to `OpenAPIHandler`: when set, `build_docs` loads the
+    pre-baked spec from disk instead of regenerating it. If the files do not exist
+    yet on startup they are generated and saved automatically (first-startup
+    auto-bake), then loaded from disk on every subsequent startup.
+  - Add `APP_SPEC_FILE` environment variable as a zero-code-change alternative to
+    `spec_file=`: set it in TEST / PROD environments to activate the baked-spec
+    path without any application code change.
+  - Issue a `UserWarning` when `PYTHONOPTIMIZE >= 2` and a request handler has no
+    docstring, advising the user to bake the spec file.
+
+  **Typical workflow:**
+
+  ```python
+  # 1. bake_spec.py — run once in CI, without -OO
+  import asyncio
+  from myapp import app, docs
+
+  asyncio.run(app.start())
+  docs.save_spec("./openapi.json")  # also writes ./openapi.yaml
+  ```
+
+  ```bash
+  # 2. ship the files with the application, then in TEST / PROD:
+  export APP_SPEC_FILE=./openapi.json
+  ```
+
+  No application code change is required between environments.
+
 ## [2.6.1] - 2026-02-22 :cat:
 
 - Fix missing escaping in `multipart/form-data` filenames and content-disposition headers.

@@ -40,6 +40,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ```
 
   No application code change is required between environments.
+- Add support for **PKCE** (Proof Key for Code Exchange, [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) to the OpenID Connect implementation.
+  - New `use_pkce: bool` setting on `OpenIDSettings`. When enabled, a `code_verifier`
+    is generated per sign-in request, stored inside the signed `state` parameter, and
+    the corresponding `code_challenge` (S256) is sent to the authorization endpoint.
+    The verifier is passed automatically in the token exchange request.
+  - New `response_mode: str | None` setting on `OpenIDSettings`, with automatic
+    detection via `get_response_mode()`:
+    - PKCE **with** `client_secret` (confidential client, recommended for web apps) →
+      `"form_post"` — the authorization code arrives via `POST` form data. This is the
+      same behaviour as the existing secret-only flow, with PKCE added as an extra layer
+      of protection, consistent with [OAuth 2.1](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12)
+      best practices.
+    - PKCE **without** `client_secret` (public client, e.g. native/desktop apps) →
+      `"query"` — the authorization code arrives via a `GET` redirect with the code in
+      the query string (this scenario is not supported by some identity providers).
+    - The value can be overridden explicitly if a specific provider requires it.
+  - The callback route is registered as `GET` or `POST` automatically based on the
+    effective `response_mode`.
+  - New module-level helpers: `generate_pkce_code_verifier()` and
+    `generate_pkce_code_challenge()`, both exported from
+    `blacksheep.server.authentication.oidc`.
+
+  **PKCE + secret (extra layer of security for server-side web apps):**
+
+  ```python
+  use_openid_connect(
+      app,
+      OpenIDSettings(
+          client_id="...",
+          authority="https://login.microsoftonline.com/<tenant>",
+          client_secret=Secret("..."),  # confidential client
+          use_pkce=True,                # adds code_challenge on top of the secret
+      ),
+  )
+  ```
 
 ## [2.6.1] - 2026-02-22 :cat:
 

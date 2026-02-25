@@ -148,6 +148,14 @@ jobs:
             APP_DEFAULT_ROUTER=false ASGI_SERVER=hypercorn pytest itests/test_server.py
           fi
 
+      - name: Test Piccolo Admin / Starlette mount compatibility
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.14
+        run: |
+          echo "Running Starlette mount compatibility tests (ref: piccolo-orm/piccolo_admin#472)..."
+          pip install piccolo-admin  # include the dedicated test
+
+          pytest tests/test_piccolo_admin_compat.py -v
+
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.12

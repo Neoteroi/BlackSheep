@@ -7,12 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.2] - 2026-??-??
 
-- Fix [#561](https://github.com/Neoteroi/BlackSheep/issues/561).
-- Change `FromBodyBinder.binder_types` from a constructor-local variable to a
-  class attribute, defaulting to `[JSONBinder]` only. Users can configure
-  additional formats by setting `FromBodyBinder.binder_types` (e.g.
-  `FromBodyBinder.binder_types = [JSONBinder, FormBinder]`) before the
-  application starts.
+- Fix regression that broke compatibility with `Starlette` mounts
+  [#668](https://github.com/Neoteroi/BlackSheep/issues/668).
+  Add integration tests to verify support for `Starlette` and `Piccolo-Admin`.
+  Reported by @snow-born and @sinisaos.
+- Fix [#561](https://github.com/Neoteroi/BlackSheep/issues/561): fix support for `PYTHONOPTIMIZE=2`.
 - Add support for baking OpenAPI Specification files to disk, to support running
   with `PYTHONOPTIMIZE=2` (or `-OO`) where docstrings are stripped and cannot be
   used to enrich OpenAPI Documentation automatically.
@@ -28,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Issue a `UserWarning` when `PYTHONOPTIMIZE >= 2` and a request handler has no
     docstring, advising the user to bake the spec file.
 
-  **Typical workflow:**
+  **Proposed workflow:**
 
   ```python
   # 1. bake_spec.py — run once in CI, without -OO
@@ -74,8 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       app,
       OpenIDSettings(
           client_id="...",
-          authority="https://login.microsoftonline.com/<tenant>",
           client_secret=Secret("..."),  # confidential client
+          authority="https://<AUTHORITY>",
           use_pkce=True,                # adds code_challenge on top of the secret
       ),
   )
@@ -105,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     async def create_item(data: FromBody[Item]) -> Item: ...
     ```
 
-  - New **`FromXML[T]`** and **`XMLBinder`**: parse `application/xml` / `text/xml`
+  - Add new **`FromXML[T]`** and **`XMLBinder`**: parse `application/xml` / `text/xml`
     request bodies using [`defusedxml`](https://github.com/tiran/defusedxml),
     protecting against **XXE injection**, **entity expansion (billion laughs)**,
     and **DTD-based attacks**. Security exceptions propagate unmodified so the

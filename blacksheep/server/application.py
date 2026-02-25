@@ -806,8 +806,13 @@ class Application(BaseApplication):
 
         ws = WebSocket(scope, receive, send)
         # TODO: support filters
+        root_path = scope.get("root_path", "")
+        path = scope["path"]
+        if root_path and path.startswith(root_path):
+            path = path[len(root_path):] or "/"
+
         route = self.router.get_match_by_method_and_path(
-            RouteMethod.GET_WS, scope["path"]
+            RouteMethod.GET_WS, path
         )
 
         if route is None:
@@ -846,6 +851,10 @@ class Application(BaseApplication):
         except KeyError:
             raw_path = scope["path"].encode("utf-8")
             scope["raw_path"] = raw_path
+
+        root_path = scope.get("root_path", "")
+        if root_path and raw_path.startswith(root_path.encode("utf8")):
+            raw_path = raw_path[len(root_path.encode("utf8")):] or b"/"
 
         request = Request.incoming(
             scope["method"],
@@ -918,16 +927,16 @@ class MountMixin:
         assert tail is not None
         tail = "/" + tail
 
-        # Update root_path per the ASGI spec: the child app must know its mount
-        # prefix so it can generate correct absolute URLs (analogous to WSGI
-        # SCRIPT_NAME).  root_path = parent root_path + the stripped mount prefix.
+        # Compute the mount prefix (the part of path before the tail).
         mount_prefix = (
             scope["path"][: -len(tail)] if tail != "/" else scope["path"].rstrip("/")
         )
-        scope["root_path"] = scope.get("root_path", "") + mount_prefix
 
-        scope["path"] = tail
-        scope["raw_path"] = tail.encode("utf8")
+        # Set root_path per the ASGI spec so ASGI-compliant child apps
+        # can derive the application-relative path by stripping root_path from path.
+        # Do NOT modify scope["path"] or scope["raw_path"] — the child app handles that
+        # itself.
+        scope["root_path"] = scope.get("root_path", "") + mount_prefix
 
     def _is_browser_navigation(self, scope) -> bool:
         """

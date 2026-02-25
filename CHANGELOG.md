@@ -7,12 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.2] - 2026-??-??
 
+- Fix regression that broke compatibility with `Starlette` mounts
+  [#668](https://github.com/Neoteroi/BlackSheep/issues/668).
 - Fix [#561](https://github.com/Neoteroi/BlackSheep/issues/561).
-- Change `FromBodyBinder.binder_types` from a constructor-local variable to a
-  class attribute, defaulting to `[JSONBinder]` only. Users can configure
-  additional formats by setting `FromBodyBinder.binder_types` (e.g.
-  `FromBodyBinder.binder_types = [JSONBinder, FormBinder]`) before the
-  application starts.
 - Add support for baking OpenAPI Specification files to disk, to support running
   with `PYTHONOPTIMIZE=2` (or `-OO`) where docstrings are stripped and cannot be
   used to enrich OpenAPI Documentation automatically.

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3] - 2026-05-??
+
+- Fix [#675](https://github.com/Neoteroi/BlackSheep/issues/675): fix `OverflowError`
+  when serving large files; `get_chunks` in `scribe.pyx` used a C `int` loop variable
+  that overflows for responses larger than ~2 GB. Changed to `Py_ssize_t`.
+- Fix potential `OverflowError` in `cookies.pyx`: `Cookie.max_age` and the local
+  variable in `parse_cookie` were declared as C `int`; changed to `long long`.
+
 ## [2.6.2] - 2026-02-25 :gift:
 
 - Fix regression that broke compatibility with `Starlette` mounts

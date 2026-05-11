@@ -40,7 +40,7 @@ cdef class Cookie:
         str path=None,
         bint http_only=0,
         bint secure=0,
-        int max_age=-1,
+        long long max_age=-1,
         CookieSameSiteMode same_site=CookieSameSiteMode.UNDEFINED
     ):
         self.name = name

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.3] - 2026-05-??
 
+- Fix [#673](https://github.com/Neoteroi/BlackSheep/issues/673): `JWTOpenIDTokensHandler.authenticate`
+  was discarding the `Identity` returned by the inner `auth_handler`, causing
+  `request.identity` to always be empty. Also fixes the refresh token not being
+  attached to the identity when a refresh token header is present.
 - Fix [#675](https://github.com/Neoteroi/BlackSheep/issues/675): fix `OverflowError`
   when serving large files inefficiently; `get_chunks` in `scribe.pyx` used a C `int`
   loop variable that overflows for responses larger than ~2 GB. Changed to `Py_ssize_t`.

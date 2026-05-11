@@ -1017,3 +1017,124 @@ async def test_jwt_bearer_symmetric_different_algorithms(app, algorithm):
 
 
 # endregion
+
+
+# region JWTOpenIDTokensHandler
+
+
+async def test_jwt_openid_tokens_handler_authenticate_returns_identity(
+    app, symmetric_secret
+):
+    """
+    Verifies that JWTOpenIDTokensHandler.authenticate returns the identity from the
+    inner auth_handler instead of discarding it (regression test for issue #673).
+    """
+    from blacksheep.server.authentication.oidc import JWTOpenIDTokensHandler
+
+    jwt_auth = JWTBearerAuthentication(
+        valid_audiences=["test-audience"],
+        valid_issuers=["test-issuer"],
+        secret_key=symmetric_secret,
+    )
+
+    app.use_authentication().add(JWTOpenIDTokensHandler(jwt_auth))
+
+    identity: Identity | None = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    access_token = get_symmetric_token(
+        symmetric_secret.get_value(),
+        {
+            "aud": "test-audience",
+            "iss": "test-issuer",
+            "sub": "user123",
+            "name": "Test User",
+            "exp": 9999999999,
+        },
+    )
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[(b"Authorization", b"Bearer " + access_token.encode())],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is True
+    assert identity["sub"] == "user123"
+
+
+async def test_jwt_openid_tokens_handler_authenticate_with_refresh_token(
+    app, symmetric_secret
+):
+    """
+    Verifies that JWTOpenIDTokensHandler.authenticate restores the refresh token
+    on the returned identity when the refresh token header is present.
+    """
+    from blacksheep.server.authentication.oidc import (
+        JWTOpenIDTokensHandler,
+        HTMLStorageType,
+    )
+    from itsdangerous import URLSafeSerializer
+
+    jwt_auth = JWTBearerAuthentication(
+        valid_audiences=["test-audience"],
+        valid_issuers=["test-issuer"],
+        secret_key=symmetric_secret,
+    )
+
+    handler = JWTOpenIDTokensHandler(jwt_auth)
+    app.use_authentication().add(handler)
+
+    identity: Identity | None = None
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal identity
+        identity = request.user
+        return None
+
+    access_token = get_symmetric_token(
+        symmetric_secret.get_value(),
+        {
+            "aud": "test-audience",
+            "iss": "test-issuer",
+            "sub": "user456",
+            "exp": 9999999999,
+        },
+    )
+    protected_refresh_token = handler.protect_refresh_token("my-refresh-token")
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            extra_headers=[
+                (b"Authorization", b"Bearer " + access_token.encode()),
+                (b"X-REFRESH-TOKEN", protected_refresh_token.encode()),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert identity is not None
+    assert identity.is_authenticated() is True
+    assert identity["sub"] == "user456"
+    assert identity.refresh_token == "my-refresh-token"  # type: ignore[attr-defined]
+
+
+# endregion

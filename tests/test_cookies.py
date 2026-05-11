@@ -395,3 +395,11 @@ def test_cookie_value_multibyte_within_limit():
     value = "ñ" * 1000
     cookie = Cookie("multibyte", value)
     assert cookie.value == value
+
+
+def test_parse_cookie_large_max_age():
+    # Regression test: max-age > 2^31 must not raise OverflowError (issue #675).
+    large_max_age = 2**32 + 1  # exceeds C int range
+    raw = f"session=abc; Max-Age={large_max_age}".encode()
+    cookie = parse_cookie(raw)
+    assert cookie.max_age == large_max_age

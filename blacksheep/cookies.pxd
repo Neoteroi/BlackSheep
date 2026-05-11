@@ -22,7 +22,7 @@ cdef class Cookie:
     cdef public str path
     cdef public bint http_only
     cdef public bint secure
-    cdef public int max_age
+    cdef public long long max_age
     cdef public CookieSameSiteMode same_site
     cpdef Cookie clone(self)
 

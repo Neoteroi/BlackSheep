@@ -126,7 +126,7 @@ cdef CookieSameSiteMode same_site_mode_from_bytes(bytes raw_value):
 
 cpdef Cookie parse_cookie(bytes raw_value):
     # https://tools.ietf.org/html/rfc6265
-    cdef int max_age
+    cdef long long max_age
     cdef bytes value = b''
     cdef bytes eq, expires, domain, path, part, k, v, lower_k, lower_part
     cdef bint http_only, secure

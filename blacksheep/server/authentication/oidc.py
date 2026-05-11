@@ -686,6 +686,7 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
                 if identity is None:
                     identity = Identity()
                 identity.refresh_token = value
+                context.user = identity
 
         return identity
 

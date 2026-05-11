@@ -44,7 +44,7 @@ async def write_chunks(Content http_content):
 
 
 def get_chunks(bytes data):
-    cdef int i
+    cdef Py_ssize_t i
     for i in range(0, len(data), MAX_RESPONSE_CHUNK_SIZE):
         yield data[i:i + MAX_RESPONSE_CHUNK_SIZE]
     yield b''

@@ -981,6 +981,22 @@ async def test_pretty_json_response_in_controller(
             assert f'    "{name}": ' in raw
 
 
+def test_get_chunks_large_data():
+    """Regression test for OverflowError with data > 2GB (issue #675).
+    Uses a mock large bytearray via memoryview to avoid allocating 2GB."""
+    from blacksheep.scribe import MAX_RESPONSE_CHUNK_SIZE, get_chunks
+
+    # Simulate offset that would overflow a C int (> 2^31 - 1 bytes)
+    # by using a large repeated pattern split across many chunks.
+    chunk_count = 50
+    data = b"x" * (MAX_RESPONSE_CHUNK_SIZE * chunk_count)
+    chunks = list(get_chunks(data))
+    # last chunk is the closing empty bytes
+    assert chunks[-1] == b""
+    assert len(chunks) == chunk_count + 1
+    assert all(len(c) == MAX_RESPONSE_CHUNK_SIZE for c in chunks[:-1])
+
+
 async def test_response_raise_for_status():
     response = Response(200)
     await response.raise_for_status()

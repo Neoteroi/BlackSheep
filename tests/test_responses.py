@@ -984,7 +984,9 @@ async def test_pretty_json_response_in_controller(
 def test_get_chunks_large_data():
     """Regression test for OverflowError with data > 2GB (issue #675).
     Uses a mock large bytearray via memoryview to avoid allocating 2GB."""
-    from blacksheep.scribe import MAX_RESPONSE_CHUNK_SIZE, get_chunks
+    from blacksheep.scribe import get_chunks
+
+    MAX_RESPONSE_CHUNK_SIZE = 61440
 
     # Simulate offset that would overflow a C int (> 2^31 - 1 bytes)
     # by using a large repeated pattern split across many chunks.

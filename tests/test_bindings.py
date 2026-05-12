@@ -1265,7 +1265,10 @@ class MultiItem:
 
 async def test_multi_format_binder_dispatches_to_json():
     binder = MultiFormatBodyBinder(
-        [JSONBinder(MultiItem, "body", False, True), FormBinder(MultiItem, "body", False, True)],
+        [
+            JSONBinder(MultiItem, "body", False, True),
+            FormBinder(MultiItem, "body", False, True),
+        ],
         MultiItem,
         "body",
         required=True,
@@ -1282,7 +1285,10 @@ async def test_multi_format_binder_dispatches_to_json():
 
 async def test_multi_format_binder_dispatches_to_form():
     binder = MultiFormatBodyBinder(
-        [JSONBinder(MultiItem, "body", False, True), FormBinder(MultiItem, "body", False, True)],
+        [
+            JSONBinder(MultiItem, "body", False, True),
+            FormBinder(MultiItem, "body", False, True),
+        ],
         MultiItem,
         "body",
         required=True,
@@ -1298,7 +1304,10 @@ async def test_multi_format_binder_dispatches_to_form():
 
 async def test_multi_format_binder_raises_415_for_unsupported_content_type():
     binder = MultiFormatBodyBinder(
-        [JSONBinder(MultiItem, "body", False, True), FormBinder(MultiItem, "body", False, True)],
+        [
+            JSONBinder(MultiItem, "body", False, True),
+            FormBinder(MultiItem, "body", False, True),
+        ],
         MultiItem,
         "body",
         required=True,
@@ -1315,7 +1324,10 @@ async def test_multi_format_binder_raises_415_for_unsupported_content_type():
 
 async def test_multi_format_binder_returns_none_when_optional_and_no_match():
     binder = MultiFormatBodyBinder(
-        [JSONBinder(MultiItem, "body", False, False), FormBinder(MultiItem, "body", False, False)],
+        [
+            JSONBinder(MultiItem, "body", False, False),
+            FormBinder(MultiItem, "body", False, False),
+        ],
         MultiItem,
         "body",
         required=False,
@@ -1365,7 +1377,6 @@ def test_multi_format_binder_content_type_combines_inner():
 from blacksheep.contents import Content
 from blacksheep.server.bindings import FromXML, XMLBinder
 
-
 XML_ITEM = b"<Item><name>hello</name><value>7</value></Item>"
 XML_NESTED = b"<Root><inner><x>1</x></inner></Root>"
 XML_ATTR = b'<Item id="99"><name>attr</name></Item>'
@@ -1386,9 +1397,9 @@ async def test_xml_binder_parses_simple_fields():
 
 async def test_xml_binder_accepts_text_xml_content_type():
     binder = XMLBinder(MultiItem, "body", required=True)
-    request = Request(
-        "POST", b"/", [(b"content-type", b"text/xml")]
-    ).with_content(Content(b"text/xml", XML_ITEM))
+    request = Request("POST", b"/", [(b"content-type", b"text/xml")]).with_content(
+        Content(b"text/xml", XML_ITEM)
+    )
 
     result = await binder.get_value(request)
     assert isinstance(result, MultiItem)
@@ -1433,7 +1444,11 @@ def test_xml_binder_rejects_xxe_attack():
         b"<Item><name>&xxe;</name><value>1</value></Item>"
     )
     with pytest.raises(
-        (defusedxml.DTDForbidden, defusedxml.EntitiesForbidden, defusedxml.ExternalReferenceForbidden)
+        (
+            defusedxml.DTDForbidden,
+            defusedxml.EntitiesForbidden,
+            defusedxml.ExternalReferenceForbidden,
+        )
     ):
         XMLBinder._parse_xml(xxe_payload)
 
@@ -1455,8 +1470,9 @@ def test_xml_binder_rejects_billion_laughs():
 
 
 def test_element_to_dict_handles_attributes():
-    from blacksheep.server.bindings import _element_to_dict
     import xml.etree.ElementTree as ET
+
+    from blacksheep.server.bindings import _element_to_dict
 
     root = ET.fromstring(XML_ATTR)
     d = _element_to_dict(root)
@@ -1465,8 +1481,9 @@ def test_element_to_dict_handles_attributes():
 
 
 def test_element_to_dict_handles_nested():
-    from blacksheep.server.bindings import _element_to_dict
     import xml.etree.ElementTree as ET
+
+    from blacksheep.server.bindings import _element_to_dict
 
     root = ET.fromstring(XML_NESTED)
     d = _element_to_dict(root)
@@ -1475,8 +1492,9 @@ def test_element_to_dict_handles_nested():
 
 
 def test_element_to_dict_collects_repeated_tags_as_list():
-    from blacksheep.server.bindings import _element_to_dict
     import xml.etree.ElementTree as ET
+
+    from blacksheep.server.bindings import _element_to_dict
 
     root = ET.fromstring(XML_LIST)
     d = _element_to_dict(root)

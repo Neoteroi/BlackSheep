@@ -284,12 +284,10 @@ async def test_handler_through_controller_owned_html_method(app):
         @get("/")
         async def index(self):
             assert isinstance(self, Home)
-            return self.html(
-                """
+            return self.html("""
                 <h1>Title</h1>
                 <p>Lorem ipsum</p>
-                """
-            )
+                """)
 
     await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
 

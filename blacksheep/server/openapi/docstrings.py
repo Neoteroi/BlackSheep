@@ -168,7 +168,7 @@ class PatternsDocstringDialect(DocstringDialect):
                 # @param int foo:
                 # @param int or None foo:
 
-                (*type_parts, name) = param_name.split(" ")
+                *type_parts, name = param_name.split(" ")
                 types[name] = " ".join(type_parts)
                 param_name = name
 

@@ -9,6 +9,7 @@ from essentials.folders import get_file_extension
 from blacksheep import Application, Request
 from blacksheep.common.files.asyncfs import FileContext, FilesHandler
 from blacksheep.exceptions import BadRequest, InvalidArgument
+from blacksheep.messages import Response
 from blacksheep.ranges import Range, RangePart
 from blacksheep.server.files import (
     DefaultFileOptions,
@@ -1193,3 +1194,52 @@ async def test_mounted_app_without_child_prefix_returns_404_for_unknown_file():
     await parent_app(scope, MockReceive(), send)
 
     assert send.messages[0]["status"] == 404
+
+
+async def test_serve_files_on_response_callback_sets_csp_dynamically(
+    app: Application,
+):
+    """
+    Demonstrates using the async on_response callback on serve_files() to inject a
+    dynamic Content-Security-Policy header derived from the incoming request.
+    """
+
+    async def add_csp(request: Request, response: Response) -> None:
+        site = request.query.get("site", ["none"])[0]
+        response.add_header(
+            b"content-security-policy",
+            f"frame-ancestors https://{site}.example.com".encode(),
+        )
+
+    app.serve_files(
+        get_folder_path("files2"),
+        fallback_document="index.html",
+        on_response=add_csp,
+    )
+
+    await app.start()
+
+    # Direct file hit
+    scope = get_example_scope("GET", "/index.html", query={"site": "acme"})
+    await app(scope, MockReceive(), MockSend())
+    response = app.response
+    assert response.status == 200
+    assert response.headers[b"content-security-policy"] == (
+        b"frame-ancestors https://acme.example.com",
+    )
+
+    # Fallback path (SPA route not matching any file)
+    scope = get_example_scope("GET", "/some-spa-route", query={"site": "beta"})
+    await app(scope, MockReceive(), MockSend())
+    response = app.response
+    assert response.status == 200
+    assert response.headers[b"content-security-policy"] == (
+        b"frame-ancestors https://beta.example.com",
+    )
+
+    # Static asset also receives the callback
+    scope = get_example_scope("GET", "/scripts/main.js")
+    await app(scope, MockReceive(), MockSend())
+    response = app.response
+    assert response.status == 200
+    assert b"content-security-policy" in response.headers

@@ -230,9 +230,7 @@ class ParametersBuilder:
         if self._settings.use_pkce:
             code_verifier = generate_pkce_code_verifier()
             state["code_verifier"] = code_verifier
-            parameters["code_challenge"] = generate_pkce_code_challenge(
-                code_verifier
-            )
+            parameters["code_challenge"] = generate_pkce_code_challenge(code_verifier)
             parameters["code_challenge_method"] = "S256"
 
         if self._settings.audience:

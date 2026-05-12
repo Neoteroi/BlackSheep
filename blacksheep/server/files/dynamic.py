@@ -175,6 +175,9 @@ def get_response_for_resource_path(
     return get_response_for_file(files_handler, request, resource_path, cache_time)
 
 
+ResponseCallback = Callable[[Request, Response], Awaitable[None]]
+
+
 def get_files_route_handler(
     files_handler: FilesHandler,
     source_folder_name: str,
@@ -185,6 +188,7 @@ def get_files_route_handler(
     index_document: str | None,
     fallback_document: str | None,
     default_file_options: DefaultFileOptions | None = None,
+    on_response: ResponseCallback | None = None,
 ) -> Callable[[Request], Awaitable[Response]]:
     files_list_html = get_resource_file_content("fileslist.html")
     source_folder_full_path = os.path.abspath(str(source_folder_name))
@@ -194,7 +198,7 @@ def get_files_route_handler(
         tail = unquote(request.route_values.get("tail", "")).lstrip("/")
 
         try:
-            return get_response_for_resource_path(
+            response = get_response_for_resource_path(
                 request,
                 tail,
                 files_list_html,
@@ -230,7 +234,10 @@ def get_files_route_handler(
             if default_file_options and index_document == fallback_document:
                 default_file_options.handle(request, response)
 
-            return response
+        if on_response is not None:
+            await on_response(request, response)
+
+        return response
 
     return static_files_handler
 
@@ -258,6 +265,7 @@ def serve_files_dynamic(
     fallback_document: str | None,
     anonymous_access: bool = True,
     default_file_options: DefaultFileOptions | None = None,
+    on_response: ResponseCallback | None = None,
 ) -> None:
     """
     Configures a route to serve files dynamically, using the given files handler and
@@ -284,6 +292,7 @@ def serve_files_dynamic(
         index_document,
         fallback_document,
         default_file_options,
+        on_response,
     )
 
     if anonymous_access:

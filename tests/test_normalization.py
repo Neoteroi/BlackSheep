@@ -680,7 +680,13 @@ def test_get_asyncgen_yield_type():
 from dataclasses import dataclass
 
 from blacksheep import FormContent, JSONContent, Request
-from blacksheep.server.bindings import FormBinder, FromBody, FromBodyBinder, FromForm, MultiFormatBodyBinder
+from blacksheep.server.bindings import (
+    FormBinder,
+    FromBody,
+    FromBodyBinder,
+    FromForm,
+    MultiFormatBodyBinder,
+)
 
 
 @dataclass

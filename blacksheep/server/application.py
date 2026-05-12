@@ -49,7 +49,7 @@ from blacksheep.server.cors import CORSPolicy, CORSStrategy, get_cors_middleware
 from blacksheep.server.env import EnvironmentSettings
 from blacksheep.server.errors import ServerErrorDetailsHandler
 from blacksheep.server.files import DefaultFileOptions
-from blacksheep.server.files.dynamic import serve_files_dynamic
+from blacksheep.server.files.dynamic import ResponseCallback, serve_files_dynamic
 from blacksheep.server.normalization import normalize_handler, normalize_middleware
 from blacksheep.server.process import use_shutdown_handler
 from blacksheep.server.remotes.scheme import configure_scheme_middleware
@@ -598,6 +598,7 @@ class Application(BaseApplication):
         fallback_document: str | None = None,
         allow_anonymous: bool = True,
         default_file_options: DefaultFileOptions | None = None,
+        on_response: ResponseCallback | None = None,
     ):
         """
         Configures dynamic file serving from a given folder, relative to the server cwd.
@@ -620,6 +621,9 @@ class Application(BaseApplication):
             use HTML5 History API for client side routing.
             default_file_options: Optional options to serve the default file
             (index.html)
+            on_response: Optional async callback called for every response produced by
+            the static file handler, receiving (request, response). Can be used to
+            inject dynamic response headers such as Content-Security-Policy.
         """
         serve_files_dynamic(
             self.router,
@@ -633,6 +637,7 @@ class Application(BaseApplication):
             fallback_document=fallback_document,
             anonymous_access=allow_anonymous,
             default_file_options=default_file_options,
+            on_response=on_response,
         )
 
     def _apply_middlewares_in_routes(self):
@@ -809,11 +814,9 @@ class Application(BaseApplication):
         root_path = scope.get("root_path", "")
         path = scope["path"]
         if root_path and path.startswith(root_path):
-            path = path[len(root_path):] or "/"
+            path = path[len(root_path) :] or "/"
 
-        route = self.router.get_match_by_method_and_path(
-            RouteMethod.GET_WS, path
-        )
+        route = self.router.get_match_by_method_and_path(RouteMethod.GET_WS, path)
 
         if route is None:
             await ws.close()
@@ -854,7 +857,7 @@ class Application(BaseApplication):
 
         root_path = scope.get("root_path", "")
         if root_path and raw_path.startswith(root_path.encode("utf8")):
-            raw_path = raw_path[len(root_path.encode("utf8")):] or b"/"
+            raw_path = raw_path[len(root_path.encode("utf8")) :] or b"/"
 
         request = Request.incoming(
             scope["method"],

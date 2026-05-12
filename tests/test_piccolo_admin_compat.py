@@ -16,17 +16,18 @@ The ASGI spec says:
 The child app is responsible for deriving its own application-relative path by
 stripping root_path from path.
 """
+
 import re
+
 import pytest
-
-from blacksheep.testing.helpers import get_example_scope
-from blacksheep.testing.messages import MockReceive, MockSend
-from tests.utils.application import FakeApplication
-
 from starlette.applications import Starlette
 from starlette.responses import HTMLResponse, PlainTextResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
+
+from blacksheep.testing.helpers import get_example_scope
+from blacksheep.testing.messages import MockReceive, MockSend
+from tests.utils.application import FakeApplication
 
 # ---------------------------------------------------------------------------
 # Tests: real Starlette (required dependency)
@@ -60,11 +61,11 @@ def starlette_admin_like_app(tmp_path):
 
     async def admin_root(request):
         return HTMLResponse(
-            '<html><head>'
+            "<html><head>"
             '<link rel="stylesheet" href="./assets/index-abc123.css">'
-            '</head><body>'
+            "</head><body>"
             '<script src="./assets/index-abc123.js"></script>'
-            '</body></html>'
+            "</body></html>"
         )
 
     async def login_endpoint(request):

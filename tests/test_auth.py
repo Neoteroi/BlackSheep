@@ -304,9 +304,7 @@ async def test_static_files_support_authentication_by_route(app):
 
     assert app.response.status == 200
     content = await app.response.text()
-    assert (
-        content
-        == """<!DOCTYPE html>
+    assert content == """<!DOCTYPE html>
 <html>
   <head>
     <title>Example.</title>
@@ -319,7 +317,6 @@ async def test_static_files_support_authentication_by_route(app):
   </body>
 </html>
 """
-    )
 
 
 async def test_authorization_supports_allow_anonymous(app):
@@ -1082,11 +1079,12 @@ async def test_jwt_openid_tokens_handler_authenticate_with_refresh_token(
     Verifies that JWTOpenIDTokensHandler.authenticate restores the refresh token
     on the returned identity when the refresh token header is present.
     """
-    from blacksheep.server.authentication.oidc import (
-        JWTOpenIDTokensHandler,
-        HTMLStorageType,
-    )
     from itsdangerous import URLSafeSerializer
+
+    from blacksheep.server.authentication.oidc import (
+        HTMLStorageType,
+        JWTOpenIDTokensHandler,
+    )
 
     jwt_auth = JWTBearerAuthentication(
         valid_audiences=["test-audience"],

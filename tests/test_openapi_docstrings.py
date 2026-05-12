@@ -215,23 +215,19 @@ from blacksheep.server.openapi.docstrings import (
             are separated by blank lines.
             """,
             DocstringInfo(
-                summary=collapse(
-                    """
+                summary=collapse("""
                     This is a paragraph. Paragraphs can
                     span multiple lines, and can contain
                     I{inline markup}.
-                    """
-                ),
-                description=collapse(
-                    """
+                    """),
+                description=collapse("""
                     This is a paragraph. Paragraphs can
                     span multiple lines, and can contain
                     I{inline markup}.
 
                     This is another paragraph.  Paragraphs
                     are separated by blank lines.
-                    """
-                ),
+                    """),
                 parameters={},
             ),
             False,
@@ -490,13 +486,11 @@ def test_rest_dialect(docstring, expected_info):
                 + "culpa qui officia deserunt mollit anim id est laborum.",
                 parameters={
                     "lorem": ParameterInfo(
-                        collapse(
-                            """
+                        collapse("""
                             A very long description spanning across multiple lines;
                             Ut enim ad minim veniam, quis nostrud exercitation ullamco
                             laboris nisi ut aliquip ex ea commodo consequat. Duis aute
-                            irure dolor in reprehenderit."""
-                        ),
+                            irure dolor in reprehenderit."""),
                         value_type=str,
                     ),
                 },
@@ -772,8 +766,7 @@ def test_googledoc_dialect_warns_about_invalid_parameter():
                     ),
                 },
                 return_type=None,
-                return_description=collapse(
-                    """
+                return_description=collapse("""
                     A dict mapping keys to the corresponding table row data
                     fetched. Each row is represented as a tuple of strings. For
                     example:
@@ -785,8 +778,7 @@ def test_googledoc_dialect_warns_about_invalid_parameter():
                     Returned keys are always bytes. If a key from the keys argument is
                     missing from the dictionary, then that row was not found in the
                     table (and require_all_keys must have been False).
-                    """
-                ),
+                    """),
             ),
         ),
     ],

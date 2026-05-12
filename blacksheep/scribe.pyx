@@ -6,7 +6,6 @@ from .cookies cimport Cookie, write_cookie_for_response
 from .messages cimport Request, Response
 from .url cimport URL
 
-
 MAX_RESPONSE_CHUNK_SIZE = 61440  # 64kb — Python-accessible
 cdef int _MAX_RESPONSE_CHUNK_SIZE = MAX_RESPONSE_CHUNK_SIZE
 

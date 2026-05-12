@@ -667,9 +667,7 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
     def protect_refresh_token(self, refresh_token: str) -> str:
         return self._serializer.dumps(refresh_token)  # type: ignore
 
-    def restore_refresh_token(
-        self, context: Request, identity: Identity | None = None
-    ) -> Identity | None:
+    def restore_refresh_token(self, context: Request) -> Identity | None:
         refresh_token_header = context.get_first_header(
             self._get_refresh_token_header_name()
         )
@@ -683,16 +681,16 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
                     self.refresh_token_key,
                 )
             else:
-                if identity is None:
-                    identity = Identity()
-                identity.refresh_token = value
-                context.user = identity
+                if context.user is None:
+                    context.user = Identity()
+                context.user.refresh_token = value
 
-        return identity
+        return context.user
 
     async def authenticate(self, context: Request) -> Identity | None:
-        identity = await self.auth_handler.authenticate(context)
-        return self.restore_refresh_token(context, identity)
+        await self.auth_handler.authenticate(context)
+        self.restore_refresh_token(context)
+        return context.user
 
 
 class TokenType(Enum):

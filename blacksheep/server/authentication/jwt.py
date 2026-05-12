@@ -210,7 +210,9 @@ class JWTBearerAuthentication(AuthenticationHandler):
             # Raise a dedicated exception to keep track of the event
             raise InvalidCredentialsError(context.original_client_ip)
         else:
-            return Identity(decoded, self.scheme)
+            identity = Identity(decoded, self.scheme)
+            context.user = identity
+            return identity
 
     @property
     def scheme(self) -> str:

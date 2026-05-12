@@ -1,4 +1,5 @@
 import sys
+from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
@@ -4830,6 +4831,49 @@ async def test_json_xml_union_generates_all_content_types(
     assert "application/xml:" in yaml
     assert "text/xml:" in yaml
     assert yaml.count("$ref: '#/components/schemas/CreateFooInput'") == 3
+
+
+# endregion
+
+
+# region SSE / async-generator return types
+
+
+async def test_sse_async_iterable_does_not_crash_openapi(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """AsyncIterable[ServerSentEvent] return type must not crash the OpenAPI generator."""
+    from blacksheep.server.controllers import Controller
+    from blacksheep.server.sse import ServerSentEvent
+
+    app = get_app()
+
+    class Home(Controller):
+        @app.router.get("/events")
+        async def events(self) -> AsyncIterable[ServerSentEvent]:
+            yield ServerSentEvent({"msg": "hello"})
+
+    docs.bind_app(app)
+    await app.start()
+
+    # Must not raise
+    docs.generate_documentation(app)
+
+
+@pytest.mark.parametrize(
+    "return_type",
+    [
+        AsyncIterable[int],
+        AsyncIterator[int],
+        AsyncGenerator[int, None],
+    ],
+)
+def test_get_schema_by_type_does_not_crash_for_async_iterables(
+    docs: OpenAPIHandler, return_type
+):
+    """get_schema_by_type must not raise for async iterable generics (issue #674)."""
+    # Should not raise AttributeError
+    docs.get_schema_by_type(return_type)
 
 
 # endregion

@@ -1017,6 +1017,11 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                 object_type, context_type_args, schema
             )
 
+        if not hasattr(origin, "__parameters__"):
+            # e.g. AsyncIterable, AsyncGenerator, AsyncIterator — streaming types
+            # that have no meaningful OpenAPI schema representation
+            return None
+
         required: list[str] = []
         properties: dict[str, Schema | Reference] = {}
 

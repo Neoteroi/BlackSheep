@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loop variable that overflows for responses larger than ~2 GB. Changed to `Py_ssize_t`.
 - Fix potential `OverflowError` in `cookies.pyx`: `Cookie.max_age` and the local
   variable in `parse_cookie` were declared as C `int`; changed to `long long`.
+- Fix [#674](https://github.com/Neoteroi/BlackSheep/issues/674): OpenAPI generator
+  crashed with `AttributeError` when a handler returned `AsyncIterable[ServerSentEvent]`
+  (or any `collections.abc` async-iterable generic). `_try_get_schema_for_generic` now
+  skips types whose origin has no `__parameters__`.
 
 ## [2.6.2] - 2026-02-25 :gift:
 

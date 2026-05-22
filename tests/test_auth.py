@@ -5,17 +5,20 @@ import jwt
 import pytest
 from essentials.secrets import Secret
 from guardpost import AuthorizationContext, Identity, Policy, UnauthorizedError
+from guardpost.authorization import ForbiddenError
 from guardpost.common import AuthenticatedRequirement
 from guardpost.jwks import JWKS, InMemoryKeysProvider, KeysProvider
 from guardpost.jwts import SymmetricJWTValidator
 from pytest import raises
 from rodi import Container
 
+from blacksheep import Response, TextContent
 from blacksheep.messages import Request
 from blacksheep.server.application import Application
 from blacksheep.server.authentication import (
     AuthenticateChallenge,
     AuthenticationHandler,
+    handle_authentication_challenge,
 )
 from blacksheep.server.authentication.jwt import JWTBearerAuthentication
 from blacksheep.server.authorization import (
@@ -24,6 +27,8 @@ from blacksheep.server.authorization import (
     allow_anonymous,
     auth,
     get_www_authenticated_header_from_generic_unauthorized_error,
+    handle_forbidden,
+    handle_unauthorized,
 )
 from blacksheep.server.di import di_scope_middleware, register_http_context
 from blacksheep.server.resources import get_resource_file_path
@@ -1135,6 +1140,121 @@ async def test_jwt_openid_tokens_handler_authenticate_with_refresh_token(
     assert identity.is_authenticated() is True
     assert identity["sub"] == "user456"
     assert identity.refresh_token == "my-refresh-token"  # type: ignore[attr-defined]
+
+
+# endregion
+
+
+# region user-defined exception handlers vs framework defaults — issue #643
+
+
+async def test_user_unauthorized_handler_wins_when_registered_before_use_authorization(
+    app,
+):
+    """Regression for #643.
+
+    Registering an exception handler for ``UnauthorizedError`` BEFORE
+    ``use_authorization()`` must not be silently overridden by the framework
+    defaults installed inside ``use_authorization()``.
+    """
+
+    @app.exception_handler(UnauthorizedError)
+    async def custom_unauthorized(self, request, exc):
+        return Response(401, content=TextContent("Custom unauthorized page"))
+
+    app.use_authentication().add(MockNotAuthHandler())
+    app.use_authorization().default_policy += AuthenticatedRequirement()
+
+    @auth()
+    @app.router.get("/")
+    async def home():
+        return None
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    assert app.response.status == 401
+    body = await app.response.text()
+    assert body == "Custom unauthorized page"
+
+
+async def test_user_forbidden_handler_wins_when_registered_before_use_authorization(
+    app,
+):
+    """Same as above but for ``ForbiddenError`` (HTTP 403)."""
+
+    @app.exception_handler(ForbiddenError)
+    async def custom_forbidden(self, request, exc):
+        return Response(403, content=TextContent("Custom forbidden page"))
+
+    admin = Identity({"id": "001", "role": "user"}, "JWT")
+    app.use_authentication().add(MockAuthHandler(admin))
+    app.use_authorization().add(AdminsPolicy())
+
+    @auth("admin")
+    @app.router.get("/")
+    async def home():
+        return None
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    assert app.response.status == 403
+    body = await app.response.text()
+    assert body == "Custom forbidden page"
+
+
+async def test_user_unauthorized_handler_wins_when_registered_after_use_authorization(
+    app,
+):
+    """Sanity: registering AFTER ``use_authorization()`` already worked before
+    #643. This test guards the existing behaviour."""
+    app.use_authentication().add(MockNotAuthHandler())
+    app.use_authorization().default_policy += AuthenticatedRequirement()
+
+    @app.exception_handler(UnauthorizedError)
+    async def custom_unauthorized(self, request, exc):
+        return Response(401, content=TextContent("Custom unauthorized page"))
+
+    @auth()
+    @app.router.get("/")
+    async def home():
+        return None
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    assert app.response.status == 401
+    body = await app.response.text()
+    assert body == "Custom unauthorized page"
+
+
+async def test_framework_defaults_still_apply_when_no_user_handler(app):
+    """Sanity: without a user-defined handler, the framework defaults installed
+    by ``use_authorization()`` must remain in effect."""
+    app.use_authentication().add(MockNotAuthHandler())
+    app.use_authorization().default_policy += AuthenticatedRequirement()
+
+    @auth()
+    @app.router.get("/")
+    async def home():
+        return None
+
+    await app(get_example_scope("GET", "/"), MockReceive(), MockSend())
+
+    assert app.response is not None
+    assert app.response.status == 401
+    # Framework default body for handle_unauthorized
+    body = await app.response.text()
+    assert body == "Unauthorized"
+
+    # And the registered handler is the framework's default
+    assert app.exceptions_handlers[UnauthorizedError] is handle_unauthorized
+    assert app.exceptions_handlers[ForbiddenError] is handle_forbidden
+    assert (
+        app.exceptions_handlers[AuthenticateChallenge]
+        is handle_authentication_challenge
+    )
 
 
 # endregion

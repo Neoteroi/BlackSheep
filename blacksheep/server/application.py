@@ -528,14 +528,18 @@ class Application(BaseApplication):
             strategy.add(Policy("authenticated", AuthenticatedRequirement()))
 
         self._authorization_strategy = strategy
-        self.exceptions_handlers.update(
-            {  # type: ignore
-                AuthenticateChallenge: handle_authentication_challenge,
-                UnauthorizedError: handle_unauthorized,
-                ForbiddenError: handle_forbidden,
-                RateLimitExceededError: handle_rate_limited_auth,
-            }
-        )
+        # Install framework defaults for authorization exceptions, but only for
+        # types that the user has not already registered a handler for. This
+        # lets users register their own handlers either before or after the
+        # call to ``use_authorization()`` and keep them in effect — see #643.
+        framework_defaults = {  # type: ignore
+            AuthenticateChallenge: handle_authentication_challenge,
+            UnauthorizedError: handle_unauthorized,
+            ForbiddenError: handle_forbidden,
+            RateLimitExceededError: handle_rate_limited_auth,
+        }
+        for exception_type, default_handler in framework_defaults.items():
+            self.exceptions_handlers.setdefault(exception_type, default_handler)
 
         self.middlewares.append(
             get_authorization_middleware(strategy), MiddlewareCategory.AUTHZ, 0

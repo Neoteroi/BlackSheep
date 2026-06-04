@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(request, response)` and can mutate the response in-place (e.g. inject a dynamic
   `Content-Security-Policy` header). It is called for every response produced by the
   static file handler.
+- Fix [#643](https://github.com/Neoteroi/BlackSheep/issues/643): `use_authorization()`
+  no longer overrides exception handlers that the user has already registered for
+  `UnauthorizedError`, `ForbiddenError`, `AuthenticateChallenge`, or
+  `RateLimitExceededError`. Framework defaults are now installed via `setdefault`
+  so user-defined handlers win regardless of registration order.
 
 ## [2.6.2] - 2026-02-25 :gift:
 

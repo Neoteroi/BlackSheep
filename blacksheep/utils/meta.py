@@ -20,15 +20,34 @@ def import_child_modules(root_path: Path):
     Import automatically all modules defined
     under a certain package path.
     """
-    path = str(root_path)
+    root_path = root_path.resolve()
     modules = [
         os.path.basename(f)[:-3]
-        for f in glob.glob(path + "/*.py")
+        for f in glob.glob(str(root_path / "*.py"))
         if not os.path.basename(f).startswith("_")
     ]
-    stripped_path = os.path.relpath(path).replace("/", ".").replace("\\", ".")
+    # Determine the dotted module path by walking up the directory tree
+    # following __init__.py markers, instead of using os.path.relpath
+    # (which depends on the current working directory and produces
+    # incorrect paths when the app is installed as a package, e.g. via uv tool).
+    package_parts: list[str] = []
+    current = root_path
+    while True:
+        if (current / "__init__.py").exists():
+            package_parts.append(current.name)
+            parent = current.parent
+            if parent == current:  # reached filesystem root
+                break
+            current = parent
+        else:
+            break
+    package_parts.reverse()
+    base_package = ".".join(package_parts)
     for module in modules:
-        __import__(stripped_path + "." + module)
+        if base_package:
+            __import__(base_package + "." + module)
+        else:
+            __import__(module)
 
 
 def clonefunc(func):

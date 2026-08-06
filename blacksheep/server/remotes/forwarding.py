@@ -62,10 +62,8 @@ class BaseForwardedHeadersMiddleware(TrustedHostsMiddleware, ABC):
         acceptd both requests that are proxied and requests that are hitting the web
         server directly.
         """
-        return (
-            self.accept_only_proxied_requests
-            and any(self.known_proxies)
-            or any(self.known_networks)
+        return self.accept_only_proxied_requests and (
+            any(self.known_proxies) or any(self.known_networks)
         )
 
     def validate_proxy_ip(self, proxy_ip: IPAddress) -> None:

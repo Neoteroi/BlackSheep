@@ -289,7 +289,14 @@ def get_cors_middleware(
             return _get_invalid_origin_response()
 
         # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
-        origin_response = b"*" if "*" in policy.allow_origins else origin
+        # A literal "*" is invalid alongside credentials per the Fetch spec - browsers
+        # reject the response outright - so the specific request origin must be echoed
+        # back instead whenever credentials are allowed.
+        origin_response = (
+            b"*"
+            if "*" in policy.allow_origins and not policy.allow_credentials
+            else origin
+        )
 
         if next_request_method:
             # This is a preflight request;

@@ -69,8 +69,10 @@ class CookieAuthentication(AuthenticationHandler):
         """
         Sets the cookie used for authentication. If a cookie is set, it is assumed that
         the user is recognized (authenticated). The passed value is serialized, meaning
-        signed and encrypted using the `itsdangerous.Serializer` associated with this
-        CookieAuthentication handler. A common scenario is that data is a dictionary
+        signed (not encrypted) using the `itsdangerous.Serializer` associated with this
+        CookieAuthentication handler - the cookie value protects against tampering, but
+        its contents remain readable to anyone with access to the cookie, so it should
+        not be used to store secrets. A common scenario is that data is a dictionary
         with claims describing the identity of the user (e.g. id_token claims).
 
         Parameters

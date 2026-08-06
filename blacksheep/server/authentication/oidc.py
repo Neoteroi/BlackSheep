@@ -483,8 +483,10 @@ class CookiesOpenIDTokensHandler(OpenIDTokensHandler):
     ) -> Response:
         """
         Returns a redirect response that includes Set-Cookie headers
-        to configure an encrypted id_token and, optionally, also encrypted
-        access_token and refresh_token.
+        to configure a signed (not encrypted) id_token and, optionally, also
+        signed access_token and refresh_token. The cookie values are protected
+        against tampering, but remain readable to anyone with access to the
+        cookie.
         """
         response = redirect(original_path)
         await self._set_tokens_in_response(request, response, id_token, token_response)
@@ -588,8 +590,10 @@ class JWTOpenIDTokensHandler(OpenIDTokensHandler):
     ) -> Response:
         """
         Returns a redirect response that includes Set-Cookie headers
-        to configure an encrypted id_token and, optionally, also encrypted
-        access_token and refresh_token.
+        to configure a signed (not encrypted) id_token and, optionally, also
+        signed access_token and refresh_token. The cookie values are protected
+        against tampering, but remain readable to anyone with access to the
+        cookie.
         """
         response = html(
             self._get_html(
@@ -699,7 +703,10 @@ class TokenType(Enum):
 
 class CookiesTokensStore(TokensStore):
     """
-    A class that can store access and refresh tokens in encrypted form in cookies.
+    A class that can store access and refresh tokens in cookies, signed (not
+    encrypted) using `itsdangerous`. The cookie values are protected against
+    tampering, but remain readable to anyone with access to the cookie - do not
+    rely on this for confidentiality of the token contents.
 
     Beware that cookies size can be problematic when storing all information in cookies.
     If this is the case, consider implementing a type of `BaseTokensStore` that uses

@@ -309,6 +309,15 @@ class DataClassTypeHandler(ObjectTypeHandler):
         return [FieldInfo(field.name, field.type) for field in fields(object_type)]
 
 
+# Template used to ask Pydantic for OpenAPI-shaped references. Pydantic emits JSON
+# Schema, where references point to `#/$defs/{model}` (v2) or `#/definitions/{model}`
+# (v1). OpenAPI 3 stores named schemas under `components.schemas`. Passing this
+# template makes Pydantic emit `#/components/schemas/{model}` for *all* pointers,
+# including `discriminator.mapping` values, which are plain strings and not
+# `{"$ref": "..."}` objects.
+_OPENAPI_REF_TEMPLATE = "#/components/schemas/{model}"
+
+
 class PydanticModelTypeHandler(ObjectTypeHandler):
     """
     An ObjectTypeHandler that can handle subclasses of Pydantic BaseModel.
@@ -345,10 +354,10 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
     def _get_object_schema(self, object_type):
         if hasattr(object_type, "model_json_schema"):
             # Pydantic v2
-            return object_type.model_json_schema()
-        else:
-            # Pydantic v1
-            return object_type.schema()
+            return object_type.model_json_schema(ref_template=_OPENAPI_REF_TEMPLATE)
+
+        # Pydantic v1
+        return object_type.schema(ref_template=_OPENAPI_REF_TEMPLATE)
 
     def _normalize_dict_schema(self, schema, context):
         """
@@ -378,26 +387,37 @@ class PydanticModelTypeHandler(ObjectTypeHandler):
                 components.schemas[key] = DirectSchema(value)  # type: ignore
             del schema[definitions_keys]
 
+    def _rewrite_def_ref(self, value: str) -> str:
+        """
+        Rewrite a single pointer string from #/$defs/Name or #/definitions/Name
+        to #/components/schemas/Name. Other strings are returned unchanged.
+        """
+        def_ref = f"#/{self._get_defs_key()}/"
+        if value.startswith(def_ref):
+            return "#/components/schemas/" + value.removeprefix(def_ref)
+        return value
+
     def _normalize_dict_schema_replace_refs(self, schema):
         """
         Replace references defined as #/$defs/Name or #/definitions/Name
         with #/components/schemas/Name.
-        """
-        definitions_keys = self._get_defs_key()
-        def_ref = f"#/{definitions_keys}/"
-        to_replace = None
 
+        This includes `$ref` keys and `discriminator.mapping` values, which are
+        plain strings rather than `{"$ref": "..."}` objects. Pydantic is already
+        asked to emit OpenAPI-shaped references (see `_OPENAPI_REF_TEMPLATE`), but
+        this walker also covers hand-written pointers, e.g. in `json_schema_extra`.
+        """
         for key, value in schema.items():
             if isinstance(value, dict):
                 self._normalize_dict_schema_replace_refs(value)
-            if isinstance(value, list):
-                for item in value:
+            elif isinstance(value, list):
+                for i, item in enumerate(value):
                     if isinstance(item, dict):
                         self._normalize_dict_schema_replace_refs(item)
-            if key == "$ref" and isinstance(value, str) and value.startswith(def_ref):
-                to_replace = value
-        if to_replace:
-            schema["$ref"] = "#/components/schemas/" + to_replace.removeprefix(def_ref)
+                    elif isinstance(item, str):
+                        value[i] = self._rewrite_def_ref(item)
+            elif isinstance(value, str):
+                schema[key] = self._rewrite_def_ref(value)
 
 
 class PydanticDataClassTypeHandler(PydanticModelTypeHandler):
@@ -411,7 +431,7 @@ class PydanticDataClassTypeHandler(PydanticModelTypeHandler):
     def _get_object_schema(self, object_type):
         if TypeAdapter is ...:
             raise TypeError("Missing Pydantic")
-        return TypeAdapter(object_type).json_schema()
+        return TypeAdapter(object_type).json_schema(ref_template=_OPENAPI_REF_TEMPLATE)
 
 
 class OpenAPIHandler(APIDocsHandler[OpenAPI]):

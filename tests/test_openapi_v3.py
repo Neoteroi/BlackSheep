@@ -39,7 +39,7 @@ from pydantic.types import (
 from blacksheep.contents import FileBuffer
 from blacksheep.messages import Response
 from blacksheep.server.application import Application
-from blacksheep.server.bindings import FromFiles, FromForm, FromText
+from blacksheep.server.bindings import FromFile, FromFiles, FromForm, FromText
 from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
@@ -4891,6 +4891,106 @@ async def test_optional_from_files_is_not_required(docs: OpenAPIHandler):
     assert schema.required is None
     assert schema.properties["attachments"].type == ValueType.ARRAY
     assert spec.paths["/upload"].post.request_body.required is None
+
+
+async def test_from_file_is_object_with_binary_property(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(avatar: FromFile): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required == ["avatar"]
+    assert list(schema.properties.keys()) == ["avatar"]
+    _assert_binary_item(schema.properties["avatar"])
+    assert spec.paths["/upload"].post.request_body.required is True
+    assert not spec.paths["/upload"].post.parameters
+
+    yaml = serializer.to_yaml(spec)
+    assert """
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            required:
+                            - avatar
+                            properties:
+                                avatar:
+                                    type: string
+                                    format: binary
+                                    contentMediaType: application/octet-stream
+                description: File upload
+                required: true
+""" in yaml
+
+
+async def test_optional_from_file_is_not_required(docs: OpenAPIHandler):
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(avatar: FromFile | None): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required is None
+    _assert_binary_item(schema.properties["avatar"])
+    assert spec.paths["/upload"].post.request_body.required is None
+
+
+async def test_from_file_with_json_dto_uses_all_of_with_ref(docs: OpenAPIHandler):
+    from blacksheep.server.bindings import FromJSON
+
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(meta: FromJSON[UploadMeta], avatar: FromFile): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.all_of is not None
+    assert schema.all_of[0] == Reference("#/components/schemas/UploadMeta")
+    files_part = schema.all_of[1]
+    assert files_part.type == ValueType.OBJECT
+    assert files_part.required == ["avatar"]
+    _assert_binary_item(files_part.properties["avatar"])
+    assert spec.paths["/upload"].post.request_body.required is True
+
+
+async def test_from_file_and_from_files_are_both_documented(docs: OpenAPIHandler):
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(avatar: FromFile, attachments: FromFiles): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required == ["avatar", "attachments"]
+    _assert_binary_item(schema.properties["avatar"])
+    assert schema.properties["attachments"].type == ValueType.ARRAY
+    _assert_binary_item(schema.properties["attachments"].items)
 
 
 async def test_from_files_with_json_dto_uses_all_of_with_ref(

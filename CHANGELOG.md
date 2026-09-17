@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add `FromFile` to bind a single named multipart file as `FormPart`. Unlike
+  `FromFiles` (every uploaded file as `list[FormPart]`), `FromFile` reads only
+  the parts matching the parameter name and expects exactly one. A missing
+  required file raises `MissingParameterError`; `FromFile | None` is optional.
+  Several `FromFile` parameters, or `FromFile` next to `FromFiles` / a body
+  binder, are supported. OpenAPI documents it as a named `format: binary`
+  property (not an array).
+
 - Fix OpenAPI documentation of file uploads, so that Swagger UI renders an
   **Upload** control for every file field, whatever its name, with or without a
   DTO body on the same handler:

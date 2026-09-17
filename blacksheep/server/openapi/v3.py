@@ -53,6 +53,7 @@ from blacksheep.server.bindings import (
     Binder,
     BodyBinder,
     CookieBinder,
+    FileBinder,
     FilesBinder,
     HeaderBinder,
     QueryBinder,
@@ -1181,14 +1182,20 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     ) -> tuple[dict[str, Schema | Reference], list[str]]:
         """
         Collects the named parts contributed to a ``multipart/form-data`` request body
-        by binders that are not body binders: ``FromFiles`` (documented as an array of
-        files under the parameter name) and custom binders configured with
-        ``BinderBodyDocs``.
+        by binders that are not body binders: ``FromFile`` (a single binary property),
+        ``FromFiles`` (an array of files under the parameter name), and custom binders
+        configured with ``BinderBodyDocs``.
         """
         properties: dict[str, Schema | Reference] = {}
         required: list[str] = []
 
         for binder in handler.binders:
+            if isinstance(binder, FileBinder):
+                properties[binder.parameter_name] = get_binary_schema()
+                if self._is_binder_required(binder):
+                    required.append(binder.parameter_name)
+                continue
+
             if isinstance(binder, FilesBinder):
                 properties[binder.parameter_name] = Schema(
                     type=ValueType.ARRAY, items=get_binary_schema()
@@ -1404,9 +1411,9 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
                     f"{binder.expected_type!r} is bound from the "
                     f"{location.value} and has a binary schema, which is not valid "
                     "for an OpenAPI Parameter Object. It is documented as a plain "
-                    "string. To document uploaded files, use `FromFiles`, "
-                    "`FromForm[T]` with `FileBuffer` fields, or a custom binder "
-                    "configured with `BinderBodyDocs`.",
+                    "string. To document uploaded files, use `FromFile`, "
+                    "`FromFiles`, `FromForm[T]` with `FileBuffer` fields, or a "
+                    "custom binder configured with `BinderBodyDocs`.",
                     UserWarning,
                 )
                 schema = Schema(type=ValueType.STRING)

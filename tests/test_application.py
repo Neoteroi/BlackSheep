@@ -37,6 +37,7 @@ from blacksheep.server.bindings import (
     ClientInfo,
     FromBytes,
     FromCookie,
+    FromFile,
     FromFiles,
     FromForm,
     FromHeader,
@@ -1873,6 +1874,134 @@ async def test_handler_from_files_handles_empty_body(app):
             "/",
             [],
         ),
+        MockReceive([]),
+        MockSend(),
+    )
+    assert app.response.status == 204
+
+
+def _multipart_files_payload():
+    boundary = b"---------------------0000000000000000000000001"
+    content = b"\r\n".join(
+        [
+            boundary,
+            b'Content-Disposition: form-data; name="text1"',
+            b"",
+            b"text default",
+            boundary,
+            b'Content-Disposition: form-data; name="file1"; filename="a.txt"',
+            b"Content-Type: text/plain",
+            b"",
+            b"Content of a.txt.",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file2"; filename="a.html"',
+            b"Content-Type: text/html",
+            b"",
+            b"<!DOCTYPE html><title>Content of a.html.</title>",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file2"; filename="a.html"',
+            b"Content-Type: text/html",
+            b"",
+            b"<!DOCTYPE html><title>Content of a.html.</title>",
+            b"",
+            boundary,
+            b'Content-Disposition: form-data; name="file3"; filename="binary"',
+            b"Content-Type: application/octet-stream",
+            b"",
+            "aωb".encode("utf8"),
+            boundary + b"--",
+        ]
+    )
+    return boundary, content
+
+
+async def _post_multipart(app, boundary, content):
+    await app(
+        get_example_scope(
+            "POST",
+            "/",
+            [
+                (b"content-length", str(len(content)).encode()),
+                (b"content-type", b"multipart/form-data; boundary=" + boundary[2:]),
+            ],
+        ),
+        MockReceive([content]),
+        MockSend(),
+    )
+
+
+async def test_handler_from_file(app):
+    @app.router.post("/")
+    async def home(file1: FromFile):
+        assert file1 is not None
+        file = file1.value
+        assert isinstance(file, FormPart)
+        assert file.name == b"file1"
+        assert file.file_name == b"a.txt"
+        assert file.data == b"Content of a.txt.\r\n"
+
+    boundary, content = _multipart_files_payload()
+    await _post_multipart(app, boundary, content)
+    assert app.response.status == 204
+
+
+async def test_handler_from_file_two_named_files(app):
+    @app.router.post("/")
+    async def home(file1: FromFile, file3: FromFile):
+        assert file1.value.file_name == b"a.txt"
+        assert file1.value.data == b"Content of a.txt.\r\n"
+        assert file3.value.file_name == b"binary"
+        assert file3.value.data == "aωb".encode("utf8")
+
+    boundary, content = _multipart_files_payload()
+    await _post_multipart(app, boundary, content)
+    assert app.response.status == 204
+
+
+async def test_handler_from_file_and_from_files(app):
+    @app.router.post("/")
+    async def home(file1: FromFile, files: FromFiles):
+        assert file1.value.name == b"file1"
+        assert file1.value.file_name == b"a.txt"
+        assert len(files.value) == 4
+
+    boundary, content = _multipart_files_payload()
+    await _post_multipart(app, boundary, content)
+    assert app.response.status == 204
+
+
+async def test_handler_from_file_rejects_multiple_parts(app):
+    @app.router.post("/")
+    async def home(file2: FromFile): ...
+
+    boundary, content = _multipart_files_payload()
+    await _post_multipart(app, boundary, content)
+    assert app.response.status == 400
+    assert b"Expected a single file for parameter `file2`" in app.response.content.body
+
+
+async def test_handler_from_file_required_missing(app):
+    @app.router.post("/")
+    async def home(avatar: FromFile): ...
+
+    await app(
+        get_example_scope("POST", "/", []),
+        MockReceive([]),
+        MockSend(),
+    )
+    assert app.response.status == 400
+    assert b"Missing file parameter `avatar`" in app.response.content.body
+
+
+async def test_handler_from_file_optional_missing(app):
+    @app.router.post("/")
+    async def home(avatar: FromFile | None):
+        assert avatar is None
+
+    await app(
+        get_example_scope("POST", "/", []),
         MockReceive([]),
         MockSend(),
     )

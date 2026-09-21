@@ -473,6 +473,66 @@ async def test_cors_preflight_request_allow_credentials(app):
     assert response.headers.get_single(b"Access-Control-Allow-Credentials") == b"true"
 
 
+async def test_cors_preflight_request_allow_any_origin_with_credentials(app):
+    """
+    A literal "*" can't be combined with credentials - browsers reject the response
+    outright (Fetch spec) - so when both are configured, the request's own Origin must
+    be echoed back instead of "*", on both preflight and actual responses.
+    """
+    app.use_cors(
+        allow_methods="GET POST",
+        allow_origins="*",
+        allow_credentials=True,
+    )
+
+    @app.router.get("/")
+    async def home():
+        return text("Hello, World")
+
+    @app.router.post("/")
+    async def post_example(): ...
+
+    await app.start()
+
+    await app(
+        get_example_scope(
+            "OPTIONS",
+            "/",
+            [
+                (b"Origin", b"https://www.neoteroi.dev"),
+                (b"Access-Control-Request-Method", b"POST"),
+            ],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert response.status == 200
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+    assert response.headers.get_single(b"Access-Control-Allow-Credentials") == b"true"
+
+    await app(
+        get_example_scope(
+            "GET",
+            "/",
+            [(b"Origin", b"https://www.neoteroi.dev")],
+        ),
+        MockReceive(),
+        MockSend(),
+    )
+
+    response = app.response
+    assert (
+        response.headers.get_single(b"Access-Control-Allow-Origin")
+        == b"https://www.neoteroi.dev"
+    )
+    assert response.headers.get_single(b"Access-Control-Allow-Credentials") == b"true"
+
+
 async def test_cors_preflight_request_allow_any(app):
     app.use_cors(allow_methods="*", allow_origins="*", allow_headers="*")
 

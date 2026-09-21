@@ -40,7 +40,7 @@ from pydantic.types import (
 from blacksheep.contents import FileBuffer
 from blacksheep.messages import Response
 from blacksheep.server.application import Application
-from blacksheep.server.bindings import FromFiles, FromForm, FromText
+from blacksheep.server.bindings import FromFile, FromFiles, FromForm, FromText
 from blacksheep.server.controllers import APIController
 from blacksheep.server.openapi.common import (
     ContentInfo,
@@ -4973,6 +4973,503 @@ def test_get_schema_by_type_does_not_crash_for_async_iterables(
     """get_schema_by_type must not raise for async iterable generics (issue #674)."""
     # Should not raise AttributeError
     docs.get_schema_by_type(return_type)
+
+
+# endregion
+
+
+# region multipart/form-data file upload documentation
+
+
+@dataclass
+class UploadMeta:
+    title: str
+    tags: list[str] | None = None
+
+
+def _get_multipart_schema(spec, path: str, method: str = "post") -> Schema:
+    operation = getattr(spec.paths[path], method)
+    assert operation.request_body is not None
+    content = operation.request_body.content
+    assert list(content.keys()) == ["multipart/form-data"]
+    return content["multipart/form-data"].schema
+
+
+def _assert_binary_item(schema: Schema) -> None:
+    assert schema.type == ValueType.STRING
+    assert schema.format == ValueFormat.BINARY
+    assert schema.content_media_type == "application/octet-stream"
+
+
+def test_binary_schema_for_file_buffer_and_bytes(docs: OpenAPIHandler):
+    _assert_binary_item(docs.get_schema_by_type(FileBuffer))
+    _assert_binary_item(docs.get_schema_by_type(bytes))
+
+
+async def test_from_files_any_name_is_object_with_array_property(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    FromFiles must be documented as a multipart/form-data object schema, with one
+    array property named after the handler parameter, whose items carry both the
+    OAS 3.0 (format: binary) and OAS 3.1 (contentMediaType) markers.
+    """
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(attachments: FromFiles): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required == ["attachments"]
+    assert list(schema.properties.keys()) == ["attachments"]
+    attachments = schema.properties["attachments"]
+    assert attachments.type == ValueType.ARRAY
+    _assert_binary_item(attachments.items)
+    assert spec.paths["/upload"].post.request_body.required is True
+
+    # no parameters must be generated for the files
+    assert not spec.paths["/upload"].post.parameters
+    assert spec.components.parameters is None
+
+    yaml = serializer.to_yaml(spec)
+    assert """
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            required:
+                            - attachments
+                            properties:
+                                attachments:
+                                    type: array
+                                    items:
+                                        type: string
+                                        format: binary
+                                        contentMediaType: application/octet-stream
+                description: File upload
+                required: true
+""" in yaml
+
+
+async def test_optional_from_files_is_not_required(docs: OpenAPIHandler):
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(attachments: FromFiles | None): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required is None
+    assert schema.properties["attachments"].type == ValueType.ARRAY
+    assert spec.paths["/upload"].post.request_body.required is None
+
+
+async def test_from_file_is_object_with_binary_property(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(avatar: FromFile): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required == ["avatar"]
+    assert list(schema.properties.keys()) == ["avatar"]
+    _assert_binary_item(schema.properties["avatar"])
+    assert spec.paths["/upload"].post.request_body.required is True
+    assert not spec.paths["/upload"].post.parameters
+
+    yaml = serializer.to_yaml(spec)
+    assert """
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            required:
+                            - avatar
+                            properties:
+                                avatar:
+                                    type: string
+                                    format: binary
+                                    contentMediaType: application/octet-stream
+                description: File upload
+                required: true
+""" in yaml
+
+
+async def test_optional_from_file_is_not_required(docs: OpenAPIHandler):
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(avatar: FromFile | None): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required is None
+    _assert_binary_item(schema.properties["avatar"])
+    assert spec.paths["/upload"].post.request_body.required is None
+
+
+async def test_from_file_with_json_dto_uses_all_of_with_ref(docs: OpenAPIHandler):
+    from blacksheep.server.bindings import FromJSON
+
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(meta: FromJSON[UploadMeta], avatar: FromFile): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.all_of is not None
+    assert schema.all_of[0] == Reference("#/components/schemas/UploadMeta")
+    files_part = schema.all_of[1]
+    assert files_part.type == ValueType.OBJECT
+    assert files_part.required == ["avatar"]
+    _assert_binary_item(files_part.properties["avatar"])
+    assert spec.paths["/upload"].post.request_body.required is True
+
+
+async def test_from_file_and_from_files_are_both_documented(docs: OpenAPIHandler):
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(avatar: FromFile, attachments: FromFiles): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required == ["avatar", "attachments"]
+    _assert_binary_item(schema.properties["avatar"])
+    assert schema.properties["attachments"].type == ValueType.ARRAY
+    _assert_binary_item(schema.properties["attachments"].items)
+
+
+async def test_from_files_with_json_dto_uses_all_of_with_ref(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    A handler with FromJSON[DTO] and FromFiles is documented as a single
+    multipart/form-data body composing the DTO $ref with the file property.
+    """
+    from blacksheep.server.bindings import FromJSON
+
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(meta: FromJSON[UploadMeta], file: FromFiles): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.all_of is not None
+    assert len(schema.all_of) == 2
+    assert schema.all_of[0] == Reference("#/components/schemas/UploadMeta")
+    files_part = schema.all_of[1]
+    assert files_part.type == ValueType.OBJECT
+    assert files_part.required == ["file"]
+    assert files_part.properties["file"].type == ValueType.ARRAY
+    _assert_binary_item(files_part.properties["file"].items)
+    assert spec.paths["/upload"].post.request_body.required is True
+    assert "UploadMeta" in spec.components.schemas
+
+    yaml = serializer.to_yaml(spec)
+    assert "application/json:" not in yaml
+    assert """
+                    multipart/form-data:
+                        schema:
+                            allOf:
+                            -   $ref: '#/components/schemas/UploadMeta'
+                            -   type: object
+                                required:
+                                - file
+                                properties:
+                                    file:
+                                        type: array
+                                        items:
+                                            type: string
+                                            format: binary
+                                            contentMediaType: application/octet-stream
+""" in yaml
+
+
+async def test_from_files_with_inline_object_body_merges_properties(
+    docs: OpenAPIHandler,
+):
+    """
+    When the body schema is an inline object (e.g. dict), file properties are merged
+    into it instead of using allOf.
+    """
+    from blacksheep.server.bindings import FromJSON
+
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(meta: FromJSON[dict], file: FromFiles): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.all_of is None
+    assert schema.type == ValueType.OBJECT
+    assert schema.additional_properties is not None  # from the dict schema
+    assert schema.required == ["file"]
+    assert schema.properties["file"].type == ValueType.ARRAY
+    _assert_binary_item(schema.properties["file"].items)
+
+
+async def test_from_form_dto_with_files_drops_urlencoded_content_type(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    FromForm[DTO] alone documents both form content types; combined with FromFiles,
+    only multipart/form-data can carry the files.
+    """
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(meta: FromForm[UploadMeta], attachments: FromFiles): ...
+
+    @app.router.post("/no-files")
+    async def no_files(meta: FromForm[UploadMeta]): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+
+    schema = _get_multipart_schema(spec, "/upload")
+    assert schema.all_of[0] == Reference("#/components/schemas/UploadMeta")
+    assert schema.all_of[1].properties["attachments"].type == ValueType.ARRAY
+
+    no_files_content = spec.paths["/no-files"].post.request_body.content
+    assert set(no_files_content.keys()) == {
+        "multipart/form-data",
+        "application/x-www-form-urlencoded",
+    }
+
+
+async def test_from_form_dto_with_file_buffer_field(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """A FileBuffer field inside a FromForm[DTO] is documented with both markers."""
+
+    @dataclass
+    class Profile:
+        name: str
+        avatar: FileBuffer
+
+    app = get_app()
+
+    @app.router.post("/profile")
+    async def create_profile(data: FromForm[Profile]): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    profile_schema = spec.components.schemas["Profile"]
+    _assert_binary_item(profile_schema.properties["avatar"])
+
+    yaml = serializer.to_yaml(spec)
+    assert "multipart/form-data:" in yaml
+    assert "contentMediaType: application/octet-stream" in yaml
+
+
+async def test_file_buffer_body_is_object_with_named_property(
+    docs: OpenAPIHandler,
+):
+    app = get_app()
+
+    @app.router.post("/single")
+    async def single(document: FileBuffer): ...
+
+    @app.router.post("/many")
+    async def many(documents: list[FileBuffer]): ...
+
+    docs.bind_app(app)
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+
+    single_schema = _get_multipart_schema(spec, "/single")
+    assert single_schema.type == ValueType.OBJECT
+    assert single_schema.required == ["document"]
+    _assert_binary_item(single_schema.properties["document"])
+
+    many_schema = _get_multipart_schema(spec, "/many")
+    assert many_schema.type == ValueType.OBJECT
+    assert many_schema.required == ["documents"]
+    assert many_schema.properties["documents"].type == ValueType.ARRAY
+    _assert_binary_item(many_schema.properties["documents"].items)
+
+
+async def test_custom_binder_with_body_docs(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    A custom binder configured with BinderBodyDocs contributes properties to the
+    multipart/form-data request body and never produces components/parameters.
+    """
+    from blacksheep.messages import Request
+    from blacksheep.server.bindings import Binder, BoundValue
+    from blacksheep.server.openapi.v3 import BinderBodyDocs, get_binary_schema
+
+    class FromSingleFile(BoundValue[FileBuffer]):
+        pass
+
+    class SingleFileBinder(Binder):
+        handle = FromSingleFile
+
+        async def get_value(self, request: Request):
+            files = await request.files()
+            return FileBuffer.from_form_part(files[0])
+
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(file: FromSingleFile): ...
+
+    docs.bind_app(app)
+    docs.set_binder_docs(
+        SingleFileBinder,
+        BinderBodyDocs(properties={"file": get_binary_schema()}, required=["file"]),
+    )
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.type == ValueType.OBJECT
+    assert schema.required == ["file"]
+    _assert_binary_item(schema.properties["file"])
+    assert spec.paths["/upload"].post.request_body.required is True
+    assert not spec.paths["/upload"].post.parameters
+    assert spec.components.parameters is None
+
+    yaml = serializer.to_yaml(spec)
+    assert "components/parameters" not in yaml
+    assert "parameters: []" in yaml
+
+
+async def test_custom_binder_body_docs_with_dto_body(docs: OpenAPIHandler):
+    """Custom binder body docs are composed with a DTO body using allOf."""
+    from blacksheep.messages import Request
+    from blacksheep.server.bindings import Binder, BoundValue, FromJSON
+
+    class FromSingleFile(BoundValue[FileBuffer]):
+        pass
+
+    class SingleFileBinder(Binder):
+        handle = FromSingleFile
+
+        async def get_value(self, request: Request):
+            files = await request.files()
+            return FileBuffer.from_form_part(files[0])
+
+    app = get_app()
+
+    @app.router.post("/upload")
+    async def upload(meta: FromJSON[UploadMeta], file: FromSingleFile): ...
+
+    docs.bind_app(app)
+    docs.set_binder_body_docs(
+        SingleFileBinder, properties={"file": docs.get_schema_by_type(FileBuffer)}
+    )
+    await app.start()
+
+    spec = docs.generate_documentation(app)
+    schema = _get_multipart_schema(spec, "/upload")
+
+    assert schema.all_of[0] == Reference("#/components/schemas/UploadMeta")
+    files_part = schema.all_of[1]
+    assert files_part.required is None
+    _assert_binary_item(files_part.properties["file"])
+    assert spec.components.parameters is None
+
+
+async def test_binary_parameter_docs_warn_and_fall_back_to_string(
+    docs: OpenAPIHandler,
+):
+    """A binary schema is never emitted for a query/header/path/cookie parameter."""
+    from blacksheep.server.bindings import FromQuery
+
+    app = get_app()
+
+    @app.router.get("/search")
+    async def search(token: FromQuery[bytes]): ...
+
+    docs.bind_app(app)
+
+    with pytest.warns(UserWarning, match="binary schema"):
+        # docs are generated at application start, and again here
+        await app.start()
+        spec = docs.generate_documentation(app)
+
+    (parameter,) = spec.paths["/search"].get.parameters
+    assert parameter.in_ == ParameterLocation.QUERY
+    assert parameter.schema.type == ValueType.STRING
+    assert parameter.schema.format is None
+    assert parameter.schema.content_media_type is None
+
+
+def test_set_binder_docs_warns_for_binary_parameter(docs: OpenAPIHandler):
+    from openapidocs.v3 import Parameter
+
+    from blacksheep.server.bindings import Binder
+
+    class SomeBinder(Binder):
+        async def get_value(self, request):  # pragma: no cover
+            return None
+
+    with pytest.warns(UserWarning, match="can never carry a file"):
+        docs.set_binder_docs(
+            SomeBinder,
+            [
+                Parameter(
+                    "file",
+                    ParameterLocation.QUERY,
+                    schema=Schema(type=ValueType.STRING, format=ValueFormat.BINARY),
+                )
+            ],
+        )
 
 
 # endregion

@@ -180,7 +180,8 @@ class FromForm(BoundValue[T]):
 
     When to use:
     - FromForm[T]: For complex types with mixed regular fields and files
-    - FromFiles: For simple array of uploaded files without structure
+    - FromFile: For a single named uploaded file without a DTO
+    - FromFiles: For a simple array of uploaded files without structure
 
     Example:
         @dataclass
@@ -227,9 +228,30 @@ class FromBody(BoundValue[T]):
     default_value_type = dict
 
 
+class FromFile(BoundValue[FormPart]):
+    """
+    A single named file obtained from multipart/form-data.
+
+    The part name is the handler parameter name. Unlike ``FromFiles``, which
+    collects every uploaded file, this binder reads only the parts matching
+    that name and expects exactly one. The value is a ``FormPart``, the same
+    type as each item in ``FromFiles``.
+
+    Example::
+
+        @app.router.post("/avatar")
+        async def set_avatar(avatar: FromFile):
+            part = avatar.value
+            # part.name, part.file_name, part.data
+    """
+
+
 class FromFiles(BoundValue[list[FormPart]]):
     """
     A parameter obtained from multipart/form-data files.
+
+    Collects every uploaded file in the request, regardless of part name.
+    Use ``FromFile`` when a single named file is needed instead.
     """
 
 
@@ -1060,6 +1082,25 @@ class RequestMethodBinder(Binder):
 
     async def get_value(self, request: Request) -> str:
         return request.method
+
+
+class FileBinder(Binder):
+    handle = FromFile
+
+    async def get_value(self, request: Request) -> FormPart | None:
+        parts = await request.files(self.parameter_name)
+        if not parts:
+            if self.required and self.root_required:
+                raise MissingParameterError(self.parameter_name, "file")
+
+            return None
+
+        if len(parts) > 1:
+            raise BadRequest(
+                f"Expected a single file for parameter `{self.parameter_name}`."
+            )
+
+        return parts[0]
 
 
 class FilesBinder(Binder):

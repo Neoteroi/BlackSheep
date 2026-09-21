@@ -1,4 +1,5 @@
 import collections.abc as collections_abc
+import copy
 import inspect
 import typing
 import warnings
@@ -52,6 +53,7 @@ from blacksheep.server.bindings import (
     Binder,
     BodyBinder,
     CookieBinder,
+    FileBinder,
     FilesBinder,
     HeaderBinder,
     QueryBinder,
@@ -183,6 +185,61 @@ class FieldInfo:
     name: str
     type: Type | Schema
     schema: dict[str, Any] | None = None  # New property to store Pydantic schema
+
+
+@dataclass
+class BinderBodyDocs:
+    """
+    Describes how a custom binder contributes to the request body of the operations
+    where it is used, as named parts of a ``multipart/form-data`` body (one property
+    per part), instead of being documented as parameters.
+
+    Use this for binders that read uploaded files: in OpenAPI 3, a Parameter Object
+    can only be in ``path``, ``query``, ``header`` or ``cookie``, so files can never
+    be documented as parameters.
+
+    ``properties`` maps each part name to its schema; ``required`` lists the names of
+    the parts that are mandatory.
+    """
+
+    properties: dict[str, Schema | Reference]
+    required: list[str] | None = None
+
+
+BinderDocs: TypeAlias = Iterable[Parameter | Reference] | BinderBodyDocs
+
+
+BINARY_MEDIA_TYPE = "application/octet-stream"
+
+
+def get_binary_schema() -> Schema:
+    """
+    Returns the schema used to document a single uploaded file. Both the OpenAPI 3.0
+    marker (``format: binary``) and the OpenAPI 3.1 / JSON Schema 2020-12 marker
+    (``contentMediaType``) are emitted, so that Swagger UI and other tools render a
+    file input regardless of the version they target.
+    """
+    return Schema(
+        type=ValueType.STRING,
+        format=ValueFormat.BINARY,
+        content_media_type=BINARY_MEDIA_TYPE,
+    )
+
+
+def is_binary_schema(schema: Schema | Reference | None) -> bool:
+    """
+    Returns a value indicating whether the given schema describes binary content
+    (a file), either directly or as an array of files.
+    """
+    if not isinstance(schema, Schema):
+        return False
+    if schema.format in (ValueFormat.BINARY, ValueFormat.BINARY.value):
+        return True
+    if schema.content_media_type is not None or schema.content_encoding is not None:
+        return True
+    if schema.items is not None:
+        return is_binary_schema(schema.items)
+    return False
 
 
 class ObjectTypeHandler(ABC):
@@ -481,7 +538,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             BasicAuthenticationSecuritySchemeHandler(),
             JWTAuthenticationSecuritySchemeHandler(),
         ]
-        self._binder_docs: dict[Type[Binder], Iterable[Parameter | Reference]] = {}
+        self._binder_docs: dict[Type[Binder], BinderDocs] = {}
         self.security: Security | None = None
 
     @property
@@ -895,7 +952,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING)
 
         if object_type is bytes:
-            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
+            return get_binary_schema()
 
         if object_type is int:
             return Schema(type=ValueType.INTEGER, format=ValueFormat.INT64)
@@ -916,7 +973,7 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             return Schema(type=ValueType.STRING, format=ValueFormat.DATETIME)
 
         if object_type is FileBuffer:
-            return Schema(type=ValueType.STRING, format=ValueFormat.BINARY)
+            return get_binary_schema()
 
         return None
 
@@ -1134,38 +1191,105 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             for possible_type in body_binder.content_type.split(";")
         }
 
+    @staticmethod
+    def _is_binder_required(binder: Binder) -> bool:
+        # `required` describes the inner value, `root_required` the whole annotation
+        # (e.g. `FromFiles | None` sets root_required=False).
+        return bool(binder.required and binder.root_required)
+
+    def _get_multipart_parts(
+        self, handler: Any
+    ) -> tuple[dict[str, Schema | Reference], list[str]]:
+        """
+        Collects the named parts contributed to a ``multipart/form-data`` request body
+        by binders that are not body binders: ``FromFile`` (a single binary property),
+        ``FromFiles`` (an array of files under the parameter name), and custom binders
+        configured with ``BinderBodyDocs``.
+        """
+        properties: dict[str, Schema | Reference] = {}
+        required: list[str] = []
+
+        for binder in handler.binders:
+            if isinstance(binder, FileBinder):
+                properties[binder.parameter_name] = get_binary_schema()
+                if self._is_binder_required(binder):
+                    required.append(binder.parameter_name)
+                continue
+
+            if isinstance(binder, FilesBinder):
+                properties[binder.parameter_name] = Schema(
+                    type=ValueType.ARRAY, items=get_binary_schema()
+                )
+                if self._is_binder_required(binder):
+                    required.append(binder.parameter_name)
+                continue
+
+            body_docs = self._binder_docs.get(binder.__class__)
+            if isinstance(body_docs, BinderBodyDocs):
+                properties.update(body_docs.properties)
+                for name in body_docs.required or ():
+                    if name not in required:
+                        required.append(name)
+
+        return properties, required
+
+    @staticmethod
+    def _multipart_object_schema(
+        properties: dict[str, Schema | Reference], required: list[str]
+    ) -> Schema:
+        return Schema(
+            type=ValueType.OBJECT,
+            required=required or None,
+            properties=properties,
+        )
+
+    def _compose_multipart_schema(
+        self,
+        body_schema: Schema | Reference,
+        properties: dict[str, Schema | Reference],
+        required: list[str],
+    ) -> Schema | Reference:
+        """
+        Composes the schema of a body binder with additional multipart parts (files).
+        Inline object schemas are merged; anything else (a ``$ref`` to a component,
+        or a non-object schema) is combined using ``allOf``.
+        """
+        if not properties:
+            return body_schema
+
+        if isinstance(body_schema, Schema) and (
+            body_schema.type == ValueType.OBJECT or body_schema.properties is not None
+        ):
+            merged = copy.copy(body_schema)
+            merged.type = ValueType.OBJECT
+            merged.properties = {**(body_schema.properties or {}), **properties}
+            merged_required = list(body_schema.required or [])
+            merged_required.extend(
+                name for name in required if name not in merged_required
+            )
+            merged.required = merged_required or None
+            return merged
+
+        return Schema(
+            all_of=[
+                body_schema,
+                self._multipart_object_schema(properties, required),
+            ]
+        )
+
     def get_request_body(self, handler: Any) -> RequestBody | Reference | None:
         if not hasattr(handler, "binders"):
             return None
 
         body_binder = self._get_body_binder(handler)
-        files_binder = self._get_files_binder(handler)
+        properties, required = self._get_multipart_parts(handler)
 
-        # If there's no body binder but there is a files binder, document the files
-        if files_binder and not body_binder:
-            docs = self.get_handler_docs(handler)
-            body_info = docs.request_body if docs else None
-
-            # Create schema for file upload
-            schema = Schema(
-                type=ValueType.ARRAY,
-                items=Schema(
-                    type=ValueType.STRING,
-                    format=ValueFormat.BINARY,
-                ),
-            )
-
-            return RequestBody(
-                content={"multipart/form-data": MediaType(schema=schema)},
-                required=files_binder.required,
-                description=body_info.description if body_info else "File upload",
-            )
-
-        if body_binder is None:
+        if body_binder is None and not properties:
             return None
 
         docs = self.get_handler_docs(handler)
         body_info = docs.request_body if docs else None
+        description = body_info.description if body_info else None
 
         body_examples: dict[str, Example | Reference] | None = (
             {key: Example(value=value) for key, value in body_info.examples.items()}
@@ -1173,28 +1297,70 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             else None
         )
 
-        # Check if the body binder expects file data or list[file data]
-        expected_type = body_binder.expected_type
-        is_filedata_type = self._is_filedata_type(expected_type)
-
-        if is_filedata_type:
-            # Generate multipart/form-data documentation for file data
-            schema = self.get_schema_by_type(expected_type)
+        if body_binder is None:
+            # Only files (FromFiles and/or custom binders with body docs): a
+            # multipart/form-data body whose schema is an object with one property
+            # per part. This is the shape required by the OpenAPI specification and
+            # the one Swagger UI needs to render file inputs.
             return RequestBody(
                 content={
                     "multipart/form-data": MediaType(
-                        schema=schema, examples=body_examples
+                        schema=self._multipart_object_schema(properties, required),
+                        examples=body_examples,
                     )
                 },
-                required=body_binder.required,
-                description=body_info.description if body_info else "File upload",
+                required=bool(required) or None,
+                description=description or "File upload",
+            )
+
+        expected_type = body_binder.expected_type
+
+        if self._is_filedata_type(expected_type):
+            # The body binder itself expects a file or a list of files: document it
+            # as a multipart part named after the parameter, merged with other parts.
+            file_properties = {
+                body_binder.parameter_name: self.get_schema_by_type(expected_type)
+            }
+            file_required = [body_binder.parameter_name] if body_binder.required else []
+            file_properties.update(properties)
+            file_required.extend(name for name in required if name not in file_required)
+            return RequestBody(
+                content={
+                    "multipart/form-data": MediaType(
+                        schema=self._multipart_object_schema(
+                            file_properties, file_required
+                        ),
+                        examples=body_examples,
+                    )
+                },
+                required=body_binder.required or bool(required),
+                description=description or "File upload",
+            )
+
+        if properties:
+            # Body binder (DTO) plus files: only multipart/form-data can carry both,
+            # so other content types declared by the binder (e.g. application/json,
+            # application/x-www-form-urlencoded) are dropped and the DTO schema is
+            # composed with the file parts.
+            body_schema = self.get_schema_by_type(expected_type)
+            return RequestBody(
+                content={
+                    "multipart/form-data": MediaType(
+                        schema=self._compose_multipart_schema(
+                            body_schema, properties, required
+                        ),
+                        examples=body_examples,
+                    )
+                },
+                required=body_binder.required or bool(required),
+                description=description,
             )
 
         # Original behavior for body binder
         return RequestBody(
             content=self._get_body_binder_content_type(body_binder, body_examples),
             required=body_binder.required,
-            description=body_info.description if body_info else None,
+            description=description,
         )
 
     def get_parameter_location_for_binder(
@@ -1233,6 +1399,10 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
 
         for binder in binders:
             if binder.__class__ in self._binder_docs:
+                binder_docs = self._binder_docs[binder.__class__]
+                if isinstance(binder_docs, BinderBodyDocs):
+                    # documented in the request body, see get_request_body
+                    continue
                 self._handle_binder_docs(binder, parameters)
                 continue
 
@@ -1251,11 +1421,28 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
             # did the user specified information about the parameter?
             param_info = parameters_info.get(binder.parameter_name)
 
+            schema = self.get_schema_by_type(binder.expected_type)
+
+            if is_binary_schema(schema):
+                # A Parameter Object can only be in path, query, header or cookie:
+                # it can never carry a file. Document the parameter as plain text.
+                warnings.warn(
+                    f"The parameter `{binder.parameter_name}` of type "
+                    f"{binder.expected_type!r} is bound from the "
+                    f"{location.value} and has a binary schema, which is not valid "
+                    "for an OpenAPI Parameter Object. It is documented as a plain "
+                    "string. To document uploaded files, use `FromFile`, "
+                    "`FromFiles`, `FromForm[T]` with `FileBuffer` fields, or a "
+                    "custom binder configured with `BinderBodyDocs`.",
+                    UserWarning,
+                )
+                schema = Schema(type=ValueType.STRING)
+
             parameters[binder.parameter_name] = Parameter(
                 name=binder.parameter_name,
                 in_=location,
                 required=required or None,
-                schema=self.get_schema_by_type(binder.expected_type),
+                schema=schema,
                 description=param_info.description if param_info else "",
                 example=param_info.example if param_info else None,
             )
@@ -1538,21 +1725,65 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
     def set_binder_docs(
         self,
         binder_type: Type[Binder],
-        params_docs: Iterable[Parameter | Reference],
+        params_docs: BinderDocs,
     ):
         """
-        Configures parameters documentation for a given binder type. A binder can
-        read values from one or more input parameters, this is why this method supports
-        an iterable of Parameter or Reference objects. In most use cases, it is
-        desirable to use a Parameter here. Reference objects are configured
-        automatically when the documentation is built.
+        Configures the documentation for a given binder type.
+
+        A binder can read values from one or more input parameters, this is why this
+        method supports an iterable of Parameter or Reference objects. In most use
+        cases, it is desirable to use a Parameter here. Reference objects are
+        configured automatically when the documentation is built.
+
+        Alternatively, a `BinderBodyDocs` can be passed for binders that read parts of
+        a `multipart/form-data` request body (e.g. uploaded files): in this case the
+        binder is documented as named properties of the operation's request body,
+        since files can never be OpenAPI parameters.
         """
+        if not isinstance(params_docs, BinderBodyDocs):
+            params_docs = list(params_docs)
+            for param in params_docs:
+                if isinstance(param, Parameter) and is_binary_schema(param.schema):
+                    warnings.warn(
+                        f"The parameter `{param.name}` configured for the binder "
+                        f"{binder_type.__qualname__} has a binary schema. A Parameter "
+                        "Object can only be in path, query, header or cookie and "
+                        "can never carry a file. Use `BinderBodyDocs` (or "
+                        "`set_binder_body_docs`) to document uploaded files as parts "
+                        "of the multipart/form-data request body.",
+                        UserWarning,
+                    )
         self._binder_docs[binder_type] = params_docs
+
+    def set_binder_body_docs(
+        self,
+        binder_type: Type[Binder],
+        properties: dict[str, Schema | Reference],
+        required: list[str] | None = None,
+    ):
+        """
+        Configures a binder type to be documented as named parts of a
+        `multipart/form-data` request body. Shortcut for
+        `set_binder_docs(binder_type, BinderBodyDocs(properties, required))`.
+
+        Example, for a binder reading a single uploaded file named "file":
+
+            docs.set_binder_body_docs(
+                MyFileBinder,
+                properties={"file": get_binary_schema()},
+                required=["file"],
+            )
+        """
+        self.set_binder_docs(binder_type, BinderBodyDocs(properties, required))
 
     def _handle_binder_docs(
         self, binder: Binder, parameters: dict[str, Parameter | Reference]
     ):
         params_docs = self._binder_docs[binder.__class__]
+
+        if isinstance(params_docs, BinderBodyDocs):  # pragma: no cover
+            # handled by get_request_body
+            return
 
         for i, param_doc in enumerate(params_docs):
             parameters[f"{binder.__class__.__qualname__}_{i}"] = param_doc
@@ -1563,10 +1794,16 @@ class OpenAPIHandler(APIDocsHandler[OpenAPI]):
         components.parameters, instead of duplicating parameters documentation in each
         operation where they are used.
         """
-        new_dict = {}
-        params_docs: Iterable[Parameter | Reference]
+        new_dict: dict[Type[Binder], BinderDocs] = {}
+        params_docs: BinderDocs
 
         for key, params_docs in self._binder_docs.items():
+            if isinstance(params_docs, BinderBodyDocs):
+                # request body docs are not parameters: nothing to move to
+                # components.parameters
+                new_dict[key] = params_docs
+                continue
+
             new_docs: list[Reference] = []
 
             for param in params_docs:

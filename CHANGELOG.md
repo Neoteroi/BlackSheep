@@ -15,6 +15,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plain string pointers (including inside lists), so hand-written `#/$defs/...`
   pointers in `json_schema_extra` are covered too. Applies to both `BaseModel`
   subclasses and Pydantic dataclasses.
+- Add `FromFile` to bind a single named multipart file as `FormPart`. Unlike
+  `FromFiles` (every uploaded file as `list[FormPart]`), `FromFile` reads only
+  the parts matching the parameter name and expects exactly one. A missing
+  required file raises `MissingParameterError`; `FromFile | None` is optional.
+  Several `FromFile` parameters, or `FromFile` next to `FromFiles` / a body
+  binder, are supported. OpenAPI documents it as a named `format: binary`
+  property (not an array).
+
+- Fix OpenAPI documentation of file uploads, so that Swagger UI renders an
+  **Upload** control for every file field, whatever its name, with or without a
+  DTO body on the same handler:
+  - `FromFiles` is now documented as a `multipart/form-data` **object** schema with
+    one `type: array` property named after the handler parameter (the specification
+    requires an object with named parts; the previous top-level array produced no
+    upload button). `required` is derived from the binder: `FromFiles | None` is
+    documented as optional.
+  - Handlers combining a body binder (`FromJSON[T]`, `FromForm[T]`, …) with
+    `FromFiles` no longer silently drop the files: a single `multipart/form-data`
+    media type is emitted, composing the DTO `$ref` with the file properties using
+    `allOf` (inline object schemas are merged instead). Other content types, which
+    cannot carry files, are dropped for these operations.
+  - `FileBuffer` and `bytes` are documented with both the OpenAPI 3.0 marker
+    (`format: binary`) and the OpenAPI 3.1 / JSON Schema 2020-12 marker
+    (`contentMediaType: application/octet-stream`).
+  - `FileBuffer` / `list[FileBuffer]` used directly as request body are documented
+    as an object with a property named after the parameter.
+- Add `BinderBodyDocs` and `OpenAPIHandler.set_binder_body_docs()`, so custom binders
+  can be documented as named parts of the `multipart/form-data` request body instead
+  of parameters (`set_binder_docs()` also accepts a `BinderBodyDocs`). A Parameter
+  Object can only be in `path`, `query`, `header` or `cookie`, so this is the only
+  valid way to document a custom file binder; such docs are never moved to
+  `components/parameters`.
+- Never emit a binary schema for a `query`, `path`, `header` or `cookie` parameter:
+  a `UserWarning` is issued and the parameter is documented as a plain string.
+  `set_binder_docs()` also warns when given a `Parameter` with a binary schema.
+- Add `get_binary_schema()` and `is_binary_schema()` helpers in
+  `blacksheep.server.openapi.v3`.
 
 ## [2.6.3] - 2026-06-04 :croissant:
 

@@ -15,6 +15,22 @@ def get_parent_file():
         return ""
 
 
+def _get_dotted_path(root_path: Path) -> str:
+    """
+    Builds the dotted module path for a package folder by walking up its
+    parent directories while they contain an `__init__.py` file, so the
+    package can be imported by its fully qualified name regardless of the
+    current working directory of the running process.
+    """
+    root_path = root_path.resolve()
+    parts = [root_path.name]
+    current = root_path.parent
+    while (current / "__init__.py").is_file():
+        parts.append(current.name)
+        current = current.parent
+    return ".".join(reversed(parts))
+
+
 def import_child_modules(root_path: Path):
     """
     Import automatically all modules defined
@@ -26,7 +42,7 @@ def import_child_modules(root_path: Path):
         for f in glob.glob(path + "/*.py")
         if not os.path.basename(f).startswith("_")
     ]
-    stripped_path = os.path.relpath(path).replace("/", ".").replace("\\", ".")
+    stripped_path = _get_dotted_path(root_path)
     for module in modules:
         __import__(stripped_path + "." + module)
 

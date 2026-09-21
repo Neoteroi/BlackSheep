@@ -45,10 +45,14 @@ async def test_filedata_single_file_openapi_spec():
     # Check that multipart/form-data is used
     assert "multipart/form-data" in request_body.content
 
-    # Check schema
+    # Check schema: an object with one binary property named after the parameter
     media_type = request_body.content["multipart/form-data"]
-    assert media_type.schema.type == ValueType.STRING
-    assert media_type.schema.format == ValueFormat.BINARY
+    assert media_type.schema.type == ValueType.OBJECT
+    assert media_type.schema.required == ["file"]
+    file_schema = media_type.schema.properties["file"]
+    assert file_schema.type == ValueType.STRING
+    assert file_schema.format == ValueFormat.BINARY
+    assert file_schema.content_media_type == "application/octet-stream"
 
 
 @pytest.mark.asyncio
@@ -81,12 +85,16 @@ async def test_filedata_multiple_files_openapi_spec():
     # Check that multipart/form-data is used
     assert "multipart/form-data" in request_body.content
 
-    # Check schema - should be array of binary
+    # Check schema: an object whose "files" property is an array of binary
     media_type = request_body.content["multipart/form-data"]
-    assert media_type.schema.type == ValueType.ARRAY
-    assert media_type.schema.items is not None
-    assert media_type.schema.items.type == ValueType.STRING
-    assert media_type.schema.items.format == ValueFormat.BINARY
+    assert media_type.schema.type == ValueType.OBJECT
+    assert media_type.schema.required == ["files"]
+    files_schema = media_type.schema.properties["files"]
+    assert files_schema.type == ValueType.ARRAY
+    assert files_schema.items is not None
+    assert files_schema.items.type == ValueType.STRING
+    assert files_schema.items.format == ValueFormat.BINARY
+    assert files_schema.items.content_media_type == "application/octet-stream"
 
 
 @pytest.mark.asyncio

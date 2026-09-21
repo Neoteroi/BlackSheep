@@ -34,6 +34,7 @@ from .server.bindings import ClientInfo as ClientInfo
 from .server.bindings import FromBody as FromBody
 from .server.bindings import FromBytes as FromBytes
 from .server.bindings import FromCookie as FromCookie
+from .server.bindings import FromFile as FromFile
 from .server.bindings import FromFiles as FromFiles
 from .server.bindings import FromForm as FromForm
 from .server.bindings import FromHeader as FromHeader

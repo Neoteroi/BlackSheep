@@ -560,6 +560,46 @@ async def test_x_forwarded_headers_middleware_blocks_invalid_proxy_id_by_network
     assert called
 
 
+async def test_x_forwarded_headers_middleware_accepts_direct_requests_with_known_networks(
+    app: FakeApplication,
+):
+    """
+    accept_only_proxied_requests=False must skip proxy-ip validation entirely -
+    including for direct (non-proxied) requests - even when known_networks is
+    also configured. Due to Python operator precedence ('and' binds tighter than
+    'or'), `accept_only_proxied_requests and any(known_proxies) or
+    any(known_networks)` previously ignored accept_only_proxied_requests whenever
+    known_networks was non-empty, incorrectly rejecting direct requests.
+    """
+    app.middlewares.append(
+        XForwardedHeadersMiddleware(
+            known_networks=[ip_network("192.168.0.0/24")],
+            accept_only_proxied_requests=False,
+        )
+    )
+
+    called = False
+
+    @app.router.get("/")
+    async def home(request):
+        nonlocal called
+        called = True
+        return
+
+    scope = get_example_scope(
+        "GET",
+        "/",
+        extra_headers=[],
+        client=("203.0.113.196", 443),
+    )
+
+    await app(scope, MockReceive(), MockSend())
+
+    assert app.response is not None
+    assert app.response.status == 204
+    assert called
+
+
 async def test_forwarded_header_middleware(app: FakeApplication):
     app.middlewares.append(ForwardedHeadersMiddleware(allowed_hosts=["neoteroi.dev"]))
 

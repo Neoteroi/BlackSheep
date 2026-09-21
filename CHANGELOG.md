@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix OpenAPI generation for Pydantic discriminated unions: `discriminator.mapping`
+  values were left pointing at `#/$defs/Name` (JSON Schema) instead of
+  `#/components/schemas/Name` (OpenAPI), because the reference rewriter only handled
+  `$ref` keys and mapping values are plain strings. Pydantic is now asked for
+  OpenAPI-shaped references via `ref_template`, and the rewriter also normalizes
+  plain string pointers (including inside lists), so hand-written `#/$defs/...`
+  pointers in `json_schema_extra` are covered too. Applies to both `BaseModel`
+  subclasses and Pydantic dataclasses.
 - Add `FromFile` to bind a single named multipart file as `FormPart`. Unlike
   `FromFiles` (every uploaded file as `list[FormPart]`), `FromFile` reads only
   the parts matching the parameter name and expects exactly one. A missing

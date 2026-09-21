@@ -1,9 +1,10 @@
+import json
 import sys
 from collections.abc import AsyncGenerator, AsyncIterable, AsyncIterator
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import IntEnum
-from typing import Generic, Mapping, Sequence, TypeVar, Union
+from typing import Generic, Literal, Mapping, Sequence, TypeVar, Union
 from uuid import UUID
 
 if sys.version_info >= (3, 9):
@@ -26,7 +27,7 @@ from openapidocs.v3 import (
     ValueType,
 )
 from pydantic import VERSION as PYDANTIC_LIB_VERSION
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl
 from pydantic.types import (
     UUID4,
     NegativeFloat,
@@ -2726,6 +2727,188 @@ components:
 tags: []
     """.strip()
     assert yaml.strip() == expected_result
+
+
+@pytest.mark.skipif(PYDANTIC_VERSION < 2, reason="Requires Pydantic v2")
+def test_pydantic_discriminator_mapping_uses_components_schemas(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    Pydantic emits JSON Schema pointers (#/$defs/Name) for discriminated unions.
+    Those pointers appear both as `$ref` objects and as plain strings in
+    `discriminator.mapping`. All of them must be rewritten to
+    #/components/schemas/Name in the OpenAPI document.
+    """
+    app = get_app()
+
+    class A(BaseModel):
+        type: Literal["a"] = "a"
+        x: int
+
+    class B(BaseModel):
+        type: Literal["b"] = "b"
+        y: str
+
+    class Root(BaseModel):
+        details: Union[A, B] = Field(discriminator="type")
+
+    docs.register_schema_for_type(Root)
+    spec = serializer.to_obj(docs.generate_documentation(app))
+
+    schemas = spec["components"]["schemas"]
+    assert "A" in schemas
+    assert "B" in schemas
+
+    details = schemas["Root"]["properties"]["details"]
+    assert details["oneOf"] == [
+        {"$ref": "#/components/schemas/A"},
+        {"$ref": "#/components/schemas/B"},
+    ]
+    assert details["discriminator"] == {
+        "propertyName": "type",
+        "mapping": {
+            "a": "#/components/schemas/A",
+            "b": "#/components/schemas/B",
+        },
+    }
+    assert "#/$defs/" not in json.dumps(spec)
+
+
+@pytest.mark.skipif(PYDANTIC_VERSION < 2, reason="Requires Pydantic v2")
+def test_pydantic_dataclass_discriminator_mapping_uses_components_schemas(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    Same as above, for Pydantic dataclasses, which are handled by
+    PydanticDataClassTypeHandler through TypeAdapter.
+    """
+    from pydantic.dataclasses import dataclass as pydantic_dataclass
+
+    app = get_app()
+
+    @pydantic_dataclass
+    class DCA:
+        type: Literal["a"] = "a"
+
+    @pydantic_dataclass
+    class DCB:
+        type: Literal["b"] = "b"
+
+    @pydantic_dataclass
+    class DCRoot:
+        details: Union[DCA, DCB] = Field(discriminator="type")
+
+    docs.register_schema_for_type(DCRoot)
+    spec = serializer.to_obj(docs.generate_documentation(app))
+
+    schemas = spec["components"]["schemas"]
+    assert "DCA" in schemas
+    assert "DCB" in schemas
+
+    details = schemas["DCRoot"]["properties"]["details"]
+    assert details["discriminator"]["mapping"] == {
+        "a": "#/components/schemas/DCA",
+        "b": "#/components/schemas/DCB",
+    }
+    assert "#/$defs/" not in json.dumps(spec)
+
+
+@pytest.mark.skipif(PYDANTIC_VERSION < 2, reason="Requires Pydantic v2")
+def test_pydantic_json_schema_extra_defs_refs_are_rewritten(
+    docs: OpenAPIHandler, serializer: Serializer
+):
+    """
+    Hand-written `#/$defs/Name` pointers in `json_schema_extra` are not affected
+    by `ref_template`; the walker must still rewrite them, whether they appear as
+    plain string values or as strings inside lists.
+    """
+    app = get_app()
+
+    class Child(BaseModel):
+        value: int
+
+    class Parent(BaseModel):
+        child: Child
+
+        model_config = {
+            "json_schema_extra": {
+                "x-example-ref": "#/$defs/Child",
+                "x-example-list": ["#/$defs/Child", "plain string"],
+                "x-nested": {"x-inner": "#/$defs/Child"},
+            }
+        }
+
+    docs.register_schema_for_type(Parent)
+    spec = serializer.to_obj(docs.generate_documentation(app))
+
+    parent = spec["components"]["schemas"]["Parent"]
+    assert parent["x-example-ref"] == "#/components/schemas/Child"
+    assert parent["x-example-list"] == [
+        "#/components/schemas/Child",
+        "plain string",
+    ]
+    assert parent["x-nested"] == {"x-inner": "#/components/schemas/Child"}
+    assert parent["properties"]["child"] == {"$ref": "#/components/schemas/Child"}
+    assert "#/$defs/" not in json.dumps(spec)
+
+
+@pytest.mark.skipif(PYDANTIC_VERSION < 2, reason="Requires Pydantic v2")
+def test_pydantic_normalize_refs_rewrites_all_pointer_shapes():
+    """
+    Unit test for the walker: `$ref` keys, plain string values (such as
+    discriminator.mapping entries), and strings inside lists are all rewritten;
+    unrelated strings and other value types are left untouched.
+    """
+    handler = PydanticModelTypeHandler()
+    schema = {
+        "title": "Root",
+        "type": "object",
+        "required": ["details"],
+        "properties": {
+            "details": {
+                "oneOf": [{"$ref": "#/$defs/A"}, {"$ref": "#/$defs/B"}],
+                "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {"a": "#/$defs/A", "b": "#/$defs/B"},
+                },
+                "default": None,
+                "x-flag": True,
+                "x-count": 3,
+            }
+        },
+        "x-list": ["#/$defs/A", "not a ref", {"$ref": "#/$defs/B"}],
+    }
+
+    handler._normalize_dict_schema_replace_refs(schema)
+
+    assert schema == {
+        "title": "Root",
+        "type": "object",
+        "required": ["details"],
+        "properties": {
+            "details": {
+                "oneOf": [
+                    {"$ref": "#/components/schemas/A"},
+                    {"$ref": "#/components/schemas/B"},
+                ],
+                "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                        "a": "#/components/schemas/A",
+                        "b": "#/components/schemas/B",
+                    },
+                },
+                "default": None,
+                "x-flag": True,
+                "x-count": 3,
+            }
+        },
+        "x-list": [
+            "#/components/schemas/A",
+            "not a ref",
+            {"$ref": "#/components/schemas/B"},
+        ],
+    }
 
 
 async def test_schema_registration(docs: OpenAPIHandler, serializer: Serializer):

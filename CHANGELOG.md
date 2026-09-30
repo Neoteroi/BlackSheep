@@ -5,8 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.6.4]
 
+- Fix [#688](https://github.com/Neoteroi/BlackSheep/issues/688): `import_child_modules`
+  derived the dotted import path for auto-imported routes/controllers from
+  `os.path.relpath`, which resolves relative to the process's current working
+  directory. When an app is installed as a package (e.g. via `uv tool install`)
+  and started from an unrelated working directory, this produced a bogus dotted
+  path and raised `ModuleNotFoundError` instead of importing the routes. The
+  dotted path is now built from the folder's own location, walking up its
+  parent directories while they contain `__init__.py`, so it reflects the
+  actual package structure and no longer depends on the cwd.
+- Fix CORS middleware never emitting a wildcard `Access-Control-Allow-Origin`
+  alongside `Access-Control-Allow-Credentials: true`. Per the Fetch spec this
+  combination is invalid and browsers reject the response outright, so
+  credentialed requests against a wildcard-origin, credentials-enabled policy
+  would fail in the browser even though the server responded `200`. The
+  specific request `Origin` is now echoed back instead of `*` whenever
+  credentials are allowed, matching the existing behaviour for non-wildcard
+  origins.
+- Fix `ForwardedHeadersMiddleware.should_validate_client_ip()` (used by
+  `accept_only_proxied_requests`) so that setting
+  `accept_only_proxied_requests=False` is honored even when `known_networks`
+  is also configured. Due to Python operator precedence (`and` binds tighter
+  than `or`), the previous condition always validated the client IP whenever
+  `known_networks` was non-empty, regardless of
+  `accept_only_proxied_requests`, contradicting the documented behaviour.
+- Clarify docstrings of `CookieAuthentication.set_cookie`, `CookiesTokensStore`,
+  and the OIDC cookie result-handlers: the `id_token`/`access_token`/
+  `refresh_token` cookies are only **signed** (tamper-proof) via
+  `itsdangerous.URLSafeSerializer`, not encrypted, so their contents remain
+  readable to anyone with access to the cookie.
 - Fix OpenAPI generation for Pydantic discriminated unions: `discriminator.mapping`
   values were left pointing at `#/$defs/Name` (JSON Schema) instead of
   `#/components/schemas/Name` (OpenAPI), because the reference rewriter only handled

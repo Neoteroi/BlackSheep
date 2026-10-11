@@ -5,8 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.6.4]
 
+- Fix [#688](https://github.com/Neoteroi/BlackSheep/issues/688): `import_child_modules`
+  derived the dotted import path for auto-imported routes/controllers from
+  `os.path.relpath`, which resolves relative to the process's current working
+  directory. When an app is installed as a package (e.g. via `uv tool install`)
+  and started from an unrelated working directory, this produced a bogus dotted
+  path and raised `ModuleNotFoundError` instead of importing the routes. The
+  dotted path is now built from the folder's own location, walking up its
+  parent directories while they contain `__init__.py`, so it reflects the
+  actual package structure and no longer depends on the cwd. By @pctablet505.
+- Fix CORS middleware never emitting a wildcard `Access-Control-Allow-Origin`
+  alongside `Access-Control-Allow-Credentials: true`. Per the Fetch spec this
+  combination is invalid and browsers reject the response outright, so
+  credentialed requests against a wildcard-origin, credentials-enabled policy
+  would fail in the browser even though the server responded `200`. The
+  specific request `Origin` is now echoed back instead of `*` whenever
+  credentials are allowed, matching the existing behaviour for non-wildcard
+  origins. By @sridhar-3009.
+- Fix `ForwardedHeadersMiddleware.should_validate_client_ip()` (used by
+  `accept_only_proxied_requests`) so that setting
+  `accept_only_proxied_requests=False` is honored even when `known_networks`
+  is also configured. Due to Python operator precedence (`and` binds tighter
+  than `or`), the previous condition always validated the client IP whenever
+  `known_networks` was non-empty, regardless of
+  `accept_only_proxied_requests`,   contradicting the documented behaviour. By @sridhar-3009.
+- Clarify docstrings of `CookieAuthentication.set_cookie`, `CookiesTokensStore`,
+  and the OIDC cookie result-handlers: the `id_token`/`access_token`/
+  `refresh_token` cookies are only **signed** (tamper-proof) via
+  `itsdangerous.URLSafeSerializer`, not encrypted, so their contents remain
+  readable to anyone with access to the cookie. By @sridhar-3009.
 - Fix OpenAPI generation for Pydantic discriminated unions: `discriminator.mapping`
   values were left pointing at `#/$defs/Name` (JSON Schema) instead of
   `#/components/schemas/Name` (OpenAPI), because the reference rewriter only handled
@@ -14,14 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   OpenAPI-shaped references via `ref_template`, and the rewriter also normalizes
   plain string pointers (including inside lists), so hand-written `#/$defs/...`
   pointers in `json_schema_extra` are covered too. Applies to both `BaseModel`
-  subclasses and Pydantic dataclasses.
+  subclasses and Pydantic dataclasses. By @martinmkhitaryan.
 - Add `FromFile` to bind a single named multipart file as `FormPart`. Unlike
   `FromFiles` (every uploaded file as `list[FormPart]`), `FromFile` reads only
   the parts matching the parameter name and expects exactly one. A missing
   required file raises `MissingParameterError`; `FromFile | None` is optional.
   Several `FromFile` parameters, or `FromFile` next to `FromFiles` / a body
   binder, are supported. OpenAPI documents it as a named `format: binary`
-  property (not an array).
+  property (not an array). By @martinmkhitaryan.
 
 - Fix OpenAPI documentation of file uploads, so that Swagger UI renders an
   **Upload** control for every file field, whatever its name, with or without a
@@ -41,17 +70,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`contentMediaType: application/octet-stream`).
   - `FileBuffer` / `list[FileBuffer]` used directly as request body are documented
     as an object with a property named after the parameter.
+
+  By @martinmkhitaryan.
 - Add `BinderBodyDocs` and `OpenAPIHandler.set_binder_body_docs()`, so custom binders
   can be documented as named parts of the `multipart/form-data` request body instead
   of parameters (`set_binder_docs()` also accepts a `BinderBodyDocs`). A Parameter
   Object can only be in `path`, `query`, `header` or `cookie`, so this is the only
   valid way to document a custom file binder; such docs are never moved to
-  `components/parameters`.
+  `components/parameters`. By @martinmkhitaryan.
 - Never emit a binary schema for a `query`, `path`, `header` or `cookie` parameter:
   a `UserWarning` is issued and the parameter is documented as a plain string.
   `set_binder_docs()` also warns when given a `Parameter` with a binary schema.
+  By @martinmkhitaryan.
 - Add `get_binary_schema()` and `is_binary_schema()` helpers in
-  `blacksheep.server.openapi.v3`.
+  `blacksheep.server.openapi.v3`. By @martinmkhitaryan.
 
 ## [2.6.3] - 2026-06-04 :croissant:
 

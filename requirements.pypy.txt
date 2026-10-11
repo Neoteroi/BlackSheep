@@ -13,7 +13,7 @@ websockets~=15.0.1
 Flask[async]==3.1.1
 Hypercorn==0.17.3
 requests==2.32.4
-pytest==8.3.5
+pytest==9.0.3
 pytest-asyncio==1.2.0
 pytest-cov==6.1.1
 uvicorn==0.34.2

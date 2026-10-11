@@ -5,9 +5,42 @@ request handlers, including a decorator and a middleware.
 
 import inspect
 from functools import wraps
+from typing import Iterable
 
 from blacksheep import Request, Response
 from blacksheep.server.normalization import ensure_response
+
+
+def add_vary_header(response: Response, values: Iterable[str | bytes]) -> None:
+    """
+    Adds the given field names to the Vary header of the response, skipping the ones
+    that are already listed (case-insensitive). Nothing is added if the response
+    already has "Vary: *".
+    """
+    existing: set[bytes] = set()
+    for header_value in response.headers.get(b"vary"):
+        existing.update(part.strip().lower() for part in header_value.split(b","))
+
+    if b"*" in existing:
+        return
+
+    missing: list[bytes] = []
+    for value in values:
+        name = value.encode("ascii") if isinstance(value, str) else value
+        name = name.strip()
+        if not name or name.lower() in existing:
+            continue
+        existing.add(name.lower())
+        missing.append(name)
+
+    if missing:
+        response.add_header(b"vary", b", ".join(missing))
+
+
+def _normalize_vary(vary: list[str] | None) -> tuple[bytes, ...]:
+    if not vary:
+        return ()
+    return tuple(name.strip().encode("ascii") for name in vary if name and name.strip())
 
 
 def write_cache_control_response_header(
@@ -210,6 +243,7 @@ def cache_control(
     immutable: bool | None = None,
     stale_while_revalidate: int | None = None,
     stale_if_error: int | None = None,
+    vary: list[str] | None = None,
 ):
     """
     Cache control decorator, applying a Cache-Control header to all successful
@@ -217,6 +251,9 @@ def cache_control(
 
     Parameters
     ----------
+    vary: list[str] | None
+        optional request header names to add to the Vary response header (e.g.
+        ["Accept-Language"]); names already listed in the response are not repeated
     max_age: int | None
         max age in seconds
     shared_max_age: int | None
@@ -265,6 +302,8 @@ def cache_control(
         stale_if_error=stale_if_error,
     )
 
+    vary_names = _normalize_vary(vary)
+
     def decorator(next_handler):
         if inspect.iscoroutinefunction(next_handler):
 
@@ -272,6 +311,7 @@ def cache_control(
             async def async_wrapped(*args, **kwargs):
                 response = ensure_response(await next_handler(*args, **kwargs))
                 response.add_header(b"cache-control", header_value)
+                add_vary_header(response, vary_names)
                 return response
 
             return async_wrapped
@@ -281,6 +321,7 @@ def cache_control(
             def wrapped(*args, **kwargs):
                 response = ensure_response(next_handler(*args, **kwargs))
                 response.add_header(b"cache-control", header_value)
+                add_vary_header(response, vary_names)
                 return response
 
             return wrapped
@@ -324,6 +365,9 @@ class CacheControlMiddleware:
         enables stale-while-revalidate, in seconds
     stale_if_error: int | None
         enables stale-if-error, in seconds
+    vary: list[str] | None
+        optional request header names to add to the Vary response header (e.g.
+        ["Accept-Language"]); names already listed in the response are not repeated
     """
 
     def __init__(
@@ -342,7 +386,9 @@ class CacheControlMiddleware:
         immutable: bool | None = None,
         stale_while_revalidate: int | None = None,
         stale_if_error: int | None = None,
+        vary: list[str] | None = None,
     ) -> None:
+        self._vary_names = _normalize_vary(vary)
         self._header_value: bytes = write_cache_control_response_header(
             max_age=max_age,
             shared_max_age=shared_max_age,
@@ -373,5 +419,6 @@ class CacheControlMiddleware:
             and not response.headers[b"cache-control"]
         ):
             response.add_header(b"cache-control", self._header_value)
+            add_vary_header(response, self._vary_names)
 
         return response

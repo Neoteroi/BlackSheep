@@ -5,6 +5,7 @@ from typing import Awaitable, Callable, Iterable
 
 from blacksheep import Content, Request, Response
 from blacksheep.server.application import Application
+from blacksheep.server.headers.cache import add_vary_header
 from blacksheep.server.normalization import ensure_response
 
 
@@ -65,35 +66,38 @@ class GzipMiddleware:
                 normalized_types.append(_type)
         return normalized_types
 
-    def should_handle(self, request: Request, response: Response) -> bool:
+    def is_handled_response_content(self, response: Response | None) -> bool:
         """
-        Returns True if the response should be compressed.
+        Returns True if the response content is of a type and size that is
+        eligible for compression, regardless of the request.
         """
+        if response is None or response.content is None:
+            return False
 
         def _is_handled_type(content_type) -> bool:
             content_type = content_type.lower()
             return any(_type in content_type for _type in self.handled_types)
 
+        body_pass: bool = (
+            response.content.body is not None
+            and len(response.content.body) > self.min_size
+        )
+
+        content_type_pass: bool = response.content.type is not None and (
+            _is_handled_type(response.content.type)
+        )
+
+        return body_pass and content_type_pass
+
+    def should_handle(self, request: Request, response: Response) -> bool:
+        """
+        Returns True if the response should be compressed.
+        """
+
         def is_handled_encoding() -> bool:
             return b"gzip" in (request.get_first_header(b"accept-encoding") or b"")
 
-        def is_handled_response_content() -> bool:
-            if response is None or response.content is None:
-                return False
-
-            body_pass: bool = (
-                response.content.body is not None
-                and len(response.content.body) > self.min_size
-            )
-
-            content_type_pass: bool = (
-                response.content.type is not None
-                and _is_handled_type(response.content.type)
-            )
-
-            return body_pass and content_type_pass
-
-        return is_handled_encoding() and is_handled_response_content()
+        return is_handled_encoding() and self.is_handled_response_content(response)
 
     async def __call__(
         self, request: Request, handler: Callable[[Request], Awaitable[Response]]
@@ -102,6 +106,11 @@ class GzipMiddleware:
 
         if response is None or response.content is None:
             return response
+
+        if self.is_handled_response_content(response):
+            # The response depends on Accept-Encoding even when it is not compressed
+            # for this request, so caches must not serve it to other clients.
+            add_vary_header(response, [b"Accept-Encoding"])
 
         if not self.should_handle(request, response):
             return response

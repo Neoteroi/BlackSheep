@@ -1,5 +1,6 @@
 import pytest
 
+from blacksheep import Response, TextContent
 from blacksheep.server.controllers import Controller
 from blacksheep.server.headers.cache import (
     CacheControlMiddleware,
@@ -121,3 +122,54 @@ async def test_cache_control_middleware(app, params, expected_header):
         return "Example"
 
     await _assert_scenario(app, expected_header)
+
+
+async def test_cache_control_decorator_vary(app):
+    @app.router.get("/")
+    @cache_control(max_age=60, vary=["Accept-Language", "Origin"])
+    def example():
+        return "Example"
+
+    @app.router.get("/existing")
+    @cache_control(max_age=60, vary=["origin", "Accept-Language"])
+    def existing():
+        return Response(200, [(b"Vary", b"Origin")], TextContent("Example"))
+
+    @app.router.get("/star")
+    @cache_control(max_age=60, vary=["Origin"])
+    def star():
+        return Response(200, [(b"Vary", b"*")], TextContent("Example"))
+
+    await app.start()
+
+    await app(get_example_scope("GET", "/", []), MockReceive(), MockSend())
+    assert app.response.headers[b"vary"] == (b"Accept-Language, Origin",)
+
+    await app(get_example_scope("GET", "/existing", []), MockReceive(), MockSend())
+    assert app.response.headers[b"vary"] == (b"Origin", b"Accept-Language")
+
+    await app(get_example_scope("GET", "/star", []), MockReceive(), MockSend())
+    assert app.response.headers[b"vary"] == (b"*",)
+
+
+async def test_cache_control_middleware_vary(app):
+    app.middlewares.append(CacheControlMiddleware(max_age=60, vary=["Accept-Language"]))
+
+    @app.router.get("/")
+    def example():
+        return "Example"
+
+    await app.start()
+    await app(get_example_scope("GET", "/", []), MockReceive(), MockSend())
+    assert app.response.headers[b"vary"] == (b"Accept-Language",)
+
+
+async def test_cache_control_without_vary_does_not_add_header(app):
+    @app.router.get("/")
+    @cache_control(max_age=60)
+    def example():
+        return "Example"
+
+    await app.start()
+    await app(get_example_scope("GET", "/", []), MockReceive(), MockSend())
+    assert b"vary" not in app.response.headers

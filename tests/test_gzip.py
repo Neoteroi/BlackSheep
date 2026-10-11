@@ -2,6 +2,7 @@ import gzip
 
 import pytest
 
+from blacksheep import Response, TextContent
 from blacksheep.server.compression import GzipMiddleware
 from blacksheep.testing.helpers import get_example_scope
 from blacksheep.testing.messages import MockReceive, MockSend
@@ -73,6 +74,42 @@ async def test_skip_gzip_small_output(app):
     assert response.content.length == 12
     with pytest.raises(ValueError):
         assert response.headers.get_single(b"content-encoding")
+
+
+async def test_gzip_adds_vary_accept_encoding(app):
+    @app.router.get("/")
+    async def home():
+        return "Hello, World"
+
+    @app.router.get("/vary")
+    async def vary():
+        return Response(200, [(b"Vary", b"accept-encoding")], TextContent("Hello!!"))
+
+    app.middlewares.append(GzipMiddleware(min_size=0))
+    await app.start()
+
+    await app(
+        get_example_scope("GET", "/", [(b"accept-encoding", b"gzip")]),
+        MockReceive([]),
+        MockSend(),
+    )
+    assert app.response.headers[b"vary"] == (b"Accept-Encoding",)
+
+    # eligible responses vary on Accept-Encoding even if they are not compressed
+    await app(
+        get_example_scope("GET", "/", accept_encoding=b"deflate"),
+        MockReceive([]),
+        MockSend(),
+    )
+    assert app.response.headers[b"vary"] == (b"Accept-Encoding",)
+    assert not app.response.headers[b"content-encoding"]
+
+    await app(
+        get_example_scope("GET", "/vary", [(b"accept-encoding", b"gzip")]),
+        MockReceive([]),
+        MockSend(),
+    )
+    assert app.response.headers[b"vary"] == (b"accept-encoding",)
 
 
 async def test_skip_gzip_output_without_header(app):

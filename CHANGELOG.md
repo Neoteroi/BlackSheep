@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.4]
 
+- Add a `vary` parameter to the `cache_control` decorator and to
+  `CacheControlMiddleware`, to add field names to the `Vary` response header
+  (e.g. `@cache_control(max_age=60, vary=["Accept-Language"])`). Names already
+  listed in the response `Vary` header are not repeated (case-insensitive), and
+  nothing is added when the response has `Vary: *`.
+- Fix `GzipMiddleware` to add `Vary: Accept-Encoding` to responses that are
+  eligible for compression (also when not compressed for a given request), so
+  that shared caches and CDNs do not serve a compressed response to clients that
+  don't support it, or vice versa.
 - Fix [#688](https://github.com/Neoteroi/BlackSheep/issues/688): `import_child_modules`
   derived the dotted import path for auto-imported routes/controllers from
   `os.path.relpath`, which resolves relative to the process's current working

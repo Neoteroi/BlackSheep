@@ -1,6 +1,9 @@
 from typing import Sequence
 from urllib.parse import quote, urlencode
 
+from blacksheep.common.types import HeadersType as HeaderValues
+from blacksheep.common.types import normalize_headers
+
 _DEFAULT_AGENT = (
     b"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:63.0) Gecko/20100101 Firefox/63.0"
 )
@@ -19,7 +22,7 @@ def _get_tuple(value: list | tuple[str, int]) -> tuple[str, int]:
     return tuple(value)  # type: ignore
 
 
-HeadersType = None | Sequence[tuple[bytes, bytes]] | dict[str, str]
+HeadersType = HeaderValues | None
 CookiesType = None | Sequence[tuple[bytes, bytes]] | dict[str, str]
 QueryType = None | bytes | str | dict | list
 
@@ -64,9 +67,16 @@ def get_example_scope(
     host = f"{server[0]}{port_part}"
 
     if isinstance(extra_headers, dict):
+        # Preserve the testing client's historical UTF-8 mapping convention.
         extra_headers = [
-            (key.encode(), value.encode()) for key, value in extra_headers.items()
+            (
+                key.encode("utf-8") if isinstance(key, str) else key,
+                value.encode("utf-8") if isinstance(value, str) else value,
+            )
+            for key, value in extra_headers.items()
         ]
+    else:
+        extra_headers = normalize_headers(extra_headers)
 
     query_string: bytes = b""
     if query:

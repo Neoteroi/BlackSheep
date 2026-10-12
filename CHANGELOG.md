@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.5] - Unreleased
+
+- Improve header ergonomics: dictionary-style assignment and `Headers.update()`
+  accept strings or bytes, so `response.headers["X-Example"] = "value"` is
+  supported while headers remain stored internally as bytes. String names use
+  ASCII and string values use Latin-1; unrepresentable characters raise
+  `UnicodeEncodeError`. Assignment still replaces all case-insensitive matches.
+- Add `Headers.get_text_values(name, encoding="latin-1")` to decode matching
+  values on demand as a tuple, preserving repeated header entries.
+  `get_first_text()` returns the first value as a string, or `None` when absent;
+  `get_single_text()` returns a string and requires exactly one matching entry,
+  raising `ValueError` otherwise. Both also accept an explicit encoding.
+  Existing byte-valued reads and low-level byte-based methods remain unchanged.
+- Complete header dictionary symmetry: lookup, membership, and deletion accept
+  string or byte names; lookup always returns byte values. Add `Headers.add_text()`
+  to append without replacing matches, and `Headers.from_values()` to build a
+  byte-backed collection from mappings or iterables while preserving duplicates.
+- Use the same ASCII-name/Latin-1-value policy for HTTP client `headers=` and
+  `default_headers=`, route header filters, and testing-client iterable headers.
+  Previously, HTTP client string values required ASCII. Testing-client dictionaries
+  retain their historical UTF-8 encoding for backward compatibility.
+  Pass explicitly encoded bytes for field-specific encodings.
+- Preserve raw header values when sending HTTP/2 requests, without decoding them
+  as UTF-8, so Latin-1 values and explicitly encoded bytes reach the wire unchanged.
+
 ## [2.6.4] - 2026-10-11 :libra:
 
 - Add a `vary` parameter to the `cache_control` decorator and to

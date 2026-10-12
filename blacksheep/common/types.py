@@ -2,18 +2,19 @@
 Common types annotations and functions.
 """
 
-from typing import AnyStr, Iterable
+from collections.abc import Mapping
+from typing import AnyStr, Iterable, TypeVar
 
+from blacksheep.headers import Headers
 from blacksheep.url import URL
 
 KeyValuePair = tuple[AnyStr, AnyStr]
-HeadersType = dict[AnyStr, AnyStr] | Iterable[KeyValuePair]
+_HeaderName = TypeVar("_HeaderName", bound=str | bytes)
+HeadersType = (
+    Mapping[_HeaderName, str | bytes] | Iterable[tuple[str | bytes, str | bytes]]
+)
 ParamsType = dict[AnyStr, AnyStr] | Iterable[KeyValuePair]
 URLType = str | bytes | URL
-
-
-def _ensure_header_bytes(value: AnyStr) -> bytes:
-    return value if isinstance(value, bytes) else value.encode("ascii")
 
 
 def _ensure_param_str(value: AnyStr) -> str:
@@ -25,15 +26,7 @@ def normalize_headers(
 ) -> list[tuple[bytes, bytes]] | None:
     if headers is None:
         return None
-    if isinstance(headers, dict):
-        return [
-            (_ensure_header_bytes(key), _ensure_header_bytes(value))  # type: ignore
-            for key, value in headers.items()
-        ]
-    return [
-        (_ensure_header_bytes(key), _ensure_header_bytes(value))
-        for key, value in headers
-    ]
+    return Headers.from_values(headers).values
 
 
 def normalize_params(params: ParamsType | None) -> list[tuple[str, str]] | None:

@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_single_text()` returns a string and requires exactly one matching entry,
   raising `ValueError` otherwise. Both also accept an explicit encoding.
   Existing byte-valued reads and low-level byte-based methods remain unchanged.
+- Complete header dictionary symmetry: lookup, membership, and deletion accept
+  string or byte names; lookup always returns byte values. Add `Headers.add_text()`
+  to append without replacing matches, and `Headers.from_values()` to build a
+  byte-backed collection from mappings or iterables while preserving duplicates.
+- Use the same ASCII-name/Latin-1-value policy for HTTP client `headers=` and
+  `default_headers=`, route header filters, and testing-client headers. Previously,
+  HTTP client string values required ASCII, while testing-client mapping values
+  used UTF-8. Pass explicitly encoded bytes for field-specific encodings.
+- Preserve raw header values when sending HTTP/2 requests, without decoding them
+  as UTF-8, so Latin-1 values and explicitly encoded bytes reach the wire unchanged.
 
 ## [2.6.4] - 2026-10-11 :libra:
 

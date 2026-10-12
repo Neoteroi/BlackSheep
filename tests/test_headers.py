@@ -1,7 +1,104 @@
+from types import MappingProxyType
+
 import pytest
 
 from blacksheep import Header, Headers, Request, Response
+from blacksheep.common.types import normalize_headers
 from blacksheep.scribe import send_asgi_response
+from blacksheep.testing.helpers import get_example_scope
+
+
+@pytest.mark.parametrize("name", ["X-EXAMPLE", b"X-EXAMPLE"])
+def test_dictionary_operations_accept_text_and_bytes(name):
+    headers = Headers([(b"x-example", b"first"), (b"X-Example", b"second")])
+    assert name in headers
+    assert headers[name] == (b"first", b"second")
+    del headers[name]
+    assert name not in headers
+    assert headers[name] == ()
+    del headers[name]
+
+
+@pytest.mark.parametrize("name", [None, 123, "X-\xe9"])
+@pytest.mark.parametrize("operation", ["lookup", "contains", "delete"])
+def test_dictionary_operations_reject_invalid_names_without_mutation(name, operation):
+    headers = Headers([(b"x-example", b"value")])
+    error = UnicodeEncodeError if isinstance(name, str) else TypeError
+    with pytest.raises(error):
+        if operation == "lookup":
+            headers[name]
+        elif operation == "contains":
+            name in headers
+        else:
+            del headers[name]
+    assert headers.values == [(b"x-example", b"value")]
+
+
+@pytest.mark.parametrize("name", ["Set-Cookie", b"Set-Cookie"])
+@pytest.mark.parametrize("value", ["b=\xe9", b"b=\xe9", "", b""])
+def test_add_text_preserves_duplicate_entries(name, value):
+    headers = Headers([(b"set-cookie", b"a=1")])
+    headers.add_text(name, value)
+    raw_value = value.encode("latin-1") if isinstance(value, str) else value
+    assert headers["SET-cookie"] == (b"a=1", raw_value)
+
+
+@pytest.mark.parametrize(
+    "name,value,error",
+    [
+        ("X-\xe9", "value", UnicodeEncodeError),
+        ("X-Example", "\u20ac", UnicodeEncodeError),
+        (None, "value", TypeError),
+        ("X-Example", None, TypeError),
+        (123, "value", TypeError),
+        ("X-Example", 123, TypeError),
+    ],
+)
+def test_add_text_and_factory_reject_invalid_inputs(name, value, error):
+    headers = Headers([(b"X-Example", b"original")])
+    with pytest.raises(error):
+        headers.add_text(name, value)
+    assert headers.values == [(b"X-Example", b"original")]
+    with pytest.raises(error):
+        Headers.from_values([(name, value)])
+    with pytest.raises(error):
+        normalize_headers([(name, value)])
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"X-Example": "caf\xe9", "X-Other": b"\xff"},
+        MappingProxyType({"X-Example": "caf\xe9", "X-Other": b"\xff"}),
+        [(b"X-Example", "caf\xe9"), ("X-Other", b"\xff")],
+    ],
+)
+def test_factory_and_normalization_share_encoding_policy(values):
+    expected = [(b"X-Example", b"caf\xe9"), (b"X-Other", b"\xff")]
+    assert Headers.from_values(values).values == expected
+    assert normalize_headers(values) == expected
+
+
+def test_factory_and_normalization_preserve_generator_duplicates_and_copy_storage():
+    original = [(b"Set-Cookie", b"a=1"), ("set-cookie", "b=\xe9")]
+    for create in (Headers.from_values, normalize_headers):
+        values = create(item for item in original)
+        if isinstance(values, Headers):
+            values = values.values
+        assert values == [(b"Set-Cookie", b"a=1"), (b"set-cookie", b"b=\xe9")]
+        assert values is not original
+    assert original[1] == ("set-cookie", "b=\xe9")
+    assert Headers.from_values({}).values == []
+    assert normalize_headers([]) == []
+    assert normalize_headers(None) is None
+
+
+def test_testing_scope_uses_same_header_encoding_policy():
+    scope = get_example_scope(
+        "GET", "/", extra_headers=[("X-Example", "caf\xe9"), (b"X-Example", b"\xff")]
+    )
+    assert (b"X-Example", b"caf\xe9") in scope["headers"]
+    assert (b"X-Example", b"\xff") in scope["headers"]
 
 
 @pytest.mark.parametrize(

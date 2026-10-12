@@ -362,7 +362,9 @@ class HTTP2Connection(HTTPConnection):
 
             self._connected = True
 
-    def _convert_request_to_h2_headers(self, request: Request) -> list[tuple[str, str]]:
+    def _convert_request_to_h2_headers(
+        self, request: Request
+    ) -> list[tuple[bytes, bytes]]:
         """Convert a BlackSheep Request to HTTP/2 pseudo-headers and headers."""
         # HTTP/2 pseudo-headers
         path = request.url.path or b"/"
@@ -370,36 +372,36 @@ class HTTP2Connection(HTTPConnection):
             path = path + b"?" + request.url.query
 
         headers = [
-            (":method", request.method),
-            (":path", path.decode("utf-8")),
-            (":scheme", self._cached_scheme),
-            (":authority", self.host),
+            (b":method", request.method.encode("ascii")),
+            (b":path", path),
+            (b":scheme", self._cached_scheme.encode("ascii")),
+            (b":authority", self.host.encode("utf-8")),
         ]
 
         # Add Content-Type header from content if present
         if request.content and request.content.type:
             content_type = request.content.type
-            content_type_str = (
-                content_type.decode("utf-8")
+            content_type_bytes = (
+                content_type
                 if isinstance(content_type, bytes)
-                else content_type
+                else content_type.encode("ascii")
             )
-            headers.append(("content-type", content_type_str))
+            headers.append((b"content-type", content_type_bytes))
 
         # Add regular headers
         for name, value in request.headers:
-            name_str = (
-                name.decode("utf-8").lower()
+            name_bytes = (
+                name.lower()
                 if isinstance(name, bytes)
-                else name.lower()
+                else name.encode("ascii").lower()
             )
-            value_str = value.decode("utf-8") if isinstance(value, bytes) else value
+            value_bytes = value if isinstance(value, bytes) else value.encode("latin-1")
 
             # Skip headers that are represented as pseudo-headers in HTTP/2
-            if name_str in ("host", "connection", "transfer-encoding"):
+            if name_bytes in (b"host", b"connection", b"transfer-encoding"):
                 continue
 
-            headers.append((name_str, value_str))
+            headers.append((name_bytes, value_bytes))
 
         return headers
 
@@ -457,7 +459,7 @@ class HTTP2Connection(HTTPConnection):
 
             # Check for Expect: 100-continue header
             expect_continue = any(
-                (h[0] == "expect" and h[1] == "100-continue") for h in h2_headers
+                (h[0] == b"expect" and h[1] == b"100-continue") for h in h2_headers
             )
 
             # Send headers (without end_stream if expecting 100-continue with body)

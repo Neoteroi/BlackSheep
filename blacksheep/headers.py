@@ -1,4 +1,4 @@
-from collections.abc import Mapping, MutableSequence
+from collections.abc import Iterable, Mapping, MutableSequence
 from typing import Generator, TypeVar
 
 _HeaderName = TypeVar("_HeaderName", bound=str | bytes)
@@ -10,6 +10,14 @@ def _encode_header_name(name: str | bytes) -> bytes:
     if not isinstance(name, bytes):
         raise TypeError("Header names must be str or bytes")
     return name
+
+
+def _encode_header_value(value: str | bytes) -> bytes:
+    if isinstance(value, str):
+        return value.encode("latin-1")
+    if not isinstance(value, bytes):
+        raise TypeError("Header values must be str or bytes")
+    return value
 
 
 class Header:
@@ -35,6 +43,27 @@ class Headers:
         if values is None:
             values = []
         self.values = values
+
+    @classmethod
+    def from_values(
+        cls,
+        values: (
+            Mapping[_HeaderName, str | bytes]
+            | Iterable[tuple[str | bytes, str | bytes]]
+        ),
+    ) -> "Headers":
+        """Create byte-backed headers from a mapping or iterable, preserving duplicates."""
+        items = values.items() if isinstance(values, Mapping) else values
+        return cls(
+            [
+                (_encode_header_name(name), _encode_header_value(value))
+                for name, value in items
+            ]
+        )
+
+    def add_text(self, name: str | bytes, value: str | bytes) -> None:
+        """Append an entry without replacing matches, encoding strings at the boundary."""
+        self.add(_encode_header_name(name), _encode_header_value(value))
 
     def get(self, name: bytes) -> tuple[bytes, ...]:
         results = []
@@ -170,18 +199,10 @@ class Headers:
 
     def __setitem__(self, key: str | bytes, value: str | bytes):
         """Replace matching entries, encoding text names as ASCII and values as Latin-1."""
-        if isinstance(key, str):
-            key = key.encode("ascii")
-        if isinstance(value, str):
-            value = value.encode("latin-1")
-        if not isinstance(key, bytes):
-            raise TypeError("Header names must be str or bytes")
-        if not isinstance(value, bytes):
-            raise TypeError("Header values must be str or bytes")
-        self.set(key, value)
+        self.set(_encode_header_name(key), _encode_header_value(value))
 
-    def __getitem__(self, item: bytes) -> tuple[bytes, ...]:
-        return self.get(item)
+    def __getitem__(self, item: str | bytes) -> tuple[bytes, ...]:
+        return self.get(_encode_header_name(item))
 
     def keys(self) -> tuple[bytes, ...]:
         results = []
@@ -214,11 +235,11 @@ class Headers:
                 return True
         return False
 
-    def __delitem__(self, key: bytes):
-        self.remove(key)
+    def __delitem__(self, key: str | bytes):
+        self.remove(_encode_header_name(key))
 
-    def __contains__(self, key: bytes) -> bool:
-        return self.contains(key)
+    def __contains__(self, key: str | bytes) -> bool:
+        return self.contains(_encode_header_name(key))
 
     def __repr__(self) -> str:
         return f"<Headers {self.values!r}>"

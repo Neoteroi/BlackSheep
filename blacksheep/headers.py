@@ -1,5 +1,15 @@
 from collections.abc import Mapping, MutableSequence
-from typing import Generator
+from typing import Generator, TypeVar
+
+_HeaderName = TypeVar("_HeaderName", bound=str | bytes)
+
+
+def _encode_header_name(name: str | bytes) -> bytes:
+    if isinstance(name, str):
+        return name.encode("ascii")
+    if not isinstance(name, bytes):
+        raise TypeError("Header names must be str or bytes")
+    return name
 
 
 class Header:
@@ -34,6 +44,25 @@ class Headers:
                 results.append(header[1])
         return tuple(results)
 
+    def get_text_values(
+        self, name: str | bytes, encoding: str = "latin-1"
+    ) -> tuple[str, ...]:
+        """Decode matching values on demand, preserving separate header entries."""
+        return tuple(
+            value.decode(encoding) for value in self.get(_encode_header_name(name))
+        )
+
+    def get_first_text(
+        self, name: str | bytes, encoding: str = "latin-1"
+    ) -> str | None:
+        """Decode the first matching value, or return None when absent."""
+        value = self.get_first(_encode_header_name(name))
+        return value.decode(encoding) if value is not None else None
+
+    def get_single_text(self, name: str | bytes, encoding: str = "latin-1") -> str:
+        """Decode exactly one matching value; raise ValueError otherwise."""
+        return self.get_single(_encode_header_name(name)).decode(encoding)
+
     def get_tuples(self, name: bytes) -> list[tuple[bytes, bytes]]:
         results = []
         name = name.lower()
@@ -63,7 +92,7 @@ class Headers:
                 continue
             self.values.append(header)
 
-    def update(self, values: dict[bytes, bytes]):
+    def update(self, values: Mapping[_HeaderName, bytes | str]):
         for key, value in values.items():
             self[key] = value
 
@@ -139,7 +168,16 @@ class Headers:
     def __iter__(self) -> Generator[tuple[bytes, bytes], None, None]:
         yield from self.values
 
-    def __setitem__(self, key: bytes, value: bytes):
+    def __setitem__(self, key: str | bytes, value: str | bytes):
+        """Replace matching entries, encoding text names as ASCII and values as Latin-1."""
+        if isinstance(key, str):
+            key = key.encode("ascii")
+        if isinstance(value, str):
+            value = value.encode("latin-1")
+        if not isinstance(key, bytes):
+            raise TypeError("Header names must be str or bytes")
+        if not isinstance(value, bytes):
+            raise TypeError("Header values must be str or bytes")
         self.set(key, value)
 
     def __getitem__(self, item: bytes) -> tuple[bytes, ...]:

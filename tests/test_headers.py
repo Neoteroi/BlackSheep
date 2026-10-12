@@ -1,6 +1,7 @@
 import pytest
 
-from blacksheep import Header, Headers
+from blacksheep import Header, Headers, Request, Response
+from blacksheep.scribe import send_asgi_response
 
 
 @pytest.mark.parametrize(
@@ -63,6 +64,140 @@ def test_http_header_collection_item_setter():
     example = headers.get(b"example")
 
     assert example == (b"Hello, World",)
+
+
+@pytest.mark.parametrize("name", ["X-Example", b"X-Example"])
+@pytest.mark.parametrize("value", ["caf\xe9", b"caf\xe9", "", b""])
+def test_text_assignment_stores_bytes_and_replaces_all_matching_entries(name, value):
+    headers = Headers(
+        [(b"x-example", b"old"), (b"X-EXAMPLE", b"other"), (b"Other", b"kept")]
+    )
+    headers[name] = value
+
+    raw_value = value.encode("latin-1") if isinstance(value, str) else value
+    assert headers.values == [(b"Other", b"kept"), (b"X-Example", raw_value)]
+    assert headers[b"x-example"] == (raw_value,)
+    assert headers.get_text_values("X-EXAMPLE") == (raw_value.decode("latin-1"),)
+
+
+def test_update_accepts_text_and_bytes():
+    headers = Headers()
+    headers.update({"X-Text": "value", b"X-Bytes": b"raw", "X-Mixed": b"mixed"})
+
+    assert list(headers.items()) == [
+        (b"X-Text", b"value"),
+        (b"X-Bytes", b"raw"),
+        (b"X-Mixed", b"mixed"),
+    ]
+
+
+@pytest.mark.parametrize("name", ["SET-cookie", b"SET-cookie"])
+def test_get_text_values_preserves_multiple_values_and_raw_storage(name):
+    values = [(b"Set-Cookie", b"a=1"), (b"set-cookie", b"b=\xff")]
+    headers = Headers(values)
+
+    assert headers.get_text_values(name) == ("a=1", "b=\xff")
+    assert headers.get_text_values("missing") == ()
+    assert headers.values is values
+    assert headers[b"set-cookie"] == (b"a=1", b"b=\xff")
+
+
+@pytest.mark.parametrize(
+    "method", ["get_text_values", "get_first_text", "get_single_text"]
+)
+def test_text_reads_support_explicit_encoding_and_strict_decoding(method):
+    headers = Headers([(b"X-Text", "caf\xe9".encode("utf-8"))])
+    read = getattr(headers, method)
+    expected = ("caf\xe9",) if method == "get_text_values" else "caf\xe9"
+    assert read("X-Text", encoding="utf-8") == expected
+
+    headers[b"X-Text"] = b"\xff"
+    with pytest.raises(UnicodeDecodeError):
+        read("X-Text", encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", ["X-EXAMPLE", b"X-EXAMPLE"])
+@pytest.mark.parametrize("value", [b"", b"caf\xe9"])
+def test_single_value_text_reads(name, value):
+    headers = Headers([(b"x-example", value)])
+    assert headers.get_first_text(name) == value.decode("latin-1")
+    assert headers.get_single_text(name) == value.decode("latin-1")
+    assert headers.get_first_text("missing") is None
+    with pytest.raises(ValueError, match="does not contain one header"):
+        headers.get_single_text("missing")
+
+
+def test_first_text_only_decodes_first_value_and_single_text_rejects_duplicates():
+    headers = Headers([(b"X-Example", b"first"), (b"x-example", b"\xff")])
+    assert headers.get_first_text("X-Example", encoding="utf-8") == "first"
+    with pytest.raises(ValueError, match="more than one header"):
+        headers.get_single_text("X-Example", encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "name,value",
+    [("X-\xe9", "value"), ("X-Example", "\u20ac")],
+)
+def test_text_assignment_encoding_errors_do_not_mutate_headers(name, value):
+    headers = Headers([(b"X-Example", b"original")])
+    with pytest.raises(UnicodeEncodeError):
+        headers[name] = value
+    assert headers.values == [(b"X-Example", b"original")]
+
+
+@pytest.mark.parametrize(
+    "method", ["get_text_values", "get_first_text", "get_single_text"]
+)
+def test_text_reads_reject_non_ascii_names(method):
+    with pytest.raises(UnicodeEncodeError):
+        getattr(Headers(), method)("X-\xe9")
+
+
+@pytest.mark.parametrize(
+    "name,value",
+    [(123, "value"), ("X-Example", 123), (None, "value"), ("X-Example", None)],
+)
+def test_assignment_rejects_invalid_types_without_mutating_headers(name, value):
+    headers = Headers([(b"X-Example", b"original")])
+    with pytest.raises(TypeError):
+        headers[name] = value
+    assert headers.values == [(b"X-Example", b"original")]
+
+
+@pytest.mark.parametrize("name", [123, None])
+@pytest.mark.parametrize(
+    "method", ["get_text_values", "get_first_text", "get_single_text"]
+)
+def test_text_reads_reject_invalid_name_type(name, method):
+    with pytest.raises(TypeError):
+        getattr(Headers(), method)(name)
+
+
+def test_request_text_headers_share_raw_storage():
+    request = Request("GET", b"/", [(b"X-Example", b"original")])
+    assert request.headers.get_text_values("x-example") == ("original",)
+    request.headers["X-Example"] = "updated"
+    assert request.get_first_header(b"x-example") == b"updated"
+
+
+async def test_response_text_headers_are_sent_as_bytes():
+    response = Response(200)
+    response.headers["X-Example"] = "caf\xe9"
+    response.headers.update({"X-Other": "value"})
+    messages = []
+
+    async def send(message):
+        messages.append(message)
+
+    await send_asgi_response(response, send)
+
+    assert messages[0]["type"] == "http.response.start"
+    assert (b"X-Example", b"caf\xe9") in messages[0]["headers"]
+    assert (b"X-Other", b"value") in messages[0]["headers"]
+    assert all(
+        isinstance(name, bytes) and isinstance(value, bytes)
+        for name, value in messages[0]["headers"]
+    )
 
 
 def test_http_header_collection_item_get_single_case_insensitive():

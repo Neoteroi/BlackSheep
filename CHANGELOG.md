@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.5] - Unreleased
+
+- Improve header ergonomics: dictionary-style assignment and `Headers.update()`
+  accept strings or bytes, so `response.headers["X-Example"] = "value"` is
+  supported while headers remain stored internally as bytes. String names use
+  ASCII and string values use Latin-1; unrepresentable characters raise
+  `UnicodeEncodeError`. Assignment still replaces all case-insensitive matches.
+- Add `Headers.get_text_values(name, encoding="latin-1")` to decode matching
+  values on demand as a tuple, preserving repeated header entries.
+  `get_first_text()` returns the first value as a string, or `None` when absent;
+  `get_single_text()` returns a string and requires exactly one matching entry,
+  raising `ValueError` otherwise. Both also accept an explicit encoding.
+  Existing byte-valued reads and low-level byte-based methods remain unchanged.
+
 ## [2.6.4] - 2026-10-11 :libra:
 
 - Add a `vary` parameter to the `cache_control` decorator and to

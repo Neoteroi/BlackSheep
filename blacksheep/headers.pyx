@@ -1,4 +1,13 @@
 from collections.abc import Mapping, MutableSequence
+from typing import TypeVar
+
+_HeaderName = TypeVar("_HeaderName", bound=str | bytes)
+
+cdef inline bytes _encode_header_name(object name):
+    cdef bytes raw_name = name.encode("ascii") if isinstance(name, str) else name
+    if raw_name is None:
+        raise TypeError("Header names must be str or bytes")
+    return raw_name
 
 
 cdef class Header:
@@ -36,6 +45,20 @@ cdef class Headers:
                 results.append(header[1])
         return tuple(results)
 
+    def get_text_values(self, name: str | bytes, str encoding = "latin-1"):
+        """Decode matching values on demand, preserving separate header entries."""
+        cdef bytes raw_name = _encode_header_name(name)
+        return tuple(value.decode(encoding) for value in self.get(raw_name))
+
+    def get_first_text(self, name: str | bytes, str encoding = "latin-1"):
+        """Decode the first matching value, or return None when absent."""
+        cdef bytes value = self.get_first(_encode_header_name(name))
+        return value.decode(encoding) if value is not None else None
+
+    def get_single_text(self, name: str | bytes, str encoding = "latin-1"):
+        """Decode exactly one matching value; raise ValueError otherwise."""
+        return self.get_single(_encode_header_name(name)).decode(encoding)
+
     cpdef list get_tuples(self, bytes name):
         cdef list results = []
         cdef tuple header
@@ -67,7 +90,7 @@ cdef class Headers:
                 continue
             self.values.append(header)
 
-    def update(self, dict values: dict[bytes, bytes]):
+    def update(self, values: Mapping[_HeaderName, bytes | str]):
         for key, value in values.items():
             self[key] = value
 
@@ -133,10 +156,17 @@ cdef class Headers:
     def __iter__(self):
         yield from self.values
 
-    def __setitem__(self, bytes key, bytes value):
+    def __setitem__(self, key: str | bytes, value: str | bytes):
+        """Replace matching entries, encoding text names as ASCII and values as Latin-1."""
+        cdef bytes raw_key = key.encode("ascii") if isinstance(key, str) else key
+        cdef bytes raw_value = value.encode("latin-1") if isinstance(value, str) else value
+        if raw_key is None:
+            raise TypeError("Header names must be str or bytes")
+        if raw_value is None:
+            raise TypeError("Header values must be str or bytes")
         # Not obvious, but here we make the decision that setter removes existing headers with matching name:
         # it feels more natural with syntax: headers[b'X-Foo'] = b'Something'
-        self.set(key, value)
+        self.set(raw_key, raw_value)
 
     def __getitem__(self, bytes item):
         return self.get(item)

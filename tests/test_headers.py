@@ -93,12 +93,23 @@ def test_factory_and_normalization_preserve_generator_duplicates_and_copy_storag
     assert normalize_headers(None) is None
 
 
-def test_testing_scope_uses_same_header_encoding_policy():
+def test_testing_scope_iterable_uses_same_header_encoding_policy():
     scope = get_example_scope(
         "GET", "/", extra_headers=[("X-Example", "caf\xe9"), (b"X-Example", b"\xff")]
     )
     assert (b"X-Example", b"caf\xe9") in scope["headers"]
     assert (b"X-Example", b"\xff") in scope["headers"]
+
+
+def test_testing_scope_mapping_preserves_legacy_utf8_encoding():
+    scope = get_example_scope(
+        "GET",
+        "/",
+        extra_headers={"X-Caf\xe9": "caf\xe9", "X-Euro": "\u20ac", b"X-Raw": b"\xff"},
+    )
+    assert ("X-Caf\xe9".encode("utf-8"), "caf\xe9".encode("utf-8")) in scope["headers"]
+    assert (b"X-Euro", "\u20ac".encode("utf-8")) in scope["headers"]
+    assert (b"X-Raw", b"\xff") in scope["headers"]
 
 
 @pytest.mark.parametrize(

@@ -66,7 +66,17 @@ def get_example_scope(
 
     host = f"{server[0]}{port_part}"
 
-    extra_headers = normalize_headers(extra_headers)
+    if isinstance(extra_headers, dict):
+        # Preserve the testing client's historical UTF-8 mapping convention.
+        extra_headers = [
+            (
+                key.encode("utf-8") if isinstance(key, str) else key,
+                value.encode("utf-8") if isinstance(value, str) else value,
+            )
+            for key, value in extra_headers.items()
+        ]
+    else:
+        extra_headers = normalize_headers(extra_headers)
 
     query_string: bytes = b""
     if query:

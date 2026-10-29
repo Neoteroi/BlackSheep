@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.5] - Unreleased
 
+- Fix compilation under Cython 3 and Python 3.14: stop accessing `self.__dict__`
+  directly in `cdef` classes (use `vars(self)` instead), and remove `Union` /
+  `AsyncIterator` type annotations that Cython 3 cannot resolve.
 - Improve header ergonomics: dictionary-style assignment and `Headers.update()`
   accept strings or bytes, so `response.headers["X-Example"] = "value"` is
   supported while headers remain stored internally as bytes. String names use

@@ -119,10 +119,10 @@ cdef class Message:
     @property
     def headers(self):
         cdef str key = '_headers'
-        if key in self.__dict__:
-            return self.__dict__[key]
-        self.__dict__[key] = Headers(self._raw_headers)
-        return self.__dict__[key]
+        if key in vars(self):
+            return vars(self)[key]
+        vars(self)[key] = Headers(self._raw_headers)
+        return vars(self)[key]
 
     cpdef Message with_content(self, Content content):
         self.content = content
@@ -472,46 +472,46 @@ cdef class Request(Message):
 
     @identity.setter
     def identity(self, value):
-        self.__dict__["_user"] = value
+        vars(self)["_user"] = value
 
     @property
     def user(self):
         try:
-            return self.__dict__["_user"]
+            return vars(self)["_user"]
         except KeyError:
-            self.__dict__["_user"] = Identity()  # no claims, unauthenticated
-            return self.__dict__["_user"]
+            vars(self)["_user"] = Identity()  # no claims, unauthenticated
+            return vars(self)["_user"]
 
     @user.setter
     def user(self, value):
-        self.__dict__["_user"] = value
+        vars(self)["_user"] = value
 
     @property
     def scheme(self) -> str:
-        return self.__dict__.get("scheme") or (self.scope.get("scheme", "") if self.scope else "")
+        return vars(self).get("scheme") or (self.scope.get("scheme", "") if self.scope else "")
 
     @scheme.setter
     def scheme(self, value: str):
         # this can be set, for example when handling forward headers
-        self.__dict__["scheme"] = value
+        vars(self)["scheme"] = value
 
     @property
     def host(self) -> str:
-        if not self.__dict__.get("host"):
+        if not vars(self).get("host"):
             if self._url is not None and self._url.is_absolute:
-                self.__dict__["host"] = self._url.host.decode()
+                vars(self)["host"] = self._url.host.decode()
             else:
                 # default to host header
                 host_header = self.get_first_header(b'host')
                 if host_header is None:
                     raise BadRequest("Missing Host header")
-                self.__dict__["host"] = host_header.decode()
-        return self.__dict__["host"]
+                vars(self)["host"] = host_header.decode()
+        return vars(self)["host"]
 
     @host.setter
     def host(self, value: str) -> None:
         # this can be set, for example when handling forward headers
-        self.__dict__["host"] = value
+        vars(self)["host"] = value
 
     @property
     def path(self) -> str:
@@ -523,7 +523,7 @@ cdef class Request(Message):
         # 2. if a root_path is set in the ASGI scope, use it
         # 3. default to empty string otherwise
         try:
-            return self.__dict__["base_path"]
+            return vars(self)["base_path"]
         except KeyError:
             try:
                 return self.scope.get("root_path", "")
@@ -533,7 +533,7 @@ cdef class Request(Message):
     @base_path.setter
     def base_path(self, value: str):
         # this can be set, for example when handling forward headers
-        self.__dict__["base_path"] = value
+        vars(self)["base_path"] = value
 
     @property
     def client_ip(self) -> str:
@@ -544,14 +544,14 @@ cdef class Request(Message):
 
     @property
     def original_client_ip(self) -> str:
-        if "original_client_ip" in self.__dict__:
-            return self.__dict__["original_client_ip"]
+        if "original_client_ip" in vars(self):
+            return vars(self)["original_client_ip"]
 
         return self.client_ip
 
     @original_client_ip.setter
     def original_client_ip(self, value: str):
-        self.__dict__["original_client_ip"] = value
+        vars(self)["original_client_ip"] = value
 
     @property
     def session(self):
@@ -621,7 +621,7 @@ cdef class Request(Message):
             self._raw_query = None
         self._url = _url
         # unset the cached host
-        self.__dict__["host"] = None
+        vars(self)["host"] = None
         self.remove_header(b"host")
 
     def __repr__(self):

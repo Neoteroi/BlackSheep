@@ -243,7 +243,7 @@ cpdef bytes write_www_form_urlencoded(data: dict | list):
 
 cdef class FormContent(Content):
 
-    def __init__(self, data: Union[dict[str, str], list[tuple[str, str]]]):
+    def __init__(self, data):
         super().__init__(b'application/x-www-form-urlencoded', write_www_form_urlencoded(data))
 
 
@@ -520,7 +520,7 @@ cdef class FileBuffer:
         self.size = size
         self._charset = charset
 
-    async def stream(self, chunk_size: int = 131072) -> AsyncIterator[bytes]:
+    async def stream(self, chunk_size: int = 131072):
         """
         Async generator that yields the data in chunks.
 
@@ -691,7 +691,7 @@ cdef class MultiPartFormData(StreamedContent):
             data_length=-1,
         )
 
-    async def _generate_multipart_chunks(self) -> AsyncIterator[bytes]:
+    async def _generate_multipart_chunks(self):
         """Generate multipart/form-data content in chunks."""
         # Import the escape function from multipart module
         from blacksheep.multipart import _escape_quoted_string
